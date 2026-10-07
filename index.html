@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自在投影 Zizai Cast — iPhone／Android 無線投影到 Windows（免費開源）</title>
+<meta name="description" content="自在投影 Zizai Cast：免費開源的 Windows 手機投影。iPhone / iPad 用 AirPlay 免裝 App；Android 用投放（Miracast）或無線偵錯，可用滑鼠鍵盤操控手機。錄影、截圖、低延遲、最高 4K60。">
+<meta property="og:title" content="自在投影 Zizai Cast">
+<meta property="og:description" content="Free, open-source iPhone / Android screen mirroring for Windows. 免費開源的 Windows 手機投影。">
+<meta property="og:image" content="img/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/favicon.png">
+<style>
+  :root { --bg: #2A1C1F; --bg2: #221519; --card: #332226; --line: rgba(255,255,255,.09); --accent: #F5A7A7; --accent-ink: #3A1E24;
+          --ink: #FBEFF1; --dim: #CDB8BD; --mint: #8FE3C4; --night: #BBA9F7; --milk: #E3B98A; --r: 20px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg2); color: var(--ink); font: 17px/1.65 "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  html[lang=en] body { font-family: "Segoe UI", system-ui, -apple-system, "Microsoft JhengHei UI", sans-serif; }
+  a { color: var(--accent); }
+  img, video { max-width: 100%; display: block; }
+  .wrap { width: min(1160px, 100% - 40px); margin: 0 auto; }
+  [data-en] { } .en-only { display: none; } html[lang=en] .zh-only { display: none; } html[lang=en] .en-only { display: revert; }
+  /* nav */
+  nav { position: sticky; top: 0; z-index: 10; background: rgba(34,21,25,.82); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; gap: 18px; height: 62px; }
+  nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); text-decoration: none; font-size: 18px; }
+  nav .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  nav .links { display: flex; gap: 22px; margin-left: auto; font-size: 15px; }
+  nav .links a { color: var(--dim); text-decoration: none; } nav .links a:hover { color: var(--ink); }
+  .lang { border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--ink); border-radius: 99px; padding: 5px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+  .lang:hover { border-color: var(--accent); }
+  /* hero */
+  .hero { position: relative; overflow: hidden; padding: 72px 0 40px;
+    background: radial-gradient(60% 70% at 10% 0%, rgba(245,167,167,.20), transparent 60%), radial-gradient(50% 60% at 100% 90%, rgba(187,169,247,.14), transparent 60%), linear-gradient(170deg, #33212A, var(--bg) 55%, var(--bg2)); }
+  .hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
+  .pill { display: inline-block; padding: 6px 16px; border-radius: 99px; border: 1px solid rgba(245,167,167,.55); color: var(--accent); font-weight: 700; font-size: 14px; background: rgba(245,167,167,.07); }
+  h1 { font-size: clamp(44px, 6.2vw, 78px); line-height: 1.08; margin: 18px 0 6px; letter-spacing: 2px; font-weight: 800; }
+  h1 small { display: block; font: 600 .42em "Segoe UI", system-ui, sans-serif; color: var(--accent); letter-spacing: .5px; margin-top: 6px; }
+  .lead { font-size: clamp(18px, 2vw, 22px); color: var(--ink); margin: 18px 0 8px; font-weight: 600; }
+  .sub { color: var(--dim); }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 26px; border-radius: 14px; font-weight: 800; text-decoration: none; font-size: 17px; transition: transform .15s, box-shadow .15s; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 30px rgba(245,167,167,.25); }
+  .btn.primary:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(245,167,167,.35); }
+  .btn.ghost { border: 1px solid var(--line); color: var(--ink); background: rgba(255,255,255,.04); }
+  .btn.ghost:hover { border-color: var(--accent); }
+  .meta { font-size: 13.5px; color: var(--dim); }
+  .demo { position: relative; }
+  .demo video { width: 100%; border-radius: 18px; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px var(--line); background: #1e1418; aspect-ratio: 3 / 2; object-fit: cover; }
+  .demo .tt { position: absolute; width: 150px; left: -54px; bottom: -34px; filter: drop-shadow(0 14px 26px rgba(0,0,0,.4)); animation: bob 4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-8px); } }
+  @media (prefers-reduced-motion: reduce) { .demo .tt { animation: none; } html { scroll-behavior: auto; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { padding: 4px 12px; border-radius: 9px; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 14px; color: #f0dfe3; }
+  /* sections */
+  section { padding: 76px 0; }
+  section.alt { background: var(--bg); }
+  h2 { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.2; margin-bottom: 10px; }
+  .kicker { color: var(--accent); font-weight: 800; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
+  .intro { color: var(--dim); max-width: 720px; margin-bottom: 34px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; }
+  .stat b { display: block; font: 800 34px "Segoe UI", system-ui, sans-serif; color: var(--accent); }
+  .stat span { color: var(--dim); font-size: 14.5px; }
+  .fine { color: var(--dim); font-size: 13px; margin-top: 12px; }
+  .steps img { border-radius: var(--r); border: 1px solid var(--line); }
+  .ways { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+  .way { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; }
+  .way h3 { font-size: 19px; margin-bottom: 6px; } .way p { color: var(--dim); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feat { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; transition: transform .2s, border-color .2s; }
+  .feat:hover { transform: translateY(-3px); border-color: rgba(245,167,167,.4); }
+  .feat img { width: 100%; height: auto; aspect-ratio: 600 / 380; object-fit: cover; }
+  .hero .wrap > *, .two > *, .grid > *, .ways > *, .stats > * { min-width: 0; }
+  .feat div { padding: 16px 18px 20px; } .feat h3 { font-size: 18px; margin-bottom: 4px; } .feat p { color: var(--dim); font-size: 14.5px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 26px; }
+  .card ul { padding-left: 20px; color: var(--dim); } .card li { margin: 6px 0; } .card li b { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; width: 34%; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 700; } details p, details ul { color: var(--dim); margin-top: 8px; font-size: 15.5px; } details ul { padding-left: 20px; }
+  code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; font-size: .9em; }
+  .final { text-align: center; padding: 84px 0; background: radial-gradient(50% 80% at 50% 0%, rgba(245,167,167,.16), transparent 70%), var(--bg); }
+  .final img { width: 150px; margin: 0 auto 10px; }
+  .final .cta { justify-content: center; }
+  footer { padding: 34px 0 46px; color: var(--dim); font-size: 13.5px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: space-between; }
+  footer a { color: var(--dim); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  @media (max-width: 900px) {
+    .hero .wrap, .two { grid-template-columns: 1fr; }
+    .grid, .ways { grid-template-columns: 1fr 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    nav .links { display: none; }
+    nav .lang { margin-left: auto; }
+    .demo .tt { width: 96px; left: auto; right: -6px; bottom: -26px; }
+  }
+  @media (max-width: 560px) {
+    .wrap { width: calc(100% - 28px); }
+    .hero { padding-top: 40px; }
+    .grid, .ways { grid-template-columns: 1fr; }
+    section { padding: 56px 0; }
+    .btn { width: 100%; justify-content: center; }
+    th { width: 40%; }
+  }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="#"><img src="img/icon.png" alt=""><span class="zh-only">自在投影</span><span class="en-only">Zizai Cast</span></a>
+  <div class="links">
+    <a href="#features"><span class="zh-only">功能</span><span class="en-only">Features</span></a>
+    <a href="#how"><span class="zh-only">怎麼用</span><span class="en-only">How it works</span></a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/victor900106/ZizaiCast">GitHub</a>
+  </div>
+  <button class="lang" id="lang" type="button" aria-label="Switch language / 切換語言">English</button>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <span class="pill"><span class="zh-only">免費・開源・沒有廣告・免帳號</span><span class="en-only">Free · Open source · No ads · No account</span></span>
+    <h1><span class="zh-only">自在投影<small>Zizai Cast</small></span><span class="en-only">Zizai Cast<small>自在投影</small></span></h1>
+    <p class="lead"><span class="zh-only">把 iPhone、iPad、Android 手機畫面無線投影到 Windows 電腦。</span><span class="en-only">Mirror your iPhone, iPad or Android phone to a Windows PC — wirelessly.</span></p>
+    <p class="sub"><span class="zh-only">iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。錄影、截圖、低延遲，最高 4K / 60 fps。</span><span class="en-only">No app on the iPhone; drive an Android phone with your mouse and keyboard. Recording, screenshots, low latency, up to 4K / 60 fps.</span></p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/victor900106/ZizaiCast/releases/latest">⬇ <span class="zh-only">免費下載（Windows）</span><span class="en-only">Download for Windows</span></a>
+      <a class="btn ghost" href="https://github.com/victor900106/ZizaiCast">★ <span class="zh-only">GitHub 原始碼</span><span class="en-only">Source on GitHub</span></a>
+    </div>
+    <p class="meta"><span class="zh-only">Windows 10 / 11（64 位元）・GPL-3.0・介面：繁體中文 / English</span><span class="en-only">Windows 10 / 11 (64-bit) · GPL-3.0 · UI: English / 繁體中文</span></p>
+    <div class="chips"><span class="chip">AirPlay</span><span class="chip">Miracast</span><span class="chip">scrcpy</span><span class="chip">H.264 / H.265</span><span class="chip">MP4</span></div>
+  </div>
+  <div class="demo">
+    <video id="demo" autoplay muted loop playsinline preload="metadata" poster="img/demo-poster-zh.jpg" aria-label="示範影片 / Demo video">
+      <source src="img/demo-zh.mp4" type="video/mp4">
+    </video>
+    <img class="tt" src="img/toutou_happy.png" alt="">
+  </div>
+</div></header>
+
+<section class="alt"><div class="wrap">
+  <p class="kicker"><span class="zh-only">實測</span><span class="en-only">Measured</span></p>
+  <h2><span class="zh-only">快、清楚、穩定</span><span class="en-only">Fast, sharp, stable</span></h2>
+  <div class="stats">
+    <div class="stat"><b>≈3 ms</b><span class="zh-only">電腦端 解碼 → 顯示（H.264 硬體解碼）</span><span class="en-only">PC decode → display (H.264, hardware)</span></div>
+    <div class="stat"><b>4K60</b><span class="zh-only">最高 3840×2160、60 fps（H.265）</span><span class="en-only">up to 3840×2160 at 60 fps (H.265)</span></div>
+    <div class="stat"><b>&lt;50 ms</b><span class="zh-only">音訊恢復</span><span class="en-only">audio resume</span></div>
+    <div class="stat"><b>61 min</b><span class="zh-only">長時間測試，無記憶體洩漏</span><span class="en-only">soak test, no leaks</span></div>
+  </div>
+  <p class="fine"><span class="zh-only">開發者在一台電腦上的實測（RTX 3060 Ti，2026 年 10 月）；整體延遲還包含手機編碼與 Wi‑Fi，會依設備與網路而不同。</span><span class="en-only">Developer measurements on one PC (RTX 3060 Ti, October 2026). End-to-end latency also includes the phone's encoder and Wi‑Fi and varies by device and network.</span></p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <p class="kicker"><span class="zh-only">怎麼用</span><span class="en-only">How it works</span></p>
+  <h2><span class="zh-only">3 步驟開始</span><span class="en-only">Three steps</span></h2>
+  <p class="intro"><span class="zh-only">安裝後手機和電腦連同一個 Wi‑Fi，從手機選「自在投影」就好。第一次開啟時 Windows 防火牆詢問，請允許「私人網路」。</span><span class="en-only">Install, put phone and PC on the same Wi‑Fi, and pick “Zizai Cast” on the phone. Allow Private networks when Windows Firewall asks the first time.</span></p>
+  <div class="steps"><img class="zh-only" src="img/steps.jpg" alt="1 打開控制中心點螢幕鏡像 2 選自在投影 3 電腦出現手機畫面" loading="lazy"><img class="en-only" src="img/steps-en.jpg" alt="1 Open Control Center 2 Pick Zizai Cast 3 Your phone appears on the PC" loading="lazy"></div>
+  <div class="ways">
+    <div class="way"><h3>🍎 iPhone / iPad</h3><p class="zh-only">控制中心 →「螢幕鏡像」→「自在投影」。畫面＋聲音，免裝 App。</p><p class="en-only">Control Center → Screen Mirroring → Zizai Cast. Picture and sound, no app.</p></div>
+    <div class="way"><h3>🤖 <span class="zh-only">Android 投放</span><span class="en-only">Android Cast</span></h3><p class="zh-only">快速設定「投放／Smart View」→「自在投影」。電腦需 Windows「無線顯示器」功能。</p><p class="en-only">Quick Settings → Cast / Smart View → Zizai Cast. The PC needs the Windows “Wireless Display” feature.</p></div>
+    <div class="way"><h3>🖱️ <span class="zh-only">Android 電腦操控</span><span class="en-only">Android with PC control</span></h3><p class="zh-only">Android 11 以上開「無線偵錯」，掃電腦上的 QR 碼；之後自動重連。</p><p class="en-only">Android 11+: turn on Wireless debugging and scan the QR code on the PC; reconnects automatically.</p></div>
+  </div>
+</div></section>
+
+<section id="features" class="alt"><div class="wrap">
+  <p class="kicker"><span class="zh-only">功能</span><span class="en-only">Features</span></p>
+  <h2><span class="zh-only">該有的都有，沒有多餘的</span><span class="en-only">Everything you need, nothing you don't</span></h2>
+  <p class="intro"><span class="zh-only">以下都是程式的實際畫面；手機內容是示範用的合成畫面。</span><span class="en-only">All images show the real app; the phone content is a synthetic demo screen.</span></p>
+  <div class="grid" id="grid"></div>
+</div></section>
+
+<section><div class="wrap two">
+  <div>
+    <p class="kicker"><span class="zh-only">隱私</span><span class="en-only">Privacy</span></p>
+    <h2><span class="zh-only">資料不出你家網路</span><span class="en-only">Your screen stays on your network</span></h2>
+    <p class="sub zh-only">畫面、聲音、錄影、截圖都只在你的區域網路和電腦裡。沒有遙測、沒有分析、沒有廣告、不用帳號。</p>
+    <p class="sub en-only">Picture, sound, recordings and screenshots stay on your LAN and your PC. No telemetry, no analytics, no ads, no account.</p>
+  </div>
+  <div class="card"><ul class="zh-only">
+    <li><b>唯一的對外連線是檢查更新：</b>啟動 30 秒後、之後每天一次，向 GitHub 讀取 <code>update.json</code>（不帶任何裝置資訊）。</li>
+    <li><b>不會自己更新：</b>只有你按「更新到 vX.Y.Z」才下載安裝程式，並以 SHA-256 驗證。</li>
+    <li><b>可以完全關閉：</b>在 <code>settings.ini</code> 加上 <code>update_url=</code>。</li>
+    <li><b>原始碼公開：</b>GPL-3.0，每個版本都附完整原始碼。</li>
+  </ul><ul class="en-only">
+    <li><b>The only internet access is the update check:</b> 30 s after start, then daily, it reads <code>update.json</code> from GitHub (no device information).</li>
+    <li><b>Never updates by itself:</b> the installer is downloaded only when you click “Update to vX.Y.Z”, and verified with SHA-256.</li>
+    <li><b>Can be turned off:</b> add <code>update_url=</code> to <code>settings.ini</code>.</li>
+    <li><b>Open source:</b> GPL-3.0, full source attached to every release.</li>
+  </ul></div>
+</div></section>
+
+<section class="alt"><div class="wrap two">
+  <div>
+    <p class="kicker"><span class="zh-only">需求</span><span class="en-only">Requirements</span></p>
+    <h2><span class="zh-only">系統需求</span><span class="en-only">What you need</span></h2>
+    <img class="zh-only" src="img/phone-pc.jpg" alt="手機與電腦連同一個 Wi‑Fi" loading="lazy" style="border-radius:20px;margin-top:18px">
+    <img class="en-only" src="img/phone-pc-en.jpg" alt="Phone and PC on the same Wi‑Fi" loading="lazy" style="border-radius:20px;margin-top:18px">
+  </div>
+  <div class="card">
+    <table class="zh-only">
+      <tr><th>電腦</th><td>Windows 10 / 11，64 位元</td></tr>
+      <tr><th>網路</th><td>手機和電腦同一個區域網路（建議 5 GHz Wi‑Fi）</td></tr>
+      <tr><th>iPhone / iPad</th><td>有「螢幕鏡像」即可，免裝 App</td></tr>
+      <tr><th>Android 投放</th><td>手機支援投放／Smart View；電腦需「無線顯示器」功能與支援的 Wi‑Fi 網卡（Pixel 不支援 Miracast）</td></tr>
+      <tr><th>Android 電腦操控</th><td>Android 11 以上，開啟無線偵錯</td></tr>
+      <tr><th>1440p / 4K</th><td>需要 HEVC 影片延伸模組，否則自動用 1080p</td></tr>
+    </table>
+    <table class="en-only">
+      <tr><th>PC</th><td>Windows 10 / 11, 64-bit</td></tr>
+      <tr><th>Network</th><td>Phone and PC on the same LAN (5 GHz Wi‑Fi recommended)</td></tr>
+      <tr><th>iPhone / iPad</th><td>Screen Mirroring — no app needed</td></tr>
+      <tr><th>Android Cast</th><td>Phone with Cast / Smart View; PC with the “Wireless Display” feature and a supporting Wi‑Fi adapter (Pixel phones don't do Miracast)</td></tr>
+      <tr><th>Android control</th><td>Android 11+ with Wireless debugging</td></tr>
+      <tr><th>1440p / 4K</th><td>HEVC Video Extensions; otherwise 1080p</td></tr>
+    </table>
+  </div>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <p class="kicker">FAQ</p>
+  <h2><span class="zh-only">常見問題</span><span class="en-only">Questions</span></h2>
+  <div class="zh-only">
+    <details><summary>安裝時出現「Windows 已保護您的電腦」？</summary><p>安裝程式目前沒有數位簽章，請按「其他資訊」→「仍要執行」。也可以從 Release 頁面下載原始碼自己建置。</p></details>
+    <details><summary>iPhone 找不到自在投影？</summary><ul><li>手機和電腦要在同一個 Wi‑Fi（不是訪客網路）。</li><li>Windows 防火牆要允許「私人網路」。</li><li>先關掉 VPN；同一台電腦只能有一個 AirPlay 接收程式。</li></ul></details>
+    <details><summary>可以用電腦操控 iPhone 嗎？</summary><p>不行，AirPlay 只傳畫面和聲音。用電腦操控只支援 Android（無線偵錯）。</p></details>
+    <details><summary>看 Netflix 等影片是黑畫面？</summary><p>有 DRM 保護的影片在鏡像時會被手機本身遮黑，任何接收程式都無法繞過。</p></details>
+    <details><summary>Android 投放（Miracast）不能用？</summary><p>電腦要安裝 Windows 選用功能「無線顯示器」並重新開機，Wi‑Fi 網卡也要支援（<code>netsh wlan show drivers</code>）。不行就改用無線偵錯。</p></details>
+    <details><summary>真的免費嗎？</summary><p>是的：GPL-3.0 開源、沒有付費版、沒有廣告、不收集資料。喜歡的話請到 GitHub 按 ⭐。</p></details>
+  </div>
+  <div class="en-only">
+    <details><summary>“Windows protected your PC” when installing?</summary><p>The installer isn't code-signed yet. Click More info → Run anyway, or build from the source zip on the release page.</p></details>
+    <details><summary>The iPhone doesn't see Zizai Cast?</summary><ul><li>Same Wi‑Fi (not a guest network).</li><li>Allow the app on Private networks in Windows Firewall.</li><li>Turn VPNs off; only one AirPlay receiver can run per PC.</li></ul></details>
+    <details><summary>Can I control the iPhone from the PC?</summary><p>No — AirPlay carries picture and sound only. PC control works for Android (wireless debugging).</p></details>
+    <details><summary>Netflix shows a black screen?</summary><p>DRM-protected video is blacked out by the phone itself during mirroring; no receiver can bypass that.</p></details>
+    <details><summary>Android Cast (Miracast) doesn't work?</summary><p>Install the Windows optional feature “Wireless Display”, reboot, and check your Wi‑Fi adapter (<code>netsh wlan show drivers</code>). Otherwise use wireless debugging.</p></details>
+    <details><summary>Is it really free?</summary><p>Yes: GPL-3.0, no paid tier, no ads, no data collection. A ⭐ on GitHub helps others find it.</p></details>
+  </div>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <img src="img/toutou_idle.png" alt="">
+  <h2><span class="zh-only">讓手機畫面，自在地出現在電腦上</span><span class="en-only">Your phone, on your PC — effortlessly</span></h2>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/victor900106/ZizaiCast/releases/latest">⬇ <span class="zh-only">免費下載</span><span class="en-only">Download free</span></a>
+    <a class="btn ghost" href="https://github.com/victor900106/ZizaiCast">⭐ <span class="zh-only">在 GitHub 按 Star</span><span class="en-only">Star on GitHub</span></a>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <span><span class="zh-only">自在投影 Zizai Cast・GPL-3.0 自由軟體・吉祥物「投投」為本專案原創角色</span><span class="en-only">Zizai Cast (自在投影) · GPL-3.0 free software · the mascot Toutou is original to this project</span></span>
+  <span><a href="https://github.com/victor900106/ZizaiCast/issues/new/choose"><span class="zh-only">回報問題</span><span class="en-only">Report a bug</span></a> · <a href="https://github.com/victor900106/ZizaiCast/releases"><span class="zh-only">所有版本與原始碼</span><span class="en-only">All releases & source</span></a></span>
+  <span class="zh-only">感謝 UxPlay、scrcpy、FFmpeg 等開源專案。</span><span class="en-only">Built on UxPlay, scrcpy, FFmpeg and other open-source projects.</span>
+</div></footer>
+
+<script>
+const FEATS = [
+  ['f-iphone', '🍎 iPhone / iPad 鏡像', 'AirPlay 螢幕鏡像，免裝 App，畫面＋聲音。', '🍎 iPhone / iPad mirroring', 'AirPlay screen mirroring with sound, no app.'],
+  ['f-miracast', '🤖 Android 投放', '手機內建的「投放／Smart View」直接選。', '🤖 Android Cast', "Pick it from the phone's Cast / Smart View tile."],
+  ['f-control', '🖱️ 電腦操控 Android', '點擊、滑動、捲動、返回、鍵盤打字。', '🖱️ Control Android', 'Tap, swipe, scroll, back and type from the PC.'],
+  ['f-qr', '📷 掃 QR 配對', 'Android 11+ 掃一下就配對，之後自動重連。', '📷 QR pairing', 'Android 11+: scan once, reconnects automatically.'],
+  ['f-record', '⏺ 錄影', 'Ctrl+R 錄成 MP4（60 fps、含聲音）。', '⏺ Recording', 'Ctrl+R records MP4 (60 fps, with audio).'],
+  ['f-shot', '📸 截圖', 'Ctrl+S 一鍵存 PNG。', '📸 Screenshots', 'Ctrl+S saves a PNG.'],
+  ['f-frame', '📱 iPhone 外框', '教學、簡報示範更好看。', '📱 iPhone frame', 'Great for tutorials and demos.'],
+  ['f-rotate', '🔄 橫向・旋轉', '手機轉橫向，視窗自動跟著轉。', '🔄 Landscape & rotation', 'Turn the phone — the window follows.'],
+  ['f-themes', '🎨 4 種主題', '櫻花粉、薄荷綠、夜空藍、奶茶，投投陪你等。', '🎨 4 themes', 'Sakura, Mint, Night, Milk tea — with Toutou.'],
+  ['f-takeover', '👥 多手機接手', '新手機可以接手，或保持目前。', '👥 Multi-phone takeover', 'Let a new phone take over, or keep the current one.'],
+  ['f-pin', '🔒 PIN 碼', '新 iPhone 要輸入電腦上的 PIN（示意圖）。', '🔒 PIN', 'New iPhones enter the PIN shown on the PC (illustration).'],
+  ['f-language', '🌐 中文／English', '介面可切換繁體中文或英文。', '🌐 English / 中文', 'English or Traditional Chinese UI.'],
+];
+const grid = document.getElementById('grid');
+function renderGrid(en) {
+  grid.innerHTML = FEATS.map(([id, zt, zd, et, ed]) => `<article class="feat"><img src="img/${id}${en ? '-en' : ''}.jpg" alt="${en ? et : zt}" loading="lazy" width="600" height="380"><div><h3>${en ? et : zt}</h3><p>${en ? ed : zd}</p></div></article>`).join('');
+}
+function setLang(l) {
+  const en = l === 'en';
+  document.documentElement.lang = en ? 'en' : 'zh-Hant';
+  document.getElementById('lang').textContent = en ? '繁體中文' : 'English';
+  document.title = en ? 'Zizai Cast — free iPhone / Android screen mirroring for Windows' : '自在投影 Zizai Cast — iPhone／Android 無線投影到 Windows（免費開源）';
+  const v = document.getElementById('demo');
+  const src = `img/demo-${en ? 'en' : 'zh'}.mp4`;
+  if (!v.currentSrc.endsWith(src)) { v.poster = `img/demo-poster-${en ? 'en' : 'zh'}.jpg`; v.querySelector('source').src = src; v.load(); v.play().catch(() => {}); }
+  renderGrid(en);
+  try { localStorage.setItem('zc-lang', l); } catch {}
+  if (location.hash !== (en ? '#en' : '') && (location.hash === '#en' || en)) history.replaceState(null, '', en ? '#en' : location.pathname);
+}
+document.getElementById('lang').addEventListener('click', () => setLang(document.documentElement.lang === 'en' ? 'zh' : 'en'));
+let initial = 'zh';
+try { initial = localStorage.getItem('zc-lang') || (location.hash === '#en' || !/^zh/i.test(navigator.language) ? 'en' : 'zh'); } catch {}
+if (new URLSearchParams(location.search).get('lang')) initial = new URLSearchParams(location.search).get('lang');
+setLang(initial);
+</script>
+</body>
+</html>
