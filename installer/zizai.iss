@@ -1,17 +1,19 @@
-﻿; 自在投影 / Zizai Cast installer (Inno Setup 6), Traditional Chinese + English. Build:
+﻿; 自在投影 / Zizai Cast installer (Inno Setup 6), Traditional Chinese, English,
+; Japanese and Korean (0.7.0). Build:
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" installer\zizai.iss
 ; Optional: /DBuildDir=<dir with 自在投影.exe and its DLLs> (default ..\build-app\bin\Release)
 ; No admin rights needed; installs per user into a folder on the desktop
-; (手機投影 in Chinese, Zizai Cast in English). The language follows the
-; Windows display language (zh-* -> 繁體中文, else English); /LANG=english or
-; /LANG=chinesetrad forces one (the app passes its own UI language on updates).
+; (手機投影 in Chinese, Zizai Cast otherwise). The language follows the
+; Windows display language (zh-* -> 繁體中文, ja-* -> 日本語, ko-* -> 한국어,
+; else English); /LANG=english|chinesetrad|japanese|korean forces one (the
+; app passes its own UI language on updates).
 
 ; Product name in the installer's VERSIONINFO (ProductName): stays 自在投影 in
 ; every language, the app's 本機更新 check reads it (app/updater.cpp).
 #define AppName "自在投影"
 ; /DAppVersion=x.y.z overrides it (fake newer installers for updater tests).
 #ifndef AppVersion
-  #define AppVersion "0.6.2"
+  #define AppVersion "0.7.2"
 #endif
 #define AppExe "自在投影.exe"
 #ifndef BuildDir
@@ -74,6 +76,9 @@ MissingMessagesWarning=no
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesetrad"; MessagesFile: "ChineseTraditional.isl"
+; 0.7.0: official Inno Setup translations (compiler:Languages\).
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [CustomMessages]
 chinesetrad.AppName=自在投影
@@ -92,6 +97,22 @@ chinesetrad.Uninstall=解除安裝自在投影
 english.Uninstall=Uninstall Zizai Cast
 chinesetrad.LaunchApp=立即啟動自在投影
 english.LaunchApp=Launch Zizai Cast now
+japanese.AppName=Zizai Cast
+korean.AppName=Zizai Cast
+japanese.DefaultFolder=Zizai Cast
+korean.DefaultFolder=Zizai Cast
+japanese.AutoStart=Windows の起動時に Zizai Cast を自動的に開始する（通知領域で実行）
+korean.AutoStart=Windows 시작 시 Zizai Cast 자동 실행(알림 영역에서 실행)
+japanese.Readme=Read Me（英語）
+korean.Readme=Read Me(영어)
+japanese.Tutorial=使い方ガイド
+korean.Tutorial=사용 가이드
+japanese.Licenses=ライセンス
+korean.Licenses=라이선스
+japanese.Uninstall=Zizai Cast のアンインストール
+korean.Uninstall=Zizai Cast 제거
+japanese.LaunchApp=今すぐ Zizai Cast を起動する
+korean.LaunchApp=지금 Zizai Cast 실행
 
 [Tasks]
 Name: "autostart"; Description: "{cm:AutoStart}"; Flags: unchecked
@@ -117,25 +138,36 @@ Type: files; Name: "{app}\解除安裝.lnk"
 ; Up to 0.5.3 the AAC decoder was fdk-aac (GPL-incompatible licence); 0.6.0
 ; uses FFmpeg's libavcodec (LGPL). Remove the old DLL on upgrade.
 Type: files; Name: "{app}\程式\fdk-aac.dll"
-; The other language's top-level shortcuts / readme / guide (an update or a
-; reinstall in the other language).
+; The other languages' top-level shortcuts / readme / guide (an update or a
+; reinstall in another language). 日本語 / 한국어 use the English readme and
+; the "Zizai Cast" shortcut name, like English.
+Type: files; Name: "{app}\自在投影.lnk"; Languages: english japanese korean
+Type: files; Name: "{app}\解除安裝自在投影.lnk"; Languages: english japanese korean
+Type: files; Name: "{app}\授權資訊.lnk"; Languages: english japanese korean
+Type: files; Name: "{app}\使用說明.txt"; Languages: english japanese korean
+Type: files; Name: "{app}\自在投影教學.html"; Languages: english japanese korean
 Type: files; Name: "{app}\Zizai Cast.lnk"; Languages: chinesetrad
-Type: files; Name: "{app}\Uninstall Zizai Cast.lnk"; Languages: chinesetrad
-Type: files; Name: "{app}\Licenses.lnk"; Languages: chinesetrad
 Type: files; Name: "{app}\Read Me.txt"; Languages: chinesetrad
-Type: files; Name: "{app}\ZizaiCast-Guide.html"; Languages: chinesetrad
-Type: files; Name: "{app}\自在投影.lnk"; Languages: english
-Type: files; Name: "{app}\解除安裝自在投影.lnk"; Languages: english
-Type: files; Name: "{app}\授權資訊.lnk"; Languages: english
-Type: files; Name: "{app}\使用說明.txt"; Languages: english
-Type: files; Name: "{app}\自在投影教學.html"; Languages: english
+Type: files; Name: "{app}\Uninstall Zizai Cast.lnk"; Languages: chinesetrad japanese korean
+Type: files; Name: "{app}\Licenses.lnk"; Languages: chinesetrad japanese korean
+Type: files; Name: "{app}\ZizaiCast-Guide.html"; Languages: chinesetrad japanese korean
+Type: files; Name: "{app}\Zizai Cast のアンインストール.lnk"; Languages: chinesetrad english korean
+Type: files; Name: "{app}\ライセンス.lnk"; Languages: chinesetrad english korean
+Type: files; Name: "{app}\ZizaiCast-Guide-ja.html"; Languages: chinesetrad english korean
+Type: files; Name: "{app}\Zizai Cast 제거.lnk"; Languages: chinesetrad english japanese
+Type: files; Name: "{app}\라이선스.lnk"; Languages: chinesetrad english japanese
+Type: files; Name: "{app}\ZizaiCast-Guide-ko.html"; Languages: chinesetrad english japanese
 #ifndef TestAppId
 Type: files; Name: "{autoprograms}\Zizai Cast.lnk"; Languages: chinesetrad
-Type: files; Name: "{autoprograms}\Zizai Cast Read Me.lnk"; Languages: chinesetrad
-Type: files; Name: "{autoprograms}\Zizai Cast User Guide.lnk"; Languages: chinesetrad
-Type: files; Name: "{autoprograms}\自在投影.lnk"; Languages: english
-Type: files; Name: "{autoprograms}\自在投影 使用說明.lnk"; Languages: english
-Type: files; Name: "{autoprograms}\自在投影 使用教學.lnk"; Languages: english
+Type: files; Name: "{autoprograms}\Zizai Cast Read Me.lnk"; Languages: chinesetrad japanese korean
+Type: files; Name: "{autoprograms}\Zizai Cast User Guide.lnk"; Languages: chinesetrad japanese korean
+Type: files; Name: "{autoprograms}\Zizai Cast 使い方ガイド.lnk"; Languages: chinesetrad english korean
+Type: files; Name: "{autoprograms}\Zizai Cast 사용 가이드.lnk"; Languages: chinesetrad english japanese
+Type: files; Name: "{autoprograms}\Zizai Cast Read Me（英語）.lnk"; Languages: chinesetrad english korean
+Type: files; Name: "{autoprograms}\Zizai Cast Read Me(영어).lnk"; Languages: chinesetrad english japanese
+Type: files; Name: "{autoprograms}\自在投影.lnk"; Languages: english japanese korean
+Type: files; Name: "{autoprograms}\自在投影 使用說明.lnk"; Languages: english japanese korean
+Type: files; Name: "{autoprograms}\自在投影 使用教學.lnk"; Languages: english japanese korean
 #endif
 
 [Files]
@@ -147,8 +179,16 @@ Source: "{#BuildDir}\avutil-61.dll"; DestDir: "{app}\程式"; Flags: ignoreversi
 Source: "{#BuildDir}\libcrypto-3-x64.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\plist-2.0.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\pthreadVC3.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+; 翻譯 (0.7.0): the offline translation engine (MPL-2.0, static CRT, system DLLs
+; only), loaded at run time. The translation models are NOT bundled: the app
+; downloads them after asking (%LOCALAPPDATA%\PhoneMirror\models).
+Source: "{#BuildDir}\bergamot.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+; 翻譯 OCR (0.7.0): ONNX Runtime 1.30.0 (MIT, official CPU build, unmodified) runs the
+; PaddleOCR text recognition models; the models are NOT bundled (downloaded after asking).
+Source: "{#BuildDir}\onnxruntime.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 ; VC++ runtime, app-local (copied next to the exe by app/CMakeLists.txt)
 Source: "{#BuildDir}\msvcp140.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "{#BuildDir}\msvcp140_1.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\vcruntime140.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\vcruntime140_1.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}\程式"; DestName: "LICENSE.txt"; Flags: ignoreversion
@@ -157,6 +197,7 @@ Source: "..\LICENSE"; DestDir: "{app}\程式"; DestName: "LICENSE.txt"; Flags: i
 Source: "..\docs\licenses\第三方授權.txt"; DestDir: "{app}\程式\licenses"; Flags: ignoreversion
 Source: "..\docs\licenses\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}\程式\licenses"; Flags: ignoreversion
 Source: "..\docs\licenses\SOURCE.md"; DestDir: "{app}\程式\licenses"; Flags: ignoreversion
+Source: "..\docs\licenses\onnxruntime\*"; DestDir: "{app}\程式\licenses\onnxruntime"; Flags: ignoreversion
 ; Android (wireless debugging): adb.exe + AdbWinApi/AdbWinUsbApi.dll (NOTICE.txt),
 ; scrcpy-server (LICENSE-scrcpy.txt) and LICENSE-qrcodegen.txt, copied to
 ; <bin>\android-tools by app/CMakeLists.txt (android/third_party/fetch_tools.ps1).
@@ -165,11 +206,15 @@ Source: "{#BuildDir}\android-tools\*"; DestDir: "{app}\程式\android-tools"; Fl
 ; UI language, which can be switched any time) ...
 Source: "..\docs\tutorial\自在投影教學.html"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "..\docs\tutorial\ZizaiCast-Guide.html"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "..\docs\tutorial\ZizaiCast-Guide-ja.html"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "..\docs\tutorial\ZizaiCast-Guide-ko.html"; DestDir: "{app}\程式"; Flags: ignoreversion
 ; ... and the setup language's guide + short readme at the top level.
 Source: "..\docs\tutorial\自在投影教學.html"; DestDir: "{app}"; Flags: ignoreversion; Languages: chinesetrad
 Source: "..\docs\tutorial\使用說明.txt"; DestDir: "{app}"; Flags: ignoreversion; Languages: chinesetrad
 Source: "..\docs\tutorial\ZizaiCast-Guide.html"; DestDir: "{app}"; Flags: ignoreversion; Languages: english
-Source: "..\docs\tutorial\ZizaiCast-ReadMe.txt"; DestDir: "{app}"; DestName: "Read Me.txt"; Flags: ignoreversion; Languages: english
+Source: "..\docs\tutorial\ZizaiCast-ReadMe.txt"; DestDir: "{app}"; DestName: "Read Me.txt"; Flags: ignoreversion; Languages: english japanese korean
+Source: "..\docs\tutorial\ZizaiCast-Guide-ja.html"; DestDir: "{app}"; Flags: ignoreversion; Languages: japanese
+Source: "..\docs\tutorial\ZizaiCast-Guide-ko.html"; DestDir: "{app}"; Flags: ignoreversion; Languages: korean
 
 [Icons]
 ; Test builds (/DTestAppId) skip the Start menu: same names as the real
@@ -180,6 +225,9 @@ Name: "{autoprograms}\{cm:AppName} {cm:Readme}"; Filename: "{app}\使用說明.t
 Name: "{autoprograms}\{cm:AppName} {cm:Tutorial}"; Filename: "{app}\自在投影教學.html"; Languages: chinesetrad
 Name: "{autoprograms}\{cm:AppName} {cm:Readme}"; Filename: "{app}\Read Me.txt"; Languages: english
 Name: "{autoprograms}\{cm:AppName} {cm:Tutorial}"; Filename: "{app}\ZizaiCast-Guide.html"; Languages: english
+Name: "{autoprograms}\{cm:AppName} {cm:Readme}"; Filename: "{app}\Read Me.txt"; Languages: japanese korean
+Name: "{autoprograms}\{cm:AppName} {cm:Tutorial}"; Filename: "{app}\ZizaiCast-Guide-ja.html"; Languages: japanese
+Name: "{autoprograms}\{cm:AppName} {cm:Tutorial}"; Filename: "{app}\ZizaiCast-Guide-ko.html"; Languages: korean
 #endif
 
 Name: "{app}\{cm:AppName}"; Filename: "{app}\程式\{#AppExe}"; WorkingDir: "{app}\程式"
