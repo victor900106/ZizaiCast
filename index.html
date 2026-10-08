@@ -131,7 +131,7 @@
       <a class="btn primary" href="download/zizai-setup-latest.exe">⬇ <span class="zh-only">免費下載（Windows）</span><span class="en-only">Download for Windows</span></a>
       <a class="btn ghost" href="https://github.com/victor900106/ZizaiCast">★ <span class="zh-only">GitHub 原始碼</span><span class="en-only">Source on GitHub</span></a>
     </div>
-    <p class="meta"><span class="zh-only">Windows 10 / 11（64 位元）・GPL-3.0・介面：繁體中文 / English</span><span class="en-only">Windows 10 / 11 (64-bit) · GPL-3.0 · UI: English / 繁體中文</span></p>
+    <p class="meta"><span class="zh-only">最新版 v0.7.2・Windows 10 / 11（64 位元）・GPL-3.0・介面：繁體中文 / English / 日本語 / 한국어</span><span class="en-only">Latest: v0.7.2 · Windows 10 / 11 (64-bit) · GPL-3.0 · UI: English / 繁體中文 / 日本語 / 한국어</span></p>
     <div class="chips"><span class="chip">AirPlay</span><span class="chip">Miracast</span><span class="chip">scrcpy</span><span class="chip">H.264 / H.265</span><span class="chip">MP4</span></div>
   </div>
   <div class="demo">
@@ -154,7 +154,18 @@
   <p class="fine"><span class="zh-only">開發者在一台電腦上的實測（RTX 3060 Ti，2026 年 10 月）；整體延遲還包含手機編碼與 Wi‑Fi，會依設備與網路而不同。</span><span class="en-only">Developer measurements on one PC (RTX 3060 Ti, October 2026). End-to-end latency also includes the phone's encoder and Wi‑Fi and varies by device and network.</span></p>
 </div></section>
 
-<section id="how"><div class="wrap">
+<section id="new"><div class="wrap">
+  <p class="kicker"><span class="zh-only">v0.7.2 新功能</span><span class="en-only">New in v0.7.2</span></p>
+  <h2><span class="zh-only">看得更清楚、看得懂、傳得更快</span><span class="en-only">See it bigger, read it, send it</span></h2>
+  <div class="ways">
+    <div class="way"><h3>🔍 <span class="zh-only">放大鏡</span><span class="en-only">Magnifier</span></h3><p class="zh-only">最多放大 8 倍（Ctrl+滾輪），小地圖可拖曳；弱視濾鏡：加強對比、黑白、反轉、黃字黑底（Ctrl+K）；凍結畫面（Ctrl+P）。</p><p class="en-only">Zoom up to 8× (Ctrl+wheel) with a draggable overview; low-vision colours: more contrast, greyscale, inverted, yellow on black (Ctrl+K); freeze the picture (Ctrl+P).</p></div>
+    <div class="way"><h3>🈯 <span class="zh-only">畫面翻譯</span><span class="en-only">On-screen translation</span></h3><p class="zh-only">Ctrl+L 翻譯畫面上的英文、日文、韓文、簡體中文，連手機相機拍到的包裝、招牌、菜單也行。內建文字辨識（OCR），在電腦上離線執行，文字不會上傳。</p><p class="en-only">Ctrl+L translates English, Japanese, Korean and Simplified Chinese on screen — even packaging, signs and menus seen through the phone camera. Built-in text recognition (OCR) runs offline on your PC; no text is uploaded.</p></div>
+    <div class="way"><h3>📤 <span class="zh-only">傳到手機</span><span class="en-only">Send to phone</span></h3><p class="zh-only">截圖、錄影一次勾選多張傳到手機：Android（無線偵錯）直接存進相簿，iPhone 掃 QR 碼儲存（同一個 Wi‑Fi）。</p><p class="en-only">Send several screenshots and recordings at once: straight into the gallery on Android (wireless debugging), or scan a QR code on an iPhone (same Wi‑Fi).</p></div>
+  </div>
+  <p class="fine"><span class="zh-only">介面和安裝程式新增日本語與한국어；有新版時會顯示更新內容，可立即更新、稍後提醒或略過。</span><span class="en-only">The app and installer now also speak 日本語 and 한국어; a new update window shows what changed, with Update now, Remind me later or Skip.</span></p>
+</div></section>
+
+<section id="how" style="border-top: 1px solid var(--line)"><div class="wrap">
   <p class="kicker"><span class="zh-only">怎麼用</span><span class="en-only">How it works</span></p>
   <h2><span class="zh-only">3 步驟開始</span><span class="en-only">Three steps</span></h2>
   <p class="intro"><span class="zh-only">安裝後手機和電腦連同一個 Wi‑Fi，從手機選「自在投影」就好。第一次開啟時 Windows 防火牆詢問，請允許「私人網路」。</span><span class="en-only">Install, put phone and PC on the same Wi‑Fi, and pick “Zizai Cast” on the phone. Allow Private networks when Windows Firewall asks the first time.</span></p>
@@ -181,12 +192,16 @@
     <p class="sub en-only">Picture, sound, recordings and screenshots stay on your LAN and your PC. No telemetry, no analytics, no ads, no account.</p>
   </div>
   <div class="card"><ul class="zh-only">
-    <li><b>唯一的對外連線是檢查更新：</b>啟動 30 秒後、之後每天一次，向 GitHub 讀取 <code>update.json</code>（不帶任何裝置資訊）。</li>
+    <li><b>平常唯一的對外連線是檢查更新：</b>啟動 30 秒後、之後每天一次，向 GitHub 讀取 <code>update.json</code>（不帶任何裝置資訊）。</li>
+    <li><b>畫面翻譯在電腦上離線執行：</b>文字不會上傳；第一次使用前會先問你，同意後才下載翻譯與文字辨識模型。</li>
+    <li><b>傳到手機只在區域網路：</b>Android 經無線偵錯直接傳，iPhone 掃 QR 碼從這台電腦下載，不經過任何伺服器。</li>
     <li><b>不會自己更新：</b>只有你按「更新到 vX.Y.Z」才下載安裝程式，並以 SHA-256 驗證。</li>
     <li><b>可以完全關閉：</b>在 <code>settings.ini</code> 加上 <code>update_url=</code>。</li>
     <li><b>原始碼公開：</b>GPL-3.0，每個版本都附完整原始碼。</li>
   </ul><ul class="en-only">
-    <li><b>The only internet access is the update check:</b> 30 s after start, then daily, it reads <code>update.json</code> from GitHub (no device information).</li>
+    <li><b>The only routine internet access is the update check:</b> 30 s after start, then daily, it reads <code>update.json</code> from GitHub (no device information).</li>
+    <li><b>Translation runs offline on your PC:</b> no text is uploaded; the app asks before it downloads the translation and text-recognition models the first time.</li>
+    <li><b>Send to phone stays on your LAN:</b> Android gets files over wireless debugging, an iPhone scans a QR code and downloads from this PC — no server in between.</li>
     <li><b>Never updates by itself:</b> the installer is downloaded only when you click “Update to vX.Y.Z”, and verified with SHA-256.</li>
     <li><b>Can be turned off:</b> add <code>update_url=</code> to <code>settings.ini</code>.</li>
     <li><b>Open source:</b> GPL-3.0, full source attached to every release.</li>
@@ -269,7 +284,7 @@ const FEATS = [
   ['f-themes', '🎨 4 種主題', '櫻花粉、薄荷綠、夜空藍、奶茶，投投陪你等。', '🎨 4 themes', 'Sakura, Mint, Night, Milk tea — with Toutou.'],
   ['f-takeover', '👥 多手機接手', '新手機可以接手，或保持目前。', '👥 Multi-phone takeover', 'Let a new phone take over, or keep the current one.'],
   ['f-pin', '🔒 PIN 碼', '新 iPhone 要輸入電腦上的 PIN（示意圖）。', '🔒 PIN', 'New iPhones enter the PIN shown on the PC (illustration).'],
-  ['f-language', '🌐 中文／English', '介面可切換繁體中文或英文。', '🌐 English / 中文', 'English or Traditional Chinese UI.'],
+  ['f-language', '🌐 中文／English／日本語／한국어', '介面可切換繁體中文、英文、日文或韓文。', '🌐 English / 中文 / 日本語 / 한국어', 'English, Traditional Chinese, Japanese or Korean UI.'],
 ];
 const grid = document.getElementById('grid');
 function renderGrid(en) {
