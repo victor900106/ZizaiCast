@@ -108,7 +108,17 @@ fs::path exePath() {
 
 class Log {
 public:
-    explicit Log(const fs::path& file) : out_(file, std::ios::app) {}
+    explicit Log(const fs::path& file) : out_((rotate(file), file), std::ios::app) {}
+    // Over 8 MB at start: kept as phonemirror.old.log (the video module logs
+    // a summary line every 5 s while mirroring).
+    static void rotate(const fs::path& file) {
+        std::error_code ec;
+        const auto size = fs::file_size(file, ec);
+        if (ec || size < (8u << 20)) return;
+        fs::path old = file;
+        old.replace_extension(L".old.log");
+        fs::rename(file, old, ec);
+    }
     void write(const char* level, const std::string& msg) {
         std::lock_guard<std::mutex> lock(mu_);
         std::time_t t = std::time(nullptr);
@@ -3622,6 +3632,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     g.audio = &audio;
     refreshTitles();
 
+    // [video] / [video-watchdog] lines (decoder, GPU, Present, the 5 s stream
+    // summaries, self-healing actions) go to the log file too.
+    pm::VideoWindow::setLogHandler([&log](const char* line) {
+        std::string s(line);
+        const char* level = "video";
+        if (s.rfind("[video-watchdog] ", 0) == 0) {
+            level = "video-watchdog";
+            s.erase(0, 17);
+        } else if (s.rfind("[video] ", 0) == 0) {
+            s.erase(0, 8);
+        }
+        log.write(level, s);
+    });
     pm::VideoWindow window;
     if (!window.create(g.idleTitle.c_str(), 540, 960)) {
         log.write("error", "could not create video window");
@@ -3813,5 +3836,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     audio.stop();
     if (single) CloseHandle(single);  // the update installer waits for this mutex to go
     runPendingInstaller();
+    pm::VideoWindow::setLogHandler(nullptr);
     return rc;
 }
