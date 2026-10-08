@@ -30,7 +30,7 @@
 .PARAMETER Ref         git revision to archive (default HEAD).
 .PARAMETER Version     release version (default: PM_APP_VERSION in <Ref>:app/CMakeLists.txt).
 .PARAMETER OutDir      output directory (default <repo>\build-release).
-.PARAMETER VcpkgRoot   vcpkg root (default $env:VCPKG_ROOT, else C:\Users\victo\vcpkg).
+.PARAMETER VcpkgRoot   vcpkg root (default $env:VCPKG_ROOT, else %USERPROFILE%\vcpkg).
 .PARAMETER NoDeps      do not build the deps-source zip.
 .PARAMETER AllowFdkAac allow archiving a revision whose pm_audio still links fdk-aac
                        (fdk-aac's licence is GPL-incompatible: such a revision must not be released).
@@ -73,7 +73,7 @@ $Repo = $Repo -replace '/', '\'
 $Commit = (Invoke-Git rev-parse $Ref).Trim()
 $CommitDate = (Invoke-Git show -s --format=%cI $Commit).Trim()
 if (-not $OutDir) { $OutDir = Join-Path $Repo 'build-release' }
-if (-not $VcpkgRoot) { $VcpkgRoot = if ($env:VCPKG_ROOT) { $env:VCPKG_ROOT } else { 'C:\Users\victo\vcpkg' } }
+if (-not $VcpkgRoot) { $VcpkgRoot = if ($env:VCPKG_ROOT) { $env:VCPKG_ROOT } else { Join-Path $env:USERPROFILE 'vcpkg' } }
 
 $appCmake = (Invoke-Git show "${Commit}:app/CMakeLists.txt") -join "`n"
 if (-not $Version) {

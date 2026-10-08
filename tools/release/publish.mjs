@@ -5,15 +5,25 @@
 //   node tools/release/publish.mjs release <version> <notes.md> <asset>...   (asset = path[=name])
 //   node tools/release/publish.mjs pages
 //   node tools/release/publish.mjs show
+//   node tools/release/publish.mjs manifest <version> <installer.exe> <url> <changes.md> [out.json]
+//        [--date YYYY-MM-DD] [--notes "one-line summary"]          (offline: no GitHub access)
 import { execSync } from 'node:child_process';
-import { readFileSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 const OWNER = 'victor900106', REPO = 'ZizaiCast', FULL = `${OWNER}/${REPO}`;
-const token = execSync('git credential fill', { input: 'protocol=https\nhost=github.com\n\n' })
-  .toString().match(/^password=(.*)$/m)[1].trim();
-const H = { Authorization: `token ${token}`, Accept: 'application/vnd.github+json' };
+let auth = null;  // GitHub headers, from the git credential on first use
+function headers() {
+  if (!auth) {
+    const token = execSync('git credential fill', { input: 'protocol=https\nhost=github.com\n\n' })
+      .toString().match(/^password=(.*)$/m)[1].trim();
+    auth = { Authorization: `token ${token}`, Accept: 'application/vnd.github+json' };
+  }
+  return auth;
+}
 async function api(method, url, body, extra = {}) {
+  const H = headers();
   const r = await fetch(url.startsWith('http') ? url : `https://api.github.com${url}`, {
     method, headers: { ...H, ...(body && !Buffer.isBuffer(body) ? { 'Content-Type': 'application/json' } : {}), ...extra },
     body: body && !Buffer.isBuffer(body) ? JSON.stringify(body) : body,
@@ -80,6 +90,57 @@ if (cmd === 'settings') {
   console.log(repo.html_url, '|', repo.description, '| homepage', repo.homepage, '| topics', (repo.topics || []).length);
   const list = (await api('GET', `/repos/${FULL}/releases?per_page=10`)).json;
   for (const r of list) console.log(r.tag_name, r.draft ? 'DRAFT' : '', r.prerelease ? 'PRE' : '', r.assets.map((x) => `${x.name}(${x.size})`).join(', '));
+} else if (cmd === 'manifest') {
+  // update.json for 自動更新 (docs/app.md "Online manifest"): version, url, sha256 and
+  // notes (read by every app version) plus date, size, changes_zh, changes_en (0.7.0+;
+  // 0.6.x skip unknown keys) and, if the file has them, changes_ja / changes_ko (0.7.0+:
+  // `## 日本語` / `## 한국어`; the app falls back to changes_en). <changes.md> has
+  // `## 中文` and `## English` sections whose
+  // `- ` bullets become the lists (indented continuation lines are joined; **bold** and
+  // `code` marks dropped); the first plain line of a section is its summary for `notes`.
+  // The same JSON next to an installer as <installer>.json gives 本機更新 its change list;
+  // for such a sidecar <url> may be "" (the local file is used, not a download).
+  const opt = (name) => { const i = args.indexOf(name); return i < 0 ? undefined : args.splice(i, 2)[1]; };
+  const date = opt('--date') ?? new Date().toISOString().slice(0, 10);
+  const notesArg = opt('--notes');
+  const [version, installer, url, changesFile, out = 'update.json'] = args;
+  if (!version || !installer || url === undefined || !changesFile)
+    throw new Error('usage: manifest <version> <installer> <url> <changes.md> [out.json] [--date D] [--notes S]');
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`bad version ${version}`);
+  if (url !== '' && !/^https:\/\//.test(url)) throw new Error('url must be https:// (or "" for a local sidecar)');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`bad date ${date}`);
+  const bytes = readFileSync(installer);
+  const sec = { zh: { bullets: [], text: [] }, en: { bullets: [], text: [] }, ja: { bullets: [], text: [] }, ko: { bullets: [], text: [] } };
+  let cur = null, last = null;
+  const clean = (t) => t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\s+/g, ' ').trim();
+  for (const raw of readFileSync(changesFile, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) {
+    const h = raw.match(/^##\s+(.*)$/);
+    if (h) {
+      cur = /中文/.test(h[1]) ? sec.zh : /english/i.test(h[1]) ? sec.en : /日本語/.test(h[1]) ? sec.ja : /한국어/.test(h[1]) ? sec.ko : null;
+      last = null;
+      continue;
+    }
+    if (!cur || /^#/.test(raw)) continue;
+    const b = raw.match(/^\s*[-*]\s+(.*)$/);
+    if (b) { cur.bullets.push(clean(b[1])); last = cur.bullets; continue; }
+    if (!raw.trim()) { last = null; continue; }
+    if (last && /^\s+/.test(raw)) { last[last.length - 1] = clean(`${last[last.length - 1]} ${raw}`); continue; }
+    cur.text.push(clean(raw));
+  }
+  if (!sec.zh.bullets.length || !sec.en.bullets.length)
+    throw new Error(`${changesFile}: needs "## 中文" and "## English" sections with "- " bullets`);
+  const notes = notesArg ?? [sec.zh.text[0] ?? sec.zh.bullets[0], sec.en.text[0] ?? sec.en.bullets[0]].join(' ');
+  const m = {
+    version, url, sha256: createHash('sha256').update(bytes).digest('hex'), notes,
+    date, size: bytes.length, changes_zh: sec.zh.bullets, changes_en: sec.en.bullets,
+  };
+  if (sec.ja.bullets.length) m.changes_ja = sec.ja.bullets;
+  if (sec.ko.bullets.length) m.changes_ko = sec.ko.bullets;
+  const json = `${JSON.stringify(m, null, 2)}\n`;
+  if (Buffer.byteLength(json) > 60 * 1024) throw new Error('manifest over 60 KB (the app reads at most 64 KB)');
+  writeFileSync(out, json);  // UTF-8 without BOM
+  console.log(`wrote ${out}: v${version}, ${m.size} bytes, sha256 ${m.sha256}, ${m.changes_zh.length} zh / ${m.changes_en.length} en / ${sec.ja.bullets.length} ja / ${sec.ko.bullets.length} ko changes`);
 } else {
-  console.log('usage: settings | drop-draft <tag> | release <version> <notes> <assets...> | pages | show');
+  console.log('usage: settings | drop-draft <tag> | release <version> <notes> <assets...> | replace-asset <tag> <path> [name]\n' +
+    '       | pages | show | manifest <version> <installer> <url> <changes.md> [out.json] [--date D] [--notes S]');
 }

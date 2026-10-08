@@ -1,7 +1,7 @@
 # Standalone build of the audio module only (independent of the other
 # modules' CMakeLists):
 #   cmake -S audio/standalone -B build-audio -G "Visual Studio 18 2026" -A x64 ^
-#     -DCMAKE_TOOLCHAIN_FILE=C:/Users/victo/vcpkg/scripts/buildsystems/vcpkg.cmake
+#     -DCMAKE_TOOLCHAIN_FILE=%USERPROFILE%/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake_minimum_required(VERSION 3.25)
 project(PhoneMirrorAudio LANGUAGES C CXX)
 

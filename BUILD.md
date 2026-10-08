@@ -1,13 +1,13 @@
-# Building ZizaiCast 0.6.2 from source
+# Building ZizaiCast 0.7.2 from source
 
-This archive is the Corresponding Source of the ZizaiCast 0.6.2 installer
+This archive is the Corresponding Source of the ZizaiCast 0.7.2 installer
 (GPL-3.0, see `LICENSE`, `docs/licenses/SOURCE.md` and
 `docs/licenses/THIRD_PARTY_NOTICES.txt`).
 
-* git commit: `81ab06e4e46bb15d2e11a038b35178d87a39c8fb` (2026-10-08T15:30:54+08:00)
+* git commit: `0d29f4c626acfba0d64a73351022a2da2ef7edd9` (2026-10-09T03:22:13+08:00)
 * vcpkg commit used for the release build: `f451d04d496aa089e294a1a2d799a269788d47ba`
 * Library sources (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg + vcpkg port
-  scripts/patches): `ZizaiCast-0.6.2-deps-source.zip` on the same release page.
+  scripts/patches): `ZizaiCast-0.7.2-deps-source.zip` on the same release page.
 
 ## 1. Tools (Windows 10/11 x64)
 
@@ -81,7 +81,7 @@ pm_audio_test pm_recorder_test pm_miracast_test pm_android_test`.
 
 (`installer\zizai.iss` packages the user guides from `docs\tutorial\` and
 the notices from `docs\licenses\`, both in this archive. Output:
-`installer\Output\自在投影-安裝程式-0.6.2.exe`, Traditional Chinese +
+`installer\Output\自在投影-安裝程式-0.7.2.exe`, Traditional Chinese +
 English.)
 
 ## 7. Replacing the LGPL libraries

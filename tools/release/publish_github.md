@@ -15,7 +15,7 @@ Goals:
 * Optional: GitHub Pages from `launch/site/`.
 
 Shell: PowerShell 5.1 (`;` / `if ($?)`, no `&&`). Paths below assume the repo at
-`C:\Users\victo\Desktop\AI\PhoneMirror`.
+`%USERPROFILE%\Desktop\AI\PhoneMirror`.
 
 ---
 
@@ -24,7 +24,7 @@ Shell: PowerShell 5.1 (`;` / `if ($?)`, no `&&`). Paths below assume the repo at
 ```powershell
 winget install --id GitHub.cli -e          # gh is not installed on this PC yet
 gh auth login                              # account victor900106, scopes: repo, workflow
-$Repo   = 'C:\Users\victo\Desktop\AI\PhoneMirror'
+$Repo   = "$env:USERPROFILE\Desktop\AI\PhoneMirror"
 $Ver    = '0.6.0'
 $Pub    = "$env:TEMP\zc-publish"           # throw-away working tree for the public snapshot
 $Owner  = 'victor900106/ZizaiCast'
