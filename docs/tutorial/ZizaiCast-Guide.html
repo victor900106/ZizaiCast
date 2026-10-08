@@ -643,7 +643,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <!-- ============ 5 ============ -->
 <section id="features">
 <h2><span class="num">5</span>Features &amp; shortcuts</h2>
-<p class="intro">While mirroring, move the mouse over the screen and a <strong>toolbar</strong> appears at the top; <strong>right-click</strong> the window for every feature (on an Android screen right-click is Back, so use “More” in the toolbar). Shortcuts work when the window is active (click it once). The app language can be switched in Settings → <span class="ui">Language / 語言</span> (Automatic / 繁體中文 / English).</p>
+<p class="intro">While mirroring, move the mouse over the screen and a <strong>toolbar</strong> appears at the top; <strong>right-click</strong> the window for every feature (on an Android screen right-click is Back, so use “More” in the toolbar). Shortcuts work when the window is active (click it once). The app language can be switched in Settings → <span class="ui">Language / 語言</span>: <span class="ui">Automatic (Windows)</span>, <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span>.</p>
 
 <h3>The toolbar while mirroring</h3>
 <figure>
@@ -679,6 +679,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>It appears as soon as the mouse moves and stays while the pointer is on it; it fades out when the mouse leaves the window or stops for 2 seconds. When hidden it doesn’t cover the picture or catch clicks.</li>
   <li>Hover over a button to see its name and shortcut. Clicks on the toolbar are <strong>not</strong> sent to the phone.</li>
   <li><span class="ui">Record</span> turns red while recording (click again to stop); <span class="ui">More</span> opens the full right-click menu.</li>
+  <li>The toolbar also has <span class="ui">Send to phone</span>, <span class="ui">Magnifier</span>, <span class="ui">Translate screen</span> and <span class="ui">Freeze picture</span> buttons (not shown in the illustration); see <a href="#magnifier">Magnifier</a>, <a href="#translate">Translate</a> and <a href="#share">Send to phone</a> below.</li>
 </ul>
 
 <h3 id="disconnect">How to disconnect</h3>
@@ -703,7 +704,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>Always on top <span><kbd>Ctrl</kbd><kbd>T</kbd></span></h4>
     <p>Keeps the mirroring window above other windows so you can watch the phone while you work.</p></div>
   <div class="card"><h4>Toolbar</h4>
-    <p>Appears when the mouse moves over the picture: (Android: Back, Home, Recent apps) Screenshot, Record, Rotate, Full screen, More, Disconnect.</p></div>
+    <p>Appears when the mouse moves over the picture: (Android: Back, Home, Recent apps) Screenshot, Record, Send to phone, Rotate, Full screen, Magnifier, Translate, Freeze, More, Disconnect.</p></div>
   <div class="card"><h4>Rotate, flip</h4>
     <p><kbd>Ctrl</kbd><kbd>→</kbd> / <kbd>Ctrl</kbd><kbd>←</kbd> rotate 90°, <kbd>Ctrl</kbd><kbd>H</kbd> flips horizontally, <kbd>Ctrl</kbd><kbd>0</kbd> resets. In right-click menu → View.</p></div>
   <div class="card"><h4>iPhone frame <span><kbd>Ctrl</kbd><kbd>F</kbd></span></h4>
@@ -713,6 +714,46 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>Start with Windows</h4>
     <p>Waits in the background after you sign in to Windows; the window appears as soon as a phone connects. Tick it on the waiting screen or in the tray menu.</p></div>
 </div>
+
+<h3 id="magnifier">Magnifier, high contrast, freeze</h3>
+<p>Text on the phone too small to read? Right-click the picture (on an Android screen use “More” in the toolbar) → <span class="ui">Magnifier</span>. It works while a phone picture is shown.</p>
+<div class="grid2">
+  <div class="card"><h4>Zoom in / out <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
+    <p>Up to 8×. Hold <kbd>Ctrl</kbd> and turn the mouse wheel to zoom in where the pointer is. <span class="ui">Back to 1×</span>: <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>.</p></div>
+  <div class="card"><h4>Move around while zoomed</h4>
+    <p>Drag with the mouse (when you control an Android phone from the PC, hold <kbd>Ctrl</kbd> while dragging). A small overview in the bottom-right corner shows which part you’re looking at.</p></div>
+  <div class="card"><h4>Magnifier button in the toolbar</h4>
+    <p>Each click goes 1× → 2× → 4×, and back to 1×.</p></div>
+  <div class="card"><h4>High contrast <span><kbd>Ctrl</kbd><kbd>K</kbd></span></h4>
+    <p>For low vision: <span class="ui">Original colours</span>, <span class="ui">More contrast</span>, <span class="ui">Greyscale</span>, <span class="ui">Invert colours</span>, <span class="ui">Yellow on black</span>. <kbd>Ctrl</kbd><kbd>K</kbd> steps through them; your choice is remembered.</p></div>
+  <div class="card"><h4>Freeze picture <span><kbd>Ctrl</kbd><kbd>P</kbd></span></h4>
+    <p>Holds the current picture still on the PC so you can read it in peace, while the phone carries on as usual; press again to continue. Also a toolbar button. A recording keeps recording the live picture.</p></div>
+</div>
+
+<h3 id="translate">Translate the text on the screen</h3>
+<p>English, Japanese or Korean you can’t read on the phone? Right-click the picture → <span class="ui">Translate</span>, or click the translate button in the toolbar. The translation is drawn on small cards right over the original text.</p>
+<div class="tbl"><table>
+  <tr><th>Menu item</th><th>What it does</th></tr>
+  <tr><td>Translate the whole screen <kbd>Ctrl</kbd><kbd>L</kbd></td><td>Translates everything on the screen. Press <kbd>Ctrl</kbd><kbd>L</kbd> again to close the translation.</td></tr>
+  <tr><td>Translate a selected area <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>Drag a box with the mouse; only the text inside is translated (<kbd>Esc</kbd> cancels).</td></tr>
+  <tr><td>Show original <kbd>Ctrl</kbd><kbd>O</kbd></td><td>Hides the translation for a moment so you can see the original text.</td></tr>
+  <tr><td>Keep translating (every 5 s)</td><td>Translates again by itself when the screen changes, handy while you scroll.</td></tr>
+  <tr><td>Translate into:</td><td>Choose <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span> or <span class="ui">한국어</span>.</td></tr>
+  <tr><td>Manage translation models</td><td>See the downloaded translation models and delete the ones you don’t need.</td></tr>
+</table></div>
+<div class="note">
+  <span class="t">Works offline: the text on your screen never leaves the PC</span>
+  Windows’ built-in text recognition (OCR) reads the text, and the translation runs on this PC. The first time you translate a language, Zizai Cast asks first and, if you agree, downloads an offline translation model once (Mozilla Firefox Translations, MPL-2.0 licence; about 50 MB per language direction; Japanese or Korean into Traditional Chinese needs two, about 100 MB). Models are kept in <code>%LOCALAPPDATA%\PhoneMirror\models</code>. Text it can translate: English, Japanese, Korean and Chinese.
+</div>
+<p>Japanese or Korean not translated? This PC may not be able to read that script yet. Zizai Cast then explains how to add it and offers an <span class="ui">Open language settings</span> button (see the <a href="#faq-translate">FAQ</a>).</p>
+
+<h3 id="share">Send to phone</h3>
+<p>After a screenshot or a recording, a small <span class="ui">Send to phone</span> button appears near the bottom of the picture; click it to send the file back to the phone. The right-click menu also has <span class="ui">Send the last screenshot to the phone</span>, <span class="ui">Send the last recording to the phone</span> and <span class="ui">Send to phone…</span> (pick files yourself), and the toolbar has a send-to-phone button.</p>
+<ul>
+  <li><strong>Android connected by wireless debugging</strong>: the file goes straight into the phone’s gallery. Nothing else to do.</li>
+  <li><strong>iPhone / iPad, or Android casting (Miracast)</strong>: a QR code appears on the PC. <span class="ui">Scan with the phone's camera</span> and a web page opens on the phone. Pictures: touch and hold the picture → “Save to Photos” (iPhone) or “Download image” (Android). Videos: tap “Download video” and follow the steps on the page.</li>
+  <li>The phone must be on the <strong>same Wi‑Fi</strong> as the PC. The link works for 10 minutes and only for whoever scans the QR code; <span class="ui">Stop sharing</span> ends it early.</li>
+</ul>
 
 <h3>Quality</h3>
 <p>Right-click menu → Settings → Quality. Higher is sharper but puts more load on the network and the PC.</p>
@@ -730,9 +771,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <h3>System tray</h3>
 <p>Clicking the close button at the top right sends Zizai Cast to the system tray, where it keeps waiting (you’ll get a hint the first time). Click the tray icon (or choose <span class="ui">Show window</span>) to bring the window back; right-click the icon to record, change settings or open folders, and while mirroring there’s also <span class="ui">Disconnect (phone name)</span>. To <strong>really quit</strong>: right-click the tray icon → <span class="ui">Quit</span>.</p>
 
-<h3>Automatic updates</h3>
-<p>Zizai Cast checks for a new version once a day; you can also click <span class="ui">Check for updates</span> in the menu. A newer installer placed in the <span class="ui">安裝檔</span> (Installers) folder inside the install folder is found automatically as well.</p>
-<p>When a new version is out, a message at the bottom says “Version X.Y.Z is available”, and <span class="ui">Update to vX.Y.Z</span> appears at the top of the menu, on the waiting screen and in the toolbar while mirroring (↑ icon). Zizai Cast never updates by itself and never interrupts mirroring: only when you click it does it install (downloading and verifying first if needed), then it restarts and shows “Updated to vX.Y.Z”. If you’re recording, it asks you first and the recording is saved.</p>
+<h3 id="update">Automatic updates</h3>
+<p>Every time Zizai Cast starts, it checks for a new version (and again every 6 hours while it runs); you can also click <span class="ui">Check for updates</span> in the menu. A newer installer placed in the <span class="ui">安裝檔</span> (Installers) folder inside the install folder is found automatically as well.</p>
+<p>When a new version is out, the “<strong>A new version of Zizai Cast</strong>” window opens and lists “What’s new”, with three buttons:</p>
+<div class="tbl"><table>
+  <tr><th>Button</th><th>What happens</th></tr>
+  <tr><td>Update now</td><td>Installs the new version (downloading and verifying it first if needed). Zizai Cast closes, updates and opens again by itself, showing “Updated to vX.Y.Z”.</td></tr>
+  <tr><td>Remind me later</td><td>Nothing changes now; you’ll be reminded again later.</td></tr>
+  <tr><td>Skip this version</td><td>No more reminders for this version (the menu still offers it).</td></tr>
+</table></div>
+<p>Zizai Cast never updates by itself and never interrupts mirroring. To update later, use <span class="ui">Update to vX.Y.Z</span> at the top of the menu, on the waiting screen or in the toolbar while mirroring (↑ icon). If you’re recording, it asks you first and the recording is saved.</p>
 
 <h3>Shortcut reference</h3>
 <div class="tbl"><table>
@@ -746,6 +794,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <tr><td><kbd>Ctrl</kbd><kbd>H</kbd></td><td>Flip horizontally</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>0</kbd></td><td>Reset rotation and flip</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>F</kbd></td><td>iPhone frame</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></td><td>Magnifier: zoom in / out (<kbd>Ctrl</kbd> + wheel: zoom where the pointer is)</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd></td><td>Back to 1×</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>K</kbd></td><td>Next high-contrast colour filter</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>P</kbd></td><td>Freeze picture / continue</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>L</kbd></td><td>Translate the whole screen / close the translation</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>Translate a selected area</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>Show original</td></tr>
   <tr><td><kbd>Shift</kbd><kbd>F10</kbd></td><td>Open the right-click menu from the keyboard</td></tr>
   <tr><td><kbd>Shift</kbd> + right-click</td><td>Open the menu on an Android screen (plain right-click = Back)</td></tr>
   <tr><td><kbd>Esc</kbd></td><td>In full screen: leave full screen; while mirroring Android: sent to the phone (usually Back)</td></tr>
@@ -829,6 +884,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <details id="faq-disconnect"><summary>I can’t find “Disconnect”</summary><div>
 <p>Move the mouse over the mirrored screen: a toolbar appears at the top centre, and the red button at its right end is <span class="ui">Disconnect</span>. You can also press <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the tray icon → <span class="ui">Disconnect (phone name)</span>. On an Android screen right-click means “Back”, so it doesn’t open a menu; use “More” in the toolbar instead.</p></div></details>
+
+<details id="faq-translate"><summary>Translation does nothing, or Japanese / Korean isn’t translated</summary><div>
+<ul>
+  <li><strong>The first translation needs a one-time download</strong>: when Zizai Cast asks, click <span class="ui">Download</span> (once only; about 50 MB per language direction, about 100 MB for Japanese or Korean into Traditional Chinese). With <span class="ui">Not now</span> nothing is translated, and you’ll be asked again next time.</li>
+  <li><strong>Japanese / Korean text isn’t recognised</strong>: Windows needs the “Optical character recognition” feature of that language. Click <span class="ui">Open language settings</span> in the message, or open Windows Settings → Time &amp; language → Language &amp; region → Add a language → Japanese (or Korean) → Next, tick <strong>only “Optical character recognition”</strong> (no display language, no language pack) → Install. Then translate again.</li>
+  <li>Translation works while a phone picture is shown. Downloaded models can be seen or deleted under Translate → <span class="ui">Manage translation models</span>.</li>
+</ul></div></details>
 
 <details><summary>Is the app still running after I close the window?</summary><div>
 <p>Yes, it waits in the system tray at the bottom right. To quit completely, right-click the tray icon → Quit. If you don’t want it to start with Windows, untick “Start with Windows”.</p></div></details>

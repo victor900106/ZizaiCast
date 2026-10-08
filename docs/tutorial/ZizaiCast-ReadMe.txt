@@ -52,11 +52,24 @@ Full illustrated guide: "ZizaiCast-Guide.html" in the install folder ("How to co
   Ctrl+→ / Ctrl+←: rotate 90°   Ctrl+H: flip horizontally   Ctrl+0: reset   Ctrl+F: iPhone frame
   Quality: Standard (1080p) / High · recommended (1440p) / Highest (4K); High and Highest need "HEVC Video Extensions" from the Microsoft Store.
   Themes: Sakura, Mint, Night Sky, Milk Tea.
-  Language: Settings → "Language / 語言" (Automatic / 繁體中文 / English).
+  Language: Settings → "Language / 語言" (Automatic (Windows) / 繁體中文 / English / 日本語 / 한국어).
   Closing the window sends the app to the system tray at the bottom right, where it keeps waiting; to quit, right-click the tray icon → "Quit".
-  Start with Windows, Check for updates: in Settings or the tray menu (updates are also checked once a day).
-  Updates: when a new version is out, "Update to vX.Y.Z" appears at the top of the menu, on the waiting screen and in the toolbar.
+  Start with Windows, Check for updates: in Settings or the tray menu (updates are also checked at every start).
+  Updates: when a new version is out, the "A new version of Zizai Cast" window offers "Update now", "Remind me later"
+  or "Skip this version"; "Update to vX.Y.Z" also appears at the top of the menu, on the waiting screen and in the toolbar.
   It installs only when you click it (never by itself) and restarts afterwards. A newer installer placed in the 安裝檔 (Installers) folder is found too.
+
+  New in 0.7:
+  - Magnifier: right-click menu → "Magnifier". Ctrl+= zoom in, Ctrl+- zoom out (up to 8×), Ctrl+Shift+0 back to 1×;
+    Ctrl+wheel zooms where the pointer is; drag to move around (Ctrl+drag while controlling an Android phone).
+    High contrast (Ctrl+K cycles): Original colours / More contrast / Greyscale / Invert colours / Yellow on black.
+    Freeze picture (Ctrl+P): holds the picture still on the PC while the phone carries on.
+  - Translate: right-click menu → "Translate". Translate the whole screen (Ctrl+L, again to close), Translate a selected area
+    (Ctrl+Shift+L), Show original (Ctrl+O), Keep translating (every 5 s), Translate into: 繁體中文 / English / 日本語 / 한국어.
+    Runs offline on this PC, nothing is sent to the internet; the first time it asks, then downloads a model (about 50 MB per direction).
+    Japanese/Korean not recognised: Windows Settings → Time & language → Language & region → Add a language, tick only "Optical character recognition".
+  - Send to phone: after a screenshot or recording click "Send to phone". Android (wireless debugging): straight into the gallery;
+    iPhone / iPad / Android casting: scan the QR code on the PC with the phone's camera (same Wi-Fi, works for 10 minutes).
 
 6. FAQ
   - Zizai Cast doesn't appear: check same network, firewall allowed, VPN off;

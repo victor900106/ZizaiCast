@@ -104,6 +104,10 @@ blob ids) is in the archive.
 | adb / AdbWinApi / AdbWinUsbApi (Platform-Tools r37.0.1) | unmodified Google binaries (separate program) | <https://android.googlesource.com/platform/packages/modules/adb> tag `platform-tools-37.0.1`; components listed in `NOTICE.txt` (e.g. libusb: <https://android.googlesource.com/platform/external/libusb>) |
 | scrcpy-server v5.0 | unmodified release binary (separate program) | <https://github.com/Genymobile/scrcpy/tree/v5.0> |
 | MSVC runtime DLLs | unmodified; System Libraries (GPL-3.0 §1), not part of the Corresponding Source | Microsoft Visual C++ Redistributable |
+| bergamot.dll (0.7.0): BergamotTranslatorSharp @ `e084db2` with bergamot-translator, Marian, intgemm, SentencePiece, ssplit-cpp, yaml-cpp, spdlog, pathie-cpp, faiss, ONNX.js sgemm + Eigen, zlib, CLI11 (submodules at that commit) and PCRE2 10.49 (vcpkg static) | **modified build** — `translate/tools/build_bergamot.sh` patches (Eigen ONNX sgemm instead of MKL / BLAS, `translate/bergamot/lapack_stubs.cpp`, `/arch:SSE2`); MPL-2.0 parts: these patches are the only changes | source zip (`translate/`); deps zip; <https://github.com/Freeesia/BergamotTranslatorSharp/tree/e084db279f0d4314b31c7730cfc61ab03f235604> (recursive submodules) |
+| Firefox Translations models | not distributed (downloaded by the user's app from Mozilla after consent; MPL-2.0) | <https://github.com/mozilla/translations> |
+| onnxruntime.dll 1.30.0 (0.7.0) + msvcp140_1.dll | unmodified official Microsoft binary (MIT; `translate/tools/get_onnxruntime.sh`, SHA-256 pinned), loaded at run time | <https://github.com/microsoft/onnxruntime/tree/v1.30.0>; notices in `licenses/onnxruntime/` |
+| PaddleOCR models (PP-OCRv6 det tiny / rec small, PP-OCRv5 Korean rec) | not distributed (downloaded by the user's app from ModelScope after consent; Apache-2.0) | <https://github.com/PaddlePaddle/PaddleOCR>, <https://www.modelscope.cn/models/RapidAI/RapidOCR> |
 | Inno Setup 6.7.3 | unmodified (build tool; its setup stub is in the installer) | <https://jrsoftware.org/isinfo.php> |
 
 The vcpkg port directories at the pinned commit are also browsable at

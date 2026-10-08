@@ -51,7 +51,7 @@ division by zero otherwise) — both done in `uxplay.cpp main()` upstream.
 
 ```
 cmake -B build-core -G "Visual Studio 18 2026" -A x64 ^
-  -DCMAKE_TOOLCHAIN_FILE=C:/Users/victo/vcpkg/scripts/buildsystems/vcpkg.cmake
+  -DCMAKE_TOOLCHAIN_FILE=%USERPROFILE%/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build-core --config Release --target pm_probe
 ```
 
@@ -404,7 +404,7 @@ this repo):
 ```powershell
 # program-based (works with dynamic ports too); adjust path
 New-NetFirewallRule -DisplayName "PhoneMirror pm_probe" -Direction Inbound -Action Allow `
-  -Program "C:\Users\victo\Desktop\AI\PhoneMirror\build-core\bin\Release\pm_probe.exe" -Profile Private
+  -Program "$PWD\build-core\bin\Release\pm_probe.exe" -Profile Private
 # or port-based for the legacy fixed ports
 New-NetFirewallRule -DisplayName "PhoneMirror TCP" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7000,7100 -Profile Private
 New-NetFirewallRule -DisplayName "PhoneMirror UDP" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 5353,6000,6001,7011 -Profile Private

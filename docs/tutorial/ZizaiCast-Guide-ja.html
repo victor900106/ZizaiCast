@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>自在投影 使用教學</title>
+<title>Zizai Cast — 使い方ガイド</title>
 <style>
 :root{
   --bg:#1C1416; --bg2:#231A1C; --card:#2E2124; --card2:#382A2D;
@@ -17,7 +17,7 @@
 html{scroll-behavior:smooth;scroll-padding-top:24px}
 body{
   margin:0;background:var(--bg);color:var(--text);
-  font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC","Noto Sans TC","Segoe UI",sans-serif;
+  font-family:"Yu Gothic UI","Meiryo","Segoe UI","Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;
   font-size:16.5px;line-height:1.8;letter-spacing:.01em;
   -webkit-font-smoothing:antialiased;
 }
@@ -106,7 +106,7 @@ pre .hl{color:var(--accent)}
 figure{margin:22px 0 28px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px 18px 14px}
 figure svg{display:block;width:100%;height:auto;max-width:640px;margin:0 auto}
 figcaption{text-align:center;font-size:13.5px;color:var(--mute);margin-top:10px;line-height:1.6}
-svg text{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","Segoe UI",sans-serif}
+svg text{font-family:"Yu Gothic UI","Meiryo","Segoe UI","Microsoft JhengHei UI","Microsoft JhengHei",sans-serif}
 
 /* notes */
 .note{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--card);
@@ -184,21 +184,20 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </style>
 </head>
 <body>
-
-<nav class="side" aria-label="目錄">
+<nav class="side" aria-label="目次">
   <a class="brand" href="#top">
     <span class="brand-mark"><i class="m"></i></span>
-    <div><b>自在投影</b><span>使用教學</span></div>
+    <div><b>Zizai Cast</b><span>使い方ガイド</span></div>
   </a>
   <ol>
-    <li><a href="#before">開始之前<span class="sub"></span></a></li>
+    <li><a href="#before">はじめに</a></li>
     <li><a href="#iphone">iPhone / iPad</a></li>
-    <li><a href="#miracast">Android 投放</a></li>
-    <li><a href="#adb">Android 無線偵錯</a></li>
-    <li><a href="#features">功能與快捷鍵</a></li>
-    <li><a href="#faq">常見問題</a></li>
+    <li><a href="#miracast">Android のキャスト</a></li>
+    <li><a href="#adb">Android ワイヤレス デバッグ</a></li>
+    <li><a href="#features">機能とショートカット</a></li>
+    <li><a href="#faq">よくある質問</a></li>
   </ol>
-  <div class="side-foot">滑鼠移到投影畫面上方有工具列；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線。所有功能在右鍵選單（Android 畫面用工具列的「更多」）。</div>
+  <div class="side-foot">ミラーリング中の画面にマウスを乗せるとツールバーが出ます。<kbd>Ctrl</kbd><kbd>D</kbd> で接続を解除。そのほかの機能はすべて右クリック メニューにあります（Android の画面ではツールバーの「その他」）。</div>
 </nav>
 
 <main id="top">
@@ -206,698 +205,343 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <header class="hero">
   <div>
-    <p class="eyebrow">自在投影 · 使用教學</p>
-    <h1>把手機畫面，<br>放到電腦上。</h1>
-    <p class="lede">iPhone、iPad 與 Android 手機都可以投影到這台 Windows 電腦。先看第 1 節確認網路，再依照你的手機跳到對應的章節。</p>
+    <p class="eyebrow">Zizai Cast · 使い方ガイド</p>
+    <h1>スマホの画面を、<br>パソコンで大きく。</h1>
+    <p class="lede">iPhone、iPad、Android スマホの画面をこの Windows PC に映せます。まず 1 章でネットワークを確認してから、お使いのスマホの章へ進んでください。</p>
   </div>
-  <i class="m hero-m" role="img" aria-label="自在投影的吉祥物"></i>
+  <i class="m hero-m" role="img" aria-label="Zizai Cast のマスコット「トウトウ」"></i>
 </header>
 
 <div class="paths">
-  <a class="path" href="#iphone"><small>iPhone · iPad</small><b>螢幕鏡像</b><span>控制中心點一下就好，有畫面也有聲音。</span></a>
-  <a class="path" href="#miracast"><small>Android 方式一</small><b>投放（Miracast）</b><span>不用設定，但電腦要支援無線顯示器。</span></a>
-  <a class="path" href="#adb"><small>Android 方式二</small><b>無線偵錯</b><span>第一次要設定，之後可以用滑鼠操控手機。</span></a>
+  <a class="path" href="#iphone"><small>iPhone · iPad</small><b>画面ミラーリング</b><span>コントロールセンターからワンタップ。映像も音も届きます。</span></a>
+  <a class="path" href="#miracast"><small>Android 方法 1</small><b>キャスト（Miracast）</b><span>設定不要。ただし PC がワイヤレス ディスプレイに対応している必要があります。</span></a>
+  <a class="path" href="#adb"><small>Android 方法 2</small><b>ワイヤレス デバッグ</b><span>最初に一度だけ設定。その後はマウスでスマホを操作できます。</span></a>
 </div>
 
 <!-- ============ 1 ============ -->
 <section id="before">
-<h2><span class="num">1</span>開始之前</h2>
-<p class="intro">手機是透過網路找到電腦的。大部分「找不到自在投影」的狀況，都出在這一節。</p>
+<h2><span class="num">1</span>はじめに</h2>
+<p class="intro">スマホはネットワークを通じて PC を見つけます。「Zizai Cast が見つからない」というトラブルの多くは、この章の内容が原因です。</p>
 
 <figure>
-<svg viewBox="0 0 600 210" role="img" aria-label="手機與電腦連到同一台 Wi-Fi 分享器">
+<svg viewBox="0 0 600 210" role="img" aria-label="スマホと PC が同じ Wi-Fi ルーターにつながっている図">
   <defs>
     <marker id="dot" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6"><circle cx="4" cy="4" r="3" fill="#F5A7A7"/></marker>
   </defs>
-  <!-- router -->
   <g transform="translate(250,18)">
     <rect x="0" y="40" width="100" height="34" rx="10" fill="#382A2D" stroke="#6B5155"/>
     <line x1="22" y1="40" x2="14" y2="8" stroke="#6B5155" stroke-width="3" stroke-linecap="round"/>
     <line x1="78" y1="40" x2="86" y2="8" stroke="#6B5155" stroke-width="3" stroke-linecap="round"/>
     <circle cx="26" cy="57" r="3" fill="#F5A7A7"/><circle cx="40" cy="57" r="3" fill="#F5A7A7" opacity=".6"/><circle cx="54" cy="57" r="3" fill="#F5A7A7" opacity=".35"/>
-    <text x="50" y="98" text-anchor="middle" fill="#CDBAB8" font-size="14">Wi-Fi 分享器</text>
+    <text x="50" y="98" text-anchor="middle" fill="#CDBAB8" font-size="14">Wi-Fi ルーター</text>
   </g>
-  <!-- phone -->
   <g transform="translate(60,70)">
     <rect x="0" y="0" width="64" height="120" rx="14" fill="#151012" stroke="#6B5155" stroke-width="2"/>
     <rect x="6" y="8" width="52" height="104" rx="9" fill="#2E2124"/>
     <rect x="22" y="12" width="20" height="5" rx="2.5" fill="#151012"/>
     <rect x="14" y="40" width="36" height="36" rx="6" fill="#F5A7A7" opacity=".22"/>
   </g>
-  <text x="92" y="207" text-anchor="middle" fill="#CDBAB8" font-size="14">手機</text>
-  <!-- laptop -->
+  <text x="92" y="207" text-anchor="middle" fill="#CDBAB8" font-size="14">スマホ</text>
   <g transform="translate(420,86)">
     <rect x="10" y="0" width="120" height="80" rx="6" fill="#151012" stroke="#6B5155" stroke-width="2"/>
     <rect x="18" y="8" width="104" height="64" rx="3" fill="#2E2124"/>
     <rect x="52" y="14" width="36" height="52" rx="5" fill="#F5A7A7" opacity=".22"/>
     <path d="M0 84 h140 l-8 12 h-124 z" fill="#382A2D" stroke="#6B5155" stroke-width="2" stroke-linejoin="round"/>
   </g>
-  <text x="490" y="207" text-anchor="middle" fill="#CDBAB8" font-size="14">電腦（自在投影）</text>
-  <!-- links -->
+  <text x="490" y="207" text-anchor="middle" fill="#CDBAB8" font-size="14">PC（Zizai Cast）</text>
   <path d="M130 120 Q200 80 248 76" fill="none" stroke="#F5A7A7" stroke-width="2" stroke-dasharray="5 6" marker-end="url(#dot)"/>
   <path d="M415 120 Q400 80 352 76" fill="none" stroke="#F5A7A7" stroke-width="2" stroke-dasharray="5 6" marker-end="url(#dot)"/>
-  <text x="300" y="160" text-anchor="middle" fill="#F5A7A7" font-size="15" font-weight="600">同一個網路</text>
-  <text x="300" y="182" text-anchor="middle" fill="#9C8789" font-size="12.5">電腦用網路線接同一台分享器也可以</text>
+  <text x="300" y="160" text-anchor="middle" fill="#F5A7A7" font-size="15" font-weight="600">同じネットワーク</text>
+  <text x="300" y="182" text-anchor="middle" fill="#9C8789" font-size="12.5">PC は同じルーターに有線接続でも OK</text>
 </svg>
-<figcaption>手機和電腦要在同一個網路裡，才看得到彼此。</figcaption>
+<figcaption>スマホと PC が同じネットワークにあることが、お互いを見つける条件です。</figcaption>
 </figure>
 
 <ol class="steps">
-  <li><strong>同一個 Wi-Fi／區域網路。</strong>手機連的 Wi-Fi，和電腦連的必須是同一台分享器。電腦用網路線接在同一台分享器上也可以。手機上的「行動數據」或「個人熱點」不算。</li>
-  <li><strong>第一次執行時允許防火牆。</strong>開啟自在投影時，如果 Windows 跳出「Windows 安全性警示」，請勾選<span class="ui">私人網路</span>並按<span class="ui">允許存取</span>。按了取消的話，手機會找不到這台電腦（解法見<a href="#faq-fw">常見問題</a>）。</li>
-  <li><strong>先把 VPN 關掉。</strong>電腦或手機開著 VPN 時，連線常常被導到別的網路，手機就看不到電腦。投影時請先中斷 VPN。</li>
-  <li><strong>學校、公司、飯店的網路可能不行。</strong>這類網路常開啟「用戶端隔離」或封鎖裝置探索，手機和電腦即使連同一個 Wi-Fi 也互相看不到。「訪客網路」通常也是如此。這時可以改用家裡的網路，或用電腦開熱點讓手機連上。</li>
+  <li><strong>同じ Wi-Fi／同じネットワークに。</strong>スマホの Wi-Fi と PC は同じルーターにつないでください。PC がそのルーターに有線でつながっていても大丈夫です。スマホのモバイル データ通信やテザリングでは使えません。</li>
+  <li><strong>初回起動時はファイアウォールを許可。</strong>Zizai Cast を起動して「Windows セキュリティの重要な警告」が出たら、<span class="ui">プライベート ネットワーク</span>にチェックを入れて<span class="ui">アクセスを許可する</span>をクリックします。キャンセルしてしまった場合は<a href="#faq-fw">よくある質問</a>を見てください。</li>
+  <li><strong>VPN はオフに。</strong>PC やスマホで VPN を使っていると、通信が別のネットワークに回されてスマホから PC が見えなくなります。ミラーリング中は VPN を切ってください。</li>
+  <li><strong>学校・会社・ホテルのネットワークは使えないことがあります。</strong>端末同士の通信を遮断していることが多く、同じ Wi-Fi でもお互いが見えません。「ゲスト ネットワーク」も同様です。自宅のネットワークを使うか、PC のモバイル ホットスポットにスマホをつないでください。</li>
 </ol>
 
 <div class="note">
-  <span class="t">自在投影平常在哪裡？</span>
-  關掉視窗並不會結束程式，它會縮到右下角的系統匣（時鐘旁邊的小圖示）繼續等待連線。手機一連上，視窗會自動跳出來。
+  <span class="t">画面に見当たらないときは？</span>
+  ウィンドウを閉じてもアプリは終了しません。タスクバーの通知領域（時計の横の小さなアイコン）に入って接続を待ち続け、スマホが接続するとウィンドウが自動で表示されます。
 </div>
 </section>
 
 <!-- ============ 2 ============ -->
 <section id="iphone">
 <h2><span class="num">2</span>iPhone / iPad</h2>
-<p class="intro">使用 Apple 內建的「螢幕鏡像」，不用安裝任何 App。畫面和聲音都會一起傳到電腦。</p>
+<p class="intro">Apple 標準の「画面ミラーリング」を使うので、アプリのインストールは不要です。映像と音声の両方が PC に届きます。</p>
 
-<figure>
-<svg viewBox="0 0 600 380" role="img" aria-label="iPhone 控制中心的螢幕鏡像按鈕，以及選擇自在投影的清單">
-  <!-- phone 1: control center -->
-  <g transform="translate(40,10)">
-    <rect x="0" y="0" width="190" height="360" rx="34" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="27" fill="#2A2224"/>
-    <rect x="68" y="16" width="54" height="16" rx="8" fill="#100C0D"/>
-    <!-- connectivity block -->
-    <rect x="20" y="48" width="72" height="72" rx="18" fill="#3E3336"/>
-    <circle cx="40" cy="68" r="10" fill="#F2E6E4" opacity=".85"/><circle cx="72" cy="68" r="10" fill="#6B5155"/>
-    <circle cx="40" cy="100" r="10" fill="#6B5155"/><circle cx="72" cy="100" r="10" fill="#6B5155"/>
-    <!-- music block -->
-    <rect x="98" y="48" width="72" height="72" rx="18" fill="#3E3336"/>
-    <rect x="110" y="62" width="40" height="6" rx="3" fill="#6B5155"/><rect x="110" y="74" width="28" height="5" rx="2.5" fill="#55444A"/>
-    <path d="M118 100 l8 -5 v10 z M132 95 h3 v10 h-3z M138 95 h3 v10 h-3z" fill="#9C8789"/>
-    <!-- small round tiles -->
-    <circle cx="38" cy="146" r="16" fill="#3E3336"/><circle cx="74" cy="146" r="16" fill="#3E3336"/>
-    <!-- screen mirroring tile highlighted -->
-    <rect x="98" y="130" width="72" height="32" rx="16" fill="#3E3336" stroke="#F5A7A7" stroke-width="2.5"/>
-    <g fill="none" stroke="#F2E6E4" stroke-width="1.8" stroke-linejoin="round">
-      <rect x="105" y="139" width="12" height="9" rx="2"/>
-      <rect x="110" y="143" width="12" height="9" rx="2" fill="#3E3336"/>
-    </g>
-    <text x="127" y="150" fill="#F2E6E4" font-size="10">螢幕鏡像</text>
-    <!-- sliders -->
-    <rect x="20" y="172" width="32" height="76" rx="14" fill="#3E3336"/><rect x="20" y="214" width="32" height="34" rx="0" fill="#9C8789" opacity=".5"/>
-    <rect x="60" y="172" width="32" height="76" rx="14" fill="#3E3336"/>
-    <rect x="98" y="172" width="32" height="32" rx="10" fill="#3E3336"/><rect x="138" y="172" width="32" height="32" rx="10" fill="#3E3336"/>
-    <rect x="98" y="216" width="32" height="32" rx="10" fill="#3E3336"/><rect x="138" y="216" width="32" height="32" rx="10" fill="#3E3336"/>
-    <circle cx="38" cy="276" r="16" fill="#3E3336"/><circle cx="76" cy="276" r="16" fill="#3E3336"/><circle cx="114" cy="276" r="16" fill="#3E3336"/><circle cx="152" cy="276" r="16" fill="#3E3336"/>
-    <rect x="70" y="336" width="50" height="4" rx="2" fill="#6B5155"/>
-    <!-- callout -->
-    <circle cx="98" cy="128" r="11" fill="#F5A7A7"/><text x="98" y="133" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">1</text>
-  </g>
-  <!-- arrow -->
-  <path d="M252 190 h70" stroke="#F5A7A7" stroke-width="2" fill="none"/>
-  <path d="M316 184 l8 6 l-8 6" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- phone 2: mirroring sheet -->
-  <g transform="translate(350,10)">
-    <rect x="0" y="0" width="190" height="360" rx="34" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="27" fill="#1E191A"/>
-    <rect x="68" y="16" width="54" height="16" rx="8" fill="#100C0D"/>
-    <rect x="20" y="96" width="150" height="176" rx="18" fill="#3A3033"/>
-    <g fill="none" stroke="#F2E6E4" stroke-width="1.8" stroke-linejoin="round">
-      <rect x="83" y="110" width="14" height="11" rx="2"/>
-      <rect x="89" y="115" width="14" height="11" rx="2" fill="#3A3033"/>
-    </g>
-    <text x="95" y="146" text-anchor="middle" fill="#F2E6E4" font-size="14" font-weight="700">螢幕鏡像</text>
-    <rect x="30" y="160" width="130" height="38" rx="10" fill="#4A3D41" stroke="#F5A7A7" stroke-width="2.5"/>
-    <g fill="none" stroke="#CDBAB8" stroke-width="1.5"><rect x="40" y="171" width="20" height="14" rx="2"/><path d="M45 189 h10"/></g>
-    <text x="68" y="184" fill="#F2E6E4" font-size="13">自在投影</text>
-    <path d="M140 179 l4 4 l8 -9" stroke="#F5A7A7" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="30" y="206" width="130" height="1" fill="#55474B"/>
-    <text x="95" y="230" text-anchor="middle" fill="#9C8789" font-size="12">停止鏡像輸出</text>
-    <rect x="70" y="336" width="50" height="4" rx="2" fill="#6B5155"/>
-    <circle cx="160" cy="160" r="12" fill="#F5A7A7"/><text x="160" y="165" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">2</text>
-  </g>
-</svg>
-<figcaption>示意圖：控制中心的版面依 iOS 版本和個人設定而不同，認明兩個重疊方框的「螢幕鏡像」圖示即可。</figcaption>
-</figure>
-
-<h3>開始投影</h3>
+<h3>ミラーリングを始める</h3>
 <ol class="steps">
-  <li>確認電腦上的自在投影已經開著（視窗顯示「等待 iPhone 連線…」，或右下角系統匣有它的圖示）。</li>
-  <li>打開 iPhone 的<strong>控制中心</strong>：有 Face ID 的機型從右上角往下滑；有主畫面按鈕的機型從底部往上滑。</li>
-  <li>點<span class="ui">螢幕鏡像</span>（舊版 iOS 叫「螢幕鏡像輸出」）。</li>
-  <li>在清單中選<span class="ui">自在投影</span>。幾秒內電腦就會出現手機畫面，並顯示「已連線」。</li>
+  <li>PC で Zizai Cast が起動していることを確認します（ウィンドウに「スマホの接続を待っています…」と表示されているか、通知領域にアイコンがあります）。</li>
+  <li>iPhone で<strong>コントロールセンター</strong>を開きます。Face ID 搭載モデルは画面の右上から下へ、ホームボタンのあるモデルは画面の下から上へスワイプします。</li>
+  <li><span class="ui">画面ミラーリング</span>をタップします。</li>
+  <li>一覧から <span class="ui">Zizai Cast</span> を選びます。数秒で iPhone の画面が PC に映ります。</li>
 </ol>
 
-<h3>停止投影</h3>
-<p>再打開控制中心 → <span class="ui">螢幕鏡像</span> → <span class="ui">停止鏡像輸出</span>。電腦會回到等待畫面。</p>
-<p>也可以在<strong>電腦上</strong>中斷：滑鼠移到投影畫面上 → 上方工具列最右邊的紅色<span class="ui">中斷連線</span>，或按 <kbd>Ctrl</kbd><kbd>D</kbd>（詳見第 5 節「怎麼中斷連線」）。</p>
-<p>如果是 Wi-Fi 斷掉之類的意外中斷，畫面會先變暗並顯示「連線中斷，在 iPhone 重新選擇螢幕鏡像即可」，照著重新選一次就好。</p>
+<h3>ミラーリングを止める</h3>
+<p>もう一度コントロールセンター → <span class="ui">画面ミラーリング</span> → <span class="ui">ミラーリングを停止</span>。PC は待機画面に戻ります。PC 側で止めることもできます（<a href="#disconnect">接続を解除する方法</a>）。</p>
 
-<h3>PIN 碼模式</h3>
-<p>在等待畫面勾選<span class="ui">連線需要 PIN 碼</span>（或在右鍵選單 → 設定、系統匣選單裡切換）。開啟後，<strong>新的</strong> iPhone 選自在投影時，電腦會顯示 4 位數字，在 iPhone 上輸入才能投影。</p>
+<h3>PIN とスマホが複数あるとき</h3>
 <ul>
-  <li>每次嘗試的 PIN 都不一樣；輸錯了 iPhone 會再問一次。</li>
-  <li>輸入成功過的 iPhone 會被記住，下次不用再輸入。</li>
-  <li>適合放在共用空間、怕被別人誤連的電腦。投影中切換這個選項，會等手機中斷後才生效。</li>
+  <li>待機画面の<span class="ui">接続に PIN を要求</span>をオンにすると、<strong>初めての</strong> iPhone は PC に表示される 4 桁の PIN を入力しないとミラーリングできません。一度成功した iPhone は記憶されます。</li>
+  <li>別の iPhone も Zizai Cast を選んだときの動作は、右クリック メニュー → 設定 → <span class="ui">新しいスマホが接続したとき</span>で選べます：<span class="ui">切り替える</span>（新しいスマホを表示）／<span class="ui">今のまま</span>（先に接続したスマホを継続）。</li>
+  <li>iPhone の画面がオフになるとミラーリングは一時停止し、<strong>ロックを解除すると自動で再開</strong>します。</li>
+  <li>iPhone の音量ボタンで PC から出る音量を調節できます。</li>
 </ul>
-
-<h3>多支 iPhone</h3>
-<p>同一時間只會顯示一支手機。另一支 iPhone 也選了自在投影時怎麼辦，可以在右鍵選單 → 設定 → <span class="ui">新手機連線時</span>選擇：</p>
-<div class="tbl"><table>
-  <tr><th>選項</th><th>效果</th></tr>
-  <tr><td>接手（預設）</td><td>換新的那支投影，原本那支自動停止。畫面上會顯示「「某某」接手投影」。若正在錄影，原本那支的錄影會先儲存。</td></tr>
-  <tr><td>保持目前</td><td>正在投影的那支繼續，其他手機的連線會被拒絕。適合上課、簡報時避免被打斷。</td></tr>
-</table></div>
-<p>開啟 PIN 碼模式時，新手機也必須先輸入 PIN（或是曾經配對過）才能接手。</p>
-
-<h3>螢幕關閉時</h3>
-<p>iPhone 鎖定或螢幕關閉時，投影會暫停，電腦顯示「iPhone 螢幕已關閉」。<strong>解鎖 iPhone 後會自動繼續</strong>，不用重新連線。錄影中暫停也不會中斷錄影。</p>
-
-<h3>音量</h3>
-<p>投影時，iPhone 側邊的音量鍵會直接調整電腦播放的音量，自在投影會記住上次的音量。電腦本身的系統音量也一樣有效。若沒有聲音，請看<a href="#faq-audio">常見問題</a>。</p>
 </section>
 
 <!-- ============ 3 ============ -->
 <section id="miracast">
-<h2><span class="num">3</span>Android 方式一：投放（Miracast）</h2>
-<p class="intro">大多數 Android 手機內建「無線投影」功能（Miracast）。不用任何設定，但只能看畫面，不能用電腦操控手機；而且電腦的 Wi-Fi 網卡必須支援。</p>
+<h2><span class="num">3</span>Android 方法 1：キャスト（Miracast）</h2>
+<p class="intro">多くの Android スマホにはワイヤレス キャスト（Miracast）機能が付いています。設定は不要ですが、見るだけで PC からスマホは操作できません。また PC の Wi-Fi アダプターが対応している必要があります。</p>
 
-<figure>
-<svg viewBox="0 0 600 380" role="img" aria-label="Android 快速設定裡的投放圖塊，以及選擇自在投影">
-  <g transform="translate(40,10)">
-    <rect x="0" y="0" width="190" height="360" rx="26" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="20" fill="#262022"/>
-    <circle cx="95" cy="20" r="4" fill="#100C0D"/>
-    <text x="22" y="46" fill="#F2E6E4" font-size="15" font-weight="600">10:24</text>
-    <rect x="22" y="58" width="146" height="22" rx="11" fill="#3A3033"/><rect x="22" y="58" width="90" height="22" rx="11" fill="#6B5155"/>
-    <!-- tiles -->
-    <g font-size="11" fill="#CDBAB8">
-      <rect x="22" y="92" width="70" height="40" rx="14" fill="#6B5155"/><text x="57" y="116" text-anchor="middle" fill="#F2E6E4">Wi-Fi</text>
-      <rect x="98" y="92" width="70" height="40" rx="14" fill="#3A3033"/><text x="133" y="116" text-anchor="middle">藍牙</text>
-      <rect x="22" y="140" width="70" height="40" rx="14" fill="#3A3033"/><text x="57" y="164" text-anchor="middle">手電筒</text>
-      <rect x="98" y="140" width="70" height="40" rx="14" fill="#3A3033" stroke="#F5A7A7" stroke-width="2.5"/>
-      <g fill="none" stroke="#F2E6E4" stroke-width="1.6"><rect x="107" y="153" width="17" height="13" rx="2"/><path d="M107 162 a4 4 0 0 1 4 4 M107 158 a8 8 0 0 1 8 8"/></g>
-      <text x="146" y="164" text-anchor="middle" fill="#F2E6E4">投放</text>
-      <rect x="22" y="188" width="70" height="40" rx="14" fill="#3A3033"/><text x="57" y="212" text-anchor="middle">勿擾</text>
-      <rect x="98" y="188" width="70" height="40" rx="14" fill="#3A3033"/><text x="133" y="212" text-anchor="middle">自動旋轉</text>
-      <rect x="22" y="236" width="70" height="40" rx="14" fill="#3A3033"/><text x="57" y="260" text-anchor="middle">定位</text>
-      <rect x="98" y="236" width="70" height="40" rx="14" fill="#3A3033"/><text x="133" y="260" text-anchor="middle">飛航模式</text>
-    </g>
-    <rect x="80" y="296" width="30" height="4" rx="2" fill="#6B5155"/>
-    <circle cx="168" cy="140" r="12" fill="#F5A7A7"/><text x="168" y="145" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">1</text>
-  </g>
-  <path d="M252 190 h70" stroke="#F5A7A7" stroke-width="2" fill="none"/>
-  <path d="M316 184 l8 6 l-8 6" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <g transform="translate(350,10)">
-    <rect x="0" y="0" width="190" height="360" rx="26" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="20" fill="#1A1516"/>
-    <circle cx="95" cy="20" r="4" fill="#100C0D"/>
-    <rect x="18" y="110" width="154" height="150" rx="18" fill="#3A3033"/>
-    <text x="34" y="140" fill="#F2E6E4" font-size="14" font-weight="700">投放到裝置</text>
-    <text x="34" y="160" fill="#9C8789" font-size="11">正在搜尋附近的裝置…</text>
-    <rect x="28" y="172" width="134" height="40" rx="10" fill="#4A3D41" stroke="#F5A7A7" stroke-width="2.5"/>
-    <g fill="none" stroke="#CDBAB8" stroke-width="1.5"><rect x="38" y="184" width="20" height="14" rx="2"/><path d="M43 202 h10"/></g>
-    <text x="66" y="197" fill="#F2E6E4" font-size="13">自在投影</text>
-    <text x="34" y="242" fill="#9C8789" font-size="12">取消</text>
-    <circle cx="162" cy="172" r="12" fill="#F5A7A7"/><text x="162" y="177" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">2</text>
-  </g>
-</svg>
-<figcaption>示意圖：各品牌名稱不同（投放、Smart View、螢幕投放、投屏…），請對照下表。</figcaption>
-</figure>
-
-<h3>開始投放</h3>
+<h3>キャストを始める</h3>
 <ol class="steps">
-  <li>電腦開著自在投影，並且 <strong>Wi-Fi 是開啟的</strong>（即使電腦用網路線上網，無線網卡也要開著）。</li>
-  <li>手機從螢幕頂端往下滑兩次，打開完整的快速設定。找到投放圖塊（名稱見下表）。找不到的話，點快速設定的「編輯」（鉛筆圖示）把它加進來。</li>
-  <li>在搜尋到的裝置清單裡選<span class="ui">自在投影</span>（有些手機會顯示電腦名稱）。第一次連線可能要等 10～20 秒。</li>
-  <li>停止：再點一次同一個圖塊，或下拉通知欄點「中斷連線」。在電腦上：工具列的<span class="ui">中斷連線</span>或 <kbd>Ctrl</kbd><kbd>D</kbd>。</li>
+  <li>PC で Zizai Cast が起動していて、<strong>PC の Wi-Fi がオン</strong>になっていることを確認します（有線でネットにつないでいても、Wi-Fi アダプターはオンにしておきます）。</li>
+  <li>スマホの画面上部から 2 回下へスワイプしてクイック設定を全部開き、キャストのタイルを探します。名前はメーカーによって<span class="ui">キャスト</span>、<span class="ui">Smart View</span>（Samsung）、<span class="ui">スクリーンミラーリング</span>（Xperia）などです。見つからなければクイック設定の編集（鉛筆アイコン）から追加します。</li>
+  <li>見つかったデバイスの一覧から <span class="ui">Zizai Cast</span> を選びます（PC の名前で表示される機種もあります）。初回は 10〜20 秒かかることがあります。</li>
+  <li>止めるときは同じタイルをもう一度タップ。PC 側ではツールバーの<span class="ui">接続を解除</span>か <kbd>Ctrl</kbd><kbd>D</kbd>。</li>
 </ol>
+<p><strong>Google Pixel は Miracast に対応していません</strong>（Pixel の「キャスト」は Chromecast 専用）。<a href="#adb">方法 2：ワイヤレス デバッグ</a>を使ってください。</p>
 
-<h3>各品牌的名稱與位置</h3>
-<div class="tbl"><table>
-  <tr><th>品牌</th><th>快速設定圖塊</th><th>或在「設定」裡</th></tr>
-  <tr><td>Samsung</td><td>Smart View</td><td>設定 → 已連接的裝置 → Smart View</td></tr>
-  <tr><td>Xiaomi / Redmi / POCO</td><td>投放、無線投放</td><td>設定 → 連線與共享 → 投放</td></tr>
-  <tr><td>OPPO / realme / OnePlus</td><td>螢幕投放、多屏互動</td><td>設定 → 連線與共享 → 螢幕投放（多屏互動）</td></tr>
-  <tr><td>vivo / iQOO</td><td>投屏</td><td>設定 → 其他網路與連線 → 投屏</td></tr>
-  <tr><td>ASUS</td><td>無線投影、PlayTo</td><td>設定 → 已連線的裝置 → 連線偏好設定 → 投放</td></tr>
-  <tr><td>Sony</td><td>螢幕鏡像</td><td>設定 → 裝置連線 → 連線偏好設定 → 螢幕鏡像</td></tr>
-  <tr class="no"><td>Google Pixel</td><td colspan="2">不支援 Miracast（Pixel 的「投放」只支援 Chromecast，清單裡不會出現自在投影）。請改用<a href="#adb">方式二：無線偵錯</a>。</td></tr>
-</table></div>
-<p style="font-size:14.5px;color:var(--mute)">選單名稱會隨系統版本改變，上表為常見位置。在設定的搜尋列輸入「投放」「投影」或「鏡像」通常就能找到。</p>
-
-<h3>電腦需要什麼</h3>
-<p>Miracast 是手機直接以 Wi-Fi 連到電腦（Wi-Fi Direct），所以電腦必須有<strong>支援「無線顯示器」的 Wi-Fi 網卡</strong>。大部分近年的筆電都支援；桌機若只有網路線、沒有 Wi-Fi 網卡就不能用。檢查方法：</p>
-<ol class="steps">
-  <li>在「開始」按右鍵 →<span class="ui">終端機</span>（或搜尋「命令提示字元」）。</li>
-  <li>輸入下面這行並按 <kbd>Enter</kbd>：</li>
-</ol>
+<h3>PC の対応を確認する</h3>
+<p>スタートを右クリック → <span class="ui">ターミナル</span>を開き、次の行を入力して <kbd>Enter</kbd> を押します。</p>
 <pre>netsh wlan show drivers</pre>
-<p>在結果裡找這一行（中文 Windows 可能顯示為「支援無線顯示器」）：</p>
-<pre><span class="hl">Wireless Display Supported: Yes (Graphics Driver: Yes, Wi-Fi Driver: Yes)</span></pre>
-<p>兩個都是 <code>Yes</code> 才能用。如果是 <code>No</code>，可以先更新 Wi-Fi 網卡與顯示卡驅動程式；還是 <code>No</code> 的話，請改用<a href="#adb">方式二</a>。</p>
-
-<h3>小提醒</h3>
-<ul>
-  <li>手機和電腦盡量靠近一點，中間少一點牆壁，畫面會比較穩。</li>
-  <li>Miracast 的連線方式不經過分享器，所以它不受第 1 節的「同一個網路」限制，但電腦的 Wi-Fi 一定要開著。</li>
-  <li>這種方式<strong>無法用電腦操控手機</strong>，只能看。想用滑鼠點手機，請用方式二。</li>
-  <li>連不上時，請看常見問題的<a href="#faq-miracast">Miracast 連不上</a>。</li>
-</ul>
+<p>結果の中の「ワイヤレス ディスプレイ」の行（英語表示では <code>Wireless Display Supported</code>）を見てください。グラフィックス ドライバーと Wi-Fi ドライバーの両方が対応している（「はい」／<code>Yes</code>）なら使えます。「いいえ」の場合はドライバーを更新するか、方法 2 を使ってください。</p>
 </section>
 
 <!-- ============ 4 ============ -->
 <section id="adb">
-<h2><span class="num">4</span>Android 方式二：無線偵錯</h2>
-<p class="intro">利用 Android 內建的「無線偵錯」功能連線。第一次需要花幾分鐘設定，之後就會自動連線，而且<strong>可以用電腦的滑鼠和鍵盤操控手機</strong>。需要 <strong>Android 11 以上</strong>，手機和電腦要在同一個網路（見第 1 節）。</p>
+<h2><span class="num">4</span>Android 方法 2：ワイヤレス デバッグ</h2>
+<p class="intro">Android 標準の「ワイヤレス デバッグ」で接続します。最初だけ数分の設定が必要ですが、その後は自動で接続し、<strong>PC のマウスとキーボードでスマホを操作できます</strong>。<strong>Android 11 以降</strong>が必要で、スマホと PC は同じネットワークにつなぎます（1 章）。</p>
 
-<h3>步驟一：開啟「開發人員選項」</h3>
-<p>這是 Android 隱藏的設定頁，只要做一次。</p>
-<figure>
-<svg viewBox="0 0 600 380" role="img" aria-label="在關於手機裡連點版本號碼七下，開啟開發人員選項">
-  <g transform="translate(40,10)">
-    <rect x="0" y="0" width="190" height="360" rx="26" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="20" fill="#221C1E"/>
-    <circle cx="95" cy="20" r="4" fill="#100C0D"/>
-    <path d="M24 50 l-6 6 l6 6" stroke="#CDBAB8" stroke-width="2" fill="none"/>
-    <text x="34" y="61" fill="#F2E6E4" font-size="15" font-weight="700">關於手機</text>
-    <g font-size="11.5">
-      <text x="22" y="98" fill="#F2E6E4">裝置名稱</text><text x="22" y="114" fill="#9C8789">我的手機</text>
-      <text x="22" y="146" fill="#F2E6E4">型號</text><text x="22" y="162" fill="#9C8789">XXXX-123</text>
-      <text x="22" y="194" fill="#F2E6E4">Android 版本</text><text x="22" y="210" fill="#9C8789">14</text>
-      <rect x="14" y="226" width="162" height="48" rx="10" fill="#3A3033" stroke="#F5A7A7" stroke-width="2.5"/>
-      <text x="24" y="246" fill="#F2E6E4" font-weight="700">版本號碼</text><text x="24" y="263" fill="#9C8789">UP1A.231005.007</text>
-    </g>
-    <circle cx="160" cy="250" r="16" fill="#F5A7A7"/><text x="160" y="255" text-anchor="middle" fill="#2A1A1C" font-size="12" font-weight="700">×7</text>
-    <rect x="26" y="306" width="138" height="30" rx="15" fill="#4A3D41"/>
-    <text x="95" y="325" text-anchor="middle" fill="#F2E6E4" font-size="10.5">你現在已成為開發人員！</text>
-  </g>
-  <path d="M252 190 h70" stroke="#F5A7A7" stroke-width="2" fill="none"/>
-  <path d="M316 184 l8 6 l-8 6" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <g transform="translate(350,10)">
-    <rect x="0" y="0" width="190" height="360" rx="26" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="20" fill="#221C1E"/>
-    <circle cx="95" cy="20" r="4" fill="#100C0D"/>
-    <path d="M24 50 l-6 6 l6 6" stroke="#CDBAB8" stroke-width="2" fill="none"/>
-    <text x="34" y="61" fill="#F2E6E4" font-size="15" font-weight="700">開發人員選項</text>
-    <g font-size="11.5">
-      <text x="22" y="100" fill="#9C8789" font-size="10.5">偵錯</text>
-      <text x="22" y="128" fill="#F2E6E4">USB 偵錯</text>
-      <rect x="140" y="117" width="28" height="15" rx="7.5" fill="#4A3D41"/><circle cx="148" cy="124.5" r="5.5" fill="#9C8789"/>
-      <rect x="14" y="146" width="162" height="48" rx="10" fill="#3A3033" stroke="#F5A7A7" stroke-width="2.5"/>
-      <text x="24" y="166" fill="#F2E6E4" font-weight="700">無線偵錯</text><text x="24" y="183" fill="#9C8789" font-size="10.5">點文字進入設定頁</text>
-      <rect x="140" y="163" width="28" height="15" rx="7.5" fill="#F5A7A7"/><circle cx="160" cy="170.5" r="5.5" fill="#2A1A1C"/>
-      <text x="22" y="226" fill="#F2E6E4">撤銷 USB 偵錯授權</text>
-      <text x="22" y="262" fill="#F2E6E4">錯誤報告捷徑</text>
-    </g>
-  </g>
-</svg>
-<figcaption>示意圖：連點「版本號碼」7 下（可能要先輸入手機解鎖密碼），再到開發人員選項找「無線偵錯」。</figcaption>
-</figure>
+<h3>ステップ 1：開発者向けオプションを有効にする</h3>
 <ol class="steps">
-  <li>打開手機的<span class="ui">設定</span> → <span class="ui">關於手機</span>。</li>
-  <li>找到<span class="ui">版本號碼</span>，<strong>連續點 7 下</strong>，直到出現「你現在已成為開發人員」之類的提示。</li>
-  <li>回到設定，就會多出<span class="ui">開發人員選項</span>（通常在「系統」裡，或設定的最下方）。</li>
+  <li>スマホの<span class="ui">設定</span> → <span class="ui">デバイス情報</span>（機種によっては「端末情報」）を開きます。</li>
+  <li><span class="ui">ビルド番号</span>を<strong>7 回続けてタップ</strong>します。「これでデベロッパーになりました！」と表示されれば OK です（画面ロックの解除を求められることがあります）。</li>
+  <li>設定に<span class="ui">開発者向けオプション</span>が現れます（多くは「システム」の中か、設定のいちばん下）。</li>
 </ol>
-<div class="tbl"><table>
-  <tr><th>品牌</th><th>要連點的項目</th><th>開發人員選項在哪</th></tr>
-  <tr><td>Google Pixel 等</td><td>關於手機 → 版本號碼</td><td>設定 → 系統 → 開發人員選項</td></tr>
-  <tr><td>Samsung</td><td>關於手機 → 軟體資訊 → 版本號碼</td><td>設定最下方 → 開發人員選項</td></tr>
-  <tr><td>Xiaomi / Redmi / POCO</td><td>我的裝置（關於手機）→ 全部參數 → MIUI 版本（HyperOS 為「OS 版本」）</td><td>設定 → 更多設定 → 開發者選項</td></tr>
-  <tr><td>OPPO / realme / OnePlus</td><td>關於手機 → 版本 → 版本號碼</td><td>設定 → 系統設定 → 開發人員選項</td></tr>
-  <tr><td>vivo / iQOO</td><td>系統管理（關於手機）→ 軟體版本號</td><td>設定 → 系統管理 → 開發人員選項</td></tr>
-</table></div>
+<p style="font-size:14.5px;color:var(--mute)">Samsung：端末情報 → ソフトウェア情報 → ビルド番号。Xiaomi：デバイス情報 → すべての仕様 → MIUI バージョン（HyperOS では「OS バージョン」）。</p>
 
-<h3>步驟二：配對（只要一次）</h3>
-<figure>
-<svg viewBox="0 0 600 380" role="img" aria-label="無線偵錯設定頁的使用 QR 圖碼配對裝置，掃描自在投影顯示的 QR 圖碼">
-  <g transform="translate(40,10)">
-    <rect x="0" y="0" width="190" height="360" rx="26" fill="#100C0D" stroke="#6B5155" stroke-width="2"/>
-    <rect x="8" y="8" width="174" height="344" rx="20" fill="#221C1E"/>
-    <circle cx="95" cy="20" r="4" fill="#100C0D"/>
-    <path d="M24 50 l-6 6 l6 6" stroke="#CDBAB8" stroke-width="2" fill="none"/>
-    <text x="34" y="61" fill="#F2E6E4" font-size="15" font-weight="700">無線偵錯</text>
-    <rect x="14" y="78" width="162" height="40" rx="20" fill="#3A3033"/>
-    <text x="28" y="103" fill="#F2E6E4" font-size="12" font-weight="600">使用無線偵錯</text>
-    <rect x="136" y="90" width="30" height="16" rx="8" fill="#F5A7A7"/><circle cx="158" cy="98" r="6" fill="#2A1A1C"/>
-    <g font-size="11.5">
-      <text x="22" y="146" fill="#F2E6E4">裝置名稱</text><text x="22" y="162" fill="#9C8789">我的手機</text>
-      <text x="22" y="190" fill="#F2E6E4">IP 位址與通訊埠</text><text x="22" y="206" fill="#9C8789">192.168.1.23:41235</text>
-      <rect x="14" y="220" width="162" height="40" rx="10" fill="#3A3033" stroke="#F5A7A7" stroke-width="2.5"/>
-      <rect x="24" y="232" width="15" height="15" rx="2" fill="none" stroke="#F2E6E4" stroke-width="1.5"/><rect x="28" y="236" width="7" height="7" fill="#F2E6E4"/>
-      <text x="46" y="244" fill="#F2E6E4" font-weight="700" font-size="11">使用 QR 圖碼配對裝置</text>
-      <text x="46" y="286" fill="#CDBAB8" font-size="11">使用配對碼配對裝置</text>
-      <text x="22" y="320" fill="#9C8789" font-size="10.5">已配對的裝置</text>
-    </g>
-    <circle cx="168" cy="220" r="12" fill="#F5A7A7"/><text x="168" y="225" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">1</text>
-  </g>
-  <!-- pc window with QR -->
-  <g transform="translate(300,60)">
-    <rect x="0" y="0" width="270" height="250" rx="12" fill="#2E2124" stroke="#6B5155" stroke-width="2"/>
-    <rect x="0" y="0" width="270" height="30" rx="12" fill="#382A2D"/><rect x="0" y="18" width="270" height="12" fill="#382A2D"/>
-    <text x="14" y="20" fill="#CDBAB8" font-size="11.5">自在投影</text>
-    <g fill="none" stroke="#9C8789" stroke-width="1.3"><path d="M210 15 h8"/><rect x="230" y="11" width="8" height="8"/><path d="M250 11 l8 8 M258 11 l-8 8"/></g>
-    <text x="135" y="54" text-anchor="middle" fill="#F2E6E4" font-size="13" font-weight="700">用手機的「無線偵錯」掃描</text>
-    <rect x="80" y="70" width="110" height="110" rx="8" fill="#F7EEEC"/>
-    <g transform="translate(87,77)"><rect x="0.00" y="0.00" width="32.00" height="32.00" fill="#1C1416"/><rect x="4.57" y="4.57" width="22.86" height="22.86" fill="#F7EEEC"/><rect x="9.14" y="9.14" width="13.71" height="13.71" fill="#1C1416"/><rect x="64.00" y="0.00" width="32.00" height="32.00" fill="#1C1416"/><rect x="68.57" y="4.57" width="22.86" height="22.86" fill="#F7EEEC"/><rect x="73.14" y="9.14" width="13.71" height="13.71" fill="#1C1416"/><rect x="0.00" y="64.00" width="32.00" height="32.00" fill="#1C1416"/><rect x="4.57" y="68.57" width="22.86" height="22.86" fill="#F7EEEC"/><rect x="9.14" y="73.14" width="13.71" height="13.71" fill="#1C1416"/><path fill="#1C1416" d="M36.57 0.00h4.57v4.57h-4.57zM41.14 0.00h4.57v4.57h-4.57zM50.29 0.00h4.57v4.57h-4.57zM36.57 4.57h4.57v4.57h-4.57zM41.14 4.57h4.57v4.57h-4.57zM50.29 4.57h4.57v4.57h-4.57zM54.86 4.57h4.57v4.57h-4.57zM36.57 9.14h4.57v4.57h-4.57zM41.14 9.14h4.57v4.57h-4.57zM45.71 9.14h4.57v4.57h-4.57zM54.86 9.14h4.57v4.57h-4.57zM36.57 13.71h4.57v4.57h-4.57zM54.86 13.71h4.57v4.57h-4.57zM41.14 18.29h4.57v4.57h-4.57zM50.29 18.29h4.57v4.57h-4.57zM54.86 18.29h4.57v4.57h-4.57zM36.57 22.86h4.57v4.57h-4.57zM41.14 22.86h4.57v4.57h-4.57zM50.29 22.86h4.57v4.57h-4.57zM41.14 27.43h4.57v4.57h-4.57zM50.29 27.43h4.57v4.57h-4.57zM54.86 27.43h4.57v4.57h-4.57zM36.57 32.00h4.57v4.57h-4.57zM45.71 32.00h4.57v4.57h-4.57zM50.29 32.00h4.57v4.57h-4.57zM0.00 36.57h4.57v4.57h-4.57zM4.57 36.57h4.57v4.57h-4.57zM18.29 36.57h4.57v4.57h-4.57zM41.14 36.57h4.57v4.57h-4.57zM50.29 36.57h4.57v4.57h-4.57zM54.86 36.57h4.57v4.57h-4.57zM64.00 36.57h4.57v4.57h-4.57zM73.14 36.57h4.57v4.57h-4.57zM0.00 41.14h4.57v4.57h-4.57zM18.29 41.14h4.57v4.57h-4.57zM32.00 41.14h4.57v4.57h-4.57zM41.14 41.14h4.57v4.57h-4.57zM64.00 41.14h4.57v4.57h-4.57zM68.57 41.14h4.57v4.57h-4.57zM77.71 41.14h4.57v4.57h-4.57zM82.29 41.14h4.57v4.57h-4.57zM86.86 41.14h4.57v4.57h-4.57zM91.43 41.14h4.57v4.57h-4.57zM0.00 45.71h4.57v4.57h-4.57zM9.14 45.71h4.57v4.57h-4.57zM13.71 45.71h4.57v4.57h-4.57zM18.29 45.71h4.57v4.57h-4.57zM27.43 45.71h4.57v4.57h-4.57zM32.00 45.71h4.57v4.57h-4.57zM54.86 45.71h4.57v4.57h-4.57zM59.43 45.71h4.57v4.57h-4.57zM64.00 45.71h4.57v4.57h-4.57zM77.71 45.71h4.57v4.57h-4.57zM82.29 45.71h4.57v4.57h-4.57zM86.86 45.71h4.57v4.57h-4.57zM91.43 45.71h4.57v4.57h-4.57zM9.14 50.29h4.57v4.57h-4.57zM13.71 50.29h4.57v4.57h-4.57zM18.29 50.29h4.57v4.57h-4.57zM22.86 50.29h4.57v4.57h-4.57zM54.86 50.29h4.57v4.57h-4.57zM77.71 50.29h4.57v4.57h-4.57zM82.29 50.29h4.57v4.57h-4.57zM86.86 50.29h4.57v4.57h-4.57zM0.00 54.86h4.57v4.57h-4.57zM4.57 54.86h4.57v4.57h-4.57zM9.14 54.86h4.57v4.57h-4.57zM13.71 54.86h4.57v4.57h-4.57zM18.29 54.86h4.57v4.57h-4.57zM22.86 54.86h4.57v4.57h-4.57zM27.43 54.86h4.57v4.57h-4.57zM32.00 54.86h4.57v4.57h-4.57zM36.57 54.86h4.57v4.57h-4.57zM41.14 54.86h4.57v4.57h-4.57zM45.71 54.86h4.57v4.57h-4.57zM59.43 54.86h4.57v4.57h-4.57zM64.00 54.86h4.57v4.57h-4.57zM68.57 54.86h4.57v4.57h-4.57zM73.14 54.86h4.57v4.57h-4.57zM77.71 54.86h4.57v4.57h-4.57zM91.43 54.86h4.57v4.57h-4.57zM41.14 59.43h4.57v4.57h-4.57zM45.71 59.43h4.57v4.57h-4.57zM50.29 59.43h4.57v4.57h-4.57zM54.86 59.43h4.57v4.57h-4.57zM64.00 59.43h4.57v4.57h-4.57zM68.57 59.43h4.57v4.57h-4.57zM82.29 59.43h4.57v4.57h-4.57zM91.43 59.43h4.57v4.57h-4.57zM54.86 64.00h4.57v4.57h-4.57zM59.43 64.00h4.57v4.57h-4.57zM64.00 64.00h4.57v4.57h-4.57zM82.29 64.00h4.57v4.57h-4.57zM86.86 64.00h4.57v4.57h-4.57zM59.43 68.57h4.57v4.57h-4.57zM68.57 68.57h4.57v4.57h-4.57zM73.14 68.57h4.57v4.57h-4.57zM77.71 68.57h4.57v4.57h-4.57zM82.29 68.57h4.57v4.57h-4.57zM86.86 68.57h4.57v4.57h-4.57zM41.14 73.14h4.57v4.57h-4.57zM59.43 73.14h4.57v4.57h-4.57zM64.00 73.14h4.57v4.57h-4.57zM68.57 73.14h4.57v4.57h-4.57zM73.14 73.14h4.57v4.57h-4.57zM77.71 73.14h4.57v4.57h-4.57zM36.57 77.71h4.57v4.57h-4.57zM50.29 77.71h4.57v4.57h-4.57zM73.14 77.71h4.57v4.57h-4.57zM77.71 77.71h4.57v4.57h-4.57zM86.86 77.71h4.57v4.57h-4.57zM41.14 82.29h4.57v4.57h-4.57zM45.71 82.29h4.57v4.57h-4.57zM59.43 82.29h4.57v4.57h-4.57zM64.00 82.29h4.57v4.57h-4.57zM68.57 82.29h4.57v4.57h-4.57zM82.29 82.29h4.57v4.57h-4.57zM41.14 86.86h4.57v4.57h-4.57zM50.29 86.86h4.57v4.57h-4.57zM54.86 86.86h4.57v4.57h-4.57zM77.71 86.86h4.57v4.57h-4.57zM91.43 86.86h4.57v4.57h-4.57zM36.57 91.43h4.57v4.57h-4.57zM41.14 91.43h4.57v4.57h-4.57zM45.71 91.43h4.57v4.57h-4.57zM54.86 91.43h4.57v4.57h-4.57zM59.43 91.43h4.57v4.57h-4.57zM64.00 91.43h4.57v4.57h-4.57zM73.14 91.43h4.57v4.57h-4.57zM77.71 91.43h4.57v4.57h-4.57zM91.43 91.43h4.57v4.57h-4.57z"/></g>
-    <text x="135" y="205" text-anchor="middle" fill="#9C8789" font-size="11">開發人員選項 → 無線偵錯 →</text>
-    <text x="135" y="222" text-anchor="middle" fill="#9C8789" font-size="11">使用 QR 圖碼配對裝置</text>
-    <circle cx="190" cy="72" r="12" fill="#F5A7A7"/><text x="190" y="77" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">2</text>
-  </g>
-  <path d="M236 240 C 260 240 270 200 296 190" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-dasharray="5 6"/>
-  <text x="435" y="340" text-anchor="middle" fill="#9C8789" font-size="12">電腦：右鍵選單 →「連接 Android（掃 QR）」</text>
-</svg>
-<figcaption>示意圖：手機的相機框對準電腦上的 QR 圖碼，配對成功後會自動開始投影。</figcaption>
-</figure>
+<h3>ステップ 2：ペア設定（最初の 1 回だけ）</h3>
 <ol class="steps">
-  <li>手機：<span class="ui">開發人員選項</span> → 打開<span class="ui">無線偵錯</span>的開關（第一次會問「要允許在這個網路上使用無線偵錯嗎？」，選<span class="ui">允許</span>）。</li>
-  <li>電腦：在自在投影視窗按右鍵 → <span class="ui">連接 Android（掃 QR）</span>，畫面會出現 QR 圖碼。</li>
-  <li>手機：點「無線偵錯」這幾個字進入設定頁 → <span class="ui">使用 QR 圖碼配對裝置</span>，用跳出的相機框掃描電腦上的 QR 圖碼。</li>
-  <li>配對成功後，配對視窗會自動關閉，電腦出現手機畫面，下方提示「已連線：手機名稱。滑鼠移到上方有工具列；右鍵＝返回」。</li>
+  <li>スマホ：<span class="ui">開発者向けオプション</span> → <span class="ui">ワイヤレス デバッグ</span>のスイッチをオン（初回は「このネットワークでワイヤレス デバッグを許可しますか？」と聞かれるので<span class="ui">許可</span>）。</li>
+  <li>PC：Zizai Cast のウィンドウを右クリック → <span class="ui">Android を接続（QR をスキャン）</span>。QR コードが表示されます。</li>
+  <li>スマホ：「ワイヤレス デバッグ」の文字をタップしてページを開き → <span class="ui">QR コードによるデバイスのペア設定</span> → PC の QR コードをスキャンします。</li>
+  <li>ペア設定が終わるとウィンドウは自動で閉じ、スマホの画面が PC に映ります。</li>
 </ol>
 <div class="note">
-  <span class="t">一直停在「等待手機掃描…」？</span>
-  約 45 秒都沒有收到手機回應時，視窗會改成顯示「沒有收到手機回應：確認手機和電腦在同一個 Wi‑Fi，或改用配對碼」。請確認兩邊在同一個網路（不是訪客 Wi‑Fi），或按<span class="ui">用配對碼</span>：在手機點「使用配對碼配對裝置」，把手機上顯示的 IP 位址:連接埠和 6 位數配對碼輸入電腦。配對失敗時視窗會說明原因，並自動換一個新的 QR 圖碼，直接再掃一次即可。
+  <span class="t">「スマホのスキャンを待っています…」のまま進まない</span>
+  約 45 秒たってもスマホから応答がないと、その旨が表示されます。スマホと PC が同じ Wi-Fi（ゲスト Wi-Fi ではない）か確認するか、<span class="ui">ペア設定コードを使う</span>をクリックしてください。スマホで「ペア設定コードによるデバイスのペア設定」をタップし、表示される IP アドレス:ポートと 6 桁のコードを PC に入力して<span class="ui">ペア設定</span>をクリックします。
 </div>
 
-<h3>之後：自動重新連線</h3>
-<p>配對過的手機不用再掃 QR。只要手機的<span class="ui">無線偵錯</span>開著、和電腦在同一個網路，自在投影就會自動連上。</p>
-<div class="note">
-  <span class="t">無線偵錯會自己關掉</span>
-  為了安全，很多手機在重新開機或換了 Wi-Fi 之後，會自動關閉無線偵錯。這時只要回到開發人員選項把它再打開，<strong>不用重新配對</strong>。
-</div>
+<h3>次回からは自動で接続</h3>
+<p>ペア設定済みのスマホは、<span class="ui">ワイヤレス デバッグ</span>がオンで PC と同じネットワークにあれば自動で接続します。再起動や Wi-Fi の切り替えでワイヤレス デバッグがオフになる機種が多いので、そのときはオンに戻すだけで OK です（<strong>ペア設定のやり直しは不要</strong>）。</p>
 
-<h3>用電腦操控手機</h3>
-<figure>
-<svg viewBox="0 0 600 230" role="img" aria-label="滑鼠按鍵對應的手機操作">
-  <g transform="translate(250,18)">
-    <path d="M50 0 C 90 0 100 30 100 70 V 130 C 100 175 80 196 50 196 C 20 196 0 175 0 130 V 70 C 0 30 10 0 50 0 Z" fill="#2E2124" stroke="#6B5155" stroke-width="2"/>
-    <path d="M0 76 H 100 M50 0 V 76" stroke="#6B5155" stroke-width="2"/>
-    <path d="M50 0 C 14 0 2 30 1 75 H 49 V 1 Z" fill="#F5A7A7" opacity=".28"/>
-    <rect x="43" y="22" width="14" height="32" rx="7" fill="#382A2D" stroke="#F5A7A7" stroke-width="2"/>
-  </g>
-  <g font-size="13.5">
-    <path d="M262 50 H 215" stroke="#F5A7A7" stroke-width="1.5"/>
-    <text x="205" y="45" text-anchor="end" fill="#F2E6E4" font-weight="700">左鍵</text>
-    <text x="205" y="66" text-anchor="end" fill="#CDBAB8">點一下＝觸控</text>
-    <text x="205" y="86" text-anchor="end" fill="#CDBAB8">拖曳＝滑動</text>
-    <path d="M300 40 V 20 H 440" stroke="#F5A7A7" stroke-width="1.5" fill="none"/>
-    <text x="450" y="25" fill="#F2E6E4" font-weight="700">滾輪</text>
-    <text x="450" y="45" fill="#CDBAB8">捲動；按下＝主畫面</text>
-    <path d="M338 86 H 440" stroke="#F5A7A7" stroke-width="1.5"/>
-    <text x="450" y="82" fill="#F2E6E4" font-weight="700">右鍵</text>
-    <text x="450" y="102" fill="#CDBAB8">返回</text>
-  </g>
-</svg>
-</figure>
+<h3>PC からスマホを操作する</h3>
 <div class="tbl"><table>
-  <tr><th>電腦操作</th><th>手機上的效果</th></tr>
-  <tr><td>左鍵點一下</td><td>點擊（觸控）</td></tr>
-  <tr><td>左鍵按住拖曳</td><td>滑動，例如翻頁、拉下通知欄</td></tr>
-  <tr><td>滾輪</td><td>上下捲動</td></tr>
-  <tr><td>右鍵</td><td>返回</td></tr>
-  <tr><td>中鍵（按下滾輪）</td><td>回主畫面</td></tr>
-  <tr><td>鍵盤打字</td><td>輸入到手機目前選取的輸入框（先在手機上點一下輸入框）</td></tr>
+  <tr><th>PC での操作</th><th>スマホでの動作</th></tr>
+  <tr><td>左クリック</td><td>タップ</td></tr>
+  <tr><td>左ドラッグ</td><td>スワイプ（ページめくり、通知パネルを引き出すなど）</td></tr>
+  <tr><td>マウス ホイール</td><td>上下スクロール</td></tr>
+  <tr><td>右クリック</td><td>戻る</td></tr>
+  <tr><td>中クリック（ホイールを押す）</td><td>ホーム</td></tr>
+  <tr><td>キーボード入力</td><td>スマホで選んでいる入力欄に文字を入力</td></tr>
 </table></div>
-<p>在手機畫面外的黑色區域按兩下，一樣可以切換全螢幕。</p>
 <div class="note">
-  <span class="t">右鍵是「返回」，那選單在哪裡？</span>
-  在 Android 畫面上按右鍵會送到手機當成<strong>返回</strong>，所以不會跳出自在投影的選單。要打開選單：把滑鼠移到畫面上方，點工具列的<span class="ui">⋯ 更多</span>（或在工具列上按右鍵）；也可以在手機畫面外的黑色區域按右鍵，或按住 <kbd>Shift</kbd> 再按右鍵。<br>
-  <kbd>Esc</kbd> 會送到手機（大多數 App 當成返回）；全螢幕時 <kbd>Esc</kbd> 則是離開全螢幕。<kbd>Ctrl</kbd> 組合鍵是自在投影的快捷鍵，不會送到手機（<kbd>Ctrl</kbd><kbd>C</kbd>／<kbd>V</kbd>／<kbd>X</kbd>／<kbd>A</kbd>／<kbd>Z</kbd> 除外）。
+  <span class="t">右クリックが「戻る」なら、メニューはどこ？</span>
+  Android の画面では右クリックがスマホの<strong>戻る</strong>になります。メニューを開くには、マウスを画面上部に動かしてツールバーの<span class="ui">その他（すべてのメニュー）</span>をクリックするか、<kbd>Shift</kbd> を押しながら右クリックします。
 </div>
-
-<h3>結束投影（中斷連線）</h3>
-<ul>
-  <li>電腦：滑鼠移到畫面上 → 工具列最右邊的紅色<span class="ui">中斷連線</span>；或按 <kbd>Ctrl</kbd><kbd>D</kbd>；或在右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>。</li>
-  <li>從電腦中斷後，這支手機<strong>不會自動重新連上</strong>，直到下次用「連接 Android（掃 QR）」配對（或重新開啟自在投影）。</li>
-  <li>手機：把<span class="ui">無線偵錯</span>關掉。手機關掉無線偵錯或離開 Wi‑Fi 時，電腦幾秒內就會回到等待畫面，顯示「Android 已中斷」。</li>
-</ul>
 
 <div class="note warn">
-  <span class="t">安全提醒</span>
-  開著無線偵錯時，同一個網路上已配對的電腦可以存取這支手機。<strong>不需要投影時，請把無線偵錯關掉</strong>；在公共 Wi-Fi 上不要開啟。如果想取消某台電腦的權限，可以在無線偵錯設定頁的「已配對的裝置」中移除它。
+  <span class="t">セキュリティについて</span>
+  ワイヤレス デバッグがオンの間は、同じネットワーク上のペア設定済み PC からこのスマホにアクセスできます。<strong>使わないときはオフにし</strong>、公共の Wi-Fi ではオンにしないでください。
 </div>
 </section>
 
 <!-- ============ 5 ============ -->
 <section id="features">
-<h2><span class="num">5</span>功能與快捷鍵</h2>
-<p class="intro">投影中把滑鼠移到畫面上，上方會出現<strong>工具列</strong>；在投影視窗上<strong>按右鍵</strong>可以打開所有功能（Android 畫面上右鍵是返回，請用工具列的「更多」）。快捷鍵要在視窗是作用中（點過一下）時才有效。介面語言可以在 設定 → <span class="ui">語言 / Language</span> 切換：<span class="ui">自動（跟隨 Windows）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
+<h2><span class="num">5</span>機能とショートカット</h2>
+<p class="intro">ミラーリング中に画面へマウスを乗せると上部に<strong>ツールバー</strong>が出ます。ウィンドウを<strong>右クリック</strong>するとすべての機能が使えます（Android の画面ではツールバーの「その他」）。ショートカットはウィンドウを一度クリックしてから使います。表示言語は 設定 → <span class="ui">言語 / Language</span> で切り替えます：<span class="ui">自動（Windows に合わせる）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
 
-<h3>投影中的工具列</h3>
-<figure>
-<svg viewBox="0 0 640 150" role="img" aria-label="投影中的工具列：返回、主畫面、最近使用、截圖、錄影、旋轉、全螢幕、更多、中斷連線">
-  <rect x="40" y="18" width="560" height="56" rx="28" fill="#332226" stroke="#F5A7A7" stroke-opacity=".45"/>
-  <g transform="translate(78,46)"><path d="M9 0 H-9 M-3 -6 L-9 0 L-3 6" stroke="#F2E6E4" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <text x="78" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">返回</text>
-  <g transform="translate(134,46)"><path d="M-8 -1 L0 -8 L8 -1 M-6 -3 V7 H6 V-3" stroke="#F2E6E4" stroke-width="1.7" fill="none" stroke-linejoin="round"/></g>
-  <text x="134" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">主畫面</text>
-  <g transform="translate(190,46)"><rect x="-7" y="-4" width="11" height="10" rx="1.5" stroke="#F2E6E4" stroke-width="1.6" fill="none"/><path d="M-3 -7 H7 V3" stroke="#F2E6E4" stroke-width="1.6" fill="none"/></g>
-  <text x="190" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">最近使用</text>
-  <path d="M227 34 V58" stroke="#F2E6E4" stroke-opacity=".25"/>
-  <g transform="translate(264,46)"><rect x="-9" y="-5" width="18" height="13" rx="2.5" stroke="#F2E6E4" stroke-width="1.6" fill="none"/><path d="M-4 -5 L-2 -8 H2 L4 -5" stroke="#F2E6E4" stroke-width="1.6" fill="none"/><circle cx="0" cy="1.5" r="3.6" stroke="#F2E6E4" stroke-width="1.6" fill="none"/></g>
-  <text x="264" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">截圖</text>
-  <g transform="translate(320,46)"><circle r="8" stroke="#F2E6E4" stroke-width="1.6" fill="none"/><circle r="4.5" fill="#F2E6E4"/></g>
-  <text x="320" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">錄影</text>
-  <g transform="translate(376,46)"><path d="M6.5 -4 A8 8 0 1 0 8 2" stroke="#F2E6E4" stroke-width="1.7" fill="none" stroke-linecap="round"/><path d="M7.5 -9 V-3.5 H2" stroke="#F2E6E4" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <text x="376" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">旋轉</text>
-  <g transform="translate(432,46)"><path d="M2 -8 H8 V-2 M8 -8 L1 -1 M-2 8 H-8 V2 M-8 8 L-1 1" stroke="#F2E6E4" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <text x="432" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">全螢幕</text>
-  <g transform="translate(488,46)"><circle cx="-6" r="1.7" fill="#F2E6E4"/><circle r="1.7" fill="#F2E6E4"/><circle cx="6" r="1.7" fill="#F2E6E4"/></g>
-  <text x="488" y="102" text-anchor="middle" fill="#CDBAB8" font-size="12.5">更多</text>
-  <path d="M525 34 V58" stroke="#F2E6E4" stroke-opacity=".25"/>
-  <circle cx="562" cy="46" r="21" fill="#FF6B6B" opacity=".16"/>
-  <g transform="translate(562,46)"><rect x="-9" y="-7" width="18" height="12" rx="1.5" stroke="#FF6B6B" stroke-width="1.6" fill="none"/><path d="M-4 9 H4 M-10 -9 L10 9" stroke="#FF6B6B" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>
-  <text x="562" y="102" text-anchor="middle" fill="#FF6B6B" font-size="12.5" font-weight="700">中斷連線</text>
-  <path d="M54 114 V120 H214 V114" stroke="#9C8789" fill="none"/>
-  <text x="134" y="138" text-anchor="middle" fill="#9C8789" font-size="11.5">只有 Android（無線偵錯）</text>
-</svg>
-<figcaption>示意圖：滑鼠在投影畫面上移動時，畫面上方中央會出現這條工具列；約 2 秒不動就自動收起。</figcaption>
-</figure>
-<ul>
-  <li>滑鼠一移動就出現，停在工具列上不會收起；滑鼠離開視窗或 2 秒沒動就淡出。收起時不會擋到畫面，也不會攔住點擊。</li>
-  <li>把滑鼠停在按鈕上會顯示名稱和快捷鍵。點工具列<strong>不會</strong>傳到手機。</li>
-  <li><span class="ui">錄影</span>在錄影中會變成紅色（再按一次停止）；<span class="ui">更多</span>打開完整的右鍵選單。</li>
-  <li>工具列還有<span class="ui">傳到手機</span>、<span class="ui">放大鏡</span>、<span class="ui">翻譯畫面</span>、<span class="ui">凍結畫面</span>按鈕（示意圖沒有畫出），用法見下面的<a href="#magnifier">放大鏡</a>、<a href="#translate">翻譯</a>、<a href="#share">傳到手機</a>。</li>
-</ul>
+<h3>ツールバー</h3>
+<p>マウスを動かすと画面上部の中央に出て、2 秒ほど動かさないと隠れます。左から（Android のみ：戻る、ホーム、最近使ったアプリ）スクリーンショット、録画、スマホに送る、回転、全画面表示、拡大鏡、翻訳、画面を静止、その他、接続を解除。ボタンにマウスを乗せると名前とショートカットが表示されます。</p>
 
-<h3 id="disconnect">怎麼中斷連線</h3>
-<p>iPhone、Android 投放、無線偵錯都一樣，任選一種：</p>
+<h3 id="disconnect">接続を解除する方法</h3>
+<p>iPhone、Android のキャスト、ワイヤレス デバッグのどれでも同じです。</p>
 <ol class="steps">
-  <li>工具列最右邊的紅色<span class="ui">中斷連線</span>。</li>
-  <li>按 <kbd>Ctrl</kbd><kbd>D</kbd>。</li>
-  <li>右鍵選單（或工具列的「更多」）最上面的<span class="ui">中斷連線</span>。</li>
-  <li>右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>，視窗縮到系統匣時也能用。</li>
+  <li>ツールバー右端の赤い<span class="ui">接続を解除</span>ボタン。</li>
+  <li><kbd>Ctrl</kbd><kbd>D</kbd> を押す。</li>
+  <li>右クリック メニュー（またはツールバーの「その他」）のいちばん上の<span class="ui">接続を解除</span>。</li>
+  <li>通知領域のアイコンを右クリック → <span class="ui">接続を解除（スマホの名前）</span>。ウィンドウが隠れていても使えます。</li>
 </ol>
-<p>正在錄影時會先停止並儲存。iPhone 被中斷後，手機上的螢幕鏡像會停止，要再投影就重新選一次自在投影。</p>
+<p>録画中なら先に停止して保存します。PC から解除した Android スマホは自動では再接続しません（<span class="ui">Android を接続（QR をスキャン）</span>でもう一度接続するか、Zizai Cast を再起動します）。</p>
 
 <div class="grid2">
-  <div class="card"><h4>截圖 <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
-    <p>存到安裝資料夾的「截圖」資料夾，檔名像「自在投影_日期_時間.png」。右鍵選單 → 開啟截圖資料夾。</p></div>
-  <div class="card"><h4>中斷連線 <span><kbd>Ctrl</kbd><kbd>D</kbd></span></h4>
-    <p>結束目前的投影，回到等待畫面。也在工具列（紅色按鈕）、右鍵選單與系統匣選單裡。</p></div>
-  <div class="card"><h4>錄影 <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
-    <p>再按一次停止。存成含聲音的 MP4，放在「錄影」資料夾。手機中斷、被接手或關閉程式時會自動停止並儲存。磁碟剩不到 300 MB 時無法錄影。</p></div>
-  <div class="card"><h4>全螢幕 <span><kbd>F11</kbd></span></h4>
-    <p>或在畫面上按兩下。按 <kbd>Esc</kbd> 離開。</p></div>
-  <div class="card"><h4>視窗置頂 <span><kbd>Ctrl</kbd><kbd>T</kbd></span></h4>
-    <p>讓投影視窗永遠在其他視窗上面，一邊工作一邊看手機。</p></div>
-  <div class="card"><h4>工具列</h4>
-    <p>滑鼠移到畫面上就出現：（Android：返回、主畫面、最近使用）截圖、錄影、傳到手機、旋轉、全螢幕、放大鏡、翻譯、凍結畫面、更多、中斷連線。</p></div>
-  <div class="card"><h4>旋轉、翻轉</h4>
-    <p><kbd>Ctrl</kbd><kbd>→</kbd> / <kbd>Ctrl</kbd><kbd>←</kbd> 旋轉 90°，<kbd>Ctrl</kbd><kbd>H</kbd> 左右翻轉，<kbd>Ctrl</kbd><kbd>0</kbd> 還原。在右鍵選單 → 畫面。</p></div>
-  <div class="card"><h4>iPhone 外框 <span><kbd>Ctrl</kbd><kbd>F</kbd></span></h4>
-    <p>在畫面外加上手機外框；開著外框時，截圖也會帶外框（背景透明）。</p></div>
-  <div class="card"><h4>主題</h4>
-    <p>櫻花粉、薄荷綠、夜空藍、奶茶。等待畫面和選單會一起換色。</p></div>
-  <div class="card"><h4>開機自動啟動</h4>
-    <p>登入 Windows 後在背景待命，手機一連線視窗就出現。在等待畫面或系統匣選單勾選。</p></div>
+  <div class="card"><h4>スクリーンショット <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
+    <p>インストール フォルダーの「截圖」（スクリーンショット）フォルダーに「ZizaiCast_日付_時刻.png」という名前で保存されます。</p></div>
+  <div class="card"><h4>録画 <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
+    <p>もう一度押すと停止。音声付き MP4 で「錄影」（録画）フォルダーに保存されます。</p></div>
+  <div class="card"><h4>全画面表示 <span><kbd>F11</kbd></span></h4>
+    <p>画面のダブルクリックでも切り替わります。<kbd>Esc</kbd> で戻ります。</p></div>
+  <div class="card"><h4>常に手前に表示 <span><kbd>Ctrl</kbd><kbd>T</kbd></span></h4>
+    <p>ほかのウィンドウより常に手前に表示します。</p></div>
+  <div class="card"><h4>回転・反転</h4>
+    <p><kbd>Ctrl</kbd><kbd>→</kbd> / <kbd>Ctrl</kbd><kbd>←</kbd> で 90° 回転、<kbd>Ctrl</kbd><kbd>H</kbd> で左右反転、<kbd>Ctrl</kbd><kbd>0</kbd> でリセット。</p></div>
+  <div class="card"><h4>テーマ・画質</h4>
+    <p>テーマ：さくら、ミント、夜空、ミルクティー。画質は 設定 → 画質（標準／高 · おすすめ／最高）。</p></div>
 </div>
 
-<h3 id="magnifier">放大鏡、高對比、凍結畫面</h3>
-<p>手機上的字太小、看不清楚？在畫面上按右鍵（Android 請用工具列的「更多」）→ <span class="ui">放大鏡</span>。手機畫面出現後才能使用。</p>
+<h3 id="magnifier">拡大鏡・ハイコントラスト・画面を静止</h3>
+<p>スマホの文字が小さくて読みにくいときは、画面を右クリック（Android ではツールバーの「その他」）→ <span class="ui">拡大鏡</span>。スマホの画面が表示されているときに使えます。</p>
 <div class="grid2">
-  <div class="card"><h4>放大／縮小 <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
-    <p>最多放大 8 倍。按住 <kbd>Ctrl</kbd> 轉滑鼠滾輪，會以滑鼠指著的地方放大。<span class="ui">還原 1×</span>：<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>。</p></div>
-  <div class="card"><h4>移動放大後的畫面</h4>
-    <p>用滑鼠拖曳就能移動（用電腦操控 Android 手機時，請按住 <kbd>Ctrl</kbd> 再拖曳）。右下角的小地圖會告訴你正在看哪一塊。</p></div>
-  <div class="card"><h4>工具列的放大鏡按鈕</h4>
-    <p>點一下依序切換 1× → 2× → 4×，再點一下回到 1×。</p></div>
-  <div class="card"><h4>高對比 <span><kbd>Ctrl</kbd><kbd>K</kbd></span></h4>
-    <p>給眼睛比較吃力的人：<span class="ui">原色</span>、<span class="ui">加強對比</span>、<span class="ui">黑白（灰階）</span>、<span class="ui">反轉顏色（黑白對調）</span>、<span class="ui">黃字黑底</span>。<kbd>Ctrl</kbd><kbd>K</kbd> 依序切換，下次開啟會記住。</p></div>
-  <div class="card"><h4>凍結畫面 <span><kbd>Ctrl</kbd><kbd>P</kbd></span></h4>
-    <p>讓電腦上的畫面停住，慢慢看清楚，手機照常使用；再按一次恢復。工具列也有這個按鈕。錄影仍會錄下手機即時的畫面。</p></div>
+  <div class="card"><h4>拡大・縮小 <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
+    <p>最大 8 倍。<kbd>Ctrl</kbd> を押しながらマウス ホイールを回すと、マウスの位置を中心に拡大します。<span class="ui">1× に戻す</span>：<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>。</p></div>
+  <div class="card"><h4>拡大した画面を動かす</h4>
+    <p>マウスでドラッグします（Android を PC から操作しているときは <kbd>Ctrl</kbd> を押しながらドラッグ）。右下の小さな全体図で、今どこを見ているかがわかります。</p></div>
+  <div class="card"><h4>ツールバーの拡大鏡ボタン</h4>
+    <p>クリックするたびに 1× → 2× → 4× → 1× と切り替わります。</p></div>
+  <div class="card"><h4>ハイコントラスト <span><kbd>Ctrl</kbd><kbd>K</kbd></span></h4>
+    <p>見えにくさを補う色の切り替え：<span class="ui">元の色</span>、<span class="ui">コントラストを強調</span>、<span class="ui">グレースケール</span>、<span class="ui">色を反転</span>、<span class="ui">黒地に黄色の文字</span>。選んだ色は次回も使われます。</p></div>
+  <div class="card"><h4>画面を静止 <span><kbd>Ctrl</kbd><kbd>P</kbd></span></h4>
+    <p>PC の画面だけを止めて、ゆっくり読めます。スマホはそのまま使えます。もう一度押すと再開。ツールバーにもボタンがあります。録画はスマホのリアルタイムの画面を記録し続けます。</p></div>
 </div>
 
-<h3 id="translate">翻譯畫面上的文字</h3>
-<p>手機上是看不懂的英文、日文或韓文？在畫面上按右鍵 → <span class="ui">翻譯</span>，或點工具列的翻譯按鈕。翻好的中文會用小卡片直接蓋在原文上面。</p>
+<h3 id="translate">画面の文字を翻訳する</h3>
+<p>読めない英語・韓国語・中国語などが表示されたら、画面を右クリック → <span class="ui">翻訳</span>、またはツールバーの翻訳ボタン。翻訳は元の文字の上に小さなカードで表示されます。</p>
 <div class="tbl"><table>
-  <tr><th>選單項目</th><th>做什麼</th></tr>
-  <tr><td>翻譯整個畫面 <kbd>Ctrl</kbd><kbd>L</kbd></td><td>翻譯目前的整個畫面。再按一次 <kbd>Ctrl</kbd><kbd>L</kbd> 關閉翻譯。</td></tr>
-  <tr><td>框選翻譯 <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>用滑鼠拖出一個框，只翻譯框裡的字（<kbd>Esc</kbd> 取消）。</td></tr>
-  <tr><td>顯示原文 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>暫時收起翻譯，看原本的字。</td></tr>
-  <tr><td>連續翻譯（每 5 秒）</td><td>畫面變了也會自動重新翻譯，適合一邊滑一邊看。</td></tr>
-  <tr><td>翻成：</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> 任選。</td></tr>
-  <tr><td>管理翻譯模型</td><td>看已經下載的翻譯模型，刪除用不到的。</td></tr>
+  <tr><th>メニュー</th><th>できること</th></tr>
+  <tr><td>画面全体を翻訳 <kbd>Ctrl</kbd><kbd>L</kbd></td><td>表示中の画面全体を翻訳。もう一度 <kbd>Ctrl</kbd><kbd>L</kbd> で翻訳を閉じます。</td></tr>
+  <tr><td>選択範囲を翻訳 <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>マウスで囲んだ部分だけを翻訳（<kbd>Esc</kbd> でキャンセル）。</td></tr>
+  <tr><td>原文を表示 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>翻訳を一時的に隠して元の文字を見ます。</td></tr>
+  <tr><td>翻訳し続ける（5 秒ごと）</td><td>画面が変わっても自動で翻訳し直します。スクロールしながら読むときに便利です。</td></tr>
+  <tr><td>翻訳先：</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> から選びます。</td></tr>
+  <tr><td>翻訳モデルの管理</td><td>ダウンロード済みの翻訳モデルを確認・削除します。</td></tr>
 </table></div>
 <div class="note">
-  <span class="t">不用連網翻譯，畫面上的字不會傳出去</span>
-  文字由 Windows 內建的文字辨識（OCR）讀出來，翻譯也在這台電腦上進行。第一次翻譯某種語言時，自在投影會先詢問，同意後才下載一次離線翻譯模型（Mozilla Firefox Translations，MPL-2.0 授權；每個語言方向約 50 MB，日文、韓文翻成繁體中文需要兩個，約 100 MB），存在 <code>%LOCALAPPDATA%\PhoneMirror\models</code>。可以翻譯的原文：英文、日文、韓文、中文。
+  <span class="t">オフラインで翻訳。画面の文字はインターネットに送られません</span>
+  文字の読み取りは Windows 標準の文字認識（OCR）、翻訳もこの PC の中で行います。ある言語を初めて翻訳するときは事前に確認があり、同意すると翻訳モデルを一度だけダウンロードします（Mozilla Firefox Translations、MPL-2.0 ライセンス。1 方向あたり約 50 MB。英語を経由する組み合わせは 2 つ必要で約 100 MB）。保存先は <code>%LOCALAPPDATA%\PhoneMirror\models</code> です。翻訳できる元の言語：英語、日本語、韓国語、中国語。
 </div>
-<p>日文或韓文翻不出來？可能是這台電腦還不能辨識那種文字，自在投影會說明怎麼加入，並提供<span class="ui">開啟語言設定</span>按鈕（見<a href="#faq-translate">常見問題</a>）。</p>
+<p>韓国語などが翻訳されないときは、その文字を Windows がまだ読み取れない可能性があります。追加方法の案内と<span class="ui">言語の設定を開く</span>ボタンが表示されます（<a href="#faq-translate">よくある質問</a>）。</p>
 
-<h3 id="share">傳到手機</h3>
-<p>截圖或錄影完成後，畫面下方會出現<span class="ui">傳到手機</span>小按鈕，點一下就能把檔案送回手機。也可以用右鍵選單的<span class="ui">把最後一張截圖傳到手機</span>、<span class="ui">把最後一段錄影傳到手機</span>、<span class="ui">傳到手機…</span>（自己挑檔案），或工具列的傳到手機按鈕。</p>
+<h3 id="share">スマホに送る</h3>
+<p>スクリーンショットや録画のあと、画面の下に<span class="ui">スマホに送る</span>ボタンが出ます。クリックするとファイルをスマホに送れます。右クリック メニューの<span class="ui">最後のスクリーンショットをスマホに送る</span>、<span class="ui">最後の録画をスマホに送る</span>、<span class="ui">スマホに送る…</span>（ファイルを選ぶ）や、ツールバーのボタンからも送れます。</p>
 <ul>
-  <li><strong>Android 用無線偵錯連線時</strong>：直接存進手機的相簿，什麼都不用做。</li>
-  <li><strong>iPhone / iPad、Android 投放（Miracast）</strong>：電腦上會出現 QR 碼，<span class="ui">用手機相機掃描</span>，手機會打開一個網頁。照片：長按圖片 →「加入照片」（iPhone）或「下載圖片」（Android）；影片：點「下載影片」，再照網頁上的步驟存到相簿。</li>
-  <li>手機要和電腦連在<strong>同一個 Wi‑Fi</strong>。連結 10 分鐘後失效，只有掃到 QR 碼的人能打開；按<span class="ui">停止分享</span>可以提早結束。</li>
+  <li><strong>ワイヤレス デバッグで接続中の Android</strong>：スマホのギャラリーに直接保存されます。操作は不要です。</li>
+  <li><strong>iPhone / iPad、Android のキャスト（Miracast）</strong>：PC に QR コードが表示されるので、<span class="ui">スマホのカメラでスキャン</span>します。スマホでページが開いたら、写真は長押し →「写真に保存」（iPhone）／「画像をダウンロード」（Android）、動画は「動画をダウンロード」をタップしてページの手順に従います。</li>
+  <li>スマホは PC と<strong>同じ Wi-Fi</strong> に接続してください。リンクの有効期限は 10 分で、QR コードをスキャンした人だけが開けます。<span class="ui">共有を停止</span>で早めに終了できます。</li>
 </ul>
 
-<h3>畫質</h3>
-<p>右鍵選單 → 設定 → 畫質。數字越高越清楚，但網路和電腦的負擔也越大。</p>
+<h3 id="update">自動アップデート</h3>
+<p>Zizai Cast は起動するたびに新しいバージョンを確認します（起動中は 6 時間ごと）。メニューの<span class="ui">アップデートを確認</span>でも確認できます。インストール フォルダー内の「安裝檔」（インストーラー）フォルダーに置いた新しいインストーラーも自動で見つけます。</p>
+<p>新しいバージョンがあると「<strong>Zizai Cast の新しいバージョン</strong>」ウィンドウが開き、今回のアップデート内容と 3 つのボタンが表示されます。</p>
 <div class="tbl"><table>
-  <tr><th>選項</th><th>解析度</th><th>說明</th></tr>
-  <tr><td>標準</td><td>1080p</td><td>最省資源，網路不穩或電腦較舊時使用。</td></tr>
-  <tr><td>高（建議，預設）</td><td>1440p</td><td>清楚又順暢的平衡點。</td></tr>
-  <tr><td>最高</td><td>4K</td><td>大螢幕、看細節時使用，需要穩定的 5 GHz Wi-Fi。</td></tr>
+  <tr><th>ボタン</th><th>動作</th></tr>
+  <tr><td>今すぐアップデート</td><td>新しいバージョンをインストールします。Zizai Cast はいったん終了し、アップデート後に自動で再起動します。</td></tr>
+  <tr><td>後で通知</td><td>今はアップデートせず、後でもう一度お知らせします。</td></tr>
+  <tr><td>このバージョンをスキップ</td><td>このバージョンについては通知しません（メニューからはアップデートできます）。</td></tr>
 </table></div>
-<div class="note">
-  <span class="t">「高」「最高」是灰色的？</span>
-  這兩種畫質使用 HEVC（H.265）格式，電腦要安裝 Microsoft Store 的「HEVC 影片延伸模組」才能播放。沒有安裝時會自動使用「標準」。安裝後重新開啟自在投影即可選擇。畫質目前主要套用在 iPhone / iPad 的投影。
-</div>
+<p>勝手にアップデートしたり、ミラーリングを中断したりすることはありません。後でアップデートするときは、メニューのいちばん上などに出る<span class="ui">vX.Y.Z にアップデート</span>をクリックします。録画中の場合は先に確認があり、録画は保存されます。</p>
 
-<h3>系統匣</h3>
-<p>按視窗右上角的關閉，自在投影會縮到右下角系統匣繼續待命（第一次會提示）。點系統匣圖示可以叫出視窗；在圖示上按右鍵可以錄影、切換設定、開啟資料夾，投影中還有<span class="ui">中斷連線（手機名稱）</span>。要<strong>真正結束</strong>：系統匣圖示按右鍵 → <span class="ui">結束</span>。</p>
-
-<h3 id="update">自動更新</h3>
-<p>每次開啟自在投影，它都會自動檢查有沒有新版本（開著的時候每 6 小時再看一次），也可以在選單點<span class="ui">檢查更新</span>。放進安裝資料夾裡<span class="ui">安裝檔</span>資料夾的新版安裝程式，也會自動被發現。</p>
-<p>有新版本時會跳出「<strong>自在投影有新版本</strong>」視窗，列出「這次更新了什麼」，下面有三個按鈕：</p>
+<h3>ショートカット一覧</h3>
 <div class="tbl"><table>
-  <tr><th>按鈕</th><th>結果</th></tr>
-  <tr><td>立即更新</td><td>（需要時先下載並驗證）安裝新版。自在投影會先關閉，裝好後自動重新開啟，並顯示「已更新到 vX.Y.Z」。</td></tr>
-  <tr><td>稍後提醒</td><td>先不更新，之後會再提醒你。</td></tr>
-  <tr><td>略過這個版本</td><td>這個版本不再自動提醒（選單裡仍然可以更新）。</td></tr>
-</table></div>
-<p>自在投影不會自己更新，也不會打斷投影。想晚點再更新時，選單最上面、等待畫面和投影時的工具列（↑ 圖示）都有<span class="ui">更新到 vX.Y.Z</span>。正在錄影時會先問你，錄影內容會先儲存。</p>
-
-<h3>快捷鍵總表</h3>
-<div class="tbl"><table>
-  <tr><th>按鍵</th><th>功能</th></tr>
-  <tr><td><kbd>F11</kbd>／按兩下畫面</td><td>全螢幕（<kbd>Esc</kbd> 離開）</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>D</kbd></td><td>中斷連線（任何手機）</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>S</kbd></td><td>截圖</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>R</kbd></td><td>開始／停止錄影</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>T</kbd></td><td>視窗置頂</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>→</kbd> <kbd>Ctrl</kbd><kbd>←</kbd></td><td>向右／向左旋轉 90°</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>H</kbd></td><td>左右翻轉</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>0</kbd></td><td>還原旋轉與翻轉</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>F</kbd></td><td>iPhone 外框</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></td><td>放大鏡：放大／縮小（<kbd>Ctrl</kbd>＋滾輪：在滑鼠位置放大縮小）</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd></td><td>還原 1×</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>K</kbd></td><td>切換高對比顏色</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>P</kbd></td><td>凍結畫面／恢復</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>L</kbd></td><td>翻譯整個畫面／關閉翻譯</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>框選翻譯</td></tr>
-  <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>顯示原文</td></tr>
-  <tr><td><kbd>Shift</kbd><kbd>F10</kbd></td><td>用鍵盤打開右鍵選單</td></tr>
-  <tr><td><kbd>Shift</kbd>＋右鍵</td><td>在 Android 畫面上打開選單（一般右鍵＝返回）</td></tr>
-  <tr><td><kbd>Esc</kbd></td><td>全螢幕時：離開全螢幕；Android 投影時：送到手機（多半是返回）</td></tr>
+  <tr><th>キー</th><th>機能</th></tr>
+  <tr><td><kbd>F11</kbd>／画面をダブルクリック</td><td>全画面表示（<kbd>Esc</kbd> で戻る）</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>D</kbd></td><td>接続を解除</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>S</kbd></td><td>スクリーンショット</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>R</kbd></td><td>録画を開始／停止</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>T</kbd></td><td>常に手前に表示</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>→</kbd> <kbd>Ctrl</kbd><kbd>←</kbd></td><td>右／左に 90° 回転</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>H</kbd></td><td>左右反転</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>0</kbd></td><td>表示をリセット</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>F</kbd></td><td>iPhone の枠</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></td><td>拡大鏡：拡大／縮小（<kbd>Ctrl</kbd>＋ホイール：マウスの位置で拡大・縮小）</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd></td><td>1× に戻す</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>K</kbd></td><td>ハイコントラストの色を切り替え</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>P</kbd></td><td>画面を静止／静止を解除</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>L</kbd></td><td>画面全体を翻訳／翻訳を閉じる</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>選択範囲を翻訳</td></tr>
+  <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>原文を表示</td></tr>
+  <tr><td><kbd>Shift</kbd>＋右クリック</td><td>Android の画面でメニューを開く</td></tr>
 </table></div>
 </section>
 
 <!-- ============ 6 ============ -->
 <section id="faq">
-<h2><span class="num">6</span>常見問題</h2>
-<p class="intro">點問題展開答案。</p>
+<h2><span class="num">6</span>よくある質問</h2>
+<p class="intro">質問をクリックすると答えが開きます。</p>
 
-<details id="faq-notfound"><summary>手機的清單裡找不到「自在投影」</summary><div>
+<details id="faq-notfound"><summary>スマホの一覧に「Zizai Cast」が出てこない</summary><div>
 <ul>
-  <li>確認自在投影正在執行（系統匣有圖示）。</li>
-  <li>手機和電腦連的是<strong>同一個</strong> Wi-Fi，不是訪客網路，手機沒有用行動數據。</li>
-  <li>關掉電腦和手機的 VPN。</li>
-  <li>確認防火牆有允許自在投影（見下方「防火牆」）。</li>
-  <li>學校、公司、飯店的網路可能封鎖裝置探索，換個網路試試。</li>
-  <li>同一台電腦只能有一個 AirPlay 接收程式；若有 AirServer、UxPlay、LonelyScreen 等，請先關閉。</li>
-  <li>把手機的 Wi-Fi 關掉再打開，或重新開啟自在投影。</li>
+  <li>Zizai Cast が起動しているか（通知領域にアイコンがあるか）確認します。</li>
+  <li>スマホと PC が<strong>同じ</strong> Wi-Fi（ゲスト ネットワークではない）につながっていて、スマホがモバイル データ通信になっていないか確認します。</li>
+  <li>PC とスマホの VPN をオフにします。ファイアウォールで許可されているかも確認します（下の「ファイアウォール」）。</li>
+  <li>AirServer や UxPlay など、ほかの AirPlay 受信アプリが動いていたら終了します。</li>
+  <li>スマホの Wi-Fi をオフ→オンにするか、Zizai Cast を再起動します。</li>
 </ul></div></details>
 
-<details id="faq-audio"><summary>有畫面，但沒有聲音</summary><div>
+<details id="faq-audio"><summary>映像は出るのに音が出ない</summary><div>
 <ul>
-  <li>按 iPhone 的音量鍵調大聲一點，並確認 iPhone 側邊的靜音開關沒有打開（部分 App 在靜音模式下不出聲）。</li>
-  <li>檢查電腦右下角的音量，以及「音量混合程式」裡自在投影沒有被調成靜音。</li>
-  <li>確認 Windows 的預設輸出裝置是你正在聽的喇叭或耳機。換了耳機後，可以重新連線一次。</li>
-  <li>有些 App（例如部分影音平台）為了版權保護，不允許在螢幕鏡像時輸出畫面或聲音，這不是自在投影的問題。</li>
+  <li>iPhone の音量ボタンで音量を上げ、消音モード（着信／消音スイッチ）になっていないか確認します。</li>
+  <li>PC の音量と、音量ミキサーで Zizai Cast がミュートになっていないかを確認します。</li>
+  <li>一部の動画アプリは著作権保護のため、画面ミラーリング中に映像や音声を出しません。Zizai Cast の問題ではありません。</li>
 </ul></div></details>
 
-<details id="faq-lag"><summary>畫面有延遲、會卡</summary><div>
+<details id="faq-lag"><summary>映像が遅れる・カクカクする</summary><div>
 <ul>
-  <li>Wi-Fi 訊號是最大的影響因素。手機和電腦都盡量連 <strong>5 GHz</strong> 的 Wi-Fi，靠近分享器，電腦可以改用網路線。</li>
-  <li>暫時把畫質調到「標準」。</li>
-  <li>關閉正在大量下載或上傳的程式（雲端同步、遊戲更新等）。</li>
-  <li>一般操作會有很短的延遲是正常的；看影片時畫面和聲音都會一起傳送。</li>
+  <li>スマホも PC も <strong>5 GHz</strong> の Wi-Fi でルーターの近くに置くか、PC を有線接続にします。</li>
+  <li>画質を一時的に「標準」にします。大量のダウンロードをしているアプリも閉じます。</li>
 </ul></div></details>
 
-<details id="faq-blur"><summary>畫面糊糊的、不夠清楚</summary><div>
-<ul>
-  <li>右鍵選單 → 設定 → 畫質，改成「高」或「最高」。若是灰色無法選，請安裝 Microsoft Store 的「HEVC 影片延伸模組」。</li>
-  <li>變更畫質後，下一次連線才會生效（正在投影時會等手機中斷）。</li>
-  <li>網路不穩時，手機會自動降低畫質，畫面暫時變模糊是正常的。</li>
-</ul></div></details>
+<details id="faq-blur"><summary>映像がぼやける</summary><div>
+<p>右クリック メニュー → 設定 → <span class="ui">画質</span> で「高 · おすすめ」か「最高」を選びます。選べないときは Microsoft Store の「HEVC ビデオ拡張機能」をインストールしてください。変更は次の接続から有効です。</p></div></details>
 
-<details id="faq-takeover"><summary>投影到一半被別人的手機接手了</summary><div>
-<ul>
-  <li>右鍵選單 → 設定 → 新手機連線時，改成「<strong>保持目前</strong>」，正在投影時其他手機就連不進來。</li>
-  <li>也可以同時開啟「連線需要 PIN 碼」，沒輸入過 PIN 的手機都無法投影。</li>
-</ul></div></details>
+<details id="faq-takeover"><summary>ミラーリング中にほかの人のスマホに切り替わった</summary><div>
+<p>右クリック メニュー → 設定 → <span class="ui">新しいスマホが接続したとき</span> → <span class="ui">今のまま</span>を選びます。<span class="ui">接続に PIN を要求</span>をオンにするのも効果的です。</p></div></details>
 
-<details id="faq-fw"><summary>防火牆：當初按了「取消」怎麼辦？</summary><div>
+<details id="faq-fw"><summary>ファイアウォールの警告で「キャンセル」を押してしまった</summary><div>
 <ol>
-  <li>開始 → 搜尋「<strong>允許應用程式通過 Windows 防火牆</strong>」並打開。</li>
-  <li>按<span class="ui">變更設定</span>，在清單中找到「自在投影」，勾選<span class="ui">私人</span>（在公用網路使用的話，也勾<span class="ui">公用</span>）。</li>
-  <li>清單裡找不到的話，按<span class="ui">允許其他應用程式…</span>，選安裝資料夾中的「自在投影.exe」。</li>
-  <li>若有安裝其他防毒軟體的防火牆，也要在那裡允許自在投影。</li>
-</ol>
-<p>另外，Windows 若把你家的網路設成「公用網路」，限制會比較多。可以在 設定 → 網路和網際網路 → Wi-Fi → 你的網路 中改成「私人網路」。</p></div></details>
+  <li>スタート →「<strong>Windows ファイアウォールを介したアプリを許可</strong>」を検索して開きます。</li>
+  <li><span class="ui">設定の変更</span>をクリックし、一覧の「Zizai Cast」（自在投影）の<span class="ui">プライベート</span>にチェックを入れます。</li>
+  <li>一覧にない場合は<span class="ui">別のアプリの許可</span>から、インストール フォルダーの 程式\自在投影.exe を選びます。</li>
+</ol></div></details>
 
-<details id="faq-vpn"><summary>開了 VPN 就連不上</summary><div>
-<p>VPN 會把網路流量導到別的地方，手機和電腦就不在「同一個網路」了。投影時請先中斷電腦與手機上的 VPN。有些 VPN 提供「允許區域網路存取（Local network sharing／LAN access）」選項，開啟後也可以一起使用。</p></div></details>
+<details id="faq-vpn"><summary>VPN をオンにすると接続できない</summary><div>
+<p>VPN は通信を別の場所に回すため、スマホと PC が「同じネットワーク」でなくなります。ミラーリング中は PC とスマホの VPN を切ってください。「ローカル ネットワークへのアクセスを許可」の設定がある VPN なら、それをオンにすれば併用できます。</p></div></details>
 
-<details id="faq-miracast"><summary>Android 投放（Miracast）連不上</summary><div>
+<details id="faq-miracast"><summary>Android のキャスト（Miracast）がつながらない</summary><div>
 <ul>
-  <li>先用 <code>netsh wlan show drivers</code> 確認電腦支援「Wireless Display」（見<a href="#miracast">第 3 節</a>）。</li>
-  <li>電腦的 Wi-Fi 要<strong>開著</strong>，而且不要同時開「行動熱點」。</li>
-  <li>一直停在「正在連線」：在手機上取消，等 10 秒後再試一次；或把手機的 Wi-Fi 關掉再打開。</li>
-  <li>部分電腦的網卡雖然支援，但和某些手機相容性不佳。可以更新 Wi-Fi 網卡驅動程式，或改用<a href="#adb">方式二：無線偵錯</a>。</li>
-  <li>Google Pixel 不支援 Miracast，請直接使用方式二。</li>
+  <li><code>netsh wlan show drivers</code> で PC がワイヤレス ディスプレイに対応しているか確認します（<a href="#miracast">3 章</a>）。</li>
+  <li>PC の Wi-Fi は<strong>オン</strong>、モバイル ホットスポットは<strong>オフ</strong>にします。</li>
+  <li>「接続中」のまま進まないときは、スマホ側でキャンセルし 10 秒待ってから再試行します。</li>
+  <li>うまくいかなければ <a href="#adb">方法 2：ワイヤレス デバッグ</a>を使ってください。</li>
 </ul></div></details>
 
-<details id="faq-adb"><summary>無線偵錯一直斷線、或下次沒有自動連上</summary><div>
+<details id="faq-adb"><summary>ワイヤレス デバッグがすぐ切れる・次回自動で接続しない</summary><div>
 <ul>
-  <li>手機重新開機或切換 Wi-Fi 後，無線偵錯常被系統自動關閉。回到開發人員選項把它重新打開即可，不用重新配對。</li>
-  <li>手機的省電模式可能在螢幕關閉後中斷 Wi-Fi。可以在電池設定中把省電模式關掉，或把「設定」排除在電池最佳化之外。</li>
-  <li>確認手機和電腦仍在同一個網路，且沒有開 VPN。</li>
-  <li>還是不行：在手機的「已配對的裝置」中移除這台電腦，再用「連接 Android（掃 QR）」重新配對一次。</li>
-  <li>用工具列或 <kbd>Ctrl</kbd><kbd>D</kbd> 中斷過的手機，不會自動重新連上；用「連接 Android（掃 QR）」再連一次，或重新開啟自在投影即可恢復。</li>
+  <li>再起動や Wi-Fi の切り替えでワイヤレス デバッグがオフになることがあります。開発者向けオプションでオンに戻してください（ペア設定は不要）。</li>
+  <li>スマホの省電力設定で画面オフ時に Wi-Fi が切れることがあります。</li>
+  <li>それでもだめなら、スマホの「ペア設定済みのデバイス」からこの PC を削除し、<span class="ui">Android を接続（QR をスキャン）</span>でペア設定し直します。</li>
 </ul></div></details>
 
-<details id="faq-disconnect"><summary>找不到「中斷連線」在哪裡</summary><div>
-<p>把滑鼠移到投影畫面上，上方中央會出現工具列，最右邊的紅色按鈕就是<span class="ui">中斷連線</span>。也可以按 <kbd>Ctrl</kbd><kbd>D</kbd>，或在右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>。Android 畫面上按右鍵是「返回」，所以右鍵不會出現選單；要選單請點工具列的「更多」。</p></div></details>
+<details id="faq-disconnect"><summary>「接続を解除」が見つからない</summary><div>
+<p>ミラーリング中の画面にマウスを乗せると上部中央にツールバーが出ます。右端の赤いボタンが<span class="ui">接続を解除</span>です。<kbd>Ctrl</kbd><kbd>D</kbd> でも解除できます。</p></div></details>
 
-<details id="faq-translate"><summary>翻譯沒有反應，或日文、韓文翻不出來</summary><div>
+<details id="faq-translate"><summary>翻訳されない・韓国語や日本語の文字が読み取れない</summary><div>
 <ul>
-  <li><strong>第一次翻譯要先下載翻譯模型</strong>：自在投影詢問時按<span class="ui">下載</span>（只要一次；每個語言方向約 50 MB，日文、韓文翻成繁體中文約 100 MB）。按<span class="ui">不要</span>就不會翻譯，下次翻譯時會再問你。</li>
-  <li><strong>日文、韓文的字認不出來</strong>：Windows 要先加入那個語言的「光學字元辨識」。按提示裡的<span class="ui">開啟語言設定</span>，或自己開啟 Windows「設定」→「時間與語言」→「語言與地區」→「新增語言」，選日文（或韓文）→ 下一步，<strong>只要勾選「光學字元辨識」</strong>（不必設為顯示語言，也不必裝語言套件）→ 安裝。裝好後再翻譯一次。</li>
-  <li>手機畫面出現後才能翻譯。已下載的模型可以在 翻譯 → <span class="ui">管理翻譯模型</span> 查看或刪除。</li>
+  <li><strong>初めての翻訳では翻訳モデルのダウンロードが必要です</strong>：確認が出たら<span class="ui">ダウンロード</span>をクリックします（1 回だけ。1 方向あたり約 50 MB）。<span class="ui">今はしない</span>を選ぶと翻訳されず、次回もう一度確認します。</li>
+  <li><strong>文字が読み取れない</strong>：Windows にその言語の「光学式文字認識」を追加します。案内の<span class="ui">言語の設定を開く</span>をクリックするか、Windows の設定 → 時刻と言語 → 言語と地域 → 言語を追加する → 韓国語（など）→ 次へ と進み、<strong>「光学式文字認識」だけ</strong>を選んで（表示言語や言語パックは不要）インストールします。終わったらもう一度翻訳してください。</li>
+  <li>ダウンロードした翻訳モデルは 翻訳 → <span class="ui">翻訳モデルの管理</span> で確認・削除できます。</li>
 </ul></div></details>
-
-<details><summary>關掉視窗後，程式還在執行嗎？</summary><div>
-<p>是的，它在右下角系統匣待命。要完全結束，請在系統匣圖示上按右鍵 → 結束。不想開機自動執行，可以取消「開機自動啟動」。</p></div></details>
 
 <div class="foot">
   <i class="m foot-m"></i>
-  <div>自在投影 · 授權 GPL-3.0。AirPlay 協定部分移植自 UxPlay。<br>還有問題？設定與記錄檔位於 <code>%LOCALAPPDATA%\PhoneMirror</code>，回報問題時可以附上 phonemirror.log。</div>
+  <div>Zizai Cast · GPL-3.0 ライセンス。AirPlay 部分は UxPlay から移植しています。マスコットは「トウトウ」です。<br>解決しないときは：設定とログは <code>%LOCALAPPDATA%\PhoneMirror</code> にあります。問題を報告するときは phonemirror.log を添付してください。</div>
 </div>
 </section>
 

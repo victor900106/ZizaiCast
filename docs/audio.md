@@ -93,7 +93,7 @@ player.stop();
 
 ```
 cmake -S audio/standalone -B build-audio -G "Visual Studio 18 2026" -A x64 ^
-  -DCMAKE_TOOLCHAIN_FILE=C:/Users/victo/vcpkg/scripts/buildsystems/vcpkg.cmake
+  -DCMAKE_TOOLCHAIN_FILE=%USERPROFILE%/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build-audio --config Release
 ```
 
