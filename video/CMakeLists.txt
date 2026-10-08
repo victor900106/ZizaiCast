@@ -42,6 +42,7 @@ add_library(pm_video STATIC
   src/mf_decoder.cpp
   src/renderer.h
   src/renderer.cpp
+  src/text_overlay.cpp
   src/ui_art.h
   src/ui_art.cpp
   src/video_window.cpp

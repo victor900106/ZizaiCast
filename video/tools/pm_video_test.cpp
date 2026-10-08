@@ -71,6 +71,21 @@
 //                    frame tap (BGRA -> NV12) vs the pattern; reset -> idle.
 //                    Screenshot times for capture.ps1: 1.3 idle, 1.9 link
 //                    hover, 5.4 framed BGRA picture, 6.6 idle again.
+// Magnifier / filters / freeze / translation overlay (0.7):
+//   --magnifier DIR  540x960 off-screen self-checking test (PASS/FAIL lines,
+//                    exit code = failures) fed with --png FILE (a phone
+//                    screenshot, e.g. translate/testdata/render.sh output;
+//                    default the synthetic pattern) + a moving bar: zoomAt /
+//                    indicator / badge / overview, snapshot + grabPicture
+//                    unzoomed, pointer mapping, drag / Ctrl+wheel / arrow
+//                    input, 8x / 1x clamps, the 4 filters, freeze (picture
+//                    still, frame tap continues), text overlay (+ original,
+//                    zoomed, mirrored), busy card, region select (also with
+//                    rotation 90 + mirror + zoom; Esc), device frame + zoom,
+//                    onReset; window shots mag_*.png in DIR
+//   --freeze-stream DIR  the stream file decoded (DXVA / NV12) for ~7 s:
+//                    freeze (window still, frame tap continues), grabPicture,
+//                    zoom 3x + contrast filter shot, unfreeze
 // Mascot:
 //   --mascot-tour DIR  off-screen window (never on the desktop): every 投投
 //                    state (4 themes, hover, click, beam pulse, connecting,
@@ -830,6 +845,481 @@ int runAndroid(pm::VideoWindow& win, At at, TapCapture& cap) {
 }
 
 // --bgra-bench W,H: BGRA pictures at --fps for --seconds (moving pattern).
+// ---- --freeze-stream DIR: freeze / zoom / filter on a decoded (NV12 / DXVA) stream ----
+template <class At, class Feed>
+int runFreezeStream(pm::VideoWindow& win, At at, Feed feed, TapCapture& cap, const std::wstring& dir) {
+    AndroidCheck chk;
+    CreateDirectoryW(dir.c_str(), nullptr);
+    std::thread feeder([&] { feed(); });
+    auto onUiShot = [&](const std::wstring& p) {
+        bool ok = false;
+        HANDLE ev = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        runOnUi([&] {
+            ok = win.saveWindowShot(p);
+            SetEvent(ev);
+        });
+        WaitForSingleObject(ev, 5000);
+        CloseHandle(ev);
+        return ok;
+    };
+    auto shotPx = [&](std::vector<uint8_t>& px) {
+        const std::wstring p = dir + L"\\_tmp.png";
+        UINT w = 0, h = 0;
+        const bool ok = onUiShot(p) && readPng(p, px, w, h);
+        DeleteFileW(p.c_str());
+        return ok;
+    };
+    auto diff = [](const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+        if (a.size() != b.size() || a.empty()) return -1.0;
+        long long s = 0;
+        for (size_t i = 0; i < a.size(); ++i) s += std::abs(a[i] - b[i]);
+        return static_cast<double>(s) / a.size();
+    };
+    char buf[160];
+    at(1500);
+    long long tap0;
+    {
+        std::lock_guard lk(cap.m);
+        tap0 = cap.count;
+    }
+    win.setFrozen(true);
+    at(1800);
+    std::vector<uint8_t> a, b;
+    shotPx(a);
+    at(2400);
+    shotPx(b);
+    long long tap1;
+    {
+        std::lock_guard lk(cap.m);
+        tap1 = cap.count;
+    }
+    // The badge does not change between the shots: the whole window must match.
+    std::snprintf(buf, sizeof(buf), "mean |diff| %.4f, frame tap +%lld", diff(a, b), tap1 - tap0);
+    chk.expect(diff(a, b) == 0 && tap1 - tap0 > 20, "decoded stream frozen, tap continues", buf);
+    std::vector<uint8_t> g;
+    int gw = 0, gh = 0;
+    const bool grabbed = win.grabPicture(g, gw, gh);
+    chk.expect(grabbed && gw > 0 && gh > 0, "grabPicture of a frozen decoded picture",
+               std::to_string(gw) + "x" + std::to_string(gh));
+    win.zoomAt(3, 0.5f, 0.5f);
+    win.setFilter(pm::VideoWindow::Filter::Contrast);
+    at(4200);
+    onUiShot(dir + L"\\stream_frozen_zoom3_contrast.png");
+    win.setFilter(pm::VideoWindow::Filter::None);
+    win.resetMagnifier();
+    win.setFrozen(false);
+    at(6200);
+    shotPx(a);
+    at(6500);
+    shotPx(b);
+    std::snprintf(buf, sizeof(buf), "mean |diff| %.4f", diff(a, b));
+    chk.expect(diff(a, b) > 0.05, "unfrozen decoded stream moves again", buf);
+    feeder.join();
+    std::printf("[freeze-stream] %d failure(s)\n", chk.failures);
+    return chk.failures;
+}
+
+// ---- --magnifier DIR: zoom / pan / filters / freeze / text overlay / region select ----
+
+// Self-checking (PASS/FAIL lines, exit code = failures), off-screen 540x960
+// window fed with --png (a phone screenshot, e.g. a translate/testdata screen;
+// default: the synthetic pattern) at 30 fps with a moving bar at the bottom.
+// Window shots of every state go to DIR (looked at by a human).
+template <class At>
+int runMagnifier(pm::VideoWindow& win, At at, TapCapture& cap, const std::wstring& dir, const std::wstring& png) {
+    using PE = pm::VideoWindow::PointerEvent;
+    const ULONGLONG t0ms = GetTickCount64();
+    AndroidCheck chk;
+    HWND hwnd = win.hwnd();
+    const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
+    SendMessageW(hwnd, testMsg, 12, 1);  // posted mouse messages only
+    auto onUi = [](std::function<void()> fn) {
+        HANDLE done = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        runOnUi([&] {
+            fn();
+            SetEvent(done);
+        });
+        WaitForSingleObject(done, 5000);
+        CloseHandle(done);
+    };
+    auto shot = [&](const wchar_t* name) {
+        const std::wstring p = dir + L"\\" + name;
+        bool ok = false;
+        onUi([&] { ok = win.saveWindowShot(p); });
+        std::printf("[magnifier] %6.2f s shot %ls%s\n", (GetTickCount64() - t0ms) / 1000.0, name, ok ? "" : " (FAILED)");
+        std::fflush(stdout);
+    };
+    CreateDirectoryW(dir.c_str(), nullptr);
+
+    // Source picture.
+    std::vector<uint8_t> base;
+    UINT PW = 720, PH = 1280;
+    if (png.empty() || !readPng(png, base, PW, PH)) {
+        if (!png.empty()) std::printf("[magnifier] cannot read %ls: synthetic pattern\n", png.c_str());
+        PW = 720;
+        PH = 1280;
+        base = makePattern(PW, PH, PW * 4);
+    }
+    const int barH = std::max<int>(8, PH / 60);
+    auto frameAt = [&](int i) {  // the picture + a red bar moving along the bottom edge
+        std::vector<uint8_t> f = base;
+        const int bx = (i * 23) % std::max<int>(1, PW - PW / 5), bw = PW / 5;
+        for (int y = PH - barH; y < static_cast<int>(PH); ++y)
+            for (int x = bx; x < bx + bw; ++x) {
+                uint8_t* d = f.data() + (static_cast<size_t>(y) * PW + x) * 4;
+                d[0] = 40, d[1] = 40, d[2] = 230, d[3] = 255;
+            }
+        return f;
+    };
+    std::atomic<bool> stopFeed{false};
+    std::atomic<int> frameNo{0};
+    std::mutex fm;
+    std::vector<uint8_t> lastSent;
+    std::thread feeder([&] {
+        for (int i = 0; !stopFeed; ++i) {
+            auto f = frameAt(i);
+            {
+                std::lock_guard lk(fm);
+                win.submitBgraFrame(f.data(), PW, PH, PW * 4, static_cast<uint64_t>(utcNs()));
+                lastSent = std::move(f);
+                frameNo = i;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        }
+    });
+    // Mean |diff| of two BGRA pictures (same size), or -1.
+    auto meanDiff = [](const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+        if (a.size() != b.size() || a.empty()) return -1.0;
+        long long s = 0;
+        for (size_t i = 0; i < a.size(); i += 4)
+            for (int c = 0; c < 3; ++c) s += std::abs(a[i + c] - b[i + c]);
+        return static_cast<double>(s) / (a.size() / 4 * 3);
+    };
+    auto shotPixels = [&](std::vector<uint8_t>& px, UINT& w, UINT& h) {
+        const std::wstring p = dir + L"\\_tmp.png";
+        bool ok = false;
+        onUi([&] { ok = win.saveWindowShot(p); });
+        ok = ok && readPng(p, px, w, h);
+        DeleteFileW(p.c_str());
+        return ok;
+    };
+    char buf[256];
+
+    at(1200);
+    shot(L"mag_01_normal.png");
+    // grabPicture == the submitted picture (unzoomed, unfiltered).
+    {
+        std::vector<uint8_t> g;
+        int gw = 0, gh = 0;
+        bool ok = false;
+        onUi([&] { ok = win.grabPicture(g, gw, gh); });  // also from the UI thread
+        std::vector<uint8_t> sent;
+        {
+            std::lock_guard lk(fm);
+            sent = lastSent;
+        }
+        const double d = ok && gw == static_cast<int>(PW) && gh == static_cast<int>(PH) ? meanDiff(g, sent) : -1;
+        std::snprintf(buf, sizeof(buf), "%dx%d, mean |diff| vs a recent frame %.3f (moving bar only)", gw, gh, d);
+        chk.expect(ok && d >= 0 && d < 1.5, "grabPicture == submitted picture", buf);
+    }
+
+    // Zoom 2.5x at the upper left area: big indicator, then badge + overview.
+    win.zoomAt(2.5f, 0.3f, 0.25f);
+    at(1500);
+    shot(L"mag_02_zoom_indicator.png");
+    {
+        const auto v = win.viewState();
+        std::snprintf(buf, sizeof(buf), "zoom %.2f centre (%.3f, %.3f)", v.zoom, v.centerX, v.centerY);
+        // The point under (0.3, 0.25) stays: c = 0.5 + (v - .5) * (1 - 1/2.5).
+        chk.expect(std::fabs(v.zoom - 2.5f) < 1e-3f && std::fabs(v.centerX - 0.38f) < 2e-3f &&
+                       std::fabs(v.centerY - 0.35f) < 2e-3f,
+                   "zoomAt keeps the point under the cursor", buf);
+    }
+    at(3400);
+    shot(L"mag_03_zoom25.png");
+    // Snapshot unaffected by the zoom.
+    {
+        bool ok = false;
+        const std::wstring p = dir + L"\\_snap.png";
+        onUi([&] { ok = win.saveSnapshot(p); });
+        std::vector<uint8_t> px;
+        UINT w = 0, h = 0;
+        ok = ok && readPng(p, px, w, h);
+        DeleteFileW(p.c_str());
+        std::vector<uint8_t> sent;
+        {
+            std::lock_guard lk(fm);
+            sent = lastSent;
+        }
+        const double d = ok && w == PW && h == PH ? meanDiff(px, sent) : -1;
+        std::snprintf(buf, sizeof(buf), "%ux%u, mean |diff| %.3f", w, h, d);
+        chk.expect(d >= 0 && d < 1.5, "saveSnapshot while zoomed == whole picture", buf);
+    }
+    // Pointer mapping through the zoom: the viewport centre is the view centre.
+    {
+        std::mutex em;
+        std::vector<PE> events;
+        win.setPointerHandler([&](const PE& e) {
+            std::lock_guard lk(em);
+            events.push_back(e);
+        });
+        RECT cr{};
+        GetClientRect(hwnd, &cr);
+        const float sc = std::min(cr.right / static_cast<float>(PW), cr.bottom / static_cast<float>(PH));
+        const float vw = std::round(PW * sc), vh = std::round(PH * sc);
+        const float left = std::floor((cr.right - vw) / 2), top = std::floor((cr.bottom - vh) / 2);
+        const int px = static_cast<int>(left + vw * 0.75f), py = static_cast<int>(top + vh * 0.2f);
+        PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(px, py));
+        PostMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(px, py));
+        at(3700);
+        const auto v = win.viewState();
+        const float vx = (px + 0.5f - left) / vw, vy = (py + 0.5f - top) / vh;
+        const float ex = v.centerX + (vx - 0.5f) / v.zoom, ey = v.centerY + (vy - 0.5f) / v.zoom;
+        std::lock_guard lk(em);
+        const bool ok = events.size() == 2 && std::fabs(events[0].x - ex) < 2e-3f && std::fabs(events[0].y - ey) < 2e-3f;
+        std::snprintf(buf, sizeof(buf), "%zu events, got (%.4f, %.4f) expected (%.4f, %.4f)", events.size(),
+                      events.empty() ? -1.f : events[0].x, events.empty() ? -1.f : events[0].y, ex, ey);
+        chk.expect(ok, "pointer events map through the magnifier", buf);
+        win.setPointerHandler(nullptr);
+    }
+    // Built-in input: drag pans, Ctrl+wheel zooms at the cursor, arrows pan.
+    {
+        RECT cr{};
+        GetClientRect(hwnd, &cr);
+        const auto v0 = win.viewState();
+        const int x0 = cr.right / 2, y0 = cr.bottom / 2;
+        PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x0, y0));
+        PostMessageW(hwnd, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(x0 + 120, y0 + 120));
+        PostMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x0 + 60, y0 + 40));
+        at(3900);
+        const auto v1 = win.viewState();
+        std::snprintf(buf, sizeof(buf), "centre (%.3f, %.3f) -> (%.3f, %.3f)", v0.centerX, v0.centerY, v1.centerX, v1.centerY);
+        chk.expect(v1.centerX < v0.centerX - 0.01f && v1.centerY < v0.centerY - 0.01f && v1.zoom == v0.zoom,
+                   "left drag pans (content follows the mouse)", buf);
+        POINT sp{x0, y0};
+        ClientToScreen(hwnd, &sp);
+        PostMessageW(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(MK_CONTROL, WHEEL_DELTA), MAKELPARAM(sp.x, sp.y));
+        at(4000);
+        const auto v2 = win.viewState();
+        std::snprintf(buf, sizeof(buf), "zoom %.3f -> %.3f", v1.zoom, v2.zoom);
+        chk.expect(std::fabs(v2.zoom - v1.zoom * 1.25f) < 1e-3f, "Ctrl+wheel zooms in x1.25", buf);
+        PostMessageW(hwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        PostMessageW(hwnd, WM_KEYUP, VK_RIGHT, 0);
+        at(4100);
+        const auto v3 = win.viewState();
+        std::snprintf(buf, sizeof(buf), "centre x %.3f -> %.3f", v2.centerX, v3.centerX);
+        chk.expect(v3.centerX > v2.centerX + 0.01f, "Right arrow pans right", buf);
+    }
+    // Zoom limits.
+    win.setZoom(20);
+    at(4200);
+    chk.expect(std::fabs(win.viewState().zoom - 8) < 1e-4f, "zoom clamps at 8x");
+    shot(L"mag_04_zoom8.png");
+    win.zoomStep(-100);
+    at(4300);
+    chk.expect(std::fabs(win.viewState().zoom - 1) < 1e-4f, "zoom clamps at 1x");
+
+    // Filters (whole picture, then zoomed 2x on the lower half).
+    struct F {
+        pm::VideoWindow::Filter f;
+        const wchar_t* name;
+    } filters[] = {{pm::VideoWindow::Filter::Contrast, L"mag_05_filter_contrast.png"},
+                   {pm::VideoWindow::Filter::Grayscale, L"mag_06_filter_gray.png"},
+                   {pm::VideoWindow::Filter::Invert, L"mag_07_filter_invert.png"},
+                   {pm::VideoWindow::Filter::YellowOnBlack, L"mag_08_filter_yellow.png"}};
+    int t = 4600;
+    for (const auto& f : filters) {
+        win.setFilter(f.f);
+        at(t += 400);
+        shot(f.name);
+    }
+    win.zoomAt(2, 0.5f, 0.8f);
+    at(t += 2000);
+    shot(L"mag_09_yellow_zoom2.png");
+    win.setFilter(pm::VideoWindow::Filter::None);
+
+    // Freeze: the picture stops while frames keep arriving; the tap goes on.
+    win.resetMagnifier();
+    at(t += 1800);  // the "原始大小" indicator has faded
+    long long tap0;
+    {
+        std::lock_guard lk(cap.m);
+        tap0 = cap.count;
+    }
+    win.setFrozen(true);
+    at(t += 300);
+    std::vector<uint8_t> s1, s2;
+    UINT w1 = 0, h1 = 0, w2 = 0, h2 = 0;
+    shotPixels(s1, w1, h1);
+    at(t += 700);
+    shotPixels(s2, w2, h2);
+    shot(L"mag_10_frozen.png");
+    {
+        // Compare the window shots outside the badge (top 12 %).
+        double d = -1;
+        if (w1 == w2 && h1 == h2 && !s1.empty()) {
+            const size_t skip = static_cast<size_t>(h1 * 0.12) * w1 * 4;
+            std::vector<uint8_t> a(s1.begin() + skip, s1.end()), b(s2.begin() + skip, s2.end());
+            d = meanDiff(a, b);
+        }
+        long long tap1;
+        {
+            std::lock_guard lk(cap.m);
+            tap1 = cap.count;
+        }
+        std::snprintf(buf, sizeof(buf), "window shots 0.7 s apart: mean |diff| %.4f; frame tap +%lld pictures", d,
+                      tap1 - tap0);
+        chk.expect(d >= 0 && d < 0.01 && tap1 - tap0 >= 15, "frozen: picture still, frame tap continues", buf);
+    }
+    // While frozen, grabPicture returns the frozen picture (not the newest frame).
+    {
+        std::vector<uint8_t> g1, g2;
+        int a = 0, b = 0;
+        win.grabPicture(g1, a, b);
+        at(t += 300);
+        win.grabPicture(g2, a, b);
+        const double d = meanDiff(g1, g2);
+        std::snprintf(buf, sizeof(buf), "mean |diff| %.4f", d);
+        chk.expect(d == 0, "grabPicture while frozen is stable", buf);
+    }
+
+    // Translated text overlay over the (frozen) picture.
+    using TB = pm::VideoWindow::TextBox;
+    std::vector<TB> boxes = {
+        {0.03f, 0.085f, 0.97f, 0.135f, L"LINE・田中先生：明天在車站剪票口前 10 點見面可以嗎？", L""},
+        {0.17f, 0.195f, 0.40f, 0.230f, L"飛航模式", L"機内モード"},
+        {0.17f, 0.250f, 0.40f, 0.285f, L"Wi-Fi", L"Wi-Fi"},
+        {0.60f, 0.250f, 0.93f, 0.285f, L"家用網路", L"自宅のネットワーク"},
+        {0.17f, 0.360f, 0.45f, 0.395f, L"行動網路", L"モバイル通信"},
+        {0.05f, 0.925f, 0.95f, 0.985f, L"電池電量不足。開啟低耗電模式可以減少電池的消耗。", L""},
+    };
+    win.setTextOverlay(boxes);
+    at(t += 400);
+    shot(L"mag_11_overlay.png");
+    win.setTextOverlayOriginal(true);
+    at(t += 300);
+    shot(L"mag_12_overlay_original.png");
+    win.setTextOverlayOriginal(false);
+    win.zoomAt(2, 0.3f, 0.25f);
+    at(t += 1800);
+    shot(L"mag_13_overlay_zoom2.png");
+    win.resetMagnifier();
+    win.setMirrored(true);
+    at(t += 300);
+    shot(L"mag_14_overlay_mirrored.png");
+    win.setMirrored(false);
+    win.setOverlayBusy(L"正在翻譯…");
+    at(t += 300);
+    shot(L"mag_15_busy.png");
+    win.setOverlayBusy(L"");
+    win.setTextOverlay({});
+
+    // Region selection: a posted drag -> callback with content coordinates.
+    {
+        std::atomic<int> calls{0};
+        std::atomic<bool> okSel{false}, onUiThread{true};
+        float r[4] = {};
+        win.beginRegionSelect([&](bool ok, float x0, float y0, float x1, float y1) {
+            if (GetCurrentThreadId() != g_uiThread) onUiThread = false;
+            okSel = ok;
+            r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1;
+            calls++;
+        });
+        at(t += 200);
+        RECT cr{};
+        GetClientRect(hwnd, &cr);
+        const float sc = std::min(cr.right / static_cast<float>(PW), cr.bottom / static_cast<float>(PH));
+        const float vw = std::round(PW * sc), vh = std::round(PH * sc);
+        const float left = std::floor((cr.right - vw) / 2), top = std::floor((cr.bottom - vh) / 2);
+        auto pt = [&](float fx, float fy) { return MAKELPARAM(static_cast<int>(left + vw * fx), static_cast<int>(top + vh * fy)); };
+        PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, pt(0.10f, 0.20f));
+        PostMessageW(hwnd, WM_MOUSEMOVE, MK_LBUTTON, pt(0.60f, 0.45f));
+        at(t += 300);
+        shot(L"mag_16_select.png");
+        PostMessageW(hwnd, WM_MOUSEMOVE, MK_LBUTTON, pt(0.90f, 0.50f));
+        PostMessageW(hwnd, WM_LBUTTONUP, 0, pt(0.90f, 0.50f));
+        at(t += 300);
+        std::snprintf(buf, sizeof(buf), "%d call(s), ok %d, (%.3f, %.3f)-(%.3f, %.3f)", calls.load(), okSel.load(), r[0],
+                      r[1], r[2], r[3]);
+        chk.expect(calls == 1 && okSel && onUiThread && std::fabs(r[0] - 0.10f) < 0.01f && std::fabs(r[1] - 0.20f) < 0.01f &&
+                       std::fabs(r[2] - 0.90f) < 0.01f && std::fabs(r[3] - 0.50f) < 0.01f,
+                   "region select: drag -> content rectangle on the UI thread", buf);
+        // Esc cancels.
+        calls = 0;
+        win.beginRegionSelect([&](bool ok, float, float, float, float) {
+            okSel = ok;
+            calls++;
+        });
+        at(t += 150);
+        PostMessageW(hwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+        at(t += 150);
+        chk.expect(calls == 1 && !okSel, "region select: Esc cancels");
+    }
+    // Rotation 90 + mirror + zoom: selection maps back to content coordinates.
+    {
+        win.setRotation(1);
+        win.setMirrored(true);
+        win.zoomAt(2, 0.5f, 0.5f);
+        at(t += 1600);
+        shot(L"mag_17_rot90_mirror_zoom2.png");
+        std::atomic<int> calls{0};
+        float r[4] = {};
+        win.beginRegionSelect([&](bool ok, float x0, float y0, float x1, float y1) {
+            r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1;
+            calls += ok ? 1 : 100;
+        });
+        at(t += 150);
+        RECT cr{};
+        GetClientRect(hwnd, &cr);
+        const float dw = static_cast<float>(PH), dh = static_cast<float>(PW);  // displayed after rotation
+        const float sc = std::min(cr.right / dw, cr.bottom / dh);
+        const float vw = std::round(dw * sc), vh = std::round(dh * sc);
+        const float left = std::floor((cr.right - vw) / 2), top = std::floor((cr.bottom - vh) / 2);
+        auto pt = [&](float fx, float fy) { return MAKELPARAM(static_cast<int>(left + vw * fx), static_cast<int>(top + vh * fy)); };
+        PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, pt(0.25f, 0.25f));
+        PostMessageW(hwnd, WM_MOUSEMOVE, MK_LBUTTON, pt(0.75f, 0.75f));
+        PostMessageW(hwnd, WM_LBUTTONUP, 0, pt(0.75f, 0.75f));
+        at(t += 300);
+        // viewport 0.25..0.75 at zoom 2 around the centre = display 0.375..0.625;
+        // content x = 1 - display x (mirror): 0.375..0.625 as well.
+        std::snprintf(buf, sizeof(buf), "(%.3f, %.3f)-(%.3f, %.3f)", r[0], r[1], r[2], r[3]);
+        chk.expect(calls == 1 && std::fabs(r[0] - 0.375f) < 0.01f && std::fabs(r[2] - 0.625f) < 0.01f &&
+                       std::fabs(r[1] - 0.375f) < 0.01f && std::fabs(r[3] - 0.625f) < 0.01f,
+                   "region select through rotation + mirror + zoom", buf);
+        win.setRotation(0);
+        win.setMirrored(false);
+    }
+    // Device frame + zoom + frozen.
+    win.setDeviceFrame(true);
+    win.zoomAt(3, 0.5f, 0.3f);
+    at(t += 1800);
+    shot(L"mag_18_frame_zoom3.png");
+    win.setDeviceFrame(false);
+    win.resetMagnifier();
+    // Unfreeze: the moving bar is back.
+    win.setFrozen(false);
+    at(t += 300);
+    shotPixels(s1, w1, h1);
+    at(t += 500);
+    shotPixels(s2, w2, h2);
+    {
+        const double d = meanDiff(s1, s2);
+        std::snprintf(buf, sizeof(buf), "mean |diff| %.4f", d);
+        chk.expect(d > 0.01, "unfrozen: picture moves again", buf);
+    }
+    // onReset clears the freeze and the overlay, keeps zoom / filter.
+    win.setFrozen(true);
+    win.setTextOverlay(boxes);
+    stopFeed = true;
+    feeder.join();
+    win.onReset();
+    at(t += 600);
+    chk.expect(!win.viewState().frozen, "onReset ends the freeze");
+    std::printf("[magnifier] %d failure(s)\n", chk.failures);
+    std::fflush(stdout);
+    return chk.failures;
+}
+
 template <class Secs>
 void runBgraBench(pm::VideoWindow& win, int w, int h, double fps, double seconds, Secs secs) {
     const int stride = w * 4;
@@ -883,6 +1373,9 @@ int wmain(int argc, wchar_t** argv) {
     double benchSec = 5;
     const wchar_t* tapDump = nullptr;
     const wchar_t* tourDir = nullptr;
+    const wchar_t* magDir = nullptr;
+    const wchar_t* freezeDir = nullptr;
+    const wchar_t* pngPath = L"";
     int tapSlowMs = 0;
     int syncLat = 0, latA = -1, latB = -1, ntp0Every = 0, churn = 0, churnLoss = 0, decoderCycles = 0;
     double leadMs = 0, jitterMs = 0;
@@ -902,6 +1395,9 @@ int wmain(int argc, wchar_t** argv) {
         else if (!wcscmp(argv[i], L"--tap")) tap = true;
         else if (!wcscmp(argv[i], L"--android")) android = tap = true;
         else if (!wcscmp(argv[i], L"--mascot-tour") && hasValue) tourDir = argv[++i];
+        else if (!wcscmp(argv[i], L"--magnifier") && hasValue) magDir = argv[++i], tap = true;
+        else if (!wcscmp(argv[i], L"--png") && hasValue) pngPath = argv[++i];
+        else if (!wcscmp(argv[i], L"--freeze-stream") && hasValue) freezeDir = argv[++i], tap = true, offscreen = true;
         else if (!wcscmp(argv[i], L"--bgra-bench") && hasValue) swscanf_s(argv[++i], L"%d,%d", &benchW, &benchH);
         else if (!wcscmp(argv[i], L"--seconds") && hasValue) benchSec = _wtof(argv[++i]);
         else if (!wcscmp(argv[i], L"--tap-dump") && hasValue) tap = true, tapDump = argv[++i];
@@ -991,8 +1487,8 @@ int wmain(int argc, wchar_t** argv) {
                 codec == pm::VideoCodec::H265 ? "HEVC" : "H.264", fps, demo ? ", UI demo" : "");
 
     pm::VideoWindow win;
-    const bool tall = demo || demo2 || android || tourDir;
-    if (tourDir) SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    const bool tall = demo || demo2 || android || tourDir || magDir;
+    if (tourDir || magDir) SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
     if (!win.create(L"PhoneMirror - pm_video_test", tall ? 540 : width, tall ? 960 : height)) return 1;
     TapCapture cap;
     const DWORD mainThread = GetCurrentThreadId();
@@ -1167,6 +1663,12 @@ int wmain(int argc, wchar_t** argv) {
             runMascotTour(win, at, tourDir);
         } else if (android) {
             exitCode = runAndroid(win, at, cap);
+        } else if (magDir) {
+            exitCode = runMagnifier(win, at, cap, magDir, pngPath);
+        } else if (freezeDir) {
+            exitCode = runFreezeStream(win, at, [&] { feedStream(main, -1, 1, 7.0); }, cap, freezeDir);
+            win.onReset();
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
         } else if (benchW > 0 && benchH > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
             runBgraBench(win, benchW, benchH, fps > 0 ? fps : 60, benchSec, secs);

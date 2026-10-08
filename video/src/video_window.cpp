@@ -165,6 +165,7 @@ struct SnapshotRequest {
     UINT w = 0, h = 0;
     bool framed = false;  // device frame, transparent background (BGRA)
     bool ui = false;      // the whole window as drawn (saveWindowShot)
+    bool grab = false;    // content picture for OCR (grabPicture): not mirrored
     bool ok = false;
     ~SnapshotRequest() { CloseHandle(done); }
 };
@@ -192,6 +193,8 @@ void absPercentile(std::vector<float> v, double& avg, double& p95abs) {
 
 const UINT kTestMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
 constexpr UINT_PTR kHoverTimer = 0x504D0001;  // trailing hover move (app timers use small ids)
+// Posted by onReset(): the UI thread ends a region selection in progress.
+const UINT kCancelSelectMsg = RegisterWindowMessageW(L"PhoneMirror.Video.CancelSelect");
 constexpr double kHoverMinMs = 1000.0 / 60;    // hover moves at most ~60 Hz
 
 // A small ring with a dot (touch point), 32x32, hot spot in the middle:
@@ -325,6 +328,26 @@ struct VideoWindow::Impl {
     // Presentation / theme / recording / mascot requests (-1 = none).
     int themeReq = -1, dimReq = -1, frameReq = -1, recReq = -1, mascotHoverReq = -1;
     bool xformChanged = false, mascotClickReq = false, tapChanged = false;
+    // Magnifier / filter / freeze / text overlay / region selection requests.
+    // viewUi + frozenUi: the latest requested state (any thread, under m);
+    // pubView: what the worker last drew (mapPoint uses it with picRect).
+    video::Renderer::View viewUi, pubView;
+    bool frozenUi = false;
+    bool viewChanged = false;
+    int frozenReq = -1, originalReq = -1;
+    std::optional<std::vector<video::Renderer::TextBox>> boxesReq;
+    std::optional<std::wstring> busyReq;
+    // Text overlay list panel / markers: requests (UI thread) and the
+    // published hit rectangles (worker).
+    int ovHotReq = -2, ovSelReq = -2;  // -2 none, else item (-1: none)
+    int ovModeReq = -1, ovDarkReq = -1;  // -1 none (setTextOverlayStyle)
+    bool ovRevealReq = false;
+    float ovScrollReq = 0;
+    video::Renderer::OverlayHits ovHits;
+    int ovSelUi = -1;  // selected list item (UI thread; reset by setTextOverlay)
+    bool selChanged = false, selActiveReq = false;
+    float selReq[4] = {-1, -1, -1, -1};
+    std::shared_ptr<std::function<void(const VideoWindow::ViewState&)>> viewFn;
     RECT mascotRect{};  // published by the worker (client pixels), empty if not clickable
     std::vector<uint8_t> mascotMask;  // copy of the art's hit mask (UI thread)
     UINT maskW = 0, maskH = 0;
@@ -1134,7 +1157,8 @@ struct VideoWindow::Impl {
                pokeReq || snapReq || syncChanged || adapterCheckReq || testReq >= 0 || themeReq >= 0 || dimReq >= 0 ||
                frameReq >= 0 || recReq >= 0 || mascotHoverReq >= 0 || xformChanged || mascotClickReq || tapChanged ||
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
-               toolLeaveReq || toolHoverReq != -2;
+               toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
+               busyReq || selChanged;
     }
 
     // Takes everything queued plus control flags; returns false on stop.
@@ -1178,9 +1202,33 @@ struct VideoWindow::Impl {
         int linkHover = -2;
         std::vector<video::Renderer::Option> opts;
         std::shared_ptr<SnapshotRequest> snap;
+        std::optional<video::Renderer::View> view;
+        int frozenR = -1, originalR = -1;
+        std::optional<std::vector<video::Renderer::TextBox>> boxes;
+        std::optional<std::wstring> busy;
+        int ovHot = -2, ovSel = -2, ovMode = -1, ovDark = -1;
+        bool ovReveal = false;
+        float ovScroll = 0;
+        bool selCh = false, selOn = false;
+        float selR[4] = {};
         {
             std::lock_guard lk(m);
             if (stop) return false;
+            if (std::exchange(viewChanged, false)) view = viewUi;
+            frozenR = std::exchange(frozenReq, -1);
+            originalR = std::exchange(originalReq, -1);
+            boxes = std::exchange(boxesReq, std::nullopt);
+            busy = std::exchange(busyReq, std::nullopt);
+            ovHot = std::exchange(ovHotReq, -2);
+            ovMode = std::exchange(ovModeReq, -1);
+            ovDark = std::exchange(ovDarkReq, -1);
+            ovSel = std::exchange(ovSelReq, -2);
+            ovReveal = std::exchange(ovRevealReq, false);
+            ovScroll = std::exchange(ovScrollReq, 0.f);
+            if ((selCh = std::exchange(selChanged, false))) {
+                selOn = selActiveReq;
+                std::copy(std::begin(selReq), std::end(selReq), selR);
+            }
             out.swap(queue);
             reset = std::exchange(resetPending, false);
             pause = std::exchange(pausePending, -1);
@@ -1363,9 +1411,51 @@ struct VideoWindow::Impl {
             ren.poke();
             if (wasIdle) paint = true;
         }
+        if (view) {
+            ren.setView(*view);
+            paint = true;
+        }
+        if (frozenR >= 0) {
+            ren.setFrozen(frozenR == 1);
+            paint = true;
+        }
+        if (boxes) {
+            ren.setTextOverlay(std::move(*boxes));
+            paint = true;
+        }
+        if (originalR >= 0) {
+            ren.setTextOverlayOriginal(originalR == 1);
+            paint = true;
+        }
+        if (ovMode >= 0 || ovDark >= 0) {
+            if (ovMode >= 0) ren.setOverlayMode(ovMode);
+            if (ovDark >= 0) ren.setOverlayDark(ovDark == 1);
+            paint = true;
+        }
+        if (ovHot != -2) {
+            ren.setOverlayHot(ovHot);
+            paint = true;
+        }
+        if (ovSel != -2) {
+            ren.setOverlaySelected(ovSel, ovReveal);
+            paint = true;
+        }
+        if (ovScroll != 0) {
+            ren.scrollOverlayList(ovScroll);
+            paint = true;
+        }
+        if (busy) {
+            ren.setBusy(*busy);
+            paint = true;
+        }
+        if (selCh) {
+            ren.setSelection(selOn, selR[0], selR[1], selR[2], selR[3]);
+            paint = true;
+        }
         if (snap) {
-            snap->ok = snap->ui ? ren.renderCapture(snap->pixels, snap->w, snap->h)
-                                : ren.snapshot(snap->pixels, snap->w, snap->h, snap->framed);
+            snap->ok = snap->ui     ? ren.renderCapture(snap->pixels, snap->w, snap->h)
+                       : snap->grab ? ren.grab(snap->pixels, snap->w, snap->h, false)
+                                    : ren.snapshot(snap->pixels, snap->w, snap->h, snap->framed);
             SetEvent(snap->done);
         }
         if (paint) needPresent = true;
@@ -1374,6 +1464,7 @@ struct VideoWindow::Impl {
 
     bool needPresent = true;
     bool snapshot(const std::wstring& pngPath, bool framed, bool ui = false);
+    std::shared_ptr<SnapshotRequest> runSnapshot(bool framed, bool ui, bool grab);
 
     void publishOptionRects() {
         const auto& r = ren.optionRects();
@@ -1385,6 +1476,8 @@ struct VideoWindow::Impl {
         picRect = ren.pictureRect();
         picRot = ren.rotation();
         picMirror = ren.mirrored();
+        pubView = ren.view();
+        ovHits = ren.overlayHits();
         if (r.size() == optionRects.size() &&
             std::equal(r.begin(), r.end(), optionRects.begin(), [](const RECT& a, const RECT& b) {
                 return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
@@ -2007,17 +2100,21 @@ struct VideoWindow::Impl {
         RECT r;
         int rot;
         bool mir;
+        video::Renderer::View v;
         {
             std::lock_guard lk(m);
             r = picRect;
             rot = picRot;
             mir = picMirror;
+            v = pubView;
         }
         if (r.right <= r.left || r.bottom <= r.top) return false;
         if (!clamp && (pt.x < r.left || pt.x >= r.right || pt.y < r.top || pt.y >= r.bottom)) return false;
         // Pixel centres: the first column maps to 0.5 / width, never 0.
-        const float tx = std::clamp((pt.x + 0.5f - r.left) / (r.right - r.left), 0.f, 1.f);
-        const float ty = std::clamp((pt.y + 0.5f - r.top) / (r.bottom - r.top), 0.f, 1.f);
+        const float vx = std::clamp((pt.x + 0.5f - r.left) / (r.right - r.left), 0.f, 1.f);
+        const float vy = std::clamp((pt.y + 0.5f - r.top) / (r.bottom - r.top), 0.f, 1.f);
+        // Magnifier: viewport -> displayed picture.
+        const float tx = v.cx + (vx - 0.5f) / v.zoom, ty = v.cy + (vy - 0.5f) / v.zoom;
         video::Renderer::screenToPicture(rot, mir, tx, ty, x, y);
         x = std::clamp(x, 0.f, 1.f);
         y = std::clamp(y, 0.f, 1.f);
@@ -2186,7 +2283,353 @@ struct VideoWindow::Impl {
         keysDown.reset();
     }
 
+    // ---------------------------------------------------------------------
+    // Magnifier / region selection (UI thread unless noted)
+    bool panning = false;          // left drag pans the magnified picture
+    POINT panLast{};
+    bool selecting = false;        // beginRegionSelect() active
+    bool selDragging = false;
+    float selV[4] = {-1, -1, -1, -1};  // viewport coords of the drag
+    std::function<void(bool, float, float, float, float)> selDone;
+
+    // Any thread: a new view (clamped) for the worker; user: reported to viewFn.
+    void applyView(video::Renderer::View v, bool user) {
+        v = video::Renderer::clampView(v);
+        std::shared_ptr<std::function<void(const VideoWindow::ViewState&)>> fn;
+        VideoWindow::ViewState vs;
+        {
+            std::lock_guard lk(m);
+            viewUi = v;
+            viewChanged = true;
+            fn = viewFn;
+            vs = viewStateLocked();
+        }
+        wake();
+        if (user && fn && *fn) (*fn)(vs);
+    }
+    VideoWindow::ViewState viewStateLocked() const {
+        VideoWindow::ViewState vs;
+        vs.zoom = viewUi.zoom;
+        vs.centerX = viewUi.cx;
+        vs.centerY = viewUi.cy;
+        vs.filter = static_cast<VideoWindow::Filter>(viewUi.filter);
+        vs.frozen = frozenUi;
+        return vs;
+    }
+    video::Renderer::View currentView() {
+        std::lock_guard lk(m);
+        return viewUi;
+    }
+    // Zoom keeping viewport point (vx, vy) where it is.
+    void zoomAtV(float zoom, float vx, float vy, bool user) {
+        video::Renderer::View v = currentView();
+        zoom = std::clamp(zoom, 1.f, video::Renderer::kMaxZoom);
+        if (std::fabs(zoom - 1) < 0.06f) zoom = 1;
+        // The picture point under (vx, vy) stays: c' = c + (v - .5) * (1/z - 1/z').
+        v.cx += (vx - 0.5f) * (1 / v.zoom - 1 / zoom);
+        v.cy += (vy - 0.5f) * (1 / v.zoom - 1 / zoom);
+        v.zoom = zoom;
+        applyView(v, user);
+    }
+    void panV(float dx, float dy, bool user) {
+        video::Renderer::View v = currentView();
+        if (v.zoom <= 1.001f) return;
+        v.cx += dx / v.zoom;
+        v.cy += dy / v.zoom;
+        applyView(v, user);
+    }
+    static float stepZoom(float z, int steps) {
+        z *= std::pow(1.25f, static_cast<float>(steps));
+        if (std::fabs(z - 1) < 0.06f) z = 1;
+        return z;
+    }
+    // Client pixel -> viewport coords of the live picture (false: not on it).
+    bool viewportPoint(POINT pt, float& vx, float& vy, bool clamp) {
+        RECT r;
+        {
+            std::lock_guard lk(m);
+            r = picRect;
+        }
+        if (r.right <= r.left || r.bottom <= r.top) return false;
+        if (!clamp && (pt.x < r.left || pt.x >= r.right || pt.y < r.top || pt.y >= r.bottom)) return false;
+        vx = std::clamp((pt.x + 0.5f - r.left) / (r.right - r.left), 0.f, 1.f);
+        vy = std::clamp((pt.y + 0.5f - r.top) / (r.bottom - r.top), 0.f, 1.f);
+        return true;
+    }
+    void viewportToContent(float vx, float vy, float& dx, float& dy) {
+        video::Renderer::View v;
+        bool mir;
+        {
+            std::lock_guard lk(m);
+            v = pubView;
+            mir = picMirror;
+        }
+        const float tx = v.cx + (vx - 0.5f) / v.zoom, ty = v.cy + (vy - 0.5f) / v.zoom;
+        dx = std::clamp(mir ? 1 - tx : tx, 0.f, 1.f);
+        dy = std::clamp(ty, 0.f, 1.f);
+    }
+
+    // Wheel: Ctrl = zoom at the cursor; zoomed without a pointer handler =
+    // pan (Shift / tilt: sideways).
+    bool magWheel(UINT msg, WPARAM wp, LPARAM lp) {
+        POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        float vx, vy;
+        if (!ScreenToClient(hwnd, &pt) || !viewportPoint(pt, vx, vy, false)) return false;
+        const float notches = GET_WHEEL_DELTA_WPARAM(wp) / static_cast<float>(WHEEL_DELTA);
+        const bool ctrl = (GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) != 0;
+        if (ctrl && msg == WM_MOUSEWHEEL) {
+            const float z = currentView().zoom * std::pow(1.25f, notches);
+            zoomAtV(z, vx, vy, true);
+            return true;
+        }
+        if (currentView().zoom <= 1.001f || pointerHandler()) return false;
+        const bool side = msg == WM_MOUSEHWHEEL || (GET_KEYSTATE_WPARAM(wp) & MK_SHIFT) != 0;
+        const float step = 0.15f * notches;
+        if (msg == WM_MOUSEHWHEEL) panV(step, 0, true);
+        else if (side) panV(-step, 0, true);
+        else panV(0, -step, true);
+        return true;
+    }
+
+    // Left press: start panning (zoomed; Ctrl needed with a pointer handler).
+    bool panPress(LPARAM lp) {
+        const POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        float vx, vy;
+        if (buttonsDown || currentView().zoom <= 1.001f || !viewportPoint(pt, vx, vy, false) || inToolPill(pt))
+            return false;
+        if (pointerHandler() && GetKeyState(VK_CONTROL) >= 0) return false;
+        panning = true;
+        panLast = pt;
+        SetCapture(hwnd);
+        SetCursor(LoadCursorW(nullptr, IDC_SIZEALL));
+        return true;
+    }
+    void panMove(LPARAM lp) {
+        const POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        RECT r;
+        {
+            std::lock_guard lk(m);
+            r = picRect;
+        }
+        if (r.right > r.left && r.bottom > r.top && (pt.x != panLast.x || pt.y != panLast.y))
+            panV(-static_cast<float>(pt.x - panLast.x) / (r.right - r.left),
+                 -static_cast<float>(pt.y - panLast.y) / (r.bottom - r.top), true);
+        panLast = pt;
+    }
+    void panEnd() {
+        if (!panning) return;
+        panning = false;
+        if (GetCapture() == hwnd) ReleaseCapture();
+    }
+
+    // Keys: Ctrl+= / Ctrl+- zoom, Ctrl+Shift+0 1x, arrows pan while zoomed.
+    bool magKey(UINT msg, WPARAM wp) {
+        const unsigned vk = static_cast<unsigned>(wp) & 0xff;
+        const bool ctrl = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
+        const bool alt = msg == WM_SYSKEYDOWN || GetKeyState(VK_MENU) < 0;
+        if (ctrl && !alt && (vk == VK_OEM_PLUS || vk == VK_ADD)) {
+            const auto v = currentView();
+            zoomAtV(stepZoom(v.zoom, 1), 0.5f, 0.5f, true);
+            return true;
+        }
+        if (ctrl && !alt && (vk == VK_OEM_MINUS || vk == VK_SUBTRACT)) {
+            const auto v = currentView();
+            zoomAtV(stepZoom(v.zoom, -1), 0.5f, 0.5f, true);
+            return true;
+        }
+        if (ctrl && shift && !alt && (vk == '0' || vk == VK_NUMPAD0)) {
+            auto v = currentView();
+            v.zoom = 1;
+            applyView(v, true);
+            return true;
+        }
+        if (ctrl || currentView().zoom <= 1.001f) return false;
+        float dx = 0, dy = 0;
+        switch (vk) {
+        case VK_LEFT: dx = -0.1f; break;
+        case VK_RIGHT: dx = 0.1f; break;
+        case VK_UP: dy = -0.1f; break;
+        case VK_DOWN: dy = 0.1f; break;
+        default: return false;
+        }
+        panV(dx, dy, true);
+        return true;
+    }
+
+    // ---- Text overlay list panel / markers (UI thread) ----
+    static constexpr int kOvNone = -3, kOvZoom = -2, kOvPanel = -4;
+    int ovHotUi = -1;           // list item under the cursor
+    int ovPress = kOvNone;      // where the left button went down
+    int ovOnUi = kOvNone;       // what the cursor is on
+    // Item (row or marker; *marker tells which), kOvZoom, kOvPanel or kOvNone at pt.
+    int ovHit(POINT pt, bool* marker = nullptr) {
+        std::lock_guard lk(m);
+        const auto& h = ovHits;
+        if (PtInRect(&h.zoomBtn, pt)) return kOvZoom;
+        for (const auto& [r, i] : h.rows)
+            if (PtInRect(&r, pt)) {
+                if (marker) *marker = false;
+                return i;
+            }
+        if (PtInRect(&h.panel, pt)) return kOvPanel;
+        for (const auto& [r, i] : h.markers)
+            if (PtInRect(&r, pt)) {
+                if (marker) *marker = true;
+                return i;
+            }
+        return kOvNone;
+    }
+    bool hitIsMarker(POINT pt) {
+        bool marker = false;
+        ovHit(pt, &marker);
+        return marker;
+    }
+    void ovSetHot(int i) {
+        if (i == ovHotUi) return;
+        ovHotUi = i;
+        {
+            std::lock_guard lk(m);
+            ovHotReq = i;
+        }
+        wake();
+    }
+    void ovClick(int hit, bool marker) {
+        if (hit == kOvZoom) {  // 放大這一塊: the listed blocks fill the view
+            float z[4];
+            bool mir;
+            {
+                std::lock_guard lk(m);
+                std::copy(std::begin(ovHits.zoomTo), std::end(ovHits.zoomTo), z);
+                mir = picMirror;
+            }
+            if (z[2] <= z[0] || z[3] <= z[1]) return;
+            video::Renderer::View v = currentView();
+            const float cx = (z[0] + z[2]) / 2;
+            v.cx = mir ? 1 - cx : cx;
+            v.cy = (z[1] + z[3]) / 2;
+            v.zoom = std::min(0.9f / (z[2] - z[0]), 0.9f / (z[3] - z[1]));
+            applyView(v, true);
+            return;
+        }
+        if (hit < 0) return;
+        {
+            std::lock_guard lk(m);
+            ovSelUi = (ovSelUi == hit && !marker) ? -1 : hit;  // a row clicked again: deselected
+            ovSelReq = ovSelUi;
+            ovRevealReq = marker;
+        }
+        wake();
+    }
+
+    // ---- Region selection (beginRegionSelect) ----
+    void sendSelection() {
+        {
+            std::lock_guard lk(m);
+            selChanged = true;
+            selActiveReq = selecting;
+            std::copy(std::begin(selV), std::end(selV), selReq);
+        }
+        wake();
+    }
+    void startSelect(std::function<void(bool, float, float, float, float)> done) {
+        if (selecting) endSelect(false);
+        cancelButtons();
+        panEnd();
+        selecting = true;
+        selDragging = false;
+        selDone = std::move(done);
+        std::fill(std::begin(selV), std::end(selV), -1.f);
+        sendSelection();
+        POINT pt;
+        if (GetCursorPos(&pt) && ScreenToClient(hwnd, &pt)) {
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            if (PtInRect(&rc, pt)) SetCursor(LoadCursorW(nullptr, IDC_CROSS));
+        }
+    }
+    void endSelect(bool ok) {
+        if (!selecting) return;
+        selecting = false;
+        const bool dragged = selDragging;
+        selDragging = false;
+        if (GetCapture() == hwnd) ReleaseCapture();
+        auto done = std::move(selDone);
+        selDone = nullptr;
+        float d[4] = {0, 0, 0, 0};
+        if (ok && dragged) {
+            viewportToContent(std::min(selV[0], selV[2]), std::min(selV[1], selV[3]), d[0], d[1]);
+            viewportToContent(std::max(selV[0], selV[2]), std::max(selV[1], selV[3]), d[2], d[3]);
+            if (d[0] > d[2]) std::swap(d[0], d[2]);  // mirrored
+            RECT r;
+            {
+                std::lock_guard lk(m);
+                r = picRect;
+            }
+            // A click or a sliver (< 8 x 8 px on screen) is not a selection.
+            const float wPx = std::fabs(selV[2] - selV[0]) * (r.right - r.left);
+            const float hPx = std::fabs(selV[3] - selV[1]) * (r.bottom - r.top);
+            ok = wPx >= 8 && hPx >= 8;
+        } else {
+            ok = false;
+        }
+        std::fill(std::begin(selV), std::end(selV), -1.f);
+        sendSelection();
+        if (done) done(ok, d[0], d[1], d[2], d[3]);
+    }
+    // Mouse in selection mode; true = handled.
+    bool selectMouse(UINT msg, LPARAM lp) {
+        if (!selecting) return false;
+        const POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        float vx, vy;
+        switch (msg) {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONDBLCLK:
+            if (!viewportPoint(pt, vx, vy, false)) {
+                endSelect(false);
+                return true;
+            }
+            selDragging = true;
+            selV[0] = selV[2] = vx;
+            selV[1] = selV[3] = vy;
+            SetCapture(hwnd);
+            sendSelection();
+            return true;
+        case WM_MOUSEMOVE:
+            if (selDragging && viewportPoint(pt, vx, vy, true)) {
+                selV[2] = vx;
+                selV[3] = vy;
+                sendSelection();
+            }
+            return true;
+        case WM_LBUTTONUP:
+            if (selDragging) {
+                if (viewportPoint(pt, vx, vy, true)) {
+                    selV[2] = vx;
+                    selV[3] = vy;
+                }
+                endSelect(true);
+            }
+            return true;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONDOWN:
+            endSelect(false);
+            return true;
+        }
+        return false;
+    }
+
     LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp) {
+        if (msg == kCancelSelectMsg && kCancelSelectMsg) {
+            endSelect(false);
+            return 0;
+        }
+        static const UINT runOnUiMsg = RegisterWindowMessageW(L"PhoneMirror.Video.RunOnUi");
+        if (msg == runOnUiMsg && runOnUiMsg && lp) {
+            std::unique_ptr<std::function<void()>> fn(reinterpret_cast<std::function<void()>*>(lp));
+            (*fn)();
+            return 0;
+        }
         if (msg == kTestMsg && kTestMsg && wp == 10) {
             // Test hook: centre of idle action lp (0 = first; the help link
             // when it is the only one) in client px, -1 if not shown.
@@ -2209,6 +2652,18 @@ struct VideoWindow::Impl {
             // screenshots without moving the real cursor): no leave tracking.
             synthMouse = lp != 0;
             return 0;
+        }
+        if (msg == kTestMsg && kTestMsg && wp >= 14 && wp <= 16) {
+            // Test hook: centre (client px) of translation list row lp (14),
+            // marker lp (15) or the 放大這一塊 button (16); -1 if not shown.
+            std::lock_guard lk(m);
+            const RECT* r = nullptr;
+            if (wp == 16) r = &ovHits.zoomBtn;
+            else
+                for (const auto& [rr, i] : wp == 14 ? ovHits.rows : ovHits.markers)
+                    if (i == static_cast<int>(lp)) r = &rr;
+            if (!r || r->right <= r->left) return -1;
+            return MAKELRESULT((r->left + r->right) / 2, (r->top + r->bottom) / 2);
         }
         if (msg == kTestMsg && kTestMsg && wp == 11) {
             // Test hook: centre of live-toolbar button lp in client px, -1
@@ -2255,12 +2710,29 @@ struct VideoWindow::Impl {
                 TRACKMOUSEEVENT t{sizeof(t), TME_LEAVE, hwnd, 0};
                 trackingMouse = TrackMouseEvent(&t) != FALSE;
             }
+            if (selecting) {
+                selectMouse(msg, lp);
+                return 0;
+            }
+            if (panning) {
+                panMove(lp);
+                return 0;
+            }
             // Live toolbar: shown by any movement; on it, nothing goes to the phone.
             toolActivity();
             const POINT mpt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
             const bool onTool = !buttonsDown && inToolPill(mpt);
             setToolHot(onTool ? hitTool(mpt) : -1, onTool);
             if (onTool) hoverPending = false;
+            // Translation list / markers: theirs, nothing goes to the phone.
+            ovOnUi = onTool || buttonsDown ? kOvNone : ovHit(mpt);
+            ovSetHot(ovOnUi >= 0 ? ovOnUi : -1);
+            if (ovOnUi != kOvNone) {
+                hoverPending = false;
+                setHover(-1);
+                setLinkHot(-1);
+                return 0;
+            }
             const bool remote = onTool || pointerMove(lp);
             const int opt = remote ? -1 : hitTest(lp);
             setHover(opt);
@@ -2281,6 +2753,8 @@ struct VideoWindow::Impl {
         }
         case WM_MOUSELEAVE:
             trackingMouse = false;
+            ovSetHot(-1);
+            ovOnUi = kOvNone;
             setToolHot(-1, false);
             toolLeave();
             setHover(-1);
@@ -2288,8 +2762,16 @@ struct VideoWindow::Impl {
             setMascotHot(false);
             return 0;
         case WM_SETCURSOR:
+            if (LOWORD(lp) == HTCLIENT && (selecting || panning)) {
+                SetCursor(LoadCursorW(nullptr, selecting ? IDC_CROSS : IDC_SIZEALL));
+                return TRUE;
+            }
             if (LOWORD(lp) == HTCLIENT && (hoverUi >= 0 || mascotHotUi || linkHotUi >= 0 || toolHotUi >= 0)) {
                 SetCursor(LoadCursorW(nullptr, IDC_HAND));
+                return TRUE;
+            }
+            if (LOWORD(lp) == HTCLIENT && ovOnUi != kOvNone) {
+                SetCursor(LoadCursorW(nullptr, ovOnUi == kOvPanel ? IDC_ARROW : IDC_HAND));
                 return TRUE;
             }
             if (LOWORD(lp) == HTCLIENT && toolInsideUi) {
@@ -2302,13 +2784,27 @@ struct VideoWindow::Impl {
             }
             break;
         case WM_LBUTTONDOWN:
+            if (selectMouse(msg, lp)) return 0;
             if (toolPress(lp)) return 0;
+            if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
+            if (panPress(lp)) return 0;
             if (pointerDown(0, lp)) return 0;
             pressedUi = hitTest(lp);
             pressedLink = pressedUi < 0 ? hitLink(lp) : -1;
             pressedMascot = pressedUi < 0 && pressedLink < 0 && hitMascot(lp);
             return 0;
         case WM_LBUTTONUP: {
+            if (selectMouse(msg, lp)) return 0;
+            if (ovPress != kOvNone) {  // pressed on the list / a marker: a click if released on the same thing
+                const int p = std::exchange(ovPress, kOvNone);
+                bool marker = false;
+                if (ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}, &marker) == p) ovClick(p, marker);
+                return 0;
+            }
+            if (panning) {
+                panEnd();
+                return 0;
+            }
             if (pressedTool != -2) {  // pressed on the toolbar: a click if released on the same button
                 const int i = std::exchange(pressedTool, -2);
                 if (i >= 0 && hitTool({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}) == i) clickTool(i);
@@ -2325,7 +2821,10 @@ struct VideoWindow::Impl {
             return 0;
         }
         case WM_LBUTTONDBLCLK:
+            if (selectMouse(msg, lp)) return 0;
             if (toolPress(lp)) return 0;  // second click of a fast double click on the toolbar
+            if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
+            if (panPress(lp)) return 0;   // magnified: a fast second drag, not fullscreen
             // On the picture with a pointer handler: a press for the phone.
             if (pointerDown(0, lp)) return 0;
             // Second click of a fast double click on a check box, the help
@@ -2337,16 +2836,20 @@ struct VideoWindow::Impl {
             return 0;
         case WM_RBUTTONDOWN:
         case WM_RBUTTONDBLCLK:
+            if (selectMouse(WM_RBUTTONDOWN, lp)) return 0;
             // Shift+right click keeps the window's context menu on the picture;
             // so does a right click on the toolbar (never sent to the phone).
             if (!buttonsDown && inToolPill({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) break;
+            if (!buttonsDown && ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}) != kOvNone) break;  // the window's menu
             if (GetKeyState(VK_SHIFT) >= 0 && pointerDown(1, lp)) return 0;
             break;
         case WM_RBUTTONUP:
+            if (selectMouse(msg, lp)) return 0;
             if (pointerUp(1, lp)) return 0;  // no WM_CONTEXTMENU for a click that went to the phone
             break;
         case WM_MBUTTONDOWN:
         case WM_MBUTTONDBLCLK:
+            if (selectMouse(WM_MBUTTONDOWN, lp)) return 0;
             if (!buttonsDown && inToolPill({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) return 0;
             if (pointerDown(2, lp)) return 0;
             break;
@@ -2357,11 +2860,25 @@ struct VideoWindow::Impl {
         case WM_MOUSEHWHEEL: {
             POINT wpt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
             if (ScreenToClient(hwnd, &wpt) && inToolPill(wpt)) return 0;
+            if (selecting) return 0;
+            if (const int oh = ovHit(wpt); oh != kOvNone && !hitIsMarker(wpt)) {  // scrolls the translation list
+                {
+                    std::lock_guard lk(m);
+                    ovScrollReq -= GET_WHEEL_DELTA_WPARAM(wp) / static_cast<float>(WHEEL_DELTA) * 60.f;
+                }
+                wake();
+                return 0;
+            }
+            if (magWheel(msg, wp, lp)) return 0;
             if (pointerWheel(msg, wp, lp)) return 0;
             break;
         }
         case WM_CAPTURECHANGED:
-            if (reinterpret_cast<HWND>(lp) != hwnd) cancelButtons();
+            if (reinterpret_cast<HWND>(lp) != hwnd) {
+                cancelButtons();
+                panning = false;
+                if (selecting && selDragging) endSelect(false);
+            }
             break;
         case WM_TIMER:
             if (wp == kHoverTimer) {
@@ -2374,7 +2891,12 @@ struct VideoWindow::Impl {
             }
             break;
         case WM_KEYDOWN:
+            if (selecting && wp == VK_ESCAPE) {
+                endSelect(false);
+                return 0;
+            }
             if (keyEvent(msg, wp)) return 0;
+            if (magKey(msg, wp)) return 0;
             if (wp == VK_F11 || (wp == VK_ESCAPE && fullscreen)) toggleFullscreen();
             return 0;
         case WM_KEYUP:
@@ -2383,8 +2905,13 @@ struct VideoWindow::Impl {
         case WM_CHAR:
             if (charEvent(wp)) return 0;
             break;
+        case WM_SYSKEYDOWN:
+            if (magKey(msg, wp)) return 0;  // Alt+arrows pan while magnified
+            break;
         case WM_KILLFOCUS:
             releaseKeys();
+            endSelect(false);
+            panEnd();
             break;
         case WM_GETMINMAXINFO: {
             auto* mmi = reinterpret_cast<MINMAXINFO*>(lp);
@@ -2642,8 +3169,13 @@ void VideoWindow::onReset() {
         std::lock_guard lk(impl_->m);
         impl_->queue.clear();
         impl_->resetPending = true;
+        impl_->frozenUi = false;  // the renderer drops the frozen picture and the overlay
+        impl_->frozenReq = -1;
+        impl_->boxesReq.reset();
+        impl_->busyReq.reset();
     }
     impl_->wake();
+    if (HWND h = impl_->hwnd.load(); h && kCancelSelectMsg) PostMessageW(h, kCancelSelectMsg, 0, 0);
 }
 
 // ---- Android sources ----
@@ -2769,7 +3301,7 @@ void VideoWindow::setLiveToolbar(std::vector<ToolbarItem> items, std::function<v
     std::vector<video::Renderer::ToolItem> ri;
     std::vector<int> ids;
     for (auto& t : items) {
-        ri.push_back({t.glyph, std::move(t.tooltip), t.toggled, t.danger, t.groupStart});
+        ri.push_back({t.glyph, std::move(t.tooltip), t.toggled, t.danger, t.groupStart, t.recording, t.optional});
         ids.push_back(t.id);
     }
     {
@@ -2868,6 +3400,147 @@ void VideoWindow::setFrameTap(FrameTap tap) {
     impl_->wake();
 }
 
+// ---- Magnifier / filters / freeze / text overlay ----
+
+void VideoWindow::setZoom(float zoom) {
+    auto v = impl_->currentView();
+    v.zoom = zoom;
+    impl_->applyView(v, false);
+}
+
+void VideoWindow::zoomAt(float zoom, float vx, float vy) { impl_->zoomAtV(zoom, vx, vy, false); }
+
+void VideoWindow::zoomStep(int steps) {
+    impl_->zoomAtV(Impl::stepZoom(impl_->currentView().zoom, steps), 0.5f, 0.5f, false);
+}
+
+void VideoWindow::panBy(float dx, float dy) { impl_->panV(dx, dy, false); }
+
+void VideoWindow::resetMagnifier() {
+    auto v = impl_->currentView();
+    v.zoom = 1;
+    v.cx = v.cy = 0.5f;
+    impl_->applyView(v, false);
+}
+
+void VideoWindow::setFilter(Filter f) {
+    auto v = impl_->currentView();
+    v.filter = static_cast<int>(f);
+    impl_->applyView(v, false);
+}
+
+void VideoWindow::setFrozen(bool frozen) {
+    {
+        std::lock_guard lk(impl_->m);
+        if (impl_->frozenUi == frozen && impl_->frozenReq < 0) return;
+        impl_->frozenUi = frozen;
+        impl_->frozenReq = frozen ? 1 : 0;
+    }
+    impl_->wake();
+}
+
+VideoWindow::ViewState VideoWindow::viewState() const {
+    std::lock_guard lk(impl_->m);
+    return impl_->viewStateLocked();
+}
+
+void VideoWindow::setViewHandler(std::function<void(const ViewState&)> fn) {
+    auto p = fn ? std::make_shared<std::function<void(const ViewState&)>>(std::move(fn)) : nullptr;
+    std::lock_guard lk(impl_->m);
+    impl_->viewFn = std::move(p);
+}
+
+void VideoWindow::setTextOverlay(std::vector<TextBox> boxes) {
+    std::vector<video::Renderer::TextBox> out;
+    out.reserve(boxes.size());
+    for (auto& b : boxes)
+        out.push_back({b.x0, b.y0, b.x1, b.y1, std::move(b.text), std::move(b.original), std::max(1, b.lines), b.bg, b.fg,
+                       b.colors});
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->boxesReq = std::move(out);
+        impl_->ovSelUi = -1;
+    }
+    impl_->wake();
+}
+
+void VideoWindow::setTextOverlayStyle(int mode, bool dark) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->ovModeReq = std::clamp(mode, 0, 2);
+        impl_->ovDarkReq = dark ? 1 : 0;
+    }
+    impl_->wake();
+}
+
+VideoWindow::TextOverlayInfo VideoWindow::textOverlayInfo() const {
+    std::lock_guard lk(impl_->m);
+    const auto& h = impl_->ovHits;
+    TextOverlayInfo i;
+    i.inPlace = h.inPlace;
+    i.listed = h.listed;
+    i.notFitting = h.notFitting;
+    i.listAll = h.listAll;
+    i.zoomButton = h.zoomBtn.right > h.zoomBtn.left;
+    i.overlaps = h.overlaps;
+    i.tooClose = h.tooClose;
+    i.truncated = h.truncated;
+    i.kinsoku = h.kinsoku;
+    i.shortLast = h.shortLast;
+    i.markerClashes = h.markerClashes;
+    i.fontSizes = h.fontSizes;
+    i.minFontPx = h.minFont;
+    i.old070Cards = h.old070Cards;
+    i.old070Overlaps = h.old070Overlaps;
+    i.old070Cut = h.old070Cut;
+    i.old070ShortLast = h.old070ShortLast;
+    return i;
+}
+
+void VideoWindow::setTextOverlayOriginal(bool showOriginal) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->originalReq = showOriginal ? 1 : 0;
+    }
+    impl_->wake();
+}
+
+void VideoWindow::setOverlayBusy(const std::wstring& label) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->busyReq = label;
+    }
+    impl_->wake();
+}
+
+namespace {
+// Runs fn on the window's UI thread (synchronously when already on it).
+void onUiThread(HWND h, std::function<void()> fn) {
+    if (!h) return;
+    if (GetWindowThreadProcessId(h, nullptr) == GetCurrentThreadId()) {
+        fn();
+        return;
+    }
+    static const UINT msg = RegisterWindowMessageW(L"PhoneMirror.Video.RunOnUi");
+    auto* p = new std::function<void()>(std::move(fn));
+    if (!PostMessageW(h, msg, 0, reinterpret_cast<LPARAM>(p))) delete p;
+}
+}  // namespace
+
+void VideoWindow::beginRegionSelect(std::function<void(bool ok, float x0, float y0, float x1, float y1)> done) {
+    Impl* impl = impl_.get();
+    onUiThread(impl->hwnd.load(), [impl, done = std::move(done)]() mutable { impl->startSelect(std::move(done)); });
+}
+
+void VideoWindow::post(std::function<void()> fn) {
+    if (fn) onUiThread(impl_->hwnd.load(), std::move(fn));
+}
+
+void VideoWindow::cancelRegionSelect() {
+    Impl* impl = impl_.get();
+    onUiThread(impl->hwnd.load(), [impl] { impl->endSelect(false); });
+}
+
 bool VideoWindow::saveSnapshotFramed(const std::wstring& pngPath) { return impl_->snapshot(pngPath, true); }
 
 bool VideoWindow::saveSnapshot(const std::wstring& pngPath) { return impl_->snapshot(pngPath, false); }
@@ -2875,13 +3548,31 @@ bool VideoWindow::saveSnapshot(const std::wstring& pngPath) { return impl_->snap
 bool VideoWindow::saveWindowShot(const std::wstring& pngPath) { return impl_->snapshot(pngPath, false, true); }
 
 bool VideoWindow::Impl::snapshot(const std::wstring& pngPath, bool framed, bool ui) {
-    if (!worker.joinable()) return false;
+    auto req = runSnapshot(framed, ui, false);
+    if (!req) return false;  // nothing shown yet
+    return video::writePng(pngPath, req->pixels.data(), req->w, req->h, framed);
+}
+
+bool VideoWindow::grabPicture(std::vector<uint8_t>& bgra, int& width, int& height) {
+    width = height = 0;
+    auto req = impl_->runSnapshot(false, false, true);
+    if (!req) return false;
+    bgra = std::move(req->pixels);
+    for (size_t i = 3; i < bgra.size(); i += 4) bgra[i] = 255;
+    width = static_cast<int>(req->w);
+    height = static_cast<int>(req->h);
+    return true;
+}
+
+std::shared_ptr<SnapshotRequest> VideoWindow::Impl::runSnapshot(bool framed, bool ui, bool grab) {
+    if (!worker.joinable()) return nullptr;
     auto req = std::make_shared<SnapshotRequest>();
     req->framed = framed;
     req->ui = ui;
+    req->grab = grab;
     {
         std::lock_guard lk(m);
-        if (stop) return false;
+        if (stop) return nullptr;
         snapReq = req;
     }
     wake();
@@ -2905,10 +3596,9 @@ bool VideoWindow::Impl::snapshot(const std::wstring& pngPath, bool framed, bool 
         std::lock_guard lk(m);
         if (snapReq == req) snapReq.reset();
         log("snapshot timed out");
-        return false;
+        return nullptr;
     }
-    if (!req->ok) return false;  // nothing shown yet
-    return video::writePng(pngPath, req->pixels.data(), req->w, req->h, framed);
+    return req->ok ? req : nullptr;
 }
 
 }  // namespace pm

@@ -51,6 +51,14 @@ win.runMessageLoop();                      // until the window is closed
 | `setTheme(t)` / `themeSwatch(t)` | `Theme::Sakura` (default, the original pink), `Mint`, `Night`, `MilkTea`. Every UI element uses the palette (background gradient, glow, particles, check boxes, toast, PIN card and veil, spinner, speech bubble, hearts, REC badge, frame tint) and so do the mascot's phone screen, rim light and beam; its cloud stays white. `themeSwatch` → `{bg, card, accent}` 0xRRGGBB: Sakura `2A1C1F 332226 F5A7A7`, Mint `123230 173D39 8FE3C4`, Night `1B1D3D 24264D BBA9F7`, MilkTea `30231B 3B2B21 E3B98A`. |
 | `setRecording(bool)` | Any thread. Pill at the top-left of the picture (inside the rounded corner when framed; window top-left without a picture): pulsing red dot + elapsed `mm:ss` (`h:mm:ss` after an hour) counted from activation. Redraws at 30 fps while active (a static stream still ticks). |
 | `setFrameTap(tap)` | See *Frame tap*. |
+| `setZoom(z)` / `zoomAt(z, vx, vy)` / `zoomStep(n)` / `panBy(dx, dy)` / `resetMagnifier()` | Any thread, cheap. Magnifier 1..8x inside the picture viewport (see *Magnifier, high contrast, freeze, text overlay*). `zoomAt` keeps viewport point (vx, vy) fixed; `zoomStep` = x1.25 per step; `panBy` in viewport fractions. |
+| `setFilter(f)` | Any thread. `Filter::None / Contrast / Grayscale / Invert / YellowOnBlack` in the pixel shader (picture + overview), not in snapshots / tap. |
+| `setFrozen(bool)` | Any thread. Keeps showing a copy of the current picture (badge 「畫面已凍結」); decoding, frame tap and recording go on with the live stream. Cleared by `onReset()`. |
+| `viewState()` / `setViewHandler(fn)` | `ViewState { zoom, centerX, centerY, filter, frozen }`; `fn` on the UI thread after the user changed the view with the built-in input (Ctrl+wheel, drag, keys). |
+| `setTextOverlay(boxes)` / `setTextOverlayOriginal(bool)` / `setOverlayBusy(label)` | Any thread. Translated-text cards over the picture (content coordinates), outlines only while 「顯示原文」, centre busy card with spinner. Used by pm_translate (docs/translate.md). |
+| `beginRegionSelect(done)` / `cancelRegionSelect()` | Any thread; `done(ok, x0, y0, x1, y1)` on the UI thread in content coordinates. |
+| `grabPicture(bgra, w, h)` | Any thread (also UI). The shown (frozen) picture as BGRA: cropped, rotated, **not** mirrored, unzoomed, unfiltered — the OCR input. ~6–10 ms for 1170x2532. |
+| `post(fn)` | Runs `fn` on the window's UI thread (posted; immediately when already on it). |
 | `submitBgraFrame(bgra, w, h, stride, ptsNs)` | Any thread. Already-decoded BGRA picture (Miracast); see *Android sources*. |
 | `setPointerHandler(fn)` / `setKeyHandler(fn)` | Any thread; handlers run on the UI thread. Remote control (scrcpy); see *Android sources*. `nullptr` removes. |
 | `setIdleActions(actions)` | Any thread. `IdleAction { label, primary, onClick }`: clickable row under the hints / check boxes, centred, wrapping to more rows when narrow. `primary` = pill button (accent outline on a faint accent wash; hover: filled accent, ink text), else underlined accent link (hover: soft pill + foreground text). Hand cursor; click → `onClick` **on the UI thread**. Drawn only on the fully shown idle screen (never while connecting / live / paused). `{}` hides them. |
@@ -123,6 +131,92 @@ movement over the window — at most one wake per second —, resize, show) and
 then eases into a static frame (1.5 s). Nothing animates while minimized or
 hidden (`SW_HIDE`), and a window reported occluded by `Present` is probed at
 2 fps only.
+
+## Magnifier, high contrast, freeze, text overlay (0.7)
+
+For low-vision users and for reading foreign-language phone screens.
+Everything happens on the GPU / in the existing passes: the picture is drawn
+by the same vertex / pixel shader with two more constants.
+
+**Coordinates.** *Viewport* v = 0..1 over the picture rectangle on screen
+(`pictureRect`); *display* t = 0..1 over the whole displayed picture
+(rotated + mirrored as seen): t = centre + (v − 0.5) / zoom; *content* d =
+the rotated, **unmirrored** picture (what `grabPicture` returns and what
+overlay / selection rectangles use): d.x = mirrored ? 1 − t.x : t.x. The
+pointer mapping for remote control goes viewport → display → phone
+(`screenToPicture`), so taps land where they are shown at any zoom.
+
+**Magnifier.** `zoom` 1..8 (clamped; snaps to 1 within 6 %) and a centre
+clamped so the view never leaves the picture. The vertex shader maps the
+quad's corners to `t = v / zoom + (centre − 0.5 / zoom)` before the
+rotation / mirror transform — no extra pass, no extra texture. The device
+frame, letterbox, REC badge and toolbar stay put (it magnifies inside the
+"screen"). UI while zoomed:
+* a **big indicator** 「放大 2.5×」 / 「原始大小」 (bold, 26–72 DIP — a 7th of
+  the picture's short side, white on 80 % black with a yellow border) for
+  1.2 s after every change, fading out in 0.4 s;
+* a persistent **zoom badge** bottom left (magnifier glyph + 「2.5×」, 16–30
+  DIP, yellow / white on black);
+* an **overview** bottom right: the whole picture (second draw of the same
+  texture, same filter, 70–220 DIP high, at most 28 % of the width) with the
+  magnified part outlined in yellow over black.
+
+Built-in input (no app code): **Ctrl+wheel** zooms ×1.25 per notch at the
+cursor; while zoomed, **left drag** pans (with a pointer handler — remote
+control — **Ctrl+left drag**, a plain drag still goes to the phone; size-all
+cursor), the **wheel** pans vertically / **Shift+wheel** or tilt sideways
+(only without a pointer handler: else the phone scrolls), **arrow keys** pan
+10 % (only without a key handler), **Alt+arrows** always pan; **Ctrl+= /
+Ctrl+-** zoom ×1.25 around the centre and **Ctrl+Shift+0** goes back to 1×
+(the app may handle these first). A double click on the zoomed picture
+starts a pan instead of toggling full screen. Changes from this input call
+`setViewHandler`'s function on the UI thread.
+
+**Filters** (`setFilter`, pixel shader after YUV→RGB, also for BGRA
+pictures): `Contrast` — saturation ×1.35 then contrast ×1.7 around mid grey;
+`Grayscale` — BT.709 luma, contrast ×1.25; `Invert` — 1 − rgb (a dark-mode UI
+becomes black on white and vice versa); `YellowOnBlack` — dark pixels (luma <
+0.8, smooth ramp to 0.25) become yellow (1, 0.92, 0.1), light ones black: dark
+text on light backgrounds turns into yellow text on black. Snapshots and the
+frame tap / recording stay unfiltered.
+
+**Freeze** (`setFrozen(true)`): the renderer copies the current picture into
+its own textures (`CopyResource`: NV12 / P010 / R8+R8G8 / BGRA alike) and
+shows that copy (`shown()`); decoding, the A/V sync queue, the frame tap and
+therefore the recorder keep the live stream. Badge 「畫面已凍結」 (pause glyph)
+top right (below the Dynamic Island with the portrait device frame). A frozen
+picture stays up while the phone screen is off (paused). Snapshots,
+`saveSnapshotFramed`, `grabPicture` and `desiredClientAspect` use the frozen
+picture. After a device loss the next decoded picture is frozen again.
+`onReset()` (source ended) unfreezes and removes the overlay; zoom and filter
+are the user's viewing preference and stay.
+
+**Text overlay** (`setTextOverlay`): one card per box, drawn after the
+device frame / dim: the box (content → screen through mirror + zoom) plus a
+margin of a quarter line, theme `card` at 97 % with an accent border, text in
+the theme foreground, semi-bold, UI font (JhengHei UI for 中文), left-aligned,
+uniform line spacing 1.2. Auto-fit: start at the original's glyph height
+(`box height / lines × 0.92`), shrink to 70 %, then allow a card up to 1.6×
+wider (centred: short labels such as tab names), then shrink to 9 DIP and let
+the card grow downwards. Layouts are cached per box size (re-fitted only when
+zoom / window size change). `setTextOverlayOriginal(true)`: only accent
+outlines of the boxes (the picture's own text shows). Mirroring moves the
+boxes, the text stays readable. Clipped to the picture.
+
+**Region selection** (`beginRegionSelect`): crosshair cursor, hint pill
+「拖曳框出要翻譯的範圍（Esc 取消）」 at the top, 25 % veil; while dragging a
+45 % veil outside the rectangle and a yellow-on-black border. Release →
+`done(true, content rect)`; a click / < 8×8 px, Esc, right / middle click,
+focus or capture loss, `cancelRegionSelect()` or `onReset()` → `done(false)`.
+Nothing is forwarded to the phone meanwhile. Works through rotation, mirror
+and zoom.
+
+**Busy card** (`setOverlayBusy`): centred card with the spinner, e.g.
+「正在辨識文字…」 / 「正在下載翻譯模型… 42%」 / 「正在翻譯…」; also drawn without a
+picture.
+
+Menus, toolbar buttons and shortcuts for the app (放大鏡, 高對比, 凍結畫面,
+翻譯畫面): docs/translate.md *Integration*.
 
 ## Android sources
 
@@ -408,7 +502,7 @@ queue. No log existed to tell (the `[video]` lines went only to stderr).
 ```bat
 set CMAKE="C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
 :: as part of the whole project
-%CMAKE% -S . -B build -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/Users/victo/vcpkg/scripts/buildsystems/vcpkg.cmake
+%CMAKE% -S . -B build -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE=%USERPROFILE%/vcpkg/scripts/buildsystems/vcpkg.cmake
 :: or just the video module (no vcpkg deps)
 %CMAKE% -S video/standalone -B build-video -G "Visual Studio 18 2026" -A x64
 %CMAKE% --build build-video --config Release
@@ -455,6 +549,23 @@ win.setFrameTap(nullptr);  // returns after any running call has finished
   picture (shader + copy submission, map, NV12 assembly; the tap itself excluded).
 
 ## Test tool
+
+Magnifier / filters / freeze / overlay (0.7), off-screen, self-checking:
+
+```
+pm_video_test video\testdata\ios_like.h264 --magnifier DIR --png build-translate\screens\ja_settings.png
+pm_video_test video\testdata\ios_like.h264 --freeze-stream DIR
+```
+
+`--magnifier` (BGRA picture + a moving bar, 540x960): grabPicture ==
+submitted pixels; zoomAt keeps the cursor point; snapshot unzoomed; pointer
+events mapped through the zoom; drag / Ctrl+wheel / arrow input; 8× / 1×
+clamps; the 4 filters (+ yellow at 2×); freeze (window still while frames
+arrive, frame tap continues, grab stable); overlay (+ original, zoomed,
+mirrored); busy card; region select (drag, Esc, through rotation 90 + mirror
++ zoom 2); device frame + zoom 3; unfreeze; onReset ends the freeze. 18
+window shots `mag_*.png`. `--freeze-stream` does freeze / grab / zoom 3 +
+contrast / unfreeze on the decoded H.264 stream (DXVA NV12 path).
 
 ```bat
 powershell -ExecutionPolicy Bypass -File video\testdata\make.ps1   :: needs ffmpeg on PATH
@@ -658,6 +769,20 @@ new picture was presented; 0.6.1 = `--watchdog off`.
 Regressions: `--android` 12/12 PASS, `--demo-ui2` ok, 3 min soak (private
 154–159 MB, handles 656–664 flat, 0 drops), `--sync 150 --jitter 40` |p95|
 1.9 ms, GPU switch hooks 0/1/2/3 recover, no watchdog action in any of them.
+
+### Magnifier / freeze / overlay (2026-10-08, RTX 3060 Ti, off-screen)
+
+`--magnifier` with the Japanese settings screen: 0 failures (grabPicture
+mean |diff| 0.000 vs the submitted frame; snapshot while zoomed 0.099 — the
+moving bar; pointer at zoom 2.5 mapped to (0.4803, 0.2301) as expected;
+frozen: two window shots 0.7 s apart identical while the tap delivered +29
+pictures; region select (0.100, 0.200)–(0.900, 0.500) for a drag over
+exactly that; through rotation + mirror + zoom (0.375…0.625) as computed).
+`--freeze-stream` (H.264 1920x1080 DXVA): frozen window identical over 0.6 s
+while the tap got +57 pictures; unfrozen mean |diff| 5.3. No measurable
+cost: zoom and filter are four constants of the existing draw; the overview
+is one more quad; a freeze is one `CopyResource`. The regular stream test
+(`--fps 240 --tap`) is unchanged (decode 2.7 ms avg, tap 0.42 ms avg).
 
 ## Known gaps
 

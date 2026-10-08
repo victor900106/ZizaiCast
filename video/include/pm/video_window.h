@@ -139,6 +139,10 @@ public:
     //     Android picture.  Hover moves over it are not forwarded either.
     //   * glyph: a Segoe Fluent Icons / Segoe MDL2 Assets code point.
     //   * groupStart: a thin divider before this button.
+    //   * recording: toggled in the red REC style (pulsing dot); other
+    //     toggled buttons (放大鏡, 翻譯, 凍結) get the theme's accent (0.7.2).
+    //   * optional: left out when the window is too narrow for every button
+    //     at the smallest size (the command is also in 更多 / the menu).
     // Call again to update (e.g. toggled); an empty list removes it.
     struct ToolbarItem {
         int id = 0;
@@ -147,6 +151,8 @@ public:
         bool toggled = false;
         bool danger = false;
         bool groupStart = false;
+        bool recording = false;
+        bool optional = false;
     };
     void setLiveToolbar(std::vector<ToolbarItem> items, std::function<void(int id)> onClick);
 
@@ -182,6 +188,117 @@ public:
     void desiredClientAspect(int& w, int& h) const;
     // iPhone-style bezel around the picture (off by default).
     void setDeviceFrame(bool enabled);
+
+    // ---- Magnifier, high-contrast view, freeze (thread-safe, cheap) ----
+    // Zoom 1..8x inside the picture viewport (the letterbox / device frame
+    // stay), around a centre point; a large "放大 2.5×" indicator shows for
+    // ~1.2 s after every change, then a persistent zoom badge (bottom left)
+    // and an overview of the whole picture with the magnified part outlined
+    // (bottom right) stay while zoomed.  Pointer input for the phone, region
+    // selection and overlays follow the zoom.  Snapshots, the frame tap and
+    // recordings are unaffected (always the whole, unfiltered picture).
+    // Built-in input (no app code needed): Ctrl+wheel zooms at the cursor;
+    // while zoomed, a left drag pans (Ctrl+left drag when a pointer handler
+    // is set, i.e. remote control), the wheel / Shift+wheel pan (without a
+    // pointer handler), arrow keys pan (without a key handler) and
+    // Alt+arrows always pan; Ctrl+= / Ctrl+- zoom, Ctrl+Shift+0 back to 1x
+    // (unless the app handles those keys first).
+    enum class Filter { None, Contrast, Grayscale, Invert, YellowOnBlack };
+    struct ViewState {
+        float zoom = 1;                     // 1..8
+        float centerX = 0.5f, centerY = 0.5f;  // shown point at the viewport centre, 0..1 of the displayed picture
+        Filter filter = Filter::None;
+        bool frozen = false;
+    };
+    // Zoom around the current centre (clamped to 1..8; 1 = whole picture).
+    void setZoom(float zoom);
+    // Zoom keeping the viewport point (vx, vy) (0..1 of the picture viewport) fixed.
+    void zoomAt(float zoom, float vx, float vy);
+    // One step in (+) / out (-): x1.25 per step (snaps to 1 near 1).
+    void zoomStep(int steps);
+    // Pan by a fraction of the viewport (dx = 0.1: a tenth of its width to the right).
+    void panBy(float dx, float dy);
+    void resetMagnifier();  // zoom 1, centred (filter / freeze unchanged)
+    // Colour filter of the picture (pixel shader; also in the overview):
+    // Contrast = steeper contrast + saturation, Grayscale, Invert (black <->
+    // white: a dark-mode UI becomes black on white), YellowOnBlack (dark text
+    // on a light background becomes yellow on black).
+    void setFilter(Filter f);
+    // Freeze: keep showing the current picture (badge 「畫面已凍結」) while
+    // the stream goes on in the background (frame tap / recording keep the
+    // live stream).  Also stays up while the phone screen is off.  Cleared by
+    // onReset() (source ended).
+    void setFrozen(bool frozen);
+    ViewState viewState() const;
+    // Called on the UI thread after the user changed the view with the
+    // built-in input (wheel / drag / keys), e.g. to update menus.  Changes
+    // made through the setters above are not reported.
+    void setViewHandler(std::function<void(const ViewState&)> fn);
+
+    // ---- Text overlay (on-screen translation; drawn by video/, filled by pm_translate) ----
+    // Boxes in "content" coordinates: 0..1 of the picture as grabPicture()
+    // returns it (rotated, not mirrored, unzoomed).  Each box: a themed
+    // semi-opaque card over the original text with `text` auto-fitted
+    // (largest font that fits, wrapping; at 9 DIP the card grows downwards).
+    // Follows zoom / pan / rotation; mirroring moves the boxes, the text stays
+    // readable.  Empty list removes them.  Cleared by onReset().
+    //
+    // 0.7.1: the block's area is painted in its own background colour (bg)
+    // and the translation drawn in its text colour (fg), left-aligned, as
+    // large as fits (at least 11 DIP); cards never overlap.  Blocks too small
+    // for that get numbered markers and a list panel (scrollable; hover /
+    // click a row: its block is highlighted; click a marker: its row; the
+    // panel's 「放大這一塊」 magnifies the listed blocks).  With the
+    // 加強對比 / 黃字黑底 filters the cards are high-contrast (theme card /
+    // yellow on black).  The panel and markers take the mouse (nothing goes
+    // to the phone there).
+    struct TextBox {
+        float x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+        std::wstring text;      // translated
+        std::wstring original;  // recognised source text (for the app / tests)
+        int lines = 1;          // text lines of the original in the box (font size ~ box height / lines)
+        uint32_t bg = 0, fg = 0;  // 0xRRGGBB: background / text colour around the original (if colors)
+        bool colors = false;
+    };
+    void setTextOverlay(std::vector<TextBox> boxes);
+    // 翻譯 ▸ 顯示方式: mode 0 automatic (listed when > 30 % do not fit), 1
+    // 原位顯示 (whatever fits in place, the rest listed), 2 清單顯示 (all
+    // listed); dark: 深色方框 (the 0.7.0 dark cards, low vision) instead of
+    // the picture's own colours.  Kept across overlays.
+    void setTextOverlayStyle(int mode, bool dark);
+    // Layout of the shown overlay (tests / logs): blocks in place, listed,
+    // and the checks (overlapping pairs, cut characters, lines starting with
+    // 、。」 etc., stub last lines: all 0 when the layout is right).
+    struct TextOverlayInfo {
+        int inPlace = 0, listed = 0, notFitting = 0;
+        bool zoomButton = false, listAll = false;
+        int overlaps = 0, tooClose = 0, truncated = 0, kinsoku = 0, shortLast = 0, markerClashes = 0, fontSizes = 0;
+        float minFontPx = 0;
+        int old070Cards = 0, old070Overlaps = 0, old070Cut = 0, old070ShortLast = 0;  // PM_OVERLAY_070 (tests)
+    };
+    TextOverlayInfo textOverlayInfo() const;
+    // true: hide the translations, only outline their areas (the picture's
+    // own text shows).
+    void setTextOverlayOriginal(bool showOriginal);
+    // Centre card with a spinner, e.g. 「正在翻譯…」; empty string hides it.
+    void setOverlayBusy(const std::wstring& label);
+    // Lets the user drag a rectangle on the picture (crosshair cursor, hint
+    // 「拖曳框出要翻譯的範圍（Esc 取消）」, veil outside the rectangle).
+    // done(ok, x0, y0, x1, y1) on the UI thread with the rectangle in content
+    // coordinates (ok false: Esc, right click, focus loss, cancelRegionSelect()
+    // or a tiny rectangle).  Nothing reaches the phone meanwhile.
+    void beginRegionSelect(std::function<void(bool ok, float x0, float y0, float x1, float y1)> done);
+    void cancelRegionSelect();
+    // The shown picture (the frozen one while frozen) as 32-bit BGRA rows
+    // (stride w*4, alpha 255): cropped, rotated, NOT mirrored, unzoomed,
+    // unfiltered — the content coordinate space.  Any thread (also the UI
+    // thread); blocks until the render thread copied it (a few ms).  False
+    // if nothing is shown.
+    bool grabPicture(std::vector<uint8_t>& bgra, int& width, int& height);
+    // Runs fn on the window's UI thread (posted; at once when called on it).
+    // Dropped if the window is gone.  For modules working on their own
+    // threads (pm_translate) that must show UI.
+    void post(std::function<void()> fn);
 
     // ---- Theme ----
     enum class Theme { Sakura, Mint, Night, MilkTea };

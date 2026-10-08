@@ -96,7 +96,8 @@ public:
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }
     void setActionHover(int index) { actionHot_ = index; }
     void setPin(const std::wstring& pin);
-    // holdMs: how long the toast stays fully visible (<= 0: the default 2.5 s).
+    // holdMs: how long the toast stays fully visible, at least its reading
+    // time (2.5-8 s by length; <= 0: just that).
     void showToast(const std::wstring& text, double holdMs = 0);
 
     // ---- Live toolbar (pill of icon buttons at the top of the picture) ----
@@ -104,6 +105,8 @@ public:
         wchar_t glyph = 0;
         std::wstring tip;
         bool toggled = false, danger = false, group = false;
+        bool recording = false;  // toggled = REC red + pulsing dot (else the accent)
+        bool optional = false;   // hidden when the window is too narrow for every button
     };
     void setToolbar(std::vector<ToolItem> items);
     // Mouse moved over the window: show it (fade in) for ~2 s.
@@ -142,6 +145,84 @@ public:
     // the picture (0..1) for a clockwise rotation by rot quarter turns
     // followed by a horizontal mirror: the mapping the vertex shader uses.
     static void screenToPicture(int rot, bool mirror, float tx, float ty, float& sx, float& sy);
+
+    // ---- Magnifier / high-contrast filters / freeze / text overlay ----
+    // Coordinates: "viewport" v = 0..1 over pictureRect(); "display" t =
+    // 0..1 over the whole displayed picture (rotated + mirrored, unzoomed):
+    // t = centre + (v - 0.5) / zoom; "content" d = the rotated, unmirrored
+    // picture (what grab() returns): d.x = mirrored ? 1 - t.x : t.x.
+    struct View {
+        float zoom = 1, cx = 0.5f, cy = 0.5f;  // centre in display coords
+        int filter = 0;                         // 0 none, 1 contrast, 2 grey, 3 invert, 4 yellow on black
+    };
+    static constexpr float kMaxZoom = 8;
+    // Clamps zoom to 1..kMaxZoom and the centre so the view stays inside.
+    static View clampView(View v);
+    void setView(const View& v);
+    const View& view() const { return view_; }
+    // Freeze: keeps a copy of the current picture on screen while decoding
+    // (and the frame tap / recorder) go on with the live stream.
+    void setFrozen(bool on);
+    bool frozen() const { return frozenOn_; }
+    // Translated text boxes (content coords) drawn over the picture.
+    struct TextBox {
+        float x0, y0, x1, y1;
+        std::wstring text, original;
+        int lines = 1;
+        uint32_t bg = 0, fg = 0;  // 0xRRGGBB sampled from the picture (colors)
+        bool colors = false;
+    };
+    // In place: each block's area painted in its background colour with the
+    // translation in its text colour (dark cards with the 加強對比 / 黃字黑底
+    // filters), never overlapping; blocks whose translation does not fit
+    // readably get numbered markers and a list panel (text_overlay.cpp).
+    void setTextOverlay(std::vector<TextBox> boxes);
+    void setTextOverlayOriginal(bool on) { showOriginal_ = on; }
+    // List panel / markers: item = list number - 1.  hot: under the cursor
+    // (-1 none); selected: clicked (reveal: scroll the list to it); scroll in DIPs.
+    void setOverlayHot(int item) { ovHot_ = item; }
+    void setOverlaySelected(int item, bool reveal) {
+        ovSel_ = item;
+        ovReveal_ = reveal && item >= 0;
+    }
+    void scrollOverlayList(float dips) { ovScroll_ += dips; }
+    struct OverlayHits {
+        RECT panel{}, zoomBtn{};                          // client px (empty: none)
+        std::vector<std::pair<RECT, int>> rows, markers;  // client px, item
+        float zoomTo[4] = {0, 0, 0, 0};                   // content rect to magnify ("放大這一塊")
+        int inPlace = 0, listed = 0;                      // layout result (tests, logs)
+        int notFitting = 0;                               // blocks whose translation did not fit in place
+        bool listAll = false;                             // every block listed (清單顯示 or > 30 % not fitting)
+        // Checks (tests, logs; all must be 0): pairs of drawn things
+        // overlapping (cards, markers, the list panel), cards closer than
+        // 4 DIPs, characters cut / hidden (outside their card or the picture,
+        // under another card, a marker or the panel), lines starting with
+        // a character that must not start a line (、。」ー ッ …).
+        int overlaps = 0, tooClose = 0, truncated = 0, kinsoku = 0;
+        int shortLast = 0;                                // paragraphs whose last line is a stub (<= 2 characters or < 1/3 of the longest)
+        int markerClashes = 0;                            // markers that found no free place
+        int fontSizes = 0;                                // distinct in-place text sizes
+        float minFont = 0;                                // smallest text drawn (pixels)
+        // PM_OVERLAY_070 (tests): the same checks on the 0.7.0 layout.
+        int old070Cards = 0, old070Overlaps = 0, old070Cut = 0, old070ShortLast = 0;
+    };
+    // 0 automatic, 1 in place (whatever fits; the rest listed), 2 list only.
+    void setOverlayMode(int mode) {
+        if (mode != ovMode_) ovValid_ = false;
+        ovMode_ = mode;
+    }
+    // Dark cards (the 0.7.0 style: theme card colour, light text) instead of
+    // the picture's own colours: easier to read for low vision.
+    void setOverlayDark(bool on) { ovDark_ = on; }
+    const OverlayHits& overlayHits() const { return ovHits_; }
+    // Centre pill with a spinner (e.g. 「正在翻譯…」); empty hides.
+    void setBusy(const std::wstring& label);
+    // Region selection in progress: rectangle in viewport coords (x0 < 0: none
+    // dragged yet), plus the hint pill.
+    void setSelection(bool active, float x0, float y0, float x1, float y1);
+    // The shown (frozen or live) picture as BGRA rows (stride w*4), rotated
+    // (and mirrored only if mirror), cropped, unzoomed, unfiltered.
+    bool grab(std::vector<uint8_t>& bgra, UINT& w, UINT& h, bool mirror);
 
     // ---- Mascot interaction ----
     // Hit area of the mascot (its layer canvas at rest) in client pixels
@@ -234,7 +315,29 @@ private:
     bool ensureBgra(Picture& p, UINT w, UINT h);
     bool copyIn(IMFSample* sample, const VideoFormat& fmt, Picture& p);
     void pictureShown();
-    void drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp);
+    // The picture on screen: the frozen copy while frozen, else the live one.
+    const Picture& shown() const { return frozenOn_ && frozen_.valid() ? frozen_ : cur_; }
+    bool copyPicture(const Picture& from, Picture& to);
+    // Draws pic into vp with the zoom of view (identity: whole picture), its
+    // filter, rotation and (if mirror) mirroring.
+    void drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp, const Picture& pic, const View& view,
+                     bool mirror);
+    void drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp) {
+        drawPicture(rtv, vp, shown(), view_, mirror_);
+    }
+    bool renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror);
+    // Magnifier / freeze / overlay UI (DIPs; pic = the picture viewport).
+    void drawTextOverlay(const D2D1_RECT_F& pic, float radius);
+    struct Badges {
+        D2D1_RECT_F zoom{}, frozen{};  // DIPs, empty if not shown
+    };
+    Badges badgeRects(const D2D1_RECT_F& pic, float radius);
+    void drawMagnifierUi(const D2D1_RECT_F& pic, float radius, double now);
+    D2D1_RECT_F minimapRect(const D3D11_VIEWPORT& vp, float radiusPx) const;  // pixels
+    void drawSelection(const D2D1_RECT_F& pic, float radius);
+    void drawBusy(const D2D1_RECT_F& pic, double now);
+    // Content coords -> DIPs on screen (through mirror + zoom).
+    D2D1_POINT_2F contentToDip(const D2D1_RECT_F& pic, float dx, float dy) const;
     // Device frame geometry in pixels: the screen (= picture viewport), its
     // corner radius, bezel and outer edge widths.
     struct FrameGeom {
@@ -381,6 +484,7 @@ private:
     std::vector<RECT> toolRects_;
     RECT toolPill_{};
     D2D1_RECT_F recBadge_{};   // last REC badge (DIPs), empty if none
+    D2D1_RECT_F textBlock_{};  // last idle / connecting text block (DIPs): the hearts fade there
     std::wstring iconFamily_;  // Segoe Fluent Icons / Segoe MDL2 Assets ("-": none)
     ComPtr<IDWriteTextFormat> iconFmt_;
     float iconFmtSize_ = 0;
@@ -395,6 +499,69 @@ private:
     bool frame_ = false;
     bool recording_ = false;
     double recAt_ = 0;
+    // Magnifier / filter / freeze / overlay
+    View view_;
+    double zoomAt_ = -1e9;  // zoom level changed (big indicator)
+    bool frozenOn_ = false;
+    Picture frozen_;
+    std::vector<TextBox> boxes_;
+    bool showOriginal_ = false;
+    std::wstring busy_;
+    double busyAt_ = -1e9;
+    bool selecting_ = false;
+    float sel_[4] = {-1, -1, -1, -1};
+    D2D1_RECT_F miniRect_{};  // magnifier overview (pixels), empty if none
+    // Text overlay layout (text_overlay.cpp).
+    struct FitCand {          // one way to set a box's translation
+        float size = 0, maxW = 0, w = 0, h = 0;
+        bool wide = false;    // wider than the original box
+        int lines = 0, shortLast = 0, kinsoku = 0;
+        ComPtr<IDWriteTextLayout> text;  // explicit line breaks (balanced, 禁則), not wrapped
+    };
+    struct Fit {              // candidates, cached per box size on screen
+        float w = 0, h = 0, min = 0;
+        std::vector<FitCand> c;
+    };
+    std::vector<Fit> fit_;
+    struct OvItem {
+        int box = 0;
+        D2D1_RECT_F r{};      // the block on screen (DIPs)
+        float lineH = 0;
+        int cand = -1;        // in place: >= 0, laid out as fc in the card rect
+        FitCand fc;
+        D2D1_RECT_F card{}, text{};
+        int number = 0;       // listed: 1..n, marker centre
+        D2D1_POINT_2F marker{};
+    };
+    struct OvRow {
+        int item = 0;         // index into ovItems_
+        float y = 0, h = 0;   // in the scrolled content
+        FitCand fc;
+    };
+    std::vector<OvItem> ovItems_;
+    std::vector<OvRow> ovRows_;
+    std::vector<int> ovListed_;  // ovItems_ index per list number - 1
+    D2D1_RECT_F ovPanel_{}, ovRowsArea_{}, ovZoomBtn_{};
+    ComPtr<IDWriteTextLayout> ovTitle_, ovSub_, ovZoomText_;
+    float ovFs_ = 15, ovMarkerD_ = 18, ovRowsH_ = 0;
+    bool ovValid_ = false, ovDark_ = false;
+    float ovKey_[14] = {};
+    std::vector<D2D1_RECT_F> ovBlocked_;  // badges and the overview the overlay keeps clear of (DIPs)
+    int ovHot_ = -1, ovSel_ = -1, ovMode_ = 0;
+    bool ovReveal_ = false;
+    float ovScroll_ = 0;
+    OverlayHits ovHits_;
+    void layoutOverlay(const D2D1_RECT_F& pic, float radius);
+    const std::vector<FitCand>& fitsFor(size_t box, float bw, float bh, float lineH, float pw);
+    // The text set at `size` in lines of at most maxW DIPs: whole words,
+    // 禁則 (no 、。」ー at a line start, no 「（ at a line end), lines of
+    // even length (the narrowest width that keeps the line count), left
+    // aligned.  force: break a word longer than maxW (the list); otherwise
+    // such a text fails (false).
+    bool setText(const std::wstring& text, float size, float maxW, DWRITE_FONT_WEIGHT weight, bool force, FitCand& c);
+    void overlayChecks(float s);
+    void legacyChecks(const D2D1_RECT_F& pic);
+    void drawOverlayList(const D2D1_RECT_F& pic);
     // Mascot: hover grow, click / connect reaction (hop + hearts [+ bubble]).
     bool mascotHot_ = false;
     double mascotHotAt_ = -1e9;
