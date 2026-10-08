@@ -1,0 +1,45 @@
+#pragma code_page(65001)
+#include <winres.h>
+#include "../resource.h"
+
+IDI_APP ICON "app.ico"
+
+#ifndef PM_VER_MAJOR
+#define PM_VER_MAJOR 0
+#define PM_VER_MINOR 6
+#define PM_VER_PATCH 0
+#endif
+#ifdef PM_APP_VERSION_STR
+#define PM_VER_STR PM_APP_VERSION_STR
+#else
+#define PM_VER_STR "0.6.1"
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION PM_VER_MAJOR,PM_VER_MINOR,PM_VER_PATCH,0
+ PRODUCTVERSION PM_VER_MAJOR,PM_VER_MINOR,PM_VER_PATCH,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040404b0"
+        BEGIN
+            VALUE "CompanyName", "自在投影"
+            VALUE "FileDescription", "自在投影 Zizai Cast — iPhone / Android 投影接收器"
+            VALUE "FileVersion", PM_VER_STR
+            VALUE "InternalName", "PhoneMirror"
+            VALUE "LegalCopyright", "GPL-3.0-or-later"
+            VALUE "OriginalFilename", "自在投影.exe"
+            VALUE "ProductName", "自在投影"
+            VALUE "ProductVersion", PM_VER_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x404, 1200
+    END
+END
