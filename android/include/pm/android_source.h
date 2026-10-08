@@ -73,6 +73,26 @@ public:
     void pressHome();
     void pressAppSwitch();
     State state() const;
+
+    // 傳到手機: copies a screenshot / recording into the connected phone's
+    // gallery -- `adb push` to /sdcard/Pictures/ZizaiCast/ (pictures) or
+    // /sdcard/Movies/ZizaiCast/ (videos; by extension), file name made ASCII
+    // (自在投影_… → ZizaiCast_…), then a media scan (MediaProvider scan_file,
+    // the MEDIA_SCANNER_SCAN_FILE broadcast, and scan_volume if the file is
+    // still not in MediaStore) so it shows in Photos / Gallery at once.
+    // Asynchronous on its own thread (works while mirroring); `done` is called
+    // from that thread. Returns false (and never calls done) if not init, no
+    // phone is connected over adb, the file is missing, or a push is running.
+    struct PushResult {
+        bool ok = false;         // the file is on the phone
+        bool inGallery = false;  // ... and MediaStore lists it (seen in the gallery)
+        std::string remotePath;  // e.g. /sdcard/Pictures/ZizaiCast/ZizaiCast_20261008_101010.png
+        std::string error;       // adb's output when !ok
+    };
+    bool pushToGallery(const std::wstring& path, std::function<void(const PushResult&)> done);
+    // Pure: the phone-side path pushToGallery uses for `fileName` (tests).
+    static std::string galleryPath(const std::wstring& fileName);
+
     std::function<void(const std::string&)> log;
 
     struct Impl;

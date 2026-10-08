@@ -113,6 +113,7 @@ the UI thread.
 | `start(video, audio)` | needs a connected phone; Connecting → Mirroring. Call it from `onConnected` (state stays Connecting until then) |
 | `stop()` | synchronous teardown → Idle |
 | `sendPointer / sendKey / press*` | non-blocking, ignored unless mirroring |
+| `pushToGallery(path, done)` | 傳到手機: `adb push` to `/sdcard/Pictures/ZizaiCast/` (videos: `Movies/ZizaiCast/`, ASCII name `ZizaiCast_…`), then MediaProvider `scan_file`, the `MEDIA_SCANNER_SCAN_FILE` broadcast, a `content query` check and `scan_volume` if still not listed; own thread, one at a time; false without a connected phone / file / while busy. `galleryPath(name)` = the phone path. Details and fake-adb tests: docs/share.md |
 
 Errors → `State::Error` with a zh-TW detail (e.g. 「配對失敗：…」,
 「等候逾時：沒有偵測到手機掃描 QR 圖碼」). App wiring: `setPointerHandler →

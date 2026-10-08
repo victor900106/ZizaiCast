@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <cwctype>
 #include <cstdio>
 #include <deque>
 #include <mutex>
@@ -63,6 +64,12 @@ struct AndroidSource::Impl {
     std::atomic<bool> busy{false};  // a pairing / connect task is queued or running
 
     std::atomic<bool> cancelPair{false};
+
+    // 傳到手機 (pushToGallery): one push at a time on its own thread, so it
+    // never waits behind a pairing on the worker.
+    std::thread pushThread;
+    std::atomic<bool> pushBusy{false};
+    std::atomic<bool> pushCancel{false};
 
     mutable std::mutex mu;  // everything below
     State state = State::Idle;
@@ -416,7 +423,115 @@ struct AndroidSource::Impl {
         setState(State::Idle, L"手機連線中斷");
         if (self->events.onDisconnected) self->events.onDisconnected();
     }
+
+    // 傳到手機: push, then make MediaStore index the file. On Android 11+ a
+    // file written through /sdcard (FUSE) is usually indexed on close already;
+    // the explicit scans cover older versions and OEM builds that do not.
+    void taskPush(std::wstring local, std::string ser, std::function<void(const PushResult&)> done) {
+        struct Busy { std::atomic<bool>& b; ~Busy() { b = false; } } busyGuard{pushBusy};
+        PushResult res;
+        const size_t slash = local.find_last_of(L"\\/");
+        const std::string remote = galleryPath(slash == std::wstring::npos ? local : local.substr(slash + 1));
+        const size_t rs = remote.rfind('/');
+        const std::string dir = remote.substr(0, rs), name = remote.substr(rs + 1);
+        const bool video = remote.rfind("/sdcard/Movies/", 0) == 0;
+        // MediaProvider resolves paths itself: give it the canonical one.
+        const std::string canonical = "/storage/emulated/0" + remote.substr(7);
+        res.remotePath = remote;
+        WIN32_FILE_ATTRIBUTE_DATA fa{};
+        GetFileAttributesExW(local.c_str(), GetFileExInfoStandard, &fa);
+        const uint64_t bytes = (uint64_t(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
+        logf("push " + adb::narrow(local) + " (" + std::to_string(bytes / 1024) + " KB) → " + ser + ":" + remote);
+        adbRun({"-s", ser, "shell", "mkdir -p " + dir}, 10000, &pushCancel);
+        // Wi-Fi: allow ~256 KB/s at worst, at least a minute, at most 30 min.
+        const int timeout = int(std::min<uint64_t>(60000 + bytes / 256, 30ull * 60 * 1000));
+        auto r = adbRun({"-s", ser, "push", adb::narrow(local), remote}, timeout, &pushCancel);
+        if (!r.ok()) {
+            res.error = trim(r.output);
+            if (res.error.empty()) res.error = r.exitCode == -2 ? "timed out" : "adb push failed";
+            logf("push failed: " + res.error);
+            if (done) done(res);
+            return;
+        }
+        res.ok = true;
+        const std::string table = video ? "video" : "images";
+        auto indexed = [&](int tries) {
+            for (int i = 0; i < tries && !pushCancel; ++i) {
+                if (i) std::this_thread::sleep_for(500ms);
+                auto q = adbRun({"-s", ser, "shell",
+                                 "content query --uri content://media/external/" + table +
+                                     "/media --projection _id --where \"_display_name='" + name + "'\""},
+                                10000, &pushCancel);
+                if (q.output.find("Row:") != std::string::npos) return true;
+            }
+            return false;
+        };
+        // 1. MediaProvider's own single-file scan (Android 10+, shell has WRITE_MEDIA_STORAGE).
+        adbRun({"-s", ser, "shell", "content call --uri content://media --method scan_file --arg " + canonical}, 15000,
+               &pushCancel);
+        // 2. The classic broadcast (Android ≤ 10, and many OEM builds after).
+        adbRun({"-s", ser, "shell",
+                "am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + canonical},
+               15000, &pushCancel);
+        res.inGallery = indexed(4);
+        if (!res.inGallery && !pushCancel) {
+            // 3. Rescan the primary volume (slower, but indexes everything new).
+            adbRun({"-s", ser, "shell", "content call --uri content://media --method scan_volume --arg external_primary"},
+                   60000, &pushCancel);
+            res.inGallery = indexed(6);
+        }
+        logf(std::string("push done: ") + (res.inGallery ? "in the gallery" : "on the phone (not seen in MediaStore yet)"));
+        if (done) done(res);
+    }
 };
+
+std::string AndroidSource::galleryPath(const std::wstring& fileName) {
+    std::wstring ext;
+    std::wstring base = fileName;
+    if (const size_t dot = fileName.rfind(L'.'); dot != std::wstring::npos) {
+        ext = fileName.substr(dot);
+        base = fileName.substr(0, dot);
+    }
+    for (wchar_t& c : ext) c = towlower(c);
+    const bool video = ext == L".mp4" || ext == L".mov" || ext == L".m4v" || ext == L".webm" || ext == L".mkv" ||
+                       ext == L".3gp";
+    // ASCII only (shell- and gallery-safe): 自在投影_20261008_101010 → ZizaiCast_20261008_101010.
+    std::string name;
+    bool dropped = false;
+    for (wchar_t c : base)
+        if ((c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9') || c == L'_' ||
+            c == L'-' || c == L'.')
+            name.push_back(char(c));
+        else if ((c == L' ' || c == L'(' || c == L')') && !name.empty() && name.back() != '_')
+            name.push_back('_');
+        else
+            dropped = dropped || c > 0x7F;
+    while (!name.empty() && name.back() == '_') name.pop_back();
+    if (name.empty() || name.front() == '_' || name.front() == '.' || name.front() == '-' ||
+        (dropped && name.rfind("ZizaiCast", 0) != 0))
+        name = "ZizaiCast" + (name.empty() || name.front() == '_' ? name : "_" + name);
+    std::string e;
+    for (wchar_t c : ext)
+        if ((c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9') || c == L'.') e.push_back(char(c));
+    if (e.size() < 2) e = video ? ".mp4" : ".png";
+    return std::string(video ? "/sdcard/Movies/ZizaiCast/" : "/sdcard/Pictures/ZizaiCast/") + name + e;
+}
+
+bool AndroidSource::pushToGallery(const std::wstring& path, std::function<void(const PushResult&)> done) {
+    if (!d_->inited || GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) return false;
+    std::string ser;
+    {
+        std::lock_guard<std::mutex> lk(d_->mu);
+        ser = d_->serial;
+    }
+    if (ser.empty() || d_->pushBusy.exchange(true)) return false;
+    if (d_->pushThread.joinable()) d_->pushThread.join();  // the previous one has finished (pushBusy was false)
+    d_->pushCancel = false;
+    d_->pushThread = std::thread([this, path, ser, done = std::move(done)]() mutable {
+        d_->taskPush(path, ser, std::move(done));
+    });
+    return true;
+}
 
 AndroidSource::AndroidSource() : d_(std::make_unique<Impl>()) {
     d_->self = this;
@@ -425,6 +540,8 @@ AndroidSource::AndroidSource() : d_(std::make_unique<Impl>()) {
 
 AndroidSource::~AndroidSource() {
     d_->cancelPair = true;
+    d_->pushCancel = true;
+    if (d_->pushThread.joinable()) d_->pushThread.join();
     stop();
     {
         std::lock_guard<std::mutex> lk(d_->qmu);
