@@ -24,13 +24,13 @@ namespace pm::ui {
 namespace {
 
 constexpr wchar_t kClass[] = L"PhoneMirrorAboutPanel";
-constexpr float kW = 420, kH = 480;  // panel size (DIPs)
+constexpr float kW = 420, kH = 520;  // panel size (DIPs; 0.7.0: taller for the longer credits)
 constexpr float kPad = 26;
 constexpr float kHeadH = 92;         // draggable top (icon + name)
 constexpr float kIcon = 52;
 constexpr float kTagY = 100, kLicY = 136;
 constexpr float kRepoLabelY = 196, kRepoY = 216, kLinkH = 24, kLicLinkY = 250;
-constexpr float kCreditsTitleY = 296, kCreditsY = 318, kMascotY = 380;
+constexpr float kCreditsTitleY = 296, kCreditsY = 318, kMascotY = 414;  // credits: up to 4 lines
 constexpr float kBtnW = 132, kBtnH = 38, kBtnY = kH - 22 - kBtnH;
 
 D2D1_COLOR_F rgb(uint32_t c, float a = 1) {
@@ -293,7 +293,8 @@ void AboutPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
     };
     auto text = [&](const std::wstring& s, IDWriteTextFormat* fmt, D2D1_RECT_F r, D2D1_COLOR_F c) {
         b->SetColor(c);
-        rt->DrawTextW(s.c_str(), static_cast<UINT32>(s.size()), fmt, r, b);
+        const std::wstring w = pm::i18n::keepWords(s);  // 한국어: wrap between words
+        rt->DrawTextW(w.c_str(), static_cast<UINT32>(w.size()), fmt, r, b);
     };
     auto link = [&](const std::wstring& s, float y, float& w, bool hot) {
         w = (std::min)(f.width(f.link.Get(), s), kW - 2 * kPad);
@@ -335,7 +336,7 @@ void AboutPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
     link(shortUrl(info_.repoUrl), kRepoY, repoW_, hot_ == HitRepo);
     link(tr(S::AboutLicenses), kLicLinkY, licW_, hot_ == HitLicenses);
     text(tr(S::AboutCreditsTitle), f.noteBold.Get(), rc(kPad, kCreditsTitleY, tw, 20), t.dim);
-    text(tr(S::AboutCredits), f.note.Get(), rc(kPad, kCreditsY, tw, 60), t.dim);
+    text(tr(S::AboutCredits), f.note.Get(), rc(kPad, kCreditsY, tw, kMascotY - kCreditsY), t.dim);
     text(tr(S::AboutMascot), f.note.Get(), rc(kPad, kMascotY, tw, 36), t.dim);
     // Close button.
     {

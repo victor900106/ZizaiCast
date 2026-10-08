@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 # Dependencies come from vcpkg (classic mode, triplet x64-windows):
 #   cmake -B build -G "Visual Studio 18 2026" -A x64 ^
-#     -DCMAKE_TOOLCHAIN_FILE=C:/Users/victo/vcpkg/scripts/buildsystems/vcpkg.cmake
+#     -DCMAKE_TOOLCHAIN_FILE=%USERPROFILE%/vcpkg/scripts/buildsystems/vcpkg.cmake
 project(PhoneMirror VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -19,7 +19,7 @@ add_library(pm_media_api INTERFACE)
 target_include_directories(pm_media_api INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Each module owns its own directory and CMakeLists.txt.
-foreach(module core video audio recorder miracast android app)
+foreach(module core video audio recorder miracast android translate share app)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${module}/CMakeLists.txt)
     add_subdirectory(${module})
   endif()

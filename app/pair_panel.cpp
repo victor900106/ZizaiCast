@@ -83,7 +83,7 @@ struct Factories {
             return false;
         if (lang == static_cast<int>(pm::i18n::lang()) && title) return true;
         lang = static_cast<int>(pm::i18n::lang());
-        const bool en = pm::i18n::en();
+        const bool en = !pm::i18n::zh();  // English / 日本語 / 한국어 run longer than 中文
         auto fmt = [&](float size, DWRITE_FONT_WEIGHT w, DWRITE_TEXT_ALIGNMENT a, bool wrap,
                        const wchar_t* fam = nullptr) {
             ComPtr<IDWriteTextFormat> f;
@@ -481,7 +481,8 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
     };
     auto text = [&](const std::wstring& s, IDWriteTextFormat* fmt, D2D1_RECT_F r, D2D1_COLOR_F c) {
         b->SetColor(c);
-        rt->DrawTextW(s.c_str(), static_cast<UINT32>(s.size()), fmt, r, b);
+        const std::wstring w = pm::i18n::keepWords(s);  // 한국어: wrap between words
+        rt->DrawTextW(w.c_str(), static_cast<UINT32>(w.size()), fmt, r, b);
     };
 
     // Card: vertical gradient + hairline accent border.

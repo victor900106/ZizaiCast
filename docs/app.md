@@ -5,13 +5,15 @@
 (android, wireless debugging + scrcpy) — to `pm::VideoWindow` (video) and
 `pm::AudioPlayer` (audio), feeds `pm::Recorder` (recorder) while recording,
 and adds the desktop-app behaviour below.
-Target `PhoneMirror`, output name **自在投影.exe**, version 0.6.0 (manifest
+Target `PhoneMirror`, output name **自在投影.exe**, version 0.7.0 (manifest
 `app/res/app.manifest`: Common Controls v6 + PerMonitorV2; version
 resource in `app/res/app.rc`, numbers from `PM_APP_VERSION` in
 app/CMakeLists.txt; `-DPM_APP_VERSION_OVERRIDE=x.y.z` builds a fake
 version for updater tests). Links `pm_core pm_video pm_audio
-pm_recorder pm_miracast pm_android` (app/CMakeLists.txt adds the miracast /
-android subdirectories itself if the top-level list does not).
+pm_recorder pm_miracast pm_android pm_share pm_translate` (app/CMakeLists.txt adds the
+miracast / android / share / translate subdirectories itself if the top-level
+list does not; `PM_BERGAMOT_DLL`, i.e. `build-translate\bergamot\bin\bergamot.dll`,
+is copied next to the exe).
 
 ## Command line
 
@@ -33,6 +35,7 @@ android subdirectories itself if the top-level list does not).
 | `--test-no-install` | `--dev` only: an update (local or downloaded + SHA-256 checked) stops right before the installer would run (log `test-no-install: would install …`, toast 「（測試）vX 已就緒，未安裝」) — for testing against the real manifest |
 | `--test-pair-timeout S` | `--dev` only: the pairing panel's 「沒有收到手機回應…」 after S s instead of 45 s |
 | `--demo-branding` | `--dev` only, for README / site screenshots: the display name, tray-menu header and About version drop the 「 (測試)」 / “ (Test)” / 測試版 / “Dev build” labels (ports, data folder and mutex stay the dev ones) |
+| `--test-no-network` | `--dev` only: no AirPlay server, Miracast receiver or adb (also not after a language / PIN / quality change), so a build in a new folder never triggers a Windows Firewall prompt during scripted tests (傳到手機 tests, docs/share.md). 0.7.0: 連接 Android（掃 QR） then opens the pairing panel alone with a dummy code (no adb), for its screenshots in every language |
 | `--test-offscreen` | `--dev` only, for scripted screenshots next to someone using the PC: the window never takes the foreground or the z-order (`bringToFront` only shows it, without activation), the pairing panel / About window are centred over the window even off the desktop and shown without activation, and (0.6.0) no tray icon / balloons, the tutorial, links and folders are only logged (no browser / Explorer), an update installer runs `/VERYSILENT`. Start the process with `STARTUPINFO` `STARTF_USEPOSITION` far off-screen (or `PM_VIDEO_OFFSCREEN=1`, inherited by an update installer and the app it restarts), post input, capture with `PrintWindow(PW_RENDERFULLCONTENT)`; the panels are drawn into PNGs by DevCommand 902 |
 
 With `--dev`, the registered message `PhoneMirror.DevCommand` (wParam = a
@@ -45,7 +48,24 @@ to highlight); 901 also the 設定 and 語言 submenus (`menu_settings.png`,
 `pair.png` / `about.png` (`pm::ui::renderToPng`, a software Direct2D target —
 `PrintWindow` sees nothing of their HWND render targets off-screen; the
 pairing panel's edit boxes are drawn with their text / cue banner). Command
-ids 0.6.0: 138 語言 自動, 139 繁體中文, 140 English, 141 關於.
+ids 0.6.0: 138 語言 自動, 139 繁體中文, 140 English, 141 關於; 傳到手機: 160
+toolbar (newest file), 161 last screenshot, 162 last recording, 163 傳到手機…,
+164 停止分享, and 903 draws the share panel / chip into `share.png` /
+`chip.png` and writes the share URL to `share_url.txt` (`PM_SHARE_BIND`,
+`PM_SHARE_TTL`: see docs/share.md); 904 draws the open 「有新版本」 dialog into
+`update.png`; 170 opens that dialog (like the menu item). 0.7.0: 150 日本語,
+151 한국어 (語言 / Language); 放大鏡 / 翻譯 180 放大, 181 縮小, 182 還原 1×, 183
+toolbar 放大鏡 (1× → 2× → 4×), 184–188 colours 原色 / 加強對比 / 黑白 / 反轉 /
+黃字黑底, 189 next colour (Ctrl+K), 190 凍結畫面, 191 翻譯 toggle (Ctrl+L,
+toolbar), 192 翻譯整個畫面, 193 框選翻譯, 194 顯示原文, 195 連續翻譯, 196 關閉翻譯,
+197 / 198 / 210 / 211 翻成 繁體中文 / English / 日本語 / 한국어, 199 開啟模型資料夾,
+200 刪除全部, 201–208 delete one model pair (201 = 文字辨識 OCR); 905 draws the open question dialog
+(consent / OCR language / delete) into `ask.png`, 906 answers it (`lParam` 1 =
+primary button, 0 = Esc), 907 draws the 放大鏡 / 翻譯 / 管理翻譯模型 submenus into
+`menu_magnifier.png` / `menu_translate.png` / `menu_models.png`. With
+`--test-offscreen` (no tray icon) balloons are only logged (`tray balloon (no
+tray icon): …`), `--background` keeps the window hidden, and the dialog of a
+hidden window is placed off the desktop too.
 
 A second launch does not start another receiver (AirPlay ports are fixed): it
 brings the running window to the front (registered message
@@ -69,23 +89,42 @@ brings the running window to the front (registered message
   a right click on the toolbar): [更新到 vX.Y.Z + separator, on offer],
   [while a phone is live: caption 「name（source）」,
   for Android 返回 (右鍵) / 主畫面 (中鍵) / 最近使用, then 中斷連線 (Ctrl+D)],
-  全螢幕 (F11), 視窗置頂 (Ctrl+T), 畫面 ▸, 主題 ▸,
-  截圖 (Ctrl+S), 開始錄影 / 停止錄影 (Ctrl+R), 開啟截圖資料夾, 開啟錄影資料夾,
+  全螢幕 (F11), 視窗置頂 (Ctrl+T), 畫面 ▸, 放大鏡 ▸, 翻譯 ▸ (0.7.0, see below), 主題 ▸,
+  截圖 (Ctrl+S), 開始錄影 / 停止錄影 (Ctrl+R), 把最後一張截圖傳到手機,
+  把最後一段錄影傳到手機, 傳到手機…, 開啟截圖資料夾, 開啟錄影資料夾,
   連接 Android（掃 QR）, 使用教學, 設定 ▸ (開機自動啟動, 連線需要 PIN 碼, 接受
   Android 投放（Miracast）, 自動連線已配對的 Android, 畫質, 新手機連線時,
   語言 / Language ▸, 檢查更新), 關於自在投影, 結束.
 * Keyboard (window focused, no menu open): F11, Ctrl+D 中斷連線, Ctrl+T,
   Ctrl+S, Ctrl+R 錄影, Ctrl+→ / Ctrl+← rotate, Ctrl+H 左右翻轉, Ctrl+0 還原,
-  Ctrl+F iPhone 外框. These Ctrl shortcuts are handled by the subclass before
+  Ctrl+F iPhone 外框; 0.7.0: Ctrl+= / Ctrl+- zoom, Ctrl+Shift+0 1×, Ctrl+K
+  colours, Ctrl+P freeze, Ctrl+L translate / close, Ctrl+Shift+L 框選翻譯,
+  Ctrl+O 顯示原文. These Ctrl shortcuts are handled by the subclass before
   the video window, so they never reach an Android phone. **Esc** while an
   Android phone is live and the window is not fullscreen stays forwarded to the
   phone (scrcpy keycode ESCAPE — most apps treat it as back; a PC user expects
   Esc to "go back / dismiss"); in fullscreen Esc leaves fullscreen as before.
   Disconnecting is Ctrl+D, never Esc, so a stray Esc cannot end a session.
 
-## 語言 / Language — 0.6.0
+## 語言 / Language — 0.6.0, 日本語 / 한국어 0.7.0
 
-The whole UI exists in 繁體中文 and English.
+The whole UI exists in 繁體中文, English, 日本語 and 한국어.
+
+* **0.7.0 日本語 / 한국어**: `include/pm/i18n_strings_jako.inc`,
+  `PM_JAKO(id, 日本語, 한국어)` for every id of the main table (an id missing
+  there shows English); `pm::i18n::Lang` gained `Ja` / `Ko`, `uiFont()` is Yu
+  Gothic UI / Malgun Gothic for them (`localeName()` ja-JP / ko-KR, so
+  DirectWrite's fallback picks the right CJK glyphs), `zh()` is the new "is
+  繁體中文" test (texts from pm_miracast / pm_android are translated for every
+  UI language other than 中文). settings.ini `language=auto|zh-TW|en|ja|ko`;
+  auto: zh-* → 繁體中文, ja-* → 日本語, ko-* → 한국어, else English. The 語言 /
+  Language menu lists 自動, 繁體中文, English, 日本語, 한국어 (each in its own
+  language). Menus wrap note rows for 한국어 at word boundaries (~34 characters)
+  and for 日本語 at 、。」 (~33). The update installer gets `/LANG=japanese` /
+  `korean`; the guide is `ZizaiCast-Guide-ja.html` / `-ko.html` (else English);
+  the 傳到手機 page uses `Options::lang`. Checked off-screen in all four
+  languages (menus, About, pairing panel, consent / OCR dialogs, idle screen,
+  overlay).
 
 * **String table**: `include/pm/i18n_strings.inc` — `PM_STR(id, 繁體中文,
   English)`, one line per user-visible string of app/ and video/ (menus,
@@ -156,7 +195,8 @@ opened, and Shift+right click is undiscoverable.
   video/, see docs/video.md *Live toolbar*): appears at the top centre of the
   picture whenever the mouse moves over the window, hides ~2 s later.
   Buttons: [Android: 返回 · 主畫面 · 最近使用 |] 截圖 · 錄影 (red + pulsing
-  dot while recording; tooltip 開始 / 停止錄影) · 旋轉 90° · 全螢幕 / 離開全螢幕
+  dot while recording; tooltip 開始 / 停止錄影) · 傳到手機 (share glyph, the
+  newer of the last screenshot / recording; docs/share.md) · 旋轉 90° · 全螢幕 / 離開全螢幕
   · 更多 (the full context menu at the cursor) | 中斷連線 (red). Tooltips carry
   the shortcuts. Clicks are posted back as `WM_PM_TOOL` (→ `runCommand`; the
   window is inside its own click handling) and never reach the phone.
@@ -180,7 +220,16 @@ opened, and Shift+right click is undiscoverable.
   Nothing live: toast 「目前沒有連線中的手機」.
 * **Android hint**: the first picture of an Android connection shows
   「已連線：name。滑鼠移到上方有工具列；右鍵＝返回」 for 5 s (instead of the
-  plain 已連線 toast; once per connection).
+  plain 已連線 toast; once per connection). 0.7.2: an iPhone / Miracast
+  connection likewise shows 「已連線：name。滑鼠移到上方有工具列；右鍵開啟選單」
+  (`ConnectedHint`).
+* **Narrow windows** (0.7.2): items marked `optional` (傳到手機, 旋轉, 全螢幕,
+  凍結 — all also in 更多 / the menu) are left out, from the right, when even
+  26-DIP buttons would not fit the window (an Android phone's 14 buttons in a
+  phone-sized window ran off its right edge, 更多 / 中斷連線 unreachable).
+  Hidden items keep an empty hit rectangle so indexes stay those of the list.
+* **Toggled buttons** (0.7.2): only 錄影 (`recording`) uses the REC red disc
+  and pulsing dot; 放大鏡 > 1×, 翻譯 and 凍結 get an accent disc + ring.
 * The window follows the picture's orientation: the shape comes from
   `VideoWindow::desiredClientAspect` (after 畫面 rotation, with the frame),
   polled every 300 ms; a portrait/landscape flip swaps the client
@@ -393,7 +442,7 @@ missing) greys 「連接 Android（掃 QR）」 and 自動連線.
 
 Two sources; the **offer** is the higher version of the two (a tie goes to
 the local installer: nothing to download). Never installed by itself: the
-user clicks 更新到 vX.Y.Z.
+user clicks 立即更新 in the 「有新版本」 dialog (or 更新到 vX.Y.Z, which opens it).
 
 ### Online manifest
 
@@ -408,13 +457,33 @@ user clicks 更新到 vX.Y.Z.
   as missing); any other explicit value is kept.
 * Manifest: JSON `{"version": "0.5.2", "url": "https://…/zizai-setup-0.5.2.exe",
   "sha256": "<64 hex>", "notes": "…"}` (`app/updater.cpp`: WinHTTP,
-  TLS 1.2+, no cache, 64 KB cap, small JSON string reader). Redirects are
+  TLS 1.2+, no cache, 64 KB cap, small JSON string reader). Optional since
+  the 「有新版本」 dialog: `"date": "2026-10-08"`, `"size": <installer bytes>`,
+  `"changes_zh": ["…", …]`, `"changes_en": ["…", …]`, 0.7.0 optionally
+  `"changes_ja"` / `"changes_ko"` (日本語 / 한국어 UI; else `changes_en`) (the dialog's bullets;
+  blank ones dropped, at most 40). Backward compatible: the 0.6.0–0.6.2
+  reader (`jsonString`, unchanged since 0.6.0) only takes string values of
+  top-level keys and steps over numbers / arrays (strings inside an array are
+  at depth 1 and never match a key) — checked by compiling the 0.6.0
+  `updater.cpp` against `update062-v2.json` (version / url / sha256 / notes
+  read correctly, also with the arrays before the old keys). Keep `notes` as
+  a one-line summary: old apps show it in their balloon, new ones when no
+  change list exists. Written by `node tools/release/publish.mjs manifest
+  <version> <installer> <url> <changes.md> [out.json] [--date D] [--notes S]`
+  (offline: sha256 + size computed, UTF-8 without BOM; `<changes.md>` has
+  `## 中文` and `## English` sections of `- ` bullets, the first plain line of
+  each is the `notes` summary; optional `## 日本語` / `## 한국어` sections give
+  `changes_ja` / `changes_ko`; `<url>` may be `""` for a local sidecar). Redirects are
   followed (github.com 302 → release-assets.githubusercontent.com, for the
   manifest and the installer; never HTTPS → HTTP).
-* When: 30 s after start, then every 24 h (`kUpdateTimer`), and 檢查更新 in
-  設定 / tray (toasts 正在檢查更新… / 已是最新版本（v0.5.3） / 檢查更新失敗).
-  Automatic checks are silent unless a newer version exists. 檢查更新 first
-  rescans 安裝檔: a newer local installer is announced at once.
+* When: 3 s after **every** start (also `--background` from autostart), then
+  every 6 h (`kUpdateTimer`), and 檢查更新 in 設定 / tray. Offers only prompt
+  from the first check on (`updatePromptReady`). Automatic checks are silent
+  unless a newer version exists (failures: log line `update check failed
+  (automatic, silent)` only). 檢查更新 always answers: the dialog, or toast
+  已是最新版本（v0.6.2） / 檢查更新失敗，請確認網路連線 (plus a tray balloon with
+  the same text when the window is in the tray). 檢查更新 first rescans
+  安裝檔: a newer local installer is shown at once.
 * 更新到 vX.Y.Z (manifest): worker thread downloads to
   `%TEMP%\自在投影-更新-X.Y.Z.exe` (WinHTTP; Content-Length checked; ≤ 512 MB),
   SHA-256 (BCrypt) must match (else the file is deleted, toast
@@ -445,20 +514,62 @@ exists).
   FileVersion, else the fixed version; `0.5.3.0` → `0.5.3`). The highest
   version newer than the running app is offered; several files: the highest
   wins; the file gone: the offer goes.
+* 「這次更新了什麼」 for a local installer: a sidecar `<installer>.json` next
+  to it (same schema as the manifest; e.g. `自在投影-安裝程式-0.7.0.exe.json`,
+  ignored if its `version` names another version); without one the dialog
+  shows 「安裝檔資料夾裡有新版本的安裝程式。」, the version and the file size.
 * 更新到 vX.Y.Z (local): the file's version is read again, it is copied to
   `%TEMP%\自在投影-更新-X.Y.Z.exe` (the 安裝檔 copy is never locked), then
   *Install*.
 
 ### Offer UX
 
-* Toast 「有新版本 vX.Y.Z，點工具列或選單的「更新」」 (5 s) + tray balloon
-  「自在投影有新版本 vX.Y.Z」 (manifest notes, or 「在選單選「更新到 vX.Y.Z」即可一鍵更新。」),
-  once per version per run (檢查更新 says it again).
+* 「有新版本」 dialog (`app/update_panel.cpp`, a themed panel like About;
+  zh / en, per-monitor DPI, height follows the list): icon, 「自在投影有新版本」,
+  「目前 v0.6.2 → 新版 v0.7.0」, 發布日期 · 下載大小 (安裝檔大小 for a local
+  installer; each only if known), 「這次更新了什麼」 bullets in the UI language
+  (else `notes`, else the other language, else 「這個版本包含改進與錯誤修正。」)
+  in a rounded well that scrolls past ~250 DIPs (wheel, ↑/↓, PgUp/PgDn,
+  Home/End; thumb drawn), footnote 「更新時自在投影會先關閉，裝好後自動重新開啟。」,
+  buttons 略過這個版本 (link, left) · 稍後提醒 · **立即更新** (primary).
+  Keys: Enter = 立即更新 (or the Tab-focused button, focus ring after Tab /
+  ←→), Esc / × / Alt+F4 = 稍後提醒. Draggable by its top.
+  * 立即更新 → `installUpdate` (recording: the confirm below first).
+  * 稍後提醒 → no automatic prompt for that version for 24 h or until the next
+    start (in memory); the 6-hourly check after that may prompt again.
+  * 略過這個版本 → settings.ini `skip_version=X.Y.Z`, toast 「已略過 vX，不會再
+    自動提醒（選單仍可更新）」; automatic checks never prompt for it again
+    (log `skipped (skip_version)`), the menu item / toolbar / idle pill stay,
+    and 檢查更新 still opens the dialog. A newer version prompts normally.
+* Automatic prompt (once per version per run, `announceUpdate`):
+  window on screen and idle → the dialog (takes the focus only if the app
+  window is in front); a phone live / connecting / held, or recording → no
+  dialog over the mirror: toast 「有新版本 vX，點工具列或選單的「更新」」 + tray
+  balloon, the dialog opens by itself when mirroring ends (`maybeShowDeferredUpdate`,
+  checked after every app message); window in the tray (or minimised) →
+  balloon 「自在投影有新版本 vX」 / 「點這裡看更新內容」 — a click
+  (`NIN_BALLOONUSERCLICK` while that balloon was the last one) opens the
+  dialog; the dialog also opens when the window is shown again.
 * Bold 「更新到 vX.Y.Z」 (↑ glyph U+E74A) at the top of the tray and context
   menus; on the idle screen a primary pill 「更新到 vX.Y.Z」 first among the
   idle actions; while a phone is live a toolbar button (↑, tooltip
-  「更新到 vX.Y.Z」, before 更多). Mirroring / recording are never interrupted
-  by the offer itself.
+  「更新到 vX.Y.Z」, before 更多). All of them open the dialog (command 170
+  `CmdUpdateDialog`; 126 `CmdInstallUpdate` still installs at once).
+  Mirroring / recording are never interrupted by the offer itself.
+* Tested 2026-10-08 entirely off-screen (`build-app-upd2`, `--dev
+  --test-offscreen --test-no-network --test-no-install`, manifests served by
+  `py -m http.server --bind 127.0.0.1`, `update_url` in a BOM-less dev
+  settings.ini): newer version → dialog 3 s after start (zh / en PNGs via
+  DevCommand 904); Esc → `later … (snoozed 24 h)`, a forced periodic check →
+  `snoozed, no prompt`; 檢查更新 → dialog; 略過 click → `skip_version=0.7.0`,
+  next start `skipped (skip_version), no prompt`, menu item still there;
+  Enter → download + `sha256 ok` + `test-no-install`; same version →
+  檢查更新 says 已是最新版本（v0.6.2）; closed port → automatic silent, manual
+  檢查更新失敗; `--test-feed` → `deferred: phone live`, dialog 3 s after the
+  fake phone left; `--background` → `deferred: window hidden` + balloon,
+  posted balloon click → dialog; old-format manifest (notes only) → notes
+  paragraph; 0.6.1 override build with the 0.6.2 installer in 安裝檔 →
+  generic text without, 5 bullets with the sidecar.
 
 ### Install
 
@@ -596,9 +707,11 @@ the core.
   (`sakura|mint|night|milktea`), `takeover` (`new|keep`), `miracast` (default 1),
   `android_auto` (default 1), `tutorial_shown`, `language`
   (`auto|zh-TW|en`, 0.6.0), `display_name` (optional, only written once set),
-  `update_url` (only
-  written once set; see 自動更新), `updated_to` (only between starting an
-  update and the next start). Unknown/missing keys take defaults; the
+  `filter` (`none|contrast|gray|invert|yellow`, 0.7.0), `translate_to`
+  (`auto|zh-Hant|en|ja|ko`, 0.7.0), `update_url` (only
+  written once set; see 自動更新; scripts that edit settings.ini must write
+  UTF-8 without a BOM), `updated_to` (only between starting an
+  update and the next start), `skip_version` (略過這個版本; only written once set). Unknown/missing keys take defaults; the
   file is rewritten when a setting changes. Phone volume stays in `volume.txt`.
 * pm_audio's diagnostic lines go to `phonemirror.log` (`AudioPlayerConfig::log`, level `audio`).
 * Autostart = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value
@@ -651,6 +764,15 @@ come back. The code path is kept (`Settings::avSync`, `applySyncMode`,
 start the app calls `setSyncMode(false, 0)`: the picture is shown as soon as
 it is decoded.
 
+## 傳到手機 / Send to phone
+
+See docs/share.md: a 「傳到手機」 chip above the toast after 截圖 / a saved
+recording, menu items (both menus, under 開始錄影), the toolbar button and
+「傳到手機…」 (multi-select). An Android phone mirroring over adb gets the
+file pushed into its gallery (`AndroidSource::pushToGallery`); otherwise a
+QR panel serves the files on the LAN for 10 minutes (`pm::share::Server`).
+Stopped on quit.
+
 ## Screenshots
 
 `VideoWindow::saveSnapshot` (or `saveSnapshotFramed` while iPhone 外框 is on)
@@ -668,9 +790,13 @@ Chrome only). The same .ico is used for the exe, window, tray and installer.
 
 ## Installer (`installer/`)
 
-Inno Setup 6 script `installer/zizai.iss`, two languages (0.6.0): English
-(`compiler:Default.isl`, first = fallback) and 繁體中文 (the bundled
-unofficial `ChineseTraditional.isl`). The language follows the Windows display
+Inno Setup 6 script `installer/zizai.iss`, four languages: English
+(`compiler:Default.isl`, first = fallback), 繁體中文 (the bundled
+unofficial `ChineseTraditional.isl`) and, since 0.7.0, 日本語 / 한국어 (Inno
+Setup's official `compiler:Languages\Japanese.isl` / `Korean.isl`; folder
+「Zizai Cast」, top level: their guide `ZizaiCast-Guide-ja.html` /
+`-ko.html` + the English “Read Me.txt”, shortcuts Zizai Cast / Zizai Cast
+のアンインストール / ライセンス, or Zizai Cast / Zizai Cast 제거 / 라이선스). The language follows the Windows display
 language (`LanguageDetectionMethod=uilanguage`: exact, then primary language,
 so zh-CN / zh-HK get 繁體中文; anything else English; no language dialog);
 `/LANG=english|chinesetrad` forces one (the app passes its own UI language
@@ -686,6 +812,9 @@ on updates).
   (English) (`{cm:DefaultFolder}`; an upgrade keeps the previous folder).
   `AppName` / uninstall entry / shortcuts: 自在投影 / Zizai Cast
   (`{cm:AppName}`); the VERSIONINFO ProductName stays 「自在投影」 in both (本機更新).
+* 0.7.0: also `bergamot.dll` (offline translation engine, MPL-2.0, static CRT,
+  imports only KERNEL32 / SHELL32 / ole32 / dbghelp) and the ja / ko guides in
+  `程式\`; translation models are never bundled.
 * Installs 自在投影.exe, avcodec-63.dll + avutil-61.dll (FFmpeg, LGPL build;
   0.6.0 — the old fdk-aac.dll is deleted on upgrade), libcrypto-3-x64.dll,
   plist-2.0.dll, pthreadVC3.dll and the app-local VC++ runtime (msvcp140,
@@ -729,3 +858,101 @@ on updates).
   shortcuts / readme / guide switched to the setup language, a user file in
   截圖 kept on uninstall; uninstall → 程式 and the entry gone. Without `/LANG`
   on this zh-TW Windows: 繁體中文.
+
+## 放大鏡 / 翻譯 (magnifier, colours, freeze, on-screen translation) — 0.7.0
+
+The app side of video/'s magnifier (docs/video.md *Magnifier, high contrast,
+freeze, text overlay*) and pm_translate (docs/translate.md). Everything is
+available only while a phone picture is shown (`viewAvailable()`: AirPlay /
+Android mirroring or paused, or a Miracast cast); without one the items are
+greyed with the note 「手機畫面出現後才能使用」 and the shortcuts only show that
+toast. When the picture ends (`syncViewTools`, after every app message) the
+translation closes, the zoom goes back to 1× and the freeze ends; the colour
+filter stays (settings.ini `filter=`).
+
+* **Context menu** (after 畫面): 放大鏡 ▸ 放大 (Ctrl+=), 縮小 (Ctrl+-), 還原 1×
+  (Ctrl+Shift+0; greyed at the limits; a note 「放大 2.5×」 while zoomed), 高對比
+  caption + radio 原色 / 加強對比 / 黑白（灰階） / 反轉顏色（黑白對調） / 黃字黑底
+  (Ctrl+K cycles; toast 「顏色：…」), 凍結畫面 ✓ (Ctrl+P). 翻譯 ▸ 翻譯整個畫面
+  (Ctrl+L), 框選翻譯 (Ctrl+Shift+L), 顯示原文 ✓ (Ctrl+O, while a translation
+  is up), 連續翻譯（每 5 秒） ✓, [關閉翻譯 (Ctrl+L) while up], 翻成： 繁體中文 /
+  English / 日本語 / 한국어 (radio, settings.ini `translate_to`; `auto` follows the
+  UI language), 管理翻譯模型 ▸ (one row per pair: 「日文 → 英文」 with
+  「已下載 · 54.8 MB」 or 「未下載 · …」; a downloaded row deletes that pair after a
+  red confirm dialog; 開啟模型資料夾; 刪除全部翻譯模型). 還原 (Ctrl+0) also resets
+  the zoom.
+* **Tray menu**: 放大鏡 ▸ while a picture is shown, 翻譯 ▸ always (翻成 / models);
+  a translate command from the tray shows the window first.
+* **Toolbar** (new group after 全螢幕, only with a picture): 放大鏡 (U+E71E,
+  click 1× → 2× → 4× → 1×, toggled while zoomed, tooltip with the zoom),
+  翻譯 (U+E8C1, translate / close, toggled while a translation is up), 凍結
+  (U+E769, toggled while frozen). `setViewHandler` refreshes it after
+  Ctrl+wheel / drag zooming.
+* **pm_translate callbacks**: `askDownload` → the themed question dialog
+  (`app/ask_panel.*`, `pm::ui::AskPanel`: like the update dialog, glyph in an
+  accent disc, wrapped body, a label · value well, primary / secondary
+  buttons, Enter / Esc / Tab, `done(choice)` exactly once): 「下載離線翻譯模型」,
+  「第一次翻譯「英文 → 繁體中文」需要先下載…」, rows 下載大小 · 來源 Mozilla Firefox
+  Translations · 授權 MPL-2.0 · 存放位置 (`ModelStore::root()`), 下載 / 不要.
+  `notify(important)` → the same dialog; 「需要加入文字辨識語言」 gets
+  「開啟語言設定」 (`ms-settings:regionlanguage`) + 關閉; other notes are
+  toasts. A run that ends without a result (declined, no text, OCR language
+  missing) closes the translator again, so the picture is not left frozen.
+* **OCR** (0.7.0): PaddleOCR through `onnxruntime.dll` (shipped next to the
+  exe, plus `msvcp140_1.dll`); its 36.6 MB models are asked for like the
+  translation models (「下載文字辨識模型」, source PaddleOCR / ModelScope,
+  Apache-2.0) and listed first in 管理翻譯模型 (「文字辨識（PaddleOCR）」, delete
+  ids 201–208 now: 201 = OCR, 202–208 the translation pairs). See
+  docs/translate.md *OCR*.
+* **Title while the phone pauses the stream** (0.7.0): iOS sends "video
+  stream stopping" (video_pause) e.g. when the screen locks; the title said
+  「暫停（iPhone 螢幕已關閉）」 even while a frozen / translated picture was still
+  shown, which looked like a live camera. Now: 「畫面已凍結（iPhone 已暫停傳送畫面）」 (0.7.2: same word as the badge; was 定格畫面)
+  while the picture is frozen (`TitlePausedFrozen`, refreshed when 凍結 / 翻譯
+  change), and pictures that arrive after a video_pause without video_resume
+  end the pause (log `frames after video_pause: resumed`).
+* **Targets** (0.7.0): 繁體中文, English, 日本語, 한국어 — each has an en → X
+  model (en → ja 2.3, en → ko 2.1 added to `translate/src/models.inc`); other
+  sources pivot through English as before.
+* Tested 2026-10-08 off-screen (`build-app`, `--dev --test-offscreen
+  --test-no-network --test-feed` of the synthetic English / Japanese screens,
+  `PM_MODELS_DIR` test folders): menus / submenus / About / pairing panel /
+  idle screen / consent / OCR dialogs in 繁體中文, English, 日本語, 한국어;
+  declined consent → toast, translator closed; en → zh-Hant overlay (18
+  blocks, 595 ms); en → ja and en → ko downloaded after consent (49.6 / 51.9
+  MB, SHA-256 ok) and drawn (3.3 s / 22 s incl. download); Japanese screen
+  without a ja OCR recogniser → 「需要加入文字辨識語言」 dialog; region select by
+  posted drag (5 blocks, 374 ms); magnifier 4× + 黃字黑底 + freeze with the
+  toolbar group.
+
+## 介面優化 — 0.7.2
+
+An off-screen walk through every screen in 繁體中文 / English / 日本語 /
+한국어 (`--dev --test-offscreen --test-no-network`, window 600x1080 px at
+175 %; before / after shots and compare sheets in `launch/_work/ux072/`).
+Changes:
+
+* Toolbar: `optional` items dropped when the window is too narrow (Android's
+  14 buttons ran off the window); toggled 放大鏡 / 翻譯 / 凍結 in the accent,
+  REC red only for 錄影 (see *Live toolbar*).
+* Toasts (`Renderer::showToast`): shown for their reading time (1.2 s + 130
+  ms per CJK / 55 ms per other character, 2.5-8 s; a caller's longer time
+  wins); one sentence too long for a line wraps to lines of even length; moved
+  above the translation list panel instead of across its rows.
+* 框選翻譯 hint below the 畫面已凍結 badge instead of over it.
+* Idle screen: hearts / sparkles fade out over the text block.
+* Menus: Miracast notes no longer leave a stub row (「投影。」), 日本語 rows
+  break after particles, never inside a Latin word; 把最後一張截圖／最後一段錄影傳到手機
+  only when there is one; Ctrl+K named in the 顏色 caption, not on 原色.
+* 한국어: `pm::i18n::keepWords` (U+2060 between Hangul syllables) in the
+  update / question / pairing / About / share panels, toasts and the busy
+  card: lines break between words (DirectWrite broke 「들어가|지」).
+* Translation in place: at least 12 physical pixels as well as 9 DIPs (only
+  below 150 % scaling); smaller blocks go to the list. `pm_translate_test
+  --overlay` on the 16 test pictures: 0.7.2 at 175 % identical to 0.7.1, all
+  CHECKS 0; with `PM_OVERLAY_MIN=12` (the 100 % rule) also all 0, owner_2x /
+  ja_food_label / zhs_label / contact become 清單.
+* Strings (4 languages): `ConnectedHint` (iPhone / Miracast: toolbar and
+  right-click menu), next steps in TrNoText, TrDeclined, TrFailed,
+  TrDownloadFailed, AndroidGone, RecStartFail, ShareFileGone; 顏色 caption;
+  TitlePausedFrozen 「畫面已凍結」.

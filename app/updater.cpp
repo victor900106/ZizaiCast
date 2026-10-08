@@ -246,6 +246,112 @@ std::string jsonString(const std::string& json, const std::string& key) {
     return {};
 }
 
+namespace {
+// Index of the value of top-level `key` (first non-space after the colon),
+// npos if missing. The same walk as jsonString.
+size_t findValue(const std::string& json, const std::string& key) {
+    size_t i = json.find('{');
+    if (i == std::string::npos) return std::string::npos;
+    ++i;
+    int depth = 0;
+    std::string k;
+    while (i < json.size()) {
+        const char c = json[i];
+        if (c == '"') {
+            const size_t after = parseString(json, i, k);
+            if (after == std::string::npos) return std::string::npos;
+            i = after;
+            if (depth != 0) continue;
+            size_t j = i;
+            while (j < json.size() && std::isspace(static_cast<unsigned char>(json[j]))) ++j;
+            if (j >= json.size() || json[j] != ':') continue;  // a string value, not a key
+            ++j;
+            while (j < json.size() && std::isspace(static_cast<unsigned char>(json[j]))) ++j;
+            if (k == key) return j < json.size() ? j : std::string::npos;
+            i = j;
+            continue;
+        }
+        if (c == '{' || c == '[') ++depth;
+        else if (c == '}' || c == ']') {
+            if (depth == 0) break;
+            --depth;
+        }
+        ++i;
+    }
+    return std::string::npos;
+}
+}  // namespace
+
+std::vector<std::string> jsonStringArray(const std::string& json, const std::string& key) {
+    std::vector<std::string> out;
+    size_t i = findValue(json, key);
+    if (i == std::string::npos || json[i] != '[') return out;
+    ++i;
+    int depth = 0;
+    std::string v;
+    while (i < json.size()) {
+        const char c = json[i];
+        if (c == '"') {
+            const size_t end = parseString(json, i, v);
+            if (end == std::string::npos) break;
+            if (depth == 0) out.push_back(v);
+            i = end;
+            continue;
+        }
+        if (c == '{' || c == '[') ++depth;
+        else if (c == '}' || c == ']') {
+            if (depth == 0) break;
+            --depth;
+        }
+        ++i;
+    }
+    return out;
+}
+
+unsigned long long jsonNumber(const std::string& json, const std::string& key) {
+    size_t i = findValue(json, key);
+    if (i == std::string::npos) return 0;
+    if (json[i] == '"') ++i;
+    unsigned long long v = 0;
+    while (i < json.size() && std::isdigit(static_cast<unsigned char>(json[i])) && v < (1ull << 56))
+        v = v * 10 + static_cast<unsigned>(json[i++] - '0');
+    return v;
+}
+
+void parseManifest(std::string body, Manifest& m) {
+    if (body.size() >= 3 && static_cast<unsigned char>(body[0]) == 0xEF) body.erase(0, 3);  // UTF-8 BOM
+    m.version = jsonString(body, "version");
+    m.url = jsonString(body, "url");
+    m.sha256 = jsonString(body, "sha256");
+    m.notes = jsonString(body, "notes");
+    m.date = jsonString(body, "date");
+    m.size = jsonNumber(body, "size");
+    m.changesZh = jsonStringArray(body, "changes_zh");
+    m.changesEn = jsonStringArray(body, "changes_en");
+    m.changesJa = jsonStringArray(body, "changes_ja");
+    m.changesKo = jsonStringArray(body, "changes_ko");
+    for (std::vector<std::string>* v : {&m.changesZh, &m.changesEn, &m.changesJa, &m.changesKo}) {
+        v->erase(std::remove_if(v->begin(), v->end(),
+                                [](const std::string& s) { return s.find_first_not_of(" \t\r\n") == std::string::npos; }),
+                 v->end());
+        if (v->size() > 40) v->resize(40);
+    }
+}
+
+bool readManifestFile(const std::wstring& file, Manifest& m) {
+    HANDLE f = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE) return false;
+    std::string body(64 * 1024, '\0');
+    DWORD got = 0;
+    const bool ok = ReadFile(f, body.data(), static_cast<DWORD>(body.size()), &got, nullptr) != FALSE;
+    CloseHandle(f);
+    if (!ok || got == 0) return false;
+    body.resize(got);
+    parseManifest(std::move(body), m);
+    return true;
+}
+
 bool httpGet(const std::wstring& url, std::string& body, std::string& error, size_t maxBytes) {
     body.clear();
     unsigned long long total = 0;
@@ -262,11 +368,8 @@ bool httpGet(const std::wstring& url, std::string& body, std::string& error, siz
 bool fetchManifest(const std::wstring& url, Manifest& m, std::string& error) {
     std::string body;
     if (!httpGet(url, body, error, 64 * 1024)) return false;
-    if (body.size() >= 3 && static_cast<unsigned char>(body[0]) == 0xEF) body.erase(0, 3);  // UTF-8 BOM
-    m.version = jsonString(body, "version");
-    m.url = jsonString(body, "url");
-    m.sha256 = jsonString(body, "sha256");
-    m.notes = jsonString(body, "notes");
+    m = {};
+    parseManifest(std::move(body), m);
     if (m.version.empty() || m.url.empty() || m.sha256.size() != 64) {
         error = "manifest incomplete (version / url / sha256)";
         return false;

@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.6.2)
+set(PM_APP_VERSION 0.7.2)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -25,23 +25,24 @@ endif()
 
 # The source modules normally come from the top-level CMakeLists (before
 # app); pull them in here if it does not list them.
-foreach(m miracast android)
+foreach(m miracast android share translate)
   if(NOT TARGET pm_${m} AND EXISTS ${CMAKE_SOURCE_DIR}/${m}/CMakeLists.txt)
     add_subdirectory(${CMAKE_SOURCE_DIR}/${m} ${CMAKE_BINARY_DIR}/${m})
   endif()
 endforeach()
 
 add_executable(PhoneMirror WIN32 main.cpp popup_menu.cpp popup_menu.h pair_panel.cpp pair_panel.h about_panel.cpp
-  about_panel.h updater.cpp updater.h resource.h res/app.rc res/app.manifest
+  about_panel.h ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h updater.cpp updater.h resource.h res/app.rc res/app.manifest
   ${CMAKE_SOURCE_DIR}/include/pm/i18n.h ${CMAKE_SOURCE_DIR}/include/pm/i18n_strings.inc)
-target_link_libraries(PhoneMirror PRIVATE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android winhttp bcrypt version
+target_link_libraries(PhoneMirror PRIVATE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version
   shell32 shlwapi ole32 advapi32 comctl32 mfplat mfuuid d2d1 dwrite windowscodecs dwmapi shcore)
 set_target_properties(PhoneMirror PROPERTIES OUTPUT_NAME "自在投影")
 target_compile_definitions(PhoneMirror PRIVATE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
   PM_UPDATE_URL_STR="${PM_UPDATE_URL}" PM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
   PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH})
 
-# Ship the VC++ runtime app-local (msvcp140 / vcruntime140 / vcruntime140_1)
+# Ship the VC++ runtime app-local (msvcp140 / msvcp140_1 / vcruntime140 / vcruntime140_1;
+# msvcp140_1 for onnxruntime.dll)
 # next to the exe, so the installer works on PCs without the VC++ redist.
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
 include(InstallRequiredSystemLibraries)
@@ -49,7 +50,7 @@ set(PM_CRT_DLLS "")
 foreach(lib ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
   get_filename_component(n "${lib}" NAME)
   string(TOLOWER "${n}" n)
-  if(n MATCHES "^(msvcp140|vcruntime140|vcruntime140_1)\.dll$")
+  if(n MATCHES "^(msvcp140|msvcp140_1|vcruntime140|vcruntime140_1)\.dll$")
     list(APPEND PM_CRT_DLLS "${lib}")
   endif()
 endforeach()
@@ -94,4 +95,29 @@ set(PM_LICENSE_FILES ${CMAKE_SOURCE_DIR}/docs/licenses/第三方授權.txt
 add_custom_command(TARGET PhoneMirror POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:PhoneMirror>/licenses
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PM_LICENSE_FILES} $<TARGET_FILE_DIR:PhoneMirror>/licenses
+  COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:PhoneMirror>/licenses/onnxruntime
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/docs/licenses/onnxruntime/LICENSE.txt
+          ${CMAKE_SOURCE_DIR}/docs/licenses/onnxruntime/ThirdPartyNotices.txt $<TARGET_FILE_DIR:PhoneMirror>/licenses/onnxruntime
   COMMENT "Copying the licence notices to licenses\\")
+
+# 翻譯 (pm_translate): the offline translation engine bergamot.dll (MPL-2.0,
+# translate/tools/build_bergamot.sh) next to the exe; the installer ships it
+# in 程式\. Models are downloaded on first use, never bundled.
+if(PM_BERGAMOT_DLL AND EXISTS "${PM_BERGAMOT_DLL}")
+  add_custom_command(TARGET PhoneMirror POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PM_BERGAMOT_DLL}" $<TARGET_FILE_DIR:PhoneMirror>
+    COMMENT "Copying bergamot.dll next to 自在投影.exe" VERBATIM)
+else()
+  message(WARNING "bergamot.dll not found (${PM_BERGAMOT_DLL}): run translate/tools/build_bergamot.sh; 翻譯 will say the engine is missing")
+endif()
+
+# 翻譯 OCR (0.7.0): onnxruntime.dll (Microsoft ONNX Runtime 1.30.0, MIT, CPU;
+# translate/tools/get_onnxruntime.sh) runs the PaddleOCR models; the installer
+# ships it in 程式\. The OCR models are downloaded on first use, never bundled.
+if(PM_ONNXRUNTIME_DLL AND EXISTS "${PM_ONNXRUNTIME_DLL}")
+  add_custom_command(TARGET PhoneMirror POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PM_ONNXRUNTIME_DLL}" $<TARGET_FILE_DIR:PhoneMirror>
+    COMMENT "Copying onnxruntime.dll next to 自在投影.exe" VERBATIM)
+else()
+  message(WARNING "onnxruntime.dll not found (${PM_ONNXRUNTIME_DLL}): run translate/tools/get_onnxruntime.sh; 翻譯 falls back to Windows OCR")
+endif()

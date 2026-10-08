@@ -1,9 +1,11 @@
-// 自動更新: fetch a JSON manifest {version, url, sha256, notes} over
-// HTTP(S) with WinHTTP, download the installer to %TEMP% and verify its
-// SHA-256. Blocking functions: call them on a worker thread. See docs/app.md.
+// 自動更新: fetch a JSON manifest {version, url, sha256, notes [, date, size,
+// changes_zh, changes_en]} over HTTP(S) with WinHTTP, download the installer
+// to %TEMP% and verify its SHA-256. Blocking functions: call them on a worker
+// thread. See docs/app.md.
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace pm::update {
 
@@ -11,8 +13,30 @@ struct Manifest {
     std::string version;  // "0.4.1"
     std::string url;      // installer download URL
     std::string sha256;   // 64 hex digits (any case)
-    std::string notes;    // UTF-8, may be empty
+    std::string notes;    // UTF-8, may be empty (one-line summary, read by every client)
+    // Optional (0.7.0+; 0.6.x apps skip these keys): release date "2026-10-08",
+    // installer size in bytes (0 = unknown), 「這次更新了什麼」 bullets (UTF-8).
+    std::string date;
+    unsigned long long size = 0;
+    std::vector<std::string> changesZh, changesEn;
+    std::vector<std::string> changesJa, changesKo;  // 0.7.0, optional (else changes_en)
 };
+
+// The strings of a top-level array `key` (["a", "b"]); other elements are
+// skipped. Empty if missing or not an array.
+std::vector<std::string> jsonStringArray(const std::string& json, const std::string& key);
+
+// A top-level non-negative integer `key` (a string of digits is accepted
+// too). 0 if missing.
+unsigned long long jsonNumber(const std::string& json, const std::string& key);
+
+// Fills every manifest field found in `json` (a leading UTF-8 BOM is
+// skipped; blank bullets dropped, at most 40 kept); no validation. Also used
+// for a local installer's sidecar <installer>.json (same schema).
+void parseManifest(std::string json, Manifest& m);
+
+// Reads a sidecar file (<= 64 KB) into `m`; false if missing / unreadable.
+bool readManifestFile(const std::wstring& file, Manifest& m);
 
 // Compares dotted numeric versions ("0.4.0" < "0.4.10"). Missing parts are 0;
 // a non-numeric suffix in a part is ignored.
