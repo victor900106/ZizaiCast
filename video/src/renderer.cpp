@@ -246,40 +246,7 @@ bool Renderer::attachDevice(ID3D11Device* device) {
 }
 
 bool Renderer::createDeviceObjects() {
-    RECT rc{};
-    GetClientRect(hwnd_, &rc);
-    if (width_ && height_ && rc.right > rc.left && rc.bottom > rc.top) {  // not minimized
-        width_ = rc.right - rc.left;
-        height_ = rc.bottom - rc.top;
-    }
-    ComPtr<IDXGIDevice> dxgiDev;
-    ComPtr<IDXGIAdapter> adapter;
-    ComPtr<IDXGIFactory2> factory;
-    if (FAILED(dev_.As(&dxgiDev)) || FAILED(dxgiDev->GetAdapter(&adapter)) ||
-        FAILED(adapter->GetParent(IID_PPV_ARGS(&factory)))) {
-        log("cannot reach DXGI factory");
-        return false;
-    }
-    DXGI_SWAP_CHAIN_DESC1 sd{};
-    sd.Width = std::max(width_, 1u);
-    sd.Height = std::max(height_, 1u);
-    sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    sd.SampleDesc.Count = 1;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.BufferCount = 2;
-    sd.Scaling = DXGI_SCALING_STRETCH;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    sd.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-    sd.Flags = kSwapFlags;
-    ComPtr<IDXGISwapChain1> sc1;
-    HRESULT hr = factory->CreateSwapChainForHwnd(dev_.Get(), hwnd_, &sd, nullptr, nullptr, &sc1);
-    if (FAILED(hr) || FAILED(sc1.As(&swap_))) {
-        log("CreateSwapChainForHwnd failed hr=0x%08lx", hr);
-        return false;
-    }
-    factory->MakeWindowAssociation(hwnd_, DXGI_MWA_NO_ALT_ENTER);
-    swap_->SetMaximumFrameLatency(1);
-    waitable_ = swap_->GetFrameLatencyWaitableObject();
+    if (!createSwapChain()) return false;
 
     auto vsCode = compile("vs_main", "vs_4_0");
     auto psCode = compile("ps_main", "ps_4_0");
@@ -315,7 +282,63 @@ bool Renderer::createDeviceObjects() {
     bd.ByteWidth = 16;
     dev_->CreateBuffer(&bd, nullptr, &tapCb_);
     if (!sampler_ || !cb_) return false;
+    return true;
+}
+
+// Swap chain + back-buffer render target on dev_ for hwnd_.
+bool Renderer::createSwapChain() {
+    RECT rc{};
+    GetClientRect(hwnd_, &rc);
+    if (width_ && height_ && rc.right > rc.left && rc.bottom > rc.top) {  // not minimized
+        width_ = rc.right - rc.left;
+        height_ = rc.bottom - rc.top;
+    }
+    ComPtr<IDXGIDevice> dxgiDev;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(dev_.As(&dxgiDev)) || FAILED(dxgiDev->GetAdapter(&adapter)) ||
+        FAILED(adapter->GetParent(IID_PPV_ARGS(&factory)))) {
+        log("cannot reach DXGI factory");
+        return false;
+    }
+    DXGI_SWAP_CHAIN_DESC1 sd{};
+    sd.Width = std::max(width_, 1u);
+    sd.Height = std::max(height_, 1u);
+    sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    sd.SampleDesc.Count = 1;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.BufferCount = 2;
+    sd.Scaling = DXGI_SCALING_STRETCH;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    sd.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    sd.Flags = kSwapFlags;
+    ComPtr<IDXGISwapChain1> sc1;
+    HRESULT hr = factory->CreateSwapChainForHwnd(dev_.Get(), hwnd_, &sd, nullptr, nullptr, &sc1);
+    if (FAILED(hr) || FAILED(sc1.As(&swap_))) {
+        log("CreateSwapChainForHwnd failed hr=0x%08lx", hr);
+        return false;
+    }
+    factory->MakeWindowAssociation(hwnd_, DXGI_MWA_NO_ALT_ENTER);
+    swap_->SetMaximumFrameLatency(1);
+    waitable_ = swap_->GetFrameLatencyWaitableObject();
+    faultSwallow_ = false;
     return createTargets();
+}
+
+bool Renderer::recreateSwapChain() {
+    if (!dev_ || !ctx_) return false;
+    releaseD2D();
+    rtv_.Reset();
+    ctx_->ClearState();
+    ctx_->Flush();  // flip model: the old swap chain must really be gone before a new one
+    if (waitable_) CloseHandle(waitable_);
+    waitable_ = nullptr;
+    swap_.Reset();
+    occluded_ = false;
+    if (createSwapChain()) return true;
+    rtv_.Reset();
+    swap_.Reset();
+    return false;
 }
 
 void Renderer::releaseDevice() {
@@ -525,7 +548,17 @@ bool Renderer::copyIn(IMFSample* sample, const VideoFormat& fmt, Picture& p) {
     // removal GetData fails instead of returning S_FALSE.)
     if (evt_) {
         ctx_->End(evt_.Get());
-        while (ctx_->GetData(evt_.Get(), nullptr, 0, 0) == S_FALSE) SwitchToThread();
+        // Bounded: a GPU that never finishes (hang without a TDR) must not
+        // freeze the render thread; the watchdog sees no picture then.
+        const double t0 = clockMs();
+        while (ctx_->GetData(evt_.Get(), nullptr, 0, 0) == S_FALSE) {
+            if (clockMs() - t0 > kGpuWaitMaxMs) {
+                if (gpuWaitTimeouts_++ % 50 == 0)
+                    log("GPU did not finish a picture copy within %.0f ms (%lld times)", kGpuWaitMaxMs, gpuWaitTimeouts_);
+                return false;
+            }
+            SwitchToThread();
+        }
     }
     p.fmt = fmt;
     return true;
@@ -1997,8 +2030,14 @@ void Renderer::drawToast(double now) {
 }
 
 bool Renderer::render() {
+    presented_ = false;
+    presentHr_ = S_OK;
     if (!swap_) return false;  // device lost and not re-created yet
-    if (width_ == 0 || height_ == 0 || !rtv_) return true;
+    if (width_ == 0 || height_ == 0) return true;
+    if (!rtv_) {  // a failed ResizeBuffers / GetBuffer: nothing can be drawn (the watchdog re-creates the chain)
+        presentHr_ = E_HANDLE;
+        return true;
+    }
     const double now = clockMs();
     lastRender_ = now;
     if (scene_ == Scene::Connecting && !pinVisible_ && now - sceneAt_ > kConnectTimeoutMs) {
@@ -2099,10 +2138,23 @@ bool Renderer::render() {
                        static_cast<LONG>(L.mascot.right * L.s), static_cast<LONG>(L.mascot.bottom * L.s)};
     }
     if (capture_) copyBackBuffer();
+    if (faultSwallow_) {  // fault injection: a swap chain that no longer presents
+        presentHr_ = S_FALSE;
+        return true;
+    }
     HRESULT hr = swap_->Present(1, 0);
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
         log("device lost on Present (hr=0x%08lx, reason=0x%08lx)", hr, dev_->GetDeviceRemovedReason());
         return false;
+    }
+    if (SUCCEEDED(hr) && faultOccludeUntil_ > now) hr = DXGI_STATUS_OCCLUDED;  // fault injection
+    presentHr_ = hr;
+    presented_ = hr == S_OK || hr == DXGI_STATUS_OCCLUDED;
+    if (FAILED(hr) && hr != presentErrLogged_) {
+        presentErrLogged_ = hr;
+        log("Present failed hr=0x%08lx", hr);
+    } else if (SUCCEEDED(hr)) {
+        presentErrLogged_ = S_OK;
     }
     occluded_ = hr == DXGI_STATUS_OCCLUDED;
     return true;

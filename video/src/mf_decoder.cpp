@@ -42,6 +42,9 @@ void MfDecoder::close() {
     swSample_.Reset();
     hw_ = false;
     fmt_ = {};
+    cnt_ = {};
+    faultDrop_ = false;
+    concealSet_ = false;
 }
 
 bool MfDecoder::open(VideoCodec codec, IMFDXGIDeviceManager* dxgiManager) {
@@ -104,6 +107,24 @@ bool MfDecoder::open(VideoCodec codec, IMFDXGIDeviceManager* dxgiManager) {
         v.vt = VT_UI4;
         v.ulVal = 1;
         codecApi->SetValue(&CODECAPI_AVLowLatencyMode, &v);
+        // Decode pictures whose references are missing (concealed) instead of
+        // dropping them: iOS sends an IDR only every minute or so (or only at
+        // the start), so after any decoder restart / lost AU mid-GOP the
+        // default "drop" policy of the HEVC Video Extensions froze the
+        // picture until the next IDR (measured: 40 s).  "For Digital TV, we may
+        // want to decode all pictures no matter what" (codecapi.h).
+        if (concealMissingRefs_) {
+            VARIANT d{};
+            d.vt = VT_UI4;
+            d.ulVal = 0;
+            HRESULT dh = codecApi->SetValue(&CODECAPI_AVDecVideoDropPicWithMissingRef, &d);
+            if (FAILED(dh)) {
+                d.vt = VT_BOOL;
+                d.boolVal = VARIANT_FALSE;
+                dh = codecApi->SetValue(&CODECAPI_AVDecVideoDropPicWithMissingRef, &d);
+            }
+            concealSet_ = SUCCEEDED(dh);
+        }
     }
 
     ComPtr<IMFMediaType> inType;
@@ -131,8 +152,10 @@ bool MfDecoder::open(VideoCodec codec, IMFDXGIDeviceManager* dxgiManager) {
     }
     mft_->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0);
     mft_->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
-    log("%s decoder: %s (%s)", codecName(codec), name_.c_str(),
-        hw_ ? "hardware DXVA/D3D11" : "software");
+    log("%s decoder: %s (%s)%s", codecName(codec), name_.c_str(), hw_ ? "hardware DXVA/D3D11" : "software",
+        !concealMissingRefs_ ? ", drops pictures with missing references (legacy)"
+        : concealSet_        ? ", conceals missing references"
+                             : ", missing-reference policy not settable");
     return true;
 }
 
@@ -219,7 +242,12 @@ HRESULT MfDecoder::decode(const uint8_t* au, size_t len, int64_t time100ns, cons
         if (FAILED(hr)) return hr;
         hr = mft_->ProcessInput(0, sample.Get(), 0);
     }
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        cnt_.errors++;
+        cnt_.lastError = hr;
+        return hr;
+    }
+    cnt_.inputs++;
     return drain(out);
 }
 
@@ -242,6 +270,7 @@ HRESULT MfDecoder::drain(const OutputFn& out) {
         if (ob.pEvents) ob.pEvents->Release();
         if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT) return S_OK;
         if (hr == MF_E_TRANSFORM_STREAM_CHANGE) {
+            cnt_.streamChanges++;
             if (providesSamples_ && ob.pSample) ob.pSample->Release();
             hr = setOutputType();
             if (FAILED(hr)) return hr;
@@ -249,10 +278,13 @@ HRESULT MfDecoder::drain(const OutputFn& out) {
         }
         if (FAILED(hr)) {
             if (providesSamples_ && ob.pSample) ob.pSample->Release();
+            cnt_.errors++;
+            cnt_.lastError = hr;
             return hr;
         }
         if (ob.pSample) {
-            out(ob.pSample, fmt_);
+            cnt_.outputs++;
+            if (!faultDrop_) out(ob.pSample, fmt_);
             if (providesSamples_) ob.pSample->Release();
             else swSample_.Reset();
         }

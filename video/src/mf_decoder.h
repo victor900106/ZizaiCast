@@ -55,6 +55,22 @@ public:
     // Drops all internal state (pending pictures); next input should be a key AU.
     void flush();
 
+    // Diagnostics (decode thread): counters since open().
+    struct Counters {
+        long long inputs = 0;         // access units accepted (ProcessInput)
+        long long outputs = 0;        // pictures produced by the MFT
+        long long streamChanges = 0;  // MF_E_TRANSFORM_STREAM_CHANGE
+        long long errors = 0;         // failed ProcessInput / ProcessOutput
+        HRESULT lastError = S_OK;
+    };
+    const Counters& counters() const { return cnt_; }
+    // Fault injection (pm_video_test): this decoder instance swallows every
+    // picture it produces (a wedged hardware decoder) until it is closed.
+    void setFaultDropOutput(bool on) { faultDrop_ = on; }
+    // Before open(): ask the MFT to output pictures with missing references
+    // (CODECAPI_AVDecVideoDropPicWithMissingRef = FALSE; default on).
+    void setConcealMissingRefs(bool on) { concealMissingRefs_ = on; }
+
 private:
     HRESULT setOutputType();
     HRESULT drain(const OutputFn& out);
@@ -72,6 +88,10 @@ private:
     DWORD outBufSize_ = 0;
     VideoFormat fmt_;
     std::string name_;
+    Counters cnt_;
+    bool faultDrop_ = false;
+    bool concealMissingRefs_ = true;
+    bool concealSet_ = false;
 };
 
 }  // namespace pm::video

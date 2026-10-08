@@ -43,4 +43,23 @@ Seg '1170x2532' 3 'portrait.h265' 'h265'
 Seg '2560x1440' 4 'land1440.h264' 'h264'
 Seg '2560x1440' 4 'land1440.h265' 'h265'
 Seg '1170x2532' 2 'portrait10.h265' 'h265' 'yuv420p10le'
+
+# iOS-like long GOP (watchdog tests): 75 s at 60 fps, IDR only at 0 and 60 s.
+function LongGop([string]$size, [string]$out, [string]$codec) {
+    $vf = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p," +
+          "drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='ios %{frame_num}':fontsize=96:fontcolor=white:box=1:boxcolor=black@0.6:x=40:y=40"
+    $common = @('-hide_banner', '-loglevel', 'error', '-y',
+                '-f', 'lavfi', '-i', "testsrc2=size=${size}:rate=60:duration=75", '-vf', $vf,
+                '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv')
+    if ($codec -eq 'h264') {
+        & ffmpeg @common -c:v libx264 -profile:v high -preset ultrafast -tune zerolatency -b:v 6M -bf 0 `
+            -g 3600 -keyint_min 3600 -sc_threshold 0 -x264-params 'repeat-headers=1' -bsf:v h264_mp4toannexb -f h264 $out
+    } else {
+        & ffmpeg @common -c:v libx265 -profile:v main -preset ultrafast -tune zerolatency -b:v 8M `
+            -x265-params 'bframes=0:keyint=3600:min-keyint=3600:scenecut=0:open-gop=0:repeat-headers=1:log-level=error' -f hevc $out
+    }
+    if ($LASTEXITCODE -ne 0) { throw "ffmpeg failed for $out" }
+}
+LongGop '2560x1440' 'ios_like.h265' 'h265'
+LongGop '1920x1080' 'ios_like.h264' 'h264'
 Get-ChildItem *.h264, *.h265 | Format-Table Name, Length

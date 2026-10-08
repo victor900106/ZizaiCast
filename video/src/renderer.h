@@ -181,6 +181,25 @@ public:
     // Draws the current picture / status screen + overlays and presents.
     // Returns false when the device was lost.
     bool render();
+    // Outcome of the last render(): whether Present was really called and
+    // returned S_OK / DXGI_STATUS_OCCLUDED (false: nothing reached DXGI, e.g.
+    // minimized, no render target, or a failed Present), and its HRESULT.
+    bool lastPresented() const { return presented_; }
+    HRESULT lastPresentHr() const { return presentHr_; }
+    bool occluded() const { return occluded_; }
+    bool minimized() const { return width_ == 0 || height_ == 0; }
+    bool visible() const { return visible_; }
+    // Watchdog: a new swap chain on the same device and window (keeps the
+    // current picture, D2D/UI state).  False on failure (caller re-creates
+    // the device).
+    bool recreateSwapChain();
+    // Fault injection (pm_video_test): Present's result is reported as
+    // DXGI_STATUS_OCCLUDED until untilMs (clockMs); swallowPresents: Present
+    // is no longer called (a stuck swap chain) until recreateSwapChain().
+    void faultOcclude(double untilMs) { faultOccludeUntil_ = untilMs; }
+    void faultSwallowPresents() { faultSwallow_ = true; }
+    // GPU completion waits (copyIn) that gave up after kGpuWaitMaxMs.
+    long long gpuWaitTimeouts() const { return gpuWaitTimeouts_; }
     // Milliseconds until the next animation frame is due (0 = now), or a
     // negative value when nothing animates (event-driven rendering).
     double nextFrameInMs() const;
@@ -428,6 +447,14 @@ private:
     std::vector<uint8_t>* capture_ = nullptr;  // renderCapture() target
     UINT captureW_ = 0, captureH_ = 0;
     bool occluded_ = false;
+    bool presented_ = false;
+    HRESULT presentHr_ = S_OK;
+    double faultOccludeUntil_ = 0;
+    bool faultSwallow_ = false;
+    long long gpuWaitTimeouts_ = 0;
+    HRESULT presentErrLogged_ = S_OK;
+    static constexpr double kGpuWaitMaxMs = 1000;
+    bool createSwapChain();
     bool visible_ = true;
     struct CachedFormat {
         float size;

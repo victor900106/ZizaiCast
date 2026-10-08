@@ -34,9 +34,25 @@
 //   --lat-sweep A,B  alternate the audio latency between A and B every 2 s
 //   --ntp0-every N   every Nth frame carries ntpLocalNs = 0 (ASAP fallback)
 // Robustness:
-//   --test-at T:C[,T:C...]  at T ms after the window appears post the test
-//                    hook: C=0 simulated device removal, 1 power-saving GPU,
-//                    2 WARP, 3 automatic GPU choice
+//   --test-at T:C[:A][,T:C[:A]...]  at T ms after the window appears post the
+//                    test hook (lParam A): C=0 simulated device removal,
+//                    1 power-saving GPU, 2 WARP, 3 automatic GPU choice;
+//                    fault injection (0.6.2 watchdog): 20 the decoder stops
+//                    returning pictures (A = more hardware instances that do
+//                    too), 21 Present reports DXGI_STATUS_OCCLUDED for A ms,
+//                    22 Present calls swallowed (stuck swap chain), 23 render
+//                    thread blocked A ms (stalled Present / GPU), 24 drop the
+//                    next A non-IDR AUs, 26 display change after which the
+//                    power-saving GPU is preferred
+//   --display-change-at T[,T...]  post a real WM_DISPLAYCHANGE to the window
+//   --cover-at T:MS[,...]  a topmost opaque layered window over the test
+//                    window for MS ms (only with the off-screen window: it
+//                    is never on a monitor)
+//   --offscreen      PM_VIDEO_OFFSCREEN=1: the window is far off the desktop
+//   --watchdog off   PM_VIDEO_WATCHDOG=0 (0.6.1 behaviour, for before/after)
+//   --freeze-report  sample stats every 50 ms; print every interval in which
+//                    AUs arrived but no picture was presented (> 250 ms), the
+//                    longest one, and pictures presented after the first fault
 //   --churn N [--alt file2]  N cycles of onCodec / setConnecting / showPin /
 //                    frames / showToast / showPin("") / onReset (alternating
 //                    with file2's codec if given), resources printed every 25
@@ -871,7 +887,14 @@ int wmain(int argc, wchar_t** argv) {
     int syncLat = 0, latA = -1, latB = -1, ntp0Every = 0, churn = 0, churnLoss = 0, decoderCycles = 0;
     double leadMs = 0, jitterMs = 0;
     const wchar_t* altPath = nullptr;
-    std::vector<std::pair<int, int>> tests;  // (ms, code)
+    struct TestEv {
+        int ms;
+        int kind;  // 0 test hook, 1 WM_DISPLAYCHANGE, 2 cover on, 3 cover off
+        int code;
+        long arg;
+    };
+    std::vector<TestEv> tests;
+    bool freezeReport = false, watchdogOff = false, offscreen = false;
     for (int i = 2; i < argc; ++i) {
         const bool hasValue = i + 1 < argc;
         if (!wcscmp(argv[i], L"--demo-ui")) demo = true;
@@ -904,13 +927,37 @@ int wmain(int argc, wchar_t** argv) {
             const wchar_t* p = argv[++i];
             while (*p) {
                 int t = 0, c = 0, n = 0;
+                long a = 0;
                 if (swscanf_s(p, L"%d:%d%n", &t, &c, &n) < 2) break;
-                tests.emplace_back(t, c);
+                p += n;
+                if (*p == L':' && swscanf_s(p + 1, L"%ld%n", &a, &n) == 1) p += 1 + n;
+                tests.push_back({t, 0, c, a});
+                if (*p == L',') ++p;
+            }
+        } else if (!wcscmp(argv[i], L"--display-change-at") && hasValue) {
+            for (const wchar_t* p = argv[++i]; *p;) {
+                int t = 0, n = 0;
+                if (swscanf_s(p, L"%d%n", &t, &n) < 1) break;
+                tests.push_back({t, 1, 0, 0});
                 p += n;
                 if (*p == L',') ++p;
             }
-        }
+        } else if (!wcscmp(argv[i], L"--cover-at") && hasValue) {
+            for (const wchar_t* p = argv[++i]; *p;) {
+                int t = 0, d = 0, n = 0;
+                if (swscanf_s(p, L"%d:%d%n", &t, &d, &n) < 2) break;
+                tests.push_back({t, 2, 0, d});
+                tests.push_back({t + d, 3, 0, 0});
+                p += n;
+                if (*p == L',') ++p;
+            }
+        } else if (!wcscmp(argv[i], L"--freeze-report")) freezeReport = true;
+        else if (!wcscmp(argv[i], L"--offscreen")) offscreen = true;
+        else if (!wcscmp(argv[i], L"--watchdog") && hasValue) watchdogOff = !_wcsicmp(argv[++i], L"off");
     }
+    std::stable_sort(tests.begin(), tests.end(), [](const TestEv& a, const TestEv& b) { return a.ms < b.ms; });
+    if (watchdogOff) SetEnvironmentVariableW(L"PM_VIDEO_WATCHDOG", L"0");
+    if (offscreen) SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
     if (minutes > 0 && reportSec <= 0) reportSec = 60;
     if (decoderCycles > 0) {
         // Leak isolation: open/close the decoder MFT (software, no window).
@@ -1017,7 +1064,7 @@ int wmain(int argc, wchar_t** argv) {
         if (sync)
             std::printf("A/V sync: %lld scheduled pictures, present - target: avg %+.2f ms, |p95| %.2f ms\n",
                         s.syncPresented, s.syncErrAvgMs, s.syncErrAbsP95Ms);
-        std::printf("device recoveries: %lld\n", s.deviceRecoveries);
+        std::printf("device recoveries: %lld, watchdog recoveries: %lld\n", s.deviceRecoveries, s.watchdogRecoveries);
         if (tap) {
             std::lock_guard lk(cap.m);
             std::printf("frame tap: %lld pictures (stats %lld), last %dx%d stride %d, size changes %lld, pts backwards %lld, "
@@ -1029,19 +1076,76 @@ int wmain(int argc, wchar_t** argv) {
         std::fflush(stdout);
     };
 
+    // Freeze report: (t, AUs in, pictures presented) every 50 ms.
+    struct Sample {
+        double t;
+        long long in, presented, decoded;
+    };
+    std::vector<Sample> samples;
+    double firstFaultT = -1;
+    HWND cover = nullptr;
+
     // Test hooks and latency sweep run on their own timer thread.
     std::thread aux([&] {
         const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
         size_t ti = 0;
-        double nextReport = reportSec, nextSweep = 2;
+        double nextReport = reportSec, nextSweep = 2, nextSample = 0;
         bool sweepB = false;
         while (!done) {
             const double t = secs();
-            while (ti < tests.size() && t * 1000 >= tests[ti].first) {
-                std::printf("[test] t=%.2fs post test hook %d\n", t, tests[ti].second);
+            while (ti < tests.size() && t * 1000 >= tests[ti].ms) {
+                const TestEv& e = tests[ti++];
+                HWND h = win.hwnd();
+                if (e.kind != 3 && firstFaultT < 0) firstFaultT = t;
+                if (e.kind == 0) {
+                    std::printf("[test] t=%.2fs post test hook %d (lParam %ld)\n", t, e.code, e.arg);
+                    if (h) PostMessageW(h, testMsg, e.code, e.arg);
+                } else if (e.kind == 1) {
+                    std::printf("[test] t=%.2fs post WM_DISPLAYCHANGE\n", t);
+                    if (h) PostMessageW(h, WM_DISPLAYCHANGE, 32, MAKELPARAM(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)));
+                } else if (e.kind == 2) {
+                    // Opaque topmost layered window exactly over the test window,
+                    // only if neither touches a monitor (nothing on screen).
+                    runOnUi([&, h, ms = e.arg] {
+                        RECT r{};
+                        if (!h || !GetWindowRect(h, &r) || MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) {
+                            std::printf("[test] cover refused: the test window is on a monitor (use --offscreen)\n");
+                            return;
+                        }
+                        static const ATOM cls = [] {
+                            WNDCLASSW wc{};
+                            wc.lpfnWndProc = DefWindowProcW;
+                            wc.hInstance = GetModuleHandleW(nullptr);
+                            wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+                            wc.lpszClassName = L"pm_video_test_cover";
+                            return RegisterClassW(&wc);
+                        }();
+                        cover = CreateWindowExW(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                                                L"pm_video_test_cover", L"", WS_POPUP, r.left - 8, r.top - 8,
+                                                r.right - r.left + 16, r.bottom - r.top + 16, nullptr, nullptr,
+                                                GetModuleHandleW(nullptr), nullptr);
+                        if (cover) {
+                            SetLayeredWindowAttributes(cover, 0, 255, LWA_ALPHA);
+                            ShowWindow(cover, SW_SHOWNOACTIVATE);
+                        }
+                        std::printf("[test] cover window %s over the test window for %ld ms\n", cover ? "up" : "FAILED", ms);
+                        std::fflush(stdout);
+                        (void)cls;
+                    });
+                } else {
+                    runOnUi([&] {
+                        if (cover) DestroyWindow(cover);
+                        cover = nullptr;
+                        std::printf("[test] cover window removed\n");
+                        std::fflush(stdout);
+                    });
+                }
                 std::fflush(stdout);
-                if (HWND h = win.hwnd()) PostMessageW(h, testMsg, tests[ti].second, 0);
-                ++ti;
+            }
+            if (freezeReport && t >= nextSample) {
+                const auto s = win.stats();
+                samples.push_back({t, s.framesIn, s.framesPresented, s.framesDecoded});
+                nextSample = t + 0.05;
             }
             if (reportSec > 0 && t >= nextReport) {
                 printResources("[soak]", t, win);
@@ -1198,5 +1302,32 @@ int wmain(int argc, wchar_t** argv) {
     done = true;
     feeder.join();
     aux.join();
+    if (freezeReport && !samples.empty()) {
+        // Intervals in which AUs kept arriving but no picture was presented.
+        double longest = 0;
+        int n = 0;
+        for (size_t i = 0; i < samples.size();) {
+            size_t j = i;
+            while (j + 1 < samples.size() && samples[j + 1].presented == samples[i].presented) ++j;
+            const bool recovered = j + 1 < samples.size();
+            const double t1 = recovered ? samples[j + 1].t : samples[j].t;
+            const long long in = samples[j].in - samples[i].in;
+            if (in > 5 && t1 - samples[i].t > 0.25) {
+                ++n;
+                longest = std::max(longest, t1 - samples[i].t);
+                std::printf("[freeze] %.2f s -> %.2f s: %.2f s without a new picture while %lld AUs arrived%s\n",
+                            samples[i].t, t1, t1 - samples[i].t, in, recovered ? "" : " (NOT recovered by the end)");
+            }
+            i = j + 1;
+        }
+        const Sample& last = samples.back();
+        long long p0 = 0, i0 = 0;
+        for (const Sample& s : samples)
+            if (firstFaultT >= 0 && s.t <= firstFaultT) p0 = s.presented, i0 = s.in;
+        std::printf("[freeze] %d freeze(s), longest %.2f s; after the first fault (t=%.2f s): %lld AUs in, %lld pictures "
+                    "presented\n",
+                    n, longest, firstFaultT, last.in - i0, last.presented - p0);
+        std::fflush(stdout);
+    }
     return exitCode >= 0 ? exitCode : rc;
 }

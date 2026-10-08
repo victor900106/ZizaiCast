@@ -32,18 +32,43 @@
 
 namespace pm::video {
 
-void log(const char* fmt, ...) {
+namespace {
+
+std::mutex g_logM;
+std::shared_ptr<std::function<void(const char*)>> g_logFn;  // VideoWindow::setLogHandler
+
+void vlog(const char* tag, const char* fmt, va_list ap) {
     char buf[1024];
-    int n = std::snprintf(buf, sizeof(buf), "[video] ");
-    va_list ap;
-    va_start(ap, fmt);
+    int n = std::snprintf(buf, sizeof(buf), "%s ", tag);
     int m = std::vsnprintf(buf + n, sizeof(buf) - n - 2, fmt, ap);
-    va_end(ap);
     size_t end = std::min(sizeof(buf) - 2, static_cast<size_t>(n) + static_cast<size_t>(std::max(m, 0)));
+    buf[end] = 0;
+    std::shared_ptr<std::function<void(const char*)>> fn;
+    {
+        std::lock_guard lk(g_logM);
+        fn = g_logFn;
+    }
+    if (fn && *fn) (*fn)(buf);  // the app's log file (no newline)
     buf[end] = '\n';
     buf[end + 1] = 0;
     std::fputs(buf, stderr);
     OutputDebugStringA(buf);
+}
+
+}  // namespace
+
+void log(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vlog("[video]", fmt, ap);
+    va_end(ap);
+}
+
+void wdlog(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vlog("[video-watchdog]", fmt, ap);
+    va_end(ap);
 }
 
 }  // namespace pm::video
@@ -56,17 +81,41 @@ using video::log;
 namespace {
 
 constexpr wchar_t kClassName[] = L"PhoneMirrorVideoWindow";
-constexpr size_t kMaxQueuedAUs = 32;  // ~0.5 s at 60 fps
+// AU queue: beyond kMaxQueuedAUs (~0.5 s at 60 fps) the queue skips to the
+// newest queued IDR (clean).  Without one, AUs are only dropped beyond the
+// hard limit: a dropped reference breaks every picture until the next IDR,
+// and iOS sends one only every minute or so (the HEVC decoder then shows
+// nothing at all), so a stalled render thread catches up instead (decoding
+// is ~2 ms per AU; only the newest picture is presented).
+constexpr size_t kMaxQueuedAUs = 32;
+constexpr size_t kHardMaxQueuedAUs = 600;           // ~10 s at 60 fps
+constexpr size_t kHardMaxQueuedBytes = 128u << 20;
 constexpr size_t kMaxStatSamples = 1 << 20;
 // A/V sync: decoded pictures wait at most this long (a stale or absurd
 // timestamp cannot freeze the picture), and at most this many are held.
 constexpr double kSyncMaxHoldMs = 500;
 constexpr size_t kSyncMaxHeld = 40;
 constexpr double kSyncSlackMs = 2;  // present this early (timer granularity)
-// Device-loss recovery re-feeds the access units since the last key frame
-// (bounded; beyond that only the key frame is re-fed).
-constexpr size_t kGopMaxAUs = 300;
-constexpr size_t kGopMaxBytes = 16u << 20;
+// Device-loss / watchdog recovery re-feeds the access units since the last
+// key frame (bounded; beyond that only the key frame is re-fed, and an HEVC
+// stream stays frozen until the next IDR).  0.6.1: 300 AUs / 16 MB (5 s).
+constexpr size_t kGopMaxAUs = 1800;  // 30 s at 60 fps
+constexpr size_t kGopMaxBytes = 64u << 20;
+// Watchdog (PM_VIDEO_WATCHDOG=0 turns it off together with the 0.6.2 queue /
+// GOP limits and the deferred GPU switch: the 0.6.1 behaviour, for tests).
+constexpr double kWdStallMs = 1500;      // no picture decoded / presented for this long
+constexpr int kWdMinFeeds = 8;           // ... although at least this many AUs were fed
+constexpr double kWdBackoffMs = 10000;   // later attempts in the same episode
+constexpr double kOccludedPresentMs = 100;  // present rate while DXGI reports occlusion
+constexpr double kHwRetryMs = 30000;     // after a watchdog SW fallback: HW again at an IDR
+
+bool watchdogEnabled() {
+    static const bool on = [] {
+        char v[8]{};
+        return !(GetEnvironmentVariableA("PM_VIDEO_WATCHDOG", v, sizeof(v)) > 0 && v[0] == '0');
+    }();
+    return on;
+}
 constexpr double kNoTime = -1e300;  // AccessUnit::due: show ASAP
 
 double nowMs() {
@@ -208,6 +257,8 @@ struct VideoWindow::Impl {
     ~Impl() {
         if (wakeEvent) CloseHandle(wakeEvent);
         if (frameTimer) CloseHandle(frameTimer);
+        stopMonitor();
+        if (monEvent) CloseHandle(monEvent);
     }
     std::deque<AccessUnit> queue;
     // UI requests (applied by the worker in take()).
@@ -267,6 +318,10 @@ struct VideoWindow::Impl {
     bool syncChanged = false;
     bool adapterCheckReq = false;  // monitor / display configuration changed
     int testReq = -1;              // kTestMsg: 0 simulate device removal, 1 power-saving GPU, 2 WARP, 3 auto
+    LPARAM testArg = 0;            // its lParam (fault injection: duration / count)
+    size_t dropNextRefs = 0;       // fault 24: drop this many non-IDR AUs in onFrame (guarded by m)
+    double queueFullSince = -1;    // first AU dropped in this backlog (guarded by m)
+    std::atomic<bool> refsDropped{false};  // a non-IDR AU was dropped before decoding
     // Presentation / theme / recording / mascot requests (-1 = none).
     int themeReq = -1, dimReq = -1, frameReq = -1, recReq = -1, mascotHoverReq = -1;
     bool xformChanged = false, mascotClickReq = false, tapChanged = false;
@@ -365,14 +420,70 @@ struct VideoWindow::Impl {
     int bgraCurW = 0, bgraCurH = 0;
     bool bgraLive = false;
 
+    // ---- watchdog (worker thread only) ----
+    const bool wd = watchdogEnabled();
+    double starvedSince = -1;     // first AU fed after the last decoded picture (-1: a picture came)
+    int starvedFeeds = 0;         // AUs fed since then
+    double keyWaitSince = -1;     // waitKey: first AU skipped while waiting for an IDR
+    int decRecoveries = 0;        // watchdog decoder restarts in this episode
+    double decRecoverAt = -1e300;  // last watchdog decoder restart
+    std::deque<double> decFailTimes;  // watchdog decoder restarts in the last minute
+    bool reportDecodeBack = false;
+    double pendingSince = -1;     // a decoded picture waits for a successful Present since
+    int pendingPictures = 0;
+    double waitStuckSince = -1;   // frame waitable timing out continuously since
+    double swapRecoverAt = -1e300;
+    bool reportPresentBack = false;
+    double lastPicturePresentAt = -1e300;  // a picture went to Present (occlusion pacing)
+    bool wasOccluded = false;
+    double occludedSince = 0;
+    long long occludedPresents = 0;
+    double swSince = -1;          // watchdog switched HW -> SW at
+    bool adapterSwitchPending = false;  // display change: another GPU is better, switch at the next IDR
+    std::string adapterSwitchWhy;
+    int faultWedgeHw = 0;         // fault 20: wedge this many more HW decoder instances
+
+    // ---- diagnostics (written by the worker / onFrame, read by the monitor thread) ----
+    enum Stage : int { StWait, StDecode, StFrameWait, StPresent, StRecover, StTap, StOther };
+    struct Diag {
+        std::atomic<long long> auIn{0}, auDropped{0}, auFed{0}, auSkipped{0}, mftOut{0}, decoded{0}, presented{0},
+            presentOk{0}, presentOccl{0}, presentErr{0}, waitTimeouts{0}, recoveries{0};
+        std::atomic<double> lastIdrAt{-1}, lastAuAt{-1}, stageAt{0};
+        std::atomic<int> stage{StWait};
+        std::atomic<long> lastPresentHr{0}, lastDecodeHr{0};
+        std::atomic<bool> occluded{false}, hw{false};
+        std::atomic<int> gopAUs{0};
+        std::atomic<bool> gopTrunc{false};
+    } dg;
+    void setStage(Stage s) {
+        dg.stage.store(s, std::memory_order_relaxed);
+        dg.stageAt.store(nowMs(), std::memory_order_relaxed);
+    }
+    std::thread monitor;
+    HANDLE monEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);  // wakes the monitor (stream starts / stop)
+    std::atomic<bool> monStop{false}, monIdle{false};
+
     // ---------------------------------------------------------------------
     void enqueue(AccessUnit&& au) {
         long long dropped = 0;
+        const double now = nowMs();
+        dg.auIn.fetch_add(1, std::memory_order_relaxed);
+        dg.lastAuAt.store(now, std::memory_order_relaxed);
+        if (au.irap) dg.lastIdrAt.store(now, std::memory_order_relaxed);
+        bool faultDrop = false;
         {
             std::lock_guard lk(m);
-            if (queue.size() >= kMaxQueuedAUs) {
+            if (dropNextRefs > 0 && !au.keep) {  // fault 24: a lost reference AU
+                --dropNextRefs;
+                dropped = 1;
+                faultDrop = true;
+                refsDropped = true;
+            } else if (queue.size() >= kMaxQueuedAUs) {
                 // Prefer skipping straight to the newest key frame (clean).
                 auto it = std::find_if(queue.rbegin(), queue.rend(), [](const AccessUnit& a) { return a.irap; });
+                size_t bytes = 0;
+                if (!au.irap && (it == queue.rend() || it.base() - 1 == queue.begin()) && wd)
+                    for (const auto& a : queue) bytes += a.data.size();
                 if (au.irap) {
                     dropped = static_cast<long long>(queue.size());
                     queue.clear();
@@ -380,22 +491,31 @@ struct VideoWindow::Impl {
                     auto keyPos = it.base() - 1;
                     dropped = keyPos - queue.begin();
                     queue.erase(queue.begin(), keyPos);
-                } else {
+                } else if (!wd || queue.size() >= kHardMaxQueuedAUs || bytes >= kHardMaxQueuedBytes) {
                     // Otherwise drop the oldest droppable frame (reference loss
-                    // until the next IDR - the decoder conceals errors).
+                    // until the next IDR; the HEVC decoder shows nothing until then).
                     auto victim = std::find_if(queue.begin(), queue.end(), [](const AccessUnit& a) { return !a.keep; });
                     if (victim != queue.end()) {
                         queue.erase(victim);
                         dropped = 1;
+                        refsDropped = true;
                         if (!warnedRefDrop) {
                             warnedRefDrop = true;
-                            log("decoder falling behind: dropping non-IDR access units (artifacts until next IDR)");
+                            queueFullSince = now;
+                            log("render thread %zu AUs behind: dropping non-IDR access units (picture broken until "
+                                "the next IDR)",
+                                queue.size() + 1);
                         }
                     }
                 }
+            } else if (warnedRefDrop && queue.size() < kMaxQueuedAUs / 2) {
+                warnedRefDrop = false;  // caught up: the next backlog logs again
+                log("render thread caught up (AU dropping lasted %.1f s)", (now - queueFullSince) / 1000);
             }
-            queue.push_back(std::move(au));
+            if (!faultDrop) queue.push_back(std::move(au));
         }
+        if (monIdle.load(std::memory_order_relaxed)) SetEvent(monEvent);  // stream (re)started: summaries
+        if (dropped) dg.auDropped.fetch_add(dropped, std::memory_order_relaxed);
         wake();
         std::lock_guard sl(sm);
         st.framesIn++;
@@ -538,6 +658,29 @@ struct VideoWindow::Impl {
         needPresent = true;
     }
 
+    // Re-feeds the access units since the last key frame into a freshly opened
+    // decoder; only the newest picture is kept (no GPU copies for the
+    // others).  Returns the number of AUs fed.  A truncated cache feeds only
+    // the key frame: the pictures after it lack their references.
+    size_t refeedGop() {
+        const size_t n = gopTruncated ? std::min<size_t>(gop.size(), 1) : gop.size();
+        if (gopTruncated && n) {
+            refsLost = true;
+            log("GOP since the last IDR exceeds the cache (%zu AUs / %zu MB): only the IDR is re-fed; pictures "
+                "until the next IDR lack references",
+                gopMaxAUs(), gopMaxBytes() >> 20);
+        }
+        for (size_t i = 0; i < n; ++i) {
+            skipOutput = i + 1 < n;
+            feed(gop[i].data.data(), gop[i].data.size(), -1, gop[i].due);
+        }
+        skipOutput = false;
+        return n;
+    }
+    size_t gopMaxAUs() const { return wd ? kGopMaxAUs : 300; }
+    size_t gopMaxBytes() const { return wd ? kGopMaxBytes : 16u << 20; }
+    bool refsLost = false;  // AUs lost / decoder restarted without the full GOP since the last IDR
+
     // True if the device is gone (or was just found removed).
     bool checkDevice() {
         if (deviceLost) return true;
@@ -569,14 +712,10 @@ struct VideoWindow::Impl {
         dec.close();
         size_t refed = 0;
         double tDecoder = 0;
+        setStage(StRecover);
         if (!gop.empty() && openDecoder()) {
             tDecoder = nowMs();
-            const size_t n = gopTruncated ? 1 : gop.size();
-            for (size_t i = 0; i < n; ++i, ++refed) {
-                skipOutput = i + 1 < n;  // only the newest picture is needed: skip the GPU copies
-                feed(gop[i].data.data(), gop[i].data.size(), -1, gop[i].due);
-            }
-            skipOutput = false;
+            refed = refeedGop();
         } else {
             waitKey = true;
             if (!decoderMissing && !dec.isOpen()) openDecoder();
@@ -593,17 +732,44 @@ struct VideoWindow::Impl {
         reportPictureBack = !ren.idle();
         ren.poke();
         needPresent = true;
+        starvedSince = pendingSince = waitStuckSince = -1;
+        starvedFeeds = pendingPictures = 0;
         return true;
+    }
+
+    // A live AirPlay stream: AUs arrived within the last 2 s.
+    bool streamLive() const {
+        const double t = dg.lastAuAt.load(std::memory_order_relaxed);
+        return t >= 0 && nowMs() - t < 2000;
     }
 
     // Monitor / display configuration changed: switch GPU if another one is
     // now the better choice.
-    void checkAdapter() {
+    void checkAdapter(const char* trigger) {
         if (deviceLost || forceAdapter == 2) return;
         const char* why = "";
         ComPtr<IDXGIAdapter1> a = chooseAdapter(why);
         DXGI_ADAPTER_DESC1 d{};
-        if (!a || FAILED(a->GetDesc1(&d)) || sameLuid(d.AdapterLuid, adapterLuid)) return;
+        if (!a || FAILED(a->GetDesc1(&d))) return;
+        char name[128];
+        WideCharToMultiByte(CP_UTF8, 0, d.Description, -1, name, sizeof(name), nullptr, nullptr);
+        if (sameLuid(d.AdapterLuid, adapterLuid)) {
+            log("adapter check (%s): keeping %s", trigger, name);
+            if (adapterSwitchPending) log("adapter check: pending GPU switch cancelled");
+            adapterSwitchPending = false;
+            return;
+        }
+        // Switching re-creates the decoder and re-feeds the GOP cache.  If the
+        // cache no longer holds everything since the last IDR, that would
+        // lose the references (an iOS stream would freeze until its next
+        // IDR): wait for one instead.
+        if (wd && streamLive() && !waitKey && gopTruncated) {
+            log("adapter check (%s): %s preferred (%s); switching at the next key frame", trigger, name, why);
+            adapterSwitchPending = true;
+            adapterSwitchWhy = why;
+            return;
+        }
+        log("adapter check (%s): switching to %s (%s)", trigger, name, why);
         loseDevice(why, S_OK);
     }
 
@@ -614,10 +780,19 @@ struct VideoWindow::Impl {
             char v[8]{};
             return GetEnvironmentVariableA("PM_VIDEO_FORCE_SW", v, sizeof(v)) > 0 && v[0] == '1';
         }();
-        if (dxgiMgr && !hwBroken && !forceSw && dec.open(decCodec, dxgiMgr.Get())) return true;
-        if (dec.open(decCodec, nullptr)) return true;
-        decoderMissing = true;
-        return false;
+        dec.setConcealMissingRefs(wd);
+        bool ok = (dxgiMgr && !hwBroken && !forceSw && dec.open(decCodec, dxgiMgr.Get())) || dec.open(decCodec, nullptr);
+        if (!ok) {
+            decoderMissing = true;
+            return false;
+        }
+        dg.hw.store(dec.hardware(), std::memory_order_relaxed);
+        if (faultWedgeHw > 0 && dec.hardware()) {
+            --faultWedgeHw;
+            dec.setFaultDropOutput(true);
+            log("fault injection: this hardware decoder instance swallows its output");
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------------
@@ -655,6 +830,22 @@ struct VideoWindow::Impl {
     double syncWaitMs() const {
         if (held.empty()) return -1;
         return std::max(0.0, heldTarget(held.front(), syncLatencyMs.load()) - kSyncSlackMs - nowMs());
+    }
+
+    // A decoded picture reached the renderer (shown or held).
+    // live: from a newly received AU (re-fed ones do not end a stall).
+    void pictureDecoded(double t, bool live) {
+        dg.decoded.fetch_add(1, std::memory_order_relaxed);
+        if (pendingSince < 0) pendingSince = t;
+        ++pendingPictures;
+        if (!live) return;
+        if (reportDecodeBack) {
+            reportDecodeBack = false;
+            video::wdlog("pictures decoded again %.0f ms after the decoder restart", t - decRecoverAt);
+        }
+        starvedSince = -1;
+        starvedFeeds = 0;
+        if (!refsLost) decRecoveries = 0;  // a stray picture without references ends nothing: the IDR does
     }
 
     void onDecoded(IMFSample* sample, const video::VideoFormat& fmt) {
@@ -705,6 +896,7 @@ struct VideoWindow::Impl {
             if (tap) tapPicture(nullptr, pts);
         }
         double t = nowMs();
+        pictureDecoded(t, tIn >= 0);
         ComPtr<IMFMediaBuffer> buf;
         ComPtr<IMFDXGIBuffer> dx;
         bool hwOut = SUCCEEDED(sample->GetBufferByIndex(0, &buf)) && SUCCEEDED(buf.As(&dx));
@@ -749,6 +941,7 @@ struct VideoWindow::Impl {
         pictureTarget = kNoTime;
         newPicture = true;
         if (tIn >= 0 && tapOn.load(std::memory_order_relaxed)) tapPicture(nullptr, pts);
+        pictureDecoded(nowMs(), true);
         std::lock_guard sl(sm);
         st.framesDecoded++;
         st.hardwareDecode = false;
@@ -782,7 +975,12 @@ struct VideoWindow::Impl {
         ringDue[slot] = due;
         ringPts[slot] = pts;
         ringSubmit[slot] = nowMs();
-        return dec.decode(p, n, seq * 166667, [this](IMFSample* s, const video::VideoFormat& f) { onDecoded(s, f); });
+        const long long out0 = dec.counters().outputs;
+        const HRESULT hr =
+            dec.decode(p, n, seq * 166667, [this](IMFSample* s, const video::VideoFormat& f) { onDecoded(s, f); });
+        dg.mftOut.fetch_add(dec.counters().outputs - out0, std::memory_order_relaxed);
+        if (FAILED(hr)) dg.lastDecodeHr.store(hr, std::memory_order_relaxed);
+        return hr;
     }
 
     void remember(AccessUnit& au) {
@@ -791,21 +989,45 @@ struct VideoWindow::Impl {
             gopBytes = 0;
             gopTruncated = false;
         }
-        if (gopTruncated) return;
-        if (gop.size() >= kGopMaxAUs || gopBytes + au.data.size() > kGopMaxBytes) {
+        if (!gopTruncated && (gop.size() >= gopMaxAUs() || gopBytes + au.data.size() > gopMaxBytes())) {
             gopTruncated = true;
             gop.resize(1);  // keep just the key frame
-            return;
+            gopBytes = gop[0].data.size();
         }
-        gopBytes += au.data.size();
-        gop.push_back(std::move(au));
+        if (!gopTruncated) {
+            gopBytes += au.data.size();
+            gop.push_back(std::move(au));
+        }
+        dg.gopAUs.store(static_cast<int>(gop.size()), std::memory_order_relaxed);
+        dg.gopTrunc.store(gopTruncated, std::memory_order_relaxed);
     }
 
     void decodeOne(AccessUnit& au) {
         if (decoderMissing) return;
         if (waitKey) {
-            if (!au.irap) return;  // cannot start mid-GOP
+            if (!au.irap) {  // cannot start mid-GOP
+                dg.auSkipped.fetch_add(1, std::memory_order_relaxed);
+                if (keyWaitSince < 0) keyWaitSince = nowMs();
+                return;
+            }
             waitKey = false;
+            keyWaitSince = -1;
+        }
+        if (au.irap) {
+            refsLost = false;  // a clean start: nothing before it is needed
+            if (adapterSwitchPending && !deviceLost) {
+                adapterSwitchPending = false;
+                log("key frame: switching GPU now (%s)", adapterSwitchWhy.c_str());
+                loseDevice(adapterSwitchWhy.c_str(), S_OK);
+            }
+            // After a watchdog switch to software decoding: DXVA again at a
+            // clean point (software HEVC cannot keep up with 1440p60).
+            if (swSince >= 0 && nowMs() - swSince > kHwRetryMs && !deviceLost) {
+                swSince = -1;
+                hwBroken = false;
+                dec.close();
+                video::wdlog("key frame: trying hardware decoding again");
+            }
         }
         if (deviceLost) {  // keep the GOP for the re-feed after recovery
             remember(au);
@@ -813,9 +1035,13 @@ struct VideoWindow::Impl {
         }
         if (!dec.isOpen() && !openDecoder()) return;
 
+        setStage(StDecode);
         HRESULT hr = feed(au.data.data(), au.data.size(), au.tIn, au.due, au.pts);
         if (SUCCEEDED(hr)) {
             errorStreak = 0;
+            dg.auFed.fetch_add(1, std::memory_order_relaxed);
+            if (starvedSince < 0) starvedSince = nowMs();  // reset by the next decoded picture
+            ++starvedFeeds;
         } else if (checkDevice()) {
             // decoder failed because the device went away: recovery re-feeds
         } else {
@@ -832,8 +1058,13 @@ struct VideoWindow::Impl {
             } else if (++errorStreak > 30) {
                 log("too many decode errors, restarting decoder");
                 dec.close();
-                waitKey = true;
                 errorStreak = 0;
+                if (wd && !gop.empty() && openDecoder()) {
+                    remember(au);
+                    refeedGop();  // iOS: the next IDR may be minutes away
+                    return;
+                }
+                waitKey = true;
             }
         }
         remember(au);
@@ -917,6 +1148,7 @@ struct VideoWindow::Impl {
                 pending = pendingLocked();
             }
             if (!pending) {
+                setStage(StWait);
                 if (waitMs < 0) {
                     WaitForSingleObject(wakeEvent, INFINITE);
                 } else {
@@ -932,6 +1164,7 @@ struct VideoWindow::Impl {
         bool reset = false, codecCh = false, resize = false, paint = false, poke = false, optsCh = false,
              hoverCh = false, syncCh = false, adapterCh = false;
         int pause = -1, hov = -1, vis = -1, test = -1, theme = -1, dim = -1, frame = -1, rec = -1, mHover = -1;
+        LPARAM testLp = 0;
         bool xform = false, mClick = false, tapCh = false;
         UINT w = 0, h = 0, dpi = 0;
         VideoCodec c;
@@ -970,6 +1203,7 @@ struct VideoWindow::Impl {
             syncCh = std::exchange(syncChanged, false);
             adapterCh = std::exchange(adapterCheckReq, false);
             test = std::exchange(testReq, -1);
+            testLp = testArg;
             theme = std::exchange(themeReq, -1);
             dim = std::exchange(dimReq, -1);
             frame = std::exchange(frameReq, -1);
@@ -993,8 +1227,9 @@ struct VideoWindow::Impl {
                                                  "switch to WARP (test)", "back to automatic GPU choice (test)"};
             if (test >= 1 && test <= 3) forceAdapter = test == 3 ? 0 : test;
             if (test <= 3) loseDevice(kTests[test], DXGI_ERROR_DEVICE_REMOVED);
+            else injectFault(test, testLp);
         }
-        if (adapterCh) checkAdapter();
+        if (adapterCh) checkAdapter("display / monitor change");
         if (dpi) {
             ren.setDpi(dpi);
             paint = true;
@@ -1054,6 +1289,17 @@ struct VideoWindow::Impl {
             gopTruncated = false;
             dropHeld();
             ren.trimPool();
+            // New stream: watchdog episodes end; a deferred GPU switch can happen now.
+            starvedSince = pendingSince = waitStuckSince = keyWaitSince = -1;
+            starvedFeeds = pendingPictures = decRecoveries = 0;
+            refsLost = false;
+            refsDropped = false;
+            dg.gopAUs = 0;
+            dg.gopTrunc = false;
+            if (adapterSwitchPending) {
+                adapterSwitchPending = false;
+                loseDevice(adapterSwitchWhy.c_str(), S_OK);
+            }
         }
         if (syncCh) {
             const bool on = syncEnabled.load();
@@ -1155,10 +1401,150 @@ struct VideoWindow::Impl {
     }
 
     void decodeBatch(std::deque<AccessUnit>& batch) {
+        if (refsDropped.exchange(false)) refsLost = true;
         for (auto& au : batch) decodeOne(au);
         batch.clear();
         if (!deviceLost) checkDevice();
         syncTick();
+        setStage(StOther);
+    }
+
+    // ---------------------------------------------------------------------
+    // Fault injection (kTestMsg wParam 20..26, pm_video_test --test-at T:C:ARG).
+    void injectFault(int code, LPARAM arg) {
+        switch (code) {
+        case 20:  // the decoder stops returning pictures (+ arg more HW instances)
+            faultWedgeHw = static_cast<int>(arg);
+            if (dec.isOpen()) dec.setFaultDropOutput(true);
+            log("fault injection: decoder output swallowed (this instance%s)",
+                arg ? " and the next hardware instance(s)" : "");
+            break;
+        case 21:  // Present reports DXGI_STATUS_OCCLUDED for arg ms
+            ren.faultOcclude(video::clockMs() + static_cast<double>(arg));
+            log("fault injection: Present reports DXGI_STATUS_OCCLUDED for %ld ms", static_cast<long>(arg));
+            break;
+        case 22:  // the swap chain stops presenting (until re-created)
+            ren.faultSwallowPresents();
+            log("fault injection: Present calls swallowed (stuck swap chain)");
+            break;
+        case 23:  // the render thread blocks for arg ms (a stalled Present / GPU)
+            log("fault injection: render thread blocked for %ld ms", static_cast<long>(arg));
+            setStage(StPresent);
+            Sleep(static_cast<DWORD>(arg));
+            setStage(StOther);
+            break;
+        case 24: {  // the next arg non-IDR AUs are lost before decoding
+            std::lock_guard lk(m);
+            dropNextRefs = static_cast<size_t>(arg);
+            log("fault injection: dropping the next %ld non-IDR AU(s)", static_cast<long>(arg));
+            break;
+        }
+        case 26:  // display change after which the power-saving GPU is preferred
+            forceAdapter = 1;
+            checkAdapter("display change (test: power-saving GPU preferred)");
+            break;
+        default:
+            break;
+        }
+    }
+
+    // Watchdog (a): AUs are fed but no picture comes out.  Restarts the
+    // decoder and re-feeds the GOP cache (2nd time within a minute: in
+    // software).  Without the references (AUs lost, cache truncated) a
+    // restart cannot help: logged once, the next IDR resumes the picture.
+    void watchdogDecode() {
+        if (!wd || deviceLost || !dec.isOpen()) return;
+        const double now = nowMs();
+        if (starvedSince < 0 || starvedFeeds < kWdMinFeeds || now - starvedSince < kWdStallMs) return;
+        if (decRecoveries > 0 && now - decRecoverAt < (decRecoveries >= 2 ? kWdBackoffMs : kWdStallMs)) return;
+        const auto c = dec.counters();
+        const double idrAgo = dg.lastIdrAt.load() >= 0 ? (now - dg.lastIdrAt.load()) / 1000 : -1;
+        if (refsLost && decRecoveries > 0) {
+            if (decRecoveries == 1) {
+                video::wdlog("still no picture after %d AUs: references lost (last IDR %.0f s ago); keeping the last "
+                             "picture until the next IDR",
+                             starvedFeeds, idrAgo);
+                ++decRecoveries;
+            }
+            decRecoverAt = now;
+            return;
+        }
+        while (!decFailTimes.empty() && now - decFailTimes.front() > 60000) decFailTimes.pop_front();
+        const bool toSw = dec.hardware() && !decFailTimes.empty() && !refsLost;
+        video::wdlog("no picture decoded for %.1f s although %d AUs were fed (%s decoder '%s': in %lld, out %lld, "
+                     "errors %lld, last hr=0x%08lx; last IDR %.1f s ago, GOP cache %zu AUs%s%s): %s",
+                     (now - starvedSince) / 1000, starvedFeeds, dec.hardware() ? "hardware" : "software",
+                     dec.name().c_str(), c.inputs, c.outputs, c.errors, static_cast<unsigned long>(c.lastError), idrAgo,
+                     gop.size(), gopTruncated ? " truncated" : "", refsLost ? ", references lost" : "",
+                     gop.empty() ? "restarting the decoder; no key frame kept: waiting for the next IDR"
+                     : toSw      ? "2nd failure within a minute: software decoder, re-feeding from the last IDR"
+                                 : "restarting the decoder, re-feeding from the last IDR");
+        decFailTimes.push_back(now);
+        ++decRecoveries;
+        decRecoverAt = now;
+        reportDecodeBack = true;
+        {
+            std::lock_guard sl(sm);
+            st.watchdogRecoveries++;
+        }
+        if (toSw) {
+            hwBroken = true;
+            swSince = now;
+        }
+        setStage(StRecover);
+        dec.close();
+        starvedSince = -1;
+        starvedFeeds = 0;
+        if (!openDecoder()) return;
+        if (gop.empty()) {
+            waitKey = true;
+            return;
+        }
+        const size_t n = refeedGop();
+        video::wdlog("decoder re-opened (%s) and %zu AU(s) re-fed in %.0f ms", dec.hardware() ? "hardware" : "software",
+                     n, nowMs() - now);
+        setStage(StOther);
+    }
+
+    // Watchdog (b): pictures are decoded but none reaches the screen (Present
+    // not called / failing, or the swap chain no longer releasing frames).
+    // Re-creates the swap chain (twice within 10 s: the whole device).
+    void watchdogPresent() {
+        if (!wd || deviceLost) return;
+        const double now = nowMs();
+        if (ren.minimized() || !ren.visible() || ren.idle() || ren.paused()) {  // nothing to show: not a stall
+            pendingSince = waitStuckSince = -1;
+            pendingPictures = 0;
+            return;
+        }
+        const bool stuckPresent = pendingSince >= 0 && pendingPictures >= 2 && now - pendingSince > kWdStallMs;
+        // Frames presented but the swap chain never signals that it can take
+        // the next one: only a new swap chain, at most every 30 s (a locked
+        // session might look like this too; the 100 ms wait bounds the cost).
+        const bool stuckWait = !stuckPresent && waitStuckSince >= 0 && now - waitStuckSince > kWdStallMs &&
+                               streamLive() && now - swapRecoverAt > 30000;
+        if (!stuckPresent && !stuckWait) return;
+        const bool again = stuckPresent && now - swapRecoverAt < 10000;
+        video::wdlog("%s for %.1f s (%d picture(s) waiting; last Present hr=0x%08lx%s, %lld frame-wait timeouts): %s",
+                     stuckPresent ? "pictures decoded but none presented" : "swap chain releases no frames",
+                     (now - (stuckPresent ? pendingSince : waitStuckSince)) / 1000, pendingPictures,
+                     static_cast<unsigned long>(ren.lastPresentHr()), ren.lastPresented() ? "" : ", not presented",
+                     dg.waitTimeouts.load(), again ? "re-creating the device" : "re-creating the swap chain");
+        swapRecoverAt = now;
+        pendingSince = waitStuckSince = -1;
+        pendingPictures = 0;
+        {
+            std::lock_guard sl(sm);
+            st.watchdogRecoveries++;
+        }
+        setStage(StRecover);
+        if (again || !ren.recreateSwapChain()) {
+            loseDevice("watchdog: presenting stuck", S_OK);
+            return;
+        }
+        reportPresentBack = true;
+        newPicture = needPresent = true;  // the newest picture, now
+        setStage(StOther);
     }
 
     void loop() {
@@ -1171,20 +1557,39 @@ struct VideoWindow::Impl {
                 continue;
             }
             // Event-driven: sleep until something happens, unless an animation
-            // is running or a held picture becomes due.
-            double waitMs = needPresent || newPicture ? 0 : earliest(ren.nextFrameInMs(), syncWaitMs());
+            // is running or a held picture becomes due.  While DXGI reports
+            // occlusion a new picture is presented every kOccludedPresentMs
+            // (decoding goes on at full rate; the first S_OK restores it).
+            double waitMs = needPresent ? 0 : newPicture ? occludedWaitMs() : -1;
+            if (waitMs != 0) waitMs = earliest(waitMs, earliest(ren.nextFrameInMs(), syncWaitMs()));
             waitMs = earliest(waitMs, ren.tapFlushInMs());
             if (!take(batch, waitMs)) return;
             decodeBatch(batch);
             if (deviceLost) continue;
-            if (const double f = ren.tapFlushInMs(); f >= 0 && f < 1) deliverTaps(true);  // stream went quiet
+            watchdogDecode();
+            watchdogPresent();
+            if (deviceLost) continue;
+            if (const double f = ren.tapFlushInMs(); f >= 0 && f < 1) {  // stream went quiet
+                setStage(StTap);
+                deliverTaps(true);
+            }
             const double next = ren.nextFrameInMs();
             const bool animDue = next >= 0 && next < 1.0;
-            if (!newPicture && !needPresent && !animDue) continue;
+            const bool pictureDue = newPicture && occludedWaitMs() == 0;
+            if (!pictureDue && !needPresent && !animDue) continue;
 
             // Wait until the swap chain can take a frame, then pick up anything
-            // that arrived meanwhile so we present the freshest picture.
-            if (HANDLE wh = ren.frameWaitable()) WaitForSingleObjectEx(wh, 100, FALSE);
+            // that arrived meanwhile so we present the freshest picture.  Not
+            // while occluded: the waitable may not be signalled then.
+            if (HANDLE wh = ren.frameWaitable(); wh && !(wd && ren.occluded())) {
+                setStage(StFrameWait);
+                if (WaitForSingleObjectEx(wh, 100, FALSE) == WAIT_TIMEOUT) {
+                    dg.waitTimeouts.fetch_add(1, std::memory_order_relaxed);
+                    if (waitStuckSince < 0) waitStuckSince = nowMs();
+                } else {
+                    waitStuckSince = -1;
+                }
+            }
             if (!take(batch, 0)) return;
             decodeBatch(batch);
             if (deviceLost) continue;
@@ -1193,13 +1598,20 @@ struct VideoWindow::Impl {
             const double target = newPicture ? pictureTarget : kNoTime;
             bool presentedPicture = newPicture && !ren.idle();
             newPicture = needPresent = false;
+            setStage(StPresent);
             if (!ren.render()) {
                 loseDevice("Present", dev ? dev->GetDeviceRemovedReason() : E_FAIL);
                 continue;
             }
+            setStage(StOther);
+            notePresent(presentedPicture);
             publishOptionRects();
-            if (ren.tapPending()) deliverTaps(false);  // previous pictures: their GPU work is long done
-            if (presentedPicture) {
+            if (ren.tapPending()) {  // previous pictures: their GPU work is long done
+                setStage(StTap);
+                deliverTaps(false);
+                setStage(StOther);
+            }
+            if (presentedPicture && ren.lastPresented()) {
                 if (reportPictureBack) {
                     reportPictureBack = false;
                     log("picture back on screen %.0f ms after the device loss", nowMs() - lostAt);
@@ -1214,8 +1626,137 @@ struct VideoWindow::Impl {
         }
     }
 
+    // 0 if a new picture may be presented now, else ms until it may (occluded).
+    double occludedWaitMs() const {
+        if (!wd || !ren.occluded()) return 0;
+        return std::max(0.0, lastPicturePresentAt + kOccludedPresentMs - nowMs());
+    }
+
+    // Present bookkeeping: counters, occlusion transitions, watchdog state.
+    void notePresent(bool picture) {
+        const double now = nowMs();
+        const bool did = ren.lastPresented();
+        const HRESULT hr = ren.lastPresentHr();
+        dg.lastPresentHr.store(hr, std::memory_order_relaxed);
+        if (did) (hr == DXGI_STATUS_OCCLUDED ? dg.presentOccl : dg.presentOk).fetch_add(1, std::memory_order_relaxed);
+        else if (FAILED(hr)) dg.presentErr.fetch_add(1, std::memory_order_relaxed);
+        const bool occ = ren.occluded();
+        if (occ != wasOccluded) {
+            wasOccluded = occ;
+            dg.occluded.store(occ, std::memory_order_relaxed);
+            if (occ) {
+                occludedSince = now;
+                occludedPresents = 0;
+                log("Present: DXGI_STATUS_OCCLUDED (window covered or off-screen): pictures at %.0f fps until visible",
+                    wd ? 1000 / kOccludedPresentMs : 60.0);
+            } else {
+                log("Present: S_OK again after %.1f s occluded (%lld pictures presented meanwhile)",
+                    (now - occludedSince) / 1000, occludedPresents);
+            }
+        }
+        if (!picture || !did) return;
+        dg.presented.fetch_add(1, std::memory_order_relaxed);
+        lastPicturePresentAt = now;
+        if (occ) ++occludedPresents;
+        pendingSince = -1;
+        pendingPictures = 0;
+        if (reportPresentBack) {
+            reportPresentBack = false;
+            video::wdlog("picture presented again %.0f ms after the swap chain re-creation", now - swapRecoverAt);
+        }
+    }
+
+
+    // ---------------------------------------------------------------------
+    // Monitor thread: one summary line per 5 s while AUs arrive, and a
+    // warning when the render thread is stuck (it cannot report that
+    // itself).  Sleeps on monEvent while no stream is live.
+    struct Counts {
+        long long in, drop, skip, fed, mft, dec, pres, ok, occl, err, wto;
+    };
+    Counts counts() const {
+        auto l = [](const std::atomic<long long>& a) { return a.load(std::memory_order_relaxed); };
+        return {l(dg.auIn),   l(dg.auDropped),  l(dg.auSkipped), l(dg.auFed),      l(dg.mftOut),     l(dg.decoded),
+                l(dg.presented), l(dg.presentOk), l(dg.presentOccl), l(dg.presentErr), l(dg.waitTimeouts)};
+    }
+
+    static const char* stageName(int s) {
+        static const char* const k[] = {"wait", "decode", "frame wait", "Present", "recovery", "frame tap", "other"};
+        return s >= 0 && s < 7 ? k[s] : "?";
+    }
+
+    void monitorMain() {
+        SetThreadDescription(GetCurrentThread(), L"pm_video_monitor");
+        Counts prev = counts();
+        double last = nowMs(), stuckLoggedAt = -1e300;
+        bool summarised = false;
+        while (!monStop.load()) {
+            double now = nowMs();
+            const double au = dg.lastAuAt.load();
+            if (au < 0 || now - au > 5000) {
+                if (summarised) {  // the stream went quiet: one last line for the partial interval
+                    summary(prev, last, now);
+                    summarised = false;
+                }
+                monIdle = true;
+                const double au2 = dg.lastAuAt.load();
+                if (au2 < 0 || nowMs() - au2 > 5000) WaitForSingleObject(monEvent, INFINITE);
+                monIdle = false;
+                prev = counts();
+                last = nowMs();
+                continue;
+            }
+            WaitForSingleObject(monEvent, 1000);
+            now = nowMs();
+            const int stg = dg.stage.load();
+            const double stuck = now - dg.stageAt.load();
+            if (stg != StWait && stuck > 3000 && now - stuckLoggedAt > 5000) {
+                stuckLoggedAt = now;
+                size_t q;
+                {
+                    std::lock_guard lk(m);
+                    q = queue.size();
+                }
+                video::wdlog("render thread busy in %s for %.1f s (%zu AUs queued)", stageName(stg), stuck / 1000, q);
+            }
+            if (now - last >= 5000) {
+                summary(prev, last, now);
+                summarised = true;
+            }
+        }
+    }
+
+    void summary(Counts& prev, double& last, double now) {
+        const Counts c = counts();
+        size_t q;
+        {
+            std::lock_guard lk(m);
+            q = queue.size();
+        }
+        const double idr = dg.lastIdrAt.load();
+        log("%.0fs: AU in %lld drop %lld skip %lld | fed %lld > MFT %lld > pictures %lld (%s) | presented %lld (ok %lld, "
+            "occluded %lld, failed %lld, last 0x%08lx; frame-wait timeouts %lld) | queue %zu | last IDR %.1f s ago, GOP %d%s",
+            (now - last) / 1000, c.in - prev.in, c.drop - prev.drop, c.skip - prev.skip, c.fed - prev.fed,
+            c.mft - prev.mft, c.dec - prev.dec, dg.hw.load() ? "hw" : "sw", c.pres - prev.pres, c.ok - prev.ok,
+            c.occl - prev.occl, c.err - prev.err, static_cast<unsigned long>(dg.lastPresentHr.load()),
+            c.wto - prev.wto, q, idr >= 0 ? (now - idr) / 1000 : -1.0, dg.gopAUs.load(),
+            dg.gopTrunc.load() ? " (truncated)" : "");
+        prev = c;
+        last = now;
+    }
+
+    void startMonitor() {
+        if (!monitor.joinable()) monitor = std::thread([this] { monitorMain(); });
+    }
+    void stopMonitor() {
+        if (!monitor.joinable()) return;
+        monStop = true;
+        SetEvent(monEvent);
+        monitor.join();
+    }
 
     void stopWorker() {
+        stopMonitor();
         if (!worker.joinable()) return;
         {
             std::lock_guard lk(m);
@@ -1684,6 +2225,7 @@ struct VideoWindow::Impl {
             {
                 std::lock_guard lk(m);
                 testReq = static_cast<int>(wp);
+                testArg = lp;
             }
             wake();
             return 0;
@@ -1969,6 +2511,8 @@ bool VideoWindow::create(const wchar_t* title, int clientWidth, int clientHeight
         DestroyWindow(impl_->hwnd);
         return false;
     }
+    impl_->startMonitor();
+    if (!impl_->wd) log("watchdog off (PM_VIDEO_WATCHDOG=0): 0.6.1 behaviour");
     ShowWindow(impl_->hwnd, offscreen ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
     UpdateWindow(impl_->hwnd);
     return true;
@@ -1981,6 +2525,12 @@ int VideoWindow::runMessageLoop() {
         DispatchMessageW(&msg);
     }
     return static_cast<int>(msg.wParam);
+}
+
+void VideoWindow::setLogHandler(std::function<void(const char* line)> fn) {
+    auto p = fn ? std::make_shared<std::function<void(const char*)>>(std::move(fn)) : nullptr;
+    std::lock_guard lk(video::g_logM);
+    video::g_logFn = std::move(p);
 }
 
 void VideoWindow::close() {

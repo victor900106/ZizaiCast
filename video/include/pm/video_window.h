@@ -51,6 +51,9 @@ public:
         double syncErrAvgMs = 0, syncErrAbsP95Ms = 0;
         // Device losses (TDR, driver update, GPU switch) recovered from.
         long long deviceRecoveries = 0;
+        // Watchdog actions: decoder restarts (no picture decoded although
+        // AUs were fed) and swap-chain re-creations (nothing presented).
+        long long watchdogRecoveries = 0;
         std::wstring adapter;  // GPU in use
         // Frame tap: pictures delivered, and render-thread time per picture
         // (GPU convert + copy submission, map, NV12 assembly; excl. the tap).
@@ -78,6 +81,11 @@ public:
 
     // Thread-safe snapshot of decoder/renderer statistics.
     Stats stats() const;
+
+    // Process-wide: every "[video] ..." / "[video-watchdog] ..." log line
+    // (no trailing newline) also goes to fn, from any thread (the app writes
+    // them to its log file).  Lines always go to stderr and the debugger.
+    static void setLogHandler(std::function<void(const char* line)> fn);
 
     // A/V sync (thread-safe, cheap; call again whenever the latency changes,
     // e.g. every second).  Disabled (default): every picture is shown as soon

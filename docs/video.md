@@ -269,9 +269,14 @@ UI thread: Win32 window, WM_SIZE/paint/fullscreen/DPI/mouse → flags for the wo
 * **Latency policy**: the worker drains *all* queued AUs, decodes them, waits
   for the swap chain's waitable object, drains again, and presents only the
   newest picture. A slow display therefore drops presented frames, never
-  accumulates latency. If the queue (32 AUs) still overflows, it skips to the
-  newest IDR if one is queued, else drops the oldest AU that carries no IDR /
-  parameter sets (logged once; artifacts until the next IDR).
+  accumulates latency. If the queue holds 32 AUs it skips to the newest IDR
+  if one is queued (clean). Without one, AUs are dropped only beyond **600 AUs
+  / 128 MB** (~10 s; 0.6.1: 32): then the oldest AU that carries no IDR /
+  parameter sets goes (logged with the backlog, and again when caught up). A
+  lost reference AU breaks every picture until the next IDR, and iOS sends one
+  only every minute or so (the HEVC Video Extensions then output *nothing*),
+  so a render thread that was blocked for a while catches up instead
+  (~1 ms per AU) — see *Watchdog*.
 * **Reset / codec**: `onReset()` clears the queue, flushes the decoder and
   shows the idle screen; decoding resumes at the next IDR. `onCodec()` with a
   new codec re-creates the decoder immediately (MFT creation costs ~100 ms and
@@ -324,14 +329,79 @@ UI thread: Win32 window, WM_SIZE/paint/fullscreen/DPI/mouse → flags for the wo
   textures, D2D target — the D2D/DWrite factories, geometries and the mascot
   stay) and the device; create a new device (+ `IMFDXGIDeviceManager`), a new
   swap chain on the same HWND, reopen the decoder and **re-feed the access
-  units since the last key frame** (kept in a GOP cache, ≤ 300 AUs / 16 MB,
-  else only the key frame), copying only the last picture to the screen. A
+  units since the last key frame** (kept in a GOP cache, ≤ 1800 AUs / 64 MB
+  = 30 s at 60 fps (0.6.1: 300 / 16 MB), else only the key frame — and an HEVC
+  stream then stays frozen until its next IDR, logged), copying only the last
+  picture to the screen. A
   live stream shows the last frame (DWM keeps it) and then continues; failed
   attempts retry with back-off (100 ms … 2 s, e.g. during a driver update)
   while AUs keep filling the GOP cache.
+* **Deferred GPU switch (0.6.2)**: a display / monitor change that makes
+  another GPU preferable while a stream is live and the GOP cache is
+  truncated waits for the next IDR (switching would lose the references);
+  with a complete cache it switches at once and re-feeds. Every check is
+  logged (`adapter check (…): keeping …` / `… switching at the next key frame`).
 * Test hook: the registered window message `"PhoneMirror.Video.Test"`
   (`wParam` 0 = simulated device removal, 1 = power-saving GPU, 2 = WARP,
   3 = automatic) runs exactly that path; `pm_video_test --test-at` posts it.
+  `wParam` 20–26 inject faults (see *Watchdog*).
+
+### Watchdog and diagnostics (0.6.2)
+
+Background: a friend's iPad (AirPlay, HEVC 2560x1440) froze for good after
+Win+Shift+S while the sound went on. Measured with an iOS-like stream (HEVC
+1440p60, IDR every 60 s, `testdata/ios_like.h265`): the HEVC Video Extensions
+(DXVA) **drop every picture whose references are missing**
+(`CODECAPI_AVDecVideoDropPicWithMissingRef` is not settable on it; it is
+still set to FALSE for MFTs that accept it). So in 0.6.1 *any* event that
+restarted the decoder or lost an AU mid-GOP — a render thread blocked
+≥ 0.5 s (queue overflow → dropped AUs), a device loss / TDR, a GPU switch on
+`WM_DISPLAYCHANGE`, the HW→SW fallback with a GOP longer than 5 s — froze the
+picture until iOS's next IDR, i.e. for up to a minute or for the rest of the
+session. The likely trigger here: the Snipping overlay (screen capture + DWM
+transition) blocked Present / the GPU long enough to overflow the 32-AU
+queue. No log existed to tell (the `[video]` lines went only to stderr).
+
+* **Logging**: `VideoWindow::setLogHandler(fn)` gets every `[video]` /
+  `[video-watchdog]` line; the app writes them to `phonemirror.log` (levels
+  `video` / `video-watchdog`; the log is rotated to `phonemirror.old.log` at
+  8 MB on start). While AUs arrive, a monitor thread logs one line per 5 s:
+
+  `5s: AU in 300 drop 0 skip 0 | fed 300 > MFT 300 > pictures 300 (hw) | presented 300 (ok 300, occluded 0, failed 0, last 0x00000000; frame-wait timeouts 0) | queue 0 | last IDR 12.0 s ago, GOP 720`
+
+  (`skip` = AUs ignored while waiting for an IDR, `MFT` = pictures the decoder
+  produced, `pictures` = reached the renderer). Event lines: decoder open
+  (and its missing-reference policy), output format / stream change, decode
+  errors, AU dropping and catching up, GOP cache overflow on a re-feed, device
+  loss (+ reason) and re-creation, adapter checks, `Present` failures and
+  `DXGI_STATUS_OCCLUDED` ↔ `S_OK` transitions, and — from the monitor thread
+  — `render thread busy in <stage> for N s` when the worker is stuck outside
+  its idle wait for > 3 s (it cannot report that itself). The monitor sleeps
+  while no stream is live (no idle wake-ups).
+* **(a) Decoder stall**: AUs are fed (≥ 8) but no picture came out for
+  1.5 s → `[video-watchdog] no picture decoded …` (decoder name, MFT in / out /
+  errors, last IDR age, GOP cache), reopen the decoder and re-feed the GOP
+  cache (only the newest picture is copied); the 2nd time within a minute in
+  software (DXVA is tried again at an IDR ≥ 30 s later: SW HEVC cannot do
+  1440p60). No key frame kept: wait for the next IDR. If the references are
+  known to be lost (AUs dropped, cache truncated) a second restart cannot
+  help: logged once (`keeping the last picture until the next IDR`).
+  "Too many decode errors" re-feeds the cache instead of waiting for an IDR.
+* **(b) Present stall**: pictures decoded but none presented (Present not
+  called / failing, no render target) for 1.5 s → re-create the swap chain
+  (`Renderer::recreateSwapChain`, same device, the current picture stays) and
+  present the newest picture; a second time within 10 s → the whole device.
+  A swap chain whose frame-latency waitable times out for 1.5 s while frames
+  are presented gets a new swap chain at most every 30 s. Not while minimized,
+  hidden, idle or paused.
+* **(c) Occlusion**: on `DXGI_STATUS_OCCLUDED` decoding continues at full
+  rate, new pictures are presented every 100 ms without waiting for the
+  waitable (it may not be signalled while occluded); the first `S_OK` restores
+  the full rate. `Present`'s `copyIn` GPU wait is bounded (1 s, logged) so a
+  hung GPU cannot block the thread forever.
+* `PM_VIDEO_WATCHDOG=0` restores the 0.6.1 behaviour (no watchdog, 32-AU
+  drop, 5 s GOP cache, immediate GPU switch, no occlusion pacing); the
+  diagnostics stay. Used for the before/after runs below.
 
 ## Build
 
@@ -408,7 +478,21 @@ pm_video_test.exe portrait_rotate.h264 --minutes 61 --report 60 --size 480,640
 pm_video_test.exe portrait_rotate.h264 --churn 300 --alt portrait.h265 --churn-loss 10
 :: decoder MFT open/close leak isolation (handle types per object type)
 pm_video_test.exe portrait_rotate.h264 --decoder-cycles 50
+:: watchdog fault injection on the off-screen window, 0.6.1 behaviour vs 0.6.2:
+:: decoder output swallowed at 10 s, freeze intervals + pictures after the fault
+pm_video_test.exe ios_like.h265 --offscreen --freeze-report --test-at 10000:20:0 [--watchdog off]
 ```
+
+Fault codes for `--test-at T:C:A` (lParam A): 20 decoder swallows its output
+(A more HW instances do too), 21 `Present` reports `DXGI_STATUS_OCCLUDED`
+for A ms, 22 `Present` calls swallowed (stuck swap chain), 23 render thread
+blocked A ms, 24 next A non-IDR AUs dropped, 26 display change after which
+the power-saving GPU is preferred. `--display-change-at T` posts a real
+`WM_DISPLAYCHANGE`; `--cover-at T:MS` puts an opaque topmost layered window
+over the (off-screen) test window; `--freeze-report` prints every interval in
+which AUs arrived but no picture was presented. `ios_like.h265` /
+`ios_like.h264`: 75 s testsrc2 at 60 fps, IDR at 0 and 60 s only (`make.ps1`;
+gitignored).
 
 `make.ps1` produces `portrait_rotate.h264` (1170x2532 → 2532x1170 → 1170x2532,
 2 s each, 60 fps, in-band SPS/PPS per segment) and `portrait.h265` (1170x2532,
@@ -551,7 +635,37 @@ Screenshots: `a_idle_hints` (two hint lines + check boxes + link),
 `a_idle_after` (540x960, 75 %); `a_n_idle_hints`, `a_n_bgra_frame` (400x800);
 `a_l_idle_hints`, `a_l_bgra_frame` (1280x720, 50 %).
 
+### Watchdog before / after (2026-10-08, RTX 3060 Ti + UHD 770, off-screen window)
+
+`ios_like.h265` (HEVC 2560x1440@60, IDR at 0 / 60 s), fault at 10 s (40 s
+where noted), `--freeze-report`; "freeze" = longest time AUs arrived but no
+new picture was presented; 0.6.1 = `--watchdog off`.
+
+| Fault | 0.6.1 | 0.6.2 |
+|---|---|---|
+| render thread blocked 1.5 s (23) | 58 AUs dropped → **48.8 s** frozen (until the IDR) | no drop, catches up: 1.6 s (= the block) |
+| device removal + `WM_DISPLAYCHANGE` (0) | **50.1 s** | 0.9 s (583 AUs re-fed in 633 ms) |
+| display change → other GPU (26) | **50.0 s** | 1.0 s (re-feed); at 40 s (cache truncated): switch deferred to the IDR, 0.3 s |
+| decoder swallows its output (20) | never recovers (66 s, end of run) | 1.5 s detection + 0.7 s re-feed, then 60 fps |
+| … and the next HW instance too (20:1) | never recovers | 2nd restart in software: 9.2 s (4 s SW re-feed, SW HEVC 1440p < 60 fps), DXVA again at the next IDR |
+| `Present` swallowed (22) | never recovers | 1.5 s, swap chain re-created, picture 4 ms later |
+| `DXGI_STATUS_OCCLUDED` 5 s (21) | no freeze, 60 fps while occluded | no freeze, 10 fps while occluded, full rate at the first `S_OK` |
+| covering topmost layered window 3 s | no freeze (DWM reported no occlusion for the off-screen window) | same |
+| H.264 1080p, device removal | 0.26 s (the MS H.264 MFT conceals missing references) | 1.2 s (full re-feed) |
+| 5 non-IDR AUs lost (24) | 50.3 s | 50.3 s: references lost, logged, waits for the IDR |
+| device removal at 40 s (GOP > 30 s cache) | 20.1 s | 18.5 s: same limit, logged |
+
+Regressions: `--android` 12/12 PASS, `--demo-ui2` ok, 3 min soak (private
+154–159 MB, handles 656–664 flat, 0 drops), `--sync 150 --jitter 40` |p95|
+1.9 ms, GPU switch hooks 0/1/2/3 recover, no watchdog action in any of them.
+
 ## Known gaps
+
+* Lost reference AUs, or a decoder restart more than 30 s (cache) after the
+  last IDR, still freeze an HEVC stream until the next IDR (AirPlay has no
+  key-frame request); now only after a ≥ 10 s render-thread stall or a real
+  device loss, and logged. The real Snipping overlay was not reproduced
+  (owner at the PC); its effect is simulated by faults 21–23.
 
 * Device-loss recovery is verified through the test hook (same code path as a
   real removal, including real GPU switches NVIDIA ↔ Intel iGPU ↔ WARP); a
