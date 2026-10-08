@@ -30,9 +30,11 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 - 🍎 **iPhone / iPad 免裝 App**：控制中心 →「螢幕鏡像」→ 選「自在投影」，畫面和聲音就過來了（AirPlay）。
 - 🤖 **Android 兩種連法**：手機內建的「投放／Smart View」（Miracast），或掃 QR 碼用「無線偵錯」連線——**可以用電腦的滑鼠、鍵盤直接操控手機**。
 - ⚡ **低延遲**：電腦端從解碼到顯示約 **3 ms**（H.264 硬體解碼，開發者實測）；最高 **3840×2160（4K）/ 60 fps**（H.265）。
-- ⏺ **錄影・截圖**：一鍵錄成 MP4（含聲音）、截成 PNG；實測錄影影音偏差 0.2 ms。
-- 🎨 **用起來舒服**：iPhone 外框、旋轉、4 種主題、多支手機接手、PIN 碼、系統匣常駐、開機自動啟動、一鍵更新；介面有**繁體中文與英文**。
-- 🔒 **資料不出你家網路**：畫面只在區域網路裡傳；沒有遙測、不用帳號。唯一的對外連線是檢查更新（[詳見隱私說明](#privacy)）。
+- ⏺ **錄影・截圖・傳到手機**：一鍵錄成 MP4（含聲音）、截成 PNG；實測錄影影音偏差 0.2 ms。截好的檔案可以**一次勾選多張傳到手機**。
+- 🔍 **放大鏡**：最多放大 8 倍，加上弱視濾鏡（加強對比、黑白、反轉、黃字黑底）與凍結畫面。
+- 🈯 **畫面翻譯**：把畫面上的英文、日文、韓文、簡體中文翻成繁體中文（或英文、日文、韓文），手機相機拍到的包裝、招牌、菜單也行；**內建文字辨識（OCR），在電腦上離線執行，文字不會上傳**。
+- 🎨 **用起來舒服**：iPhone 外框、旋轉、4 種主題、多支手機接手、PIN 碼、系統匣常駐、開機自動啟動、一鍵更新；介面有**繁體中文、英文、日文、韓文**。
+- 🔒 **資料不出你家網路**：畫面只在區域網路裡傳；沒有遙測、不用帳號。平常唯一的對外連線是檢查更新；翻譯模型只在你同意後下載一次（[詳見隱私說明](#privacy)）。
 - 🆓 **免費、開源（GPL-3.0）、沒有廣告**。
 
 ## 🚀 3 步驟開始
@@ -47,6 +49,18 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
    - **Android（要用電腦操控）**：手機開「開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置」，掃電腦上「顯示 Android QR 碼」的 QR 碼。之後只要無線偵錯開著就會自動連回來。
 
 <div align="center"><img src="docs/readme/phone-pc.png" alt="左邊是手機，右邊是電腦上的自在投影視窗，透過同一個 Wi‑Fi 連線" width="760"></div>
+
+## 🆕 v0.7.2 新功能
+
+| | |
+|---|---|
+| 🔍 **放大鏡** | 最多放大 8 倍（Ctrl+滾輪，工具列 1× → 2× → 4×），右下角小地圖可拖曳移動；弱視濾鏡：加強對比、黑白、反轉、黃字黑底（Ctrl+K 切換）；凍結畫面（Ctrl+P）。 |
+| 🈯 **畫面翻譯** | Ctrl+L 離線翻譯畫面上的英文、日文、韓文、簡體中文，手機相機拍的包裝、招牌、菜單也能辨識；譯文直接蓋在原文上，不會互相重疊。可框選範圍、顯示原文、連續翻譯，翻成繁體中文、英文、日文或韓文。**翻譯和文字辨識（內建 OCR）都在這台電腦上進行，文字不會上傳**；第一次使用前會先詢問，再下載模型。 |
+| 📤 **傳到手機（一次多張）** | 截圖或錄影後點「傳到手機」，一次勾選多個檔案傳送。用無線偵錯連線的 Android 直接存進相簿；iPhone 等手機掃 QR 碼即可儲存（同一個 Wi‑Fi）。也可以開啟「截圖／錄影後自動傳到手機」。 |
+| 🌐 **日文・韓文介面** | 介面和安裝程式新增日本語與한국어（設定 → 語言 / Language）。 |
+| 🔔 **更新通知視窗** | 顯示這次更新了什麼，可立即更新、稍後提醒或略過這個版本；投影中不會打擾。 |
+
+完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
 
 ## 🧩 功能一覽
 
@@ -69,7 +83,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 <tr>
 <td valign="top"><img src="docs/readme/features/f-takeover.jpg" alt="多支手機接手"><br><b>👥 多支手機接手</b><br>新手機連線時可以「接手」或「保持目前」，家人朋友輪流投影不用重開。</td>
 <td valign="top"><img src="docs/readme/features/f-pin.jpg" alt="PIN 碼"><br><b>🔒 連線 PIN 碼</b><br>開啟後新的 iPhone 要輸入電腦上顯示的 4 位數 PIN 才能投影（成功過的會記住）。<sub>圖為示意。</sub></td>
-<td valign="top"><img src="docs/readme/features/f-language.jpg" alt="繁體中文與英文介面"><br><b>🌐 繁體中文／English</b><br>介面可切換繁體中文或英文（設定 → 語言 / Language），預設跟隨 Windows 的顯示語言。</td>
+<td valign="top"><img src="docs/readme/features/f-language.jpg" alt="繁體中文與英文介面"><br><b>🌐 繁體中文／English／日本語／한국어</b><br>介面可切換繁體中文、英文、日文或韓文（設定 → 語言 / Language），預設跟隨 Windows 的顯示語言。</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-menu.jpg" alt="選單與系統匣"><br><b>🧰 選單・系統匣・自動更新</b><br>關閉視窗縮到系統匣待命、開機自動啟動、視窗置頂、全螢幕；有新版時選「更新到 vX.Y.Z」一鍵更新（不會自己偷偷更新）。</td>
@@ -140,6 +154,8 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 | Ctrl+→ / Ctrl+← | 旋轉 90° | Ctrl+H | 左右翻轉 |
 | Ctrl+F | iPhone 外框 | Ctrl+0 | 還原畫面 |
 | Ctrl+T | 視窗置頂 | 右鍵 | 完整選單（Android 畫面上是「返回」，選單請用工具列「更多」） |
+| Ctrl+滾輪 | 放大鏡（最多 8 倍） | Ctrl+K | 弱視濾鏡 |
+| Ctrl+P | 凍結畫面 | Ctrl+L | 畫面翻譯 |
 
 <a id="faq"></a>
 
@@ -193,7 +209,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 <details>
 <summary><b>有 Mac 或 Linux 版嗎？有英文介面嗎？</b></summary>
 
-目前只有 Windows 10 / 11（64 位元）。介面有繁體中文與英文：設定 →「語言 / Language」，預設跟隨 Windows 的顯示語言。
+目前只有 Windows 10 / 11（64 位元）。介面有繁體中文、英文、日文、韓文：設定 →「語言 / Language」，預設跟隨 Windows 的顯示語言。
 </details>
 
 <details>
@@ -222,10 +238,12 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 - **畫面、聲音、錄影、截圖都只在你的區域網路與電腦裡**，不經過任何伺服器。
 - **沒有遙測、沒有分析、沒有廣告、不用帳號。**
-- 程式唯一主動連上網際網路的地方是**檢查更新**（程式碼：`app/updater.cpp`）：
+- 程式平常唯一主動連上網際網路的地方是**檢查更新**（程式碼：`app/updater.cpp`；另外只有在你同意時才會下載翻譯模型，見下方）：
   - 開啟後 30 秒一次、之後每 24 小時一次，以及你按「檢查更新」時，向 `https://github.com/victor900106/ZizaiCast/releases/latest/download/update.json` 發出一個 HTTPS GET（只帶一般的 HTTP 標頭，User-Agent `ZizaiProjection-Updater/1.0`，不帶任何裝置資訊）。
   - 只有在你按下「更新到 vX.Y.Z」時，才會從清單裡的網址（`https://victor900106.github.io/ZizaiCast/download/`，速度比 Releases 快）下載安裝程式，並以 SHA-256 驗證後執行。
   - 不想檢查更新：在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=`（留空）即可完全關閉。
+- **畫面翻譯完全在電腦上離線執行**（程式碼：`translate/`）：畫面和文字都不會上傳。第一次使用前會先詢問，你同意後才下載模型：翻譯模型（Firefox Translations，約 50 MB）來自 `firefox-settings-attachments.cdn.mozilla.net`／`firefox.settings.services.mozilla.com`，文字辨識模型（PaddleOCR，約 37 MB）來自 `www.modelscope.cn`；每個檔案都以 SHA-256 驗證，可以在「管理翻譯模型」刪除。不同意的話不會連線。
+- **傳到手機只在區域網路**（程式碼：`share/`）：Android 經無線偵錯直接傳進相簿；其他手機掃 QR 碼，從這台電腦上暫時開啟的網頁下載（只接受同一個區域網路的連線），不經過任何伺服器。
 - 其他網路活動都在區域網路內：AirPlay 的裝置探索（mDNS）與串流、Miracast（Windows 內建）、Android 無線偵錯（程式自帶的 adb，只連你配對的手機）。
 - 設定與記錄檔存在 `%LOCALAPPDATA%\PhoneMirror`（`settings.ini`、`phonemirror.log`），只在你的電腦上。
 
