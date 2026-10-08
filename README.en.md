@@ -15,7 +15,7 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 [![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011%20(64--bit)-BBA9F7?logo=windows)](#requirements)
 [![C++](https://img.shields.io/badge/made%20with-C%2B%2B20-6b7fd7?logo=cplusplus)](#build)
 
-<a href="https://github.com/victor900106/ZizaiCast/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20Download-Windows%20installer-F5A7A7?style=for-the-badge" alt="Download the Windows installer" height="44"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20Download-Windows%20installer-F5A7A7?style=for-the-badge" alt="Download the Windows installer" height="44"></a>
 
 <img src="docs/readme/demo-en.gif" alt="Demo: waiting → iPhone connects → mirroring → phone turned sideways → toolbar → screenshot" width="760">
 
@@ -39,7 +39,7 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 
 <img src="docs/readme/steps-en.png" alt="1. Open Control Center, tap Screen Mirroring 2. Pick 自在投影 3. Your phone appears on the PC" width="100%">
 
-1. **Install** — download the latest `zizai-setup-<version>.exe` from [Releases](https://github.com/victor900106/ZizaiCast/releases/latest) and run it (no admin rights needed). When Windows Firewall asks on first start, allow **Private networks**.
+1. **Install** — [download the latest installer](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) (fast mirror; also on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest) as `zizai-setup-<version>.exe`) and run it (no admin rights needed). When Windows Firewall asks on first start, allow **Private networks**.
 2. **Same Wi‑Fi** — phone and PC on the same network (not a guest network; turn VPNs off).
 3. **Connect**
    - **iPhone / iPad:** Control Center → *Screen Mirroring* → **Zizai Cast**.
@@ -114,7 +114,7 @@ End-to-end latency also includes the phone's encoder and Wi‑Fi, which we don't
 
 | Download | |
 |---|---|
-| [**`zizai-setup-<version>.exe`**](https://github.com/victor900106/ZizaiCast/releases/latest) | The Windows installer — for most people. No admin rights; installs to a “Zizai Cast” folder on the Desktop by default (“手機投影” in Chinese). |
+| [**`zizai-setup-<version>.exe`**](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) ([Releases backup](https://github.com/victor900106/ZizaiCast/releases/latest)) | The Windows installer — for most people. No admin rights; installs to a “Zizai Cast” folder on the Desktop by default (“手機投影” in Chinese). |
 | `ZizaiCast-<version>-source.zip` | Complete source of that version + build instructions (same release page) |
 | `ZizaiCast-<version>-deps-source.zip` | Sources of the bundled libraries (OpenSSL, libplist, FFmpeg …) |
 
@@ -216,7 +216,7 @@ Windows 10 / 11 (64-bit) only for now. The interface is English or Traditional C
 - **No telemetry, no analytics, no ads, no account.**
 - The only internet access is the **update check** (source: `app/updater.cpp`):
   - 30 s after start, then every 24 h, and when you click *Check for updates*: one HTTPS GET to `https://github.com/victor900106/ZizaiCast/releases/latest/download/update.json` with ordinary HTTP headers (User-Agent `ZizaiProjection-Updater/1.0`), no device information.
-  - Only when you click *Update to vX.Y.Z* is the installer from that manifest downloaded, verified with SHA-256 and run.
+  - Only when you click *Update to vX.Y.Z* is the installer downloaded from the URL in that manifest (`https://victor900106.github.io/ZizaiCast/download/`, faster than release assets), verified with SHA-256 and run.
   - To turn it off completely, add the line `update_url=` (empty) to `%LOCALAPPDATA%\PhoneMirror\settings.ini`.
 - Everything else is local-network traffic: AirPlay discovery (mDNS) and streaming, Miracast (built into Windows), Android wireless debugging (the bundled adb talks only to phones you paired).
 - Settings and the log file live in `%LOCALAPPDATA%\PhoneMirror` on your PC.
@@ -277,6 +277,6 @@ Zizai Cast stands on the shoulders of:
 
 **Useful? Hit ⭐ Star at the top right so more people can find Zizai Cast!**
 
-[Download](https://github.com/victor900106/ZizaiCast/releases/latest) ・ [Report a bug](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [Request a feature](https://github.com/victor900106/ZizaiCast/issues/new/choose)
+[Download](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) ・ [Report a bug](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [Request a feature](https://github.com/victor900106/ZizaiCast/issues/new/choose)
 
 </div>

@@ -15,7 +15,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 [![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011%20(64--bit)-BBA9F7?logo=windows)](#requirements)
 [![C++](https://img.shields.io/badge/made%20with-C%2B%2B20-6b7fd7?logo=cplusplus)](#build)
 
-<a href="https://github.com/victor900106/ZizaiCast/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F-F5A7A7?style=for-the-badge" alt="免費下載 Windows 安裝程式" height="44"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F-F5A7A7?style=for-the-badge" alt="免費下載 Windows 安裝程式" height="44"></a>
 
 <img src="docs/readme/demo-zh.gif" alt="示範：等待連線 → iPhone 連上 → 鏡像 → 手機轉橫向 → 工具列 → 截圖" width="760">
 
@@ -39,7 +39,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <img src="docs/readme/steps.png" alt="1. iPhone 打開控制中心點螢幕鏡像 2. 選擇自在投影 3. 電腦上出現手機畫面" width="100%">
 
-1. **下載安裝**：到 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest) 下載最新的 `zizai-setup-<版本>.exe`，點兩下安裝（不需要系統管理員權限）。第一次開啟時 Windows 防火牆詢問，請勾「私人網路」並按「允許」。
+1. **下載安裝**：[直接下載最新版安裝程式](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（快速下載點；也可以到 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest) 下載 `zizai-setup-<版本>.exe`），點兩下安裝（不需要系統管理員權限）。第一次開啟時 Windows 防火牆詢問，請勾「私人網路」並按「允許」。
 2. **手機和電腦連同一個 Wi‑Fi**（不是訪客網路；先關掉 VPN）。
 3. **連線**
    - **iPhone / iPad**：控制中心 →「螢幕鏡像」→「自在投影」。
@@ -114,7 +114,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 | 下載 | 說明 |
 |---|---|
-| [**`zizai-setup-<版本>.exe`**](https://github.com/victor900106/ZizaiCast/releases/latest) | Windows 安裝程式，一般使用者請下載這個。免系統管理員權限，預設裝在桌面的「手機投影」資料夾（英文版為「Zizai Cast」）。 |
+| [**`zizai-setup-<版本>.exe`**](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（[Releases 備用](https://github.com/victor900106/ZizaiCast/releases/latest)） | Windows 安裝程式，一般使用者請下載這個。免系統管理員權限，預設裝在桌面的「手機投影」資料夾（英文版為「Zizai Cast」）。 |
 | `ZizaiCast-<版本>-source.zip` | 該版本的完整原始碼＋建置說明（在同一個 Release 頁面） |
 | `ZizaiCast-<版本>-deps-source.zip` | 安裝程式內含函式庫的原始碼（OpenSSL、libplist、FFmpeg…） |
 
@@ -224,7 +224,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 - **沒有遙測、沒有分析、沒有廣告、不用帳號。**
 - 程式唯一主動連上網際網路的地方是**檢查更新**（程式碼：`app/updater.cpp`）：
   - 開啟後 30 秒一次、之後每 24 小時一次，以及你按「檢查更新」時，向 `https://github.com/victor900106/ZizaiCast/releases/latest/download/update.json` 發出一個 HTTPS GET（只帶一般的 HTTP 標頭，User-Agent `ZizaiProjection-Updater/1.0`，不帶任何裝置資訊）。
-  - 只有在你按下「更新到 vX.Y.Z」時，才會下載清單中的安裝程式，並以 SHA-256 驗證後執行。
+  - 只有在你按下「更新到 vX.Y.Z」時，才會從清單裡的網址（`https://victor900106.github.io/ZizaiCast/download/`，速度比 Releases 快）下載安裝程式，並以 SHA-256 驗證後執行。
   - 不想檢查更新：在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=`（留空）即可完全關閉。
 - 其他網路活動都在區域網路內：AirPlay 的裝置探索（mDNS）與串流、Miracast（Windows 內建）、Android 無線偵錯（程式自帶的 adb，只連你配對的手機）。
 - 設定與記錄檔存在 `%LOCALAPPDATA%\PhoneMirror`（`settings.ini`、`phonemirror.log`），只在你的電腦上。
@@ -285,6 +285,6 @@ https://github.com/victor900106/ZizaiCast/releases
 
 **覺得好用嗎？按右上角的 ⭐ Star，讓更多人找到自在投影！**
 
-[下載最新版](https://github.com/victor900106/ZizaiCast/releases/latest) ・ [回報問題](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [功能建議](https://github.com/victor900106/ZizaiCast/issues/new/choose)
+[下載最新版](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) ・ [回報問題](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [功能建議](https://github.com/victor900106/ZizaiCast/issues/new/choose)
 
 </div>
