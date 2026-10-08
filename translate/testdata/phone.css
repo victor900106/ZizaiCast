@@ -1,0 +1,36 @@
+/* Synthetic iPhone-style screens (390x844 CSS px, rendered at 3x = 1170x2532). */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 390px; height: 844px; overflow: hidden; background: #f2f2f7; color: #000; position: relative;
+       font-family: "Segoe UI", "Yu Gothic UI", "Malgun Gothic", sans-serif; }
+.ja { font-family: "Yu Gothic UI", "Meiryo UI", sans-serif; }
+.ko { font-family: "Malgun Gothic", sans-serif; }
+.status { height: 47px; display: flex; justify-content: space-between; align-items: center; padding: 0 30px;
+          font-weight: 600; font-size: 16px; }
+h1 { font-size: 32px; font-weight: 700; padding: 6px 18px 10px; }
+.search { margin: 0 16px 14px; background: #e3e3e8; border-radius: 10px; padding: 8px 12px; color: #8a8a8e; font-size: 16px; }
+.group { background: #fff; margin: 0 16px 22px; border-radius: 11px; overflow: hidden; }
+.row { display: flex; align-items: center; min-height: 46px; padding: 0 14px; border-bottom: 0.5px solid #d6d6db; font-size: 16px; }
+.row:last-child { border-bottom: none; }
+.ic { width: 29px; height: 29px; border-radius: 7px; margin-right: 13px; flex: none; }
+.row .val { margin-left: auto; color: #8a8a8e; font-size: 15px; }
+.tog { margin-left: auto; width: 51px; height: 31px; border-radius: 16px; background: #34c759; position: relative; }
+.tog::after { content: ""; position: absolute; right: 2px; top: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; }
+.banner { position: absolute; left: 10px; right: 10px; top: 52px; background: rgba(250,250,250,.97); border-radius: 18px;
+          box-shadow: 0 4px 20px rgba(0,0,0,.18); padding: 12px 14px; font-size: 15px; }
+.banner b { display: block; font-size: 15px; margin-bottom: 2px; }
+.btn { display: block; text-align: center; border-radius: 12px; padding: 13px; font-size: 17px; font-weight: 600; margin: 8px 16px; }
+.blue { background: #007aff; color: #fff; } .yellow { background: #ffd814; color: #111; } .ghost { background: #fff; color: #007aff; }
+.card { background: #fff; margin: 0 16px 14px; border-radius: 12px; padding: 14px; font-size: 15px; line-height: 1.45; }
+.price { font-size: 26px; font-weight: 700; color: #b12704; }
+.muted { color: #6b6b70; font-size: 14px; }
+.bubble { max-width: 75%; padding: 9px 13px; border-radius: 18px; margin: 6px 14px; font-size: 16px; line-height: 1.35; }
+.in { background: #fff; } .out { background: #fee500; margin-left: auto; }
+.chat { display: flex; flex-direction: column; }
+.alert { position: absolute; left: 52px; right: 52px; top: 330px; background: rgba(242,242,247,.98); border-radius: 14px;
+         text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.alert .t { font-weight: 600; font-size: 17px; padding: 18px 16px 4px; } .alert .m { font-size: 13px; padding: 0 16px 16px; }
+.alert .b { border-top: 0.5px solid #c6c6c8; display: flex; } .alert .b div { flex: 1; padding: 11px; color: #007aff; font-size: 17px; }
+.alert .b div + div { border-left: 0.5px solid #c6c6c8; font-weight: 600; }
+.veil { position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+.tabbar { position: absolute; bottom: 0; left: 0; right: 0; height: 83px; background: #f9f9f9; border-top: 0.5px solid #c6c6c8;
+          display: flex; justify-content: space-around; padding-top: 8px; font-size: 11px; color: #8a8a8e; }
