@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 10 230 205"><g class="toutou" transform="rotate(-3 133 166)">
+    <ellipse cx="135" cy="194" rx="56" ry="6" fill="#000" opacity=".2"/>
+    
+    <g transform="translate(133,166) scale(1.12,0.88) translate(-133,-166)">
+    <clipPath id="cc157"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></clipPath>
+    <g transform="rotate(-8 186 74)"><circle cx="186" cy="74" r="5" fill="#8E7F86"/></g>
+    <g fill="#DBD0DB"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></g>
+    <g clip-path="url(#cc157)"><g fill="#FBF5F1" transform="translate(-7,-10)"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></g></g>
+    <rect x="86" y="68" width="11" height="17" rx="3.5" transform="rotate(-28 91 76)" fill="#fff"/>
+    <circle cx="103" cy="66" r="2.8" fill="#fff"/>
+    <circle cx="90" cy="151" r="6.5" fill="#F8BAC6"/>
+    <circle cx="168" cy="151" r="6.5" fill="#F8BAC6"/>
+    <path d="M98.25 139Q106 147.55 113.75 139" fill="none" stroke="#33262C" stroke-width="3.6" stroke-linecap="round"/><path d="M144.25 139Q152 147.55 159.75 139" fill="none" stroke="#33262C" stroke-width="3.6" stroke-linecap="round"/><path d="M126.15 150.9Q129 152.8 131.85 150.9" fill="none" stroke="#33262C" stroke-width="2.9160000000000004" stroke-linecap="round"/><g transform="translate(196,172) rotate(78)">
+    <linearGradient id="scr158" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bca6a8"/><stop offset="1" stop-color="#865e60"/></linearGradient>
+    
+    <rect x="-15" y="-24" width="30" height="48" rx="7" fill="#33262C" />
+    <rect x="-12" y="-21" width="24" height="42" rx="5" fill="url(#scr158)"/>
+    
+  </g><circle cx="183" cy="184" r="10" fill="#DBD0DB"/><circle cx="181.5" cy="182" r="8" fill="#FBF5F1"/></g>
+    <path d="M186 60h8.4l-8.4 8.4h8.4" fill="none" stroke="#FBF5F1" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/><path d="M199.2 50h6.72l-6.72 6.72h6.72" fill="none" stroke="#FBF5F1" stroke-width="2.69" stroke-linecap="round" stroke-linejoin="round"/><path d="M210 42h5.21l-5.21 5.21h5.21" fill="none" stroke="#FBF5F1" stroke-width="2.08" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

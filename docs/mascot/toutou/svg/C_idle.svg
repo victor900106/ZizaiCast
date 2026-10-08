@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 10 230 205"><g class="toutou" transform="rotate(-3 133 166)">
+    <ellipse cx="135" cy="194" rx="56" ry="6" fill="#000" opacity=".2"/>
+    
+    <g transform="translate(133,166) scale(1,1) translate(-133,-166)">
+    <clipPath id="cc143"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></clipPath>
+    <g transform="rotate(-8 186 74)"><circle cx="186" cy="74" r="5" fill="#F5A7A7"/><path d="M186 62A12 12 0 0 1 198 74" fill="none" stroke="#F5A7A7" stroke-width="4" stroke-linecap="round" opacity="0.8"/></g>
+    <g fill="#DBD0DB"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></g>
+    <g clip-path="url(#cc143)"><g fill="#FBF5F1" transform="translate(-7,-10)"><circle cx="116" cy="104" r="48" /><circle cx="172" cy="120" r="32" /><rect x="56" y="120" width="152" height="48" rx="24" /></g></g>
+    <rect x="86" y="68" width="11" height="17" rx="3.5" transform="rotate(-28 91 76)" fill="#fff"/>
+    <circle cx="103" cy="66" r="2.8" fill="#fff"/>
+    <circle cx="90" cy="151" r="6.5" fill="#F8BAC6"/>
+    <circle cx="168" cy="151" r="6.5" fill="#F8BAC6"/>
+    <ellipse cx="106" cy="139" rx="6.2" ry="9" fill="#33262C"/><circle cx="104.26" cy="135.58" r="2.3" fill="#fff"/><ellipse cx="152" cy="139" rx="6.2" ry="9" fill="#33262C"/><circle cx="150.26" cy="135.58" r="2.3" fill="#fff"/><path d="M123.78 148.05Q129 154.22 134.22 148.05" fill="none" stroke="#33262C" stroke-width="3.24" stroke-linecap="round"/><g transform="translate(214,132) rotate(12)">
+    <linearGradient id="scr144" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#facfcf"/><stop offset="1" stop-color="#F5A7A7"/></linearGradient>
+    
+    <rect x="-15" y="-24" width="30" height="48" rx="7" fill="#33262C" />
+    <rect x="-12" y="-21" width="24" height="42" rx="5" fill="url(#scr144)"/>
+    <path d="M-3 -5L5 0L-3 5Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" opacity=".95"/>
+  </g><circle cx="201" cy="144" r="10" fill="#DBD0DB"/><circle cx="199.5" cy="142" r="8" fill="#FBF5F1"/></g>
+    <path transform="translate(214,72) scale(0.8)" d="M0-6C.6-1.4 1.4-.6 6 0 1.4.6.6 1.4 0 6-.6 1.4-1.4.6-6 0-1.4-.6-.6-1.4 0-6Z" fill="#F5A7A7" opacity="0.9"/><path transform="translate(60,70) scale(0.55)" d="M0-6C.6-1.4 1.4-.6 6 0 1.4.6.6 1.4 0 6-.6 1.4-1.4.6-6 0-1.4-.6-.6-1.4 0-6Z" fill="#FBF5F1" opacity="0.5"/></g></svg>

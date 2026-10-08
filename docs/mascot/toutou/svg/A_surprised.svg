@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 10 230 205"><g class="toutou" transform="rotate(-3 133 166)">
+    <ellipse cx="135" cy="196" rx="62" ry="9" fill="#F5A7A7" opacity="0.28" filter="url(#ab38)"/>
+    
+    <g transform="translate(133,166) scale(0.92,1.09) translate(-133,-166)">
+    <defs>
+      <radialGradient id="a35" gradientUnits="userSpaceOnUse" cx="118" cy="70" r="125"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#FBF7F8"/><stop offset="1" stop-color="#E3DAE6"/></radialGradient>
+      <linearGradient id="ar41" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F5A7A7" stop-opacity="0"/><stop offset=".6" stop-color="#F5A7A7" stop-opacity=".55"/><stop offset="1" stop-color="#F5A7A7" stop-opacity=".85"/></linearGradient>
+      <filter id="ab38" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+      <filter id="ab239" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+      <filter id="ag40" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>
+      <clipPath id="ac37"><circle cx="86" cy="112" r="30" /><circle cx="132" cy="90" r="40" /><circle cx="178" cy="114" r="26" /><rect x="54" y="108" width="158" height="58" rx="29" /></clipPath>
+    </defs>
+    <g fill="url(#a35)"><circle cx="86" cy="112" r="30" /><circle cx="132" cy="90" r="40" /><circle cx="178" cy="114" r="26" /><rect x="54" y="108" width="158" height="58" rx="29" /></g>
+    <g clip-path="url(#ac37)">
+      <ellipse cx="140" cy="186" rx="100" ry="34" fill="#C9BCD3" opacity=".55" filter="url(#ab38)"/>
+      <path d="M150 168Q205 160 214 112" fill="none" stroke="url(#ar41)" stroke-width="9" filter="url(#ab239)"/>
+      <ellipse cx="116" cy="66" rx="22" ry="12" transform="rotate(-24 116 66)" fill="#fff" opacity=".95" filter="url(#ab239)"/>
+      <ellipse cx="80" cy="102" rx="9" ry="5" transform="rotate(-35 80 102)" fill="#fff" opacity=".8" filter="url(#ab239)"/>
+    </g>
+    <ellipse cx="96" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55" filter="url(#ab239)"/>
+    <ellipse cx="170" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55" filter="url(#ab239)"/>
+    <ellipse cx="111" cy="131" rx="8.54" ry="11.22" fill="#3A2830"/><circle cx="108.61" cy="126.73" r="3.33" fill="#fff"/><circle cx="114.25" cy="135.71" r="1.49" fill="#fff" opacity=".9"/><ellipse cx="155" cy="131" rx="8.54" ry="11.22" fill="#3A2830"/><circle cx="152.61" cy="126.73" r="3.33" fill="#fff"/><circle cx="158.25" cy="135.71" r="1.49" fill="#fff" opacity=".9"/><ellipse cx="133" cy="143" rx="3.8" ry="4.8" fill="#3A2830"/><g transform="translate(214,132) rotate(12)">
+    <linearGradient id="scr42" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#facfcf"/><stop offset="1" stop-color="#F5A7A7"/></linearGradient>
+    <rect x="-19" y="-28" width="38" height="56" rx="10" fill="#F5A7A7" opacity=".55" filter="url(#ag40)"/>
+    <rect x="-15" y="-24" width="30" height="48" rx="7" fill="#3A2830" />
+    <rect x="-12.4" y="-21.4" width="24.8" height="42.8" rx="5.4" fill="url(#scr42)"/>
+    <path d="M-3 -5L5 0L-3 5Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" opacity=".95"/>
+  </g><ellipse cx="49" cy="115.5" rx="11.5" ry="10.5" fill="#B9A9C4" opacity=".55" filter="url(#ab239)"/><circle cx="48" cy="112" r="10.5" fill="url(#a35)"/><circle cx="44.85" cy="108.325" r="3.675" fill="#fff" opacity=".7" filter="url(#ab239)"/><ellipse cx="202" cy="147.5" rx="11.5" ry="10.5" fill="#B9A9C4" opacity=".55" filter="url(#ab239)"/><circle cx="201" cy="144" r="10.5" fill="url(#a35)"/><circle cx="197.85" cy="140.325" r="3.675" fill="#fff" opacity=".7" filter="url(#ab239)"/></g>
+    <path d="M78 52L66 40" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/><path d="M96 40L90 26" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/><path d="M188 52L200 40" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/><path d="M170 40L176 26" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/></g></svg>

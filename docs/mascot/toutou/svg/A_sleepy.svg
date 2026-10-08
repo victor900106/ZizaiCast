@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 10 230 205"><g class="toutou" transform="rotate(-3 133 166)">
+    <ellipse cx="135" cy="196" rx="62" ry="9" fill="#F5A7A7" opacity="0.28" filter="url(#ab46)"/>
+    
+    <g transform="translate(133,166) scale(1.05,0.95) translate(-133,-166)">
+    <defs>
+      <radialGradient id="a43" gradientUnits="userSpaceOnUse" cx="118" cy="70" r="125"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#FBF7F8"/><stop offset="1" stop-color="#E3DAE6"/></radialGradient>
+      <linearGradient id="ar49" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F5A7A7" stop-opacity="0"/><stop offset=".6" stop-color="#F5A7A7" stop-opacity=".55"/><stop offset="1" stop-color="#F5A7A7" stop-opacity=".85"/></linearGradient>
+      <filter id="ab46" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+      <filter id="ab247" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+      <filter id="ag48" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>
+      <clipPath id="ac45"><circle cx="86" cy="112" r="30" /><circle cx="132" cy="90" r="40" /><circle cx="178" cy="114" r="26" /><rect x="54" y="108" width="158" height="58" rx="29" /></clipPath>
+    </defs>
+    <g fill="url(#a43)"><circle cx="86" cy="112" r="30" /><circle cx="132" cy="90" r="40" /><circle cx="178" cy="114" r="26" /><rect x="54" y="108" width="158" height="58" rx="29" /></g>
+    <g clip-path="url(#ac45)">
+      <ellipse cx="140" cy="186" rx="100" ry="34" fill="#C9BCD3" opacity=".55" filter="url(#ab46)"/>
+      <path d="M150 168Q205 160 214 112" fill="none" stroke="url(#ar49)" stroke-width="9" filter="url(#ab247)"/>
+      <ellipse cx="116" cy="66" rx="22" ry="12" transform="rotate(-24 116 66)" fill="#fff" opacity=".95" filter="url(#ab247)"/>
+      <ellipse cx="80" cy="102" rx="9" ry="5" transform="rotate(-35 80 102)" fill="#fff" opacity=".8" filter="url(#ab247)"/>
+    </g>
+    <ellipse cx="96" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55" filter="url(#ab247)"/>
+    <ellipse cx="170" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55" filter="url(#ab247)"/>
+    <clipPath id="lid50"><path d="M119.26 132.1Q111 134.86 102.74 133.21L102.74 149.4L119.26 149.4Z"/></clipPath><g clip-path="url(#lid50)"><ellipse cx="111" cy="131" rx="7" ry="9.2" fill="#3A2830"/></g><path d="M119.26 132.1Q111 134.86 102.74 133.21" fill="none" stroke="#3A2830" stroke-width="2.72" stroke-linecap="round"/><clipPath id="lid51"><path d="M146.74 132.1Q155 134.86 163.26 133.21L163.26 149.4L146.74 149.4Z"/></clipPath><g clip-path="url(#lid51)"><ellipse cx="155" cy="131" rx="7" ry="9.2" fill="#3A2830"/></g><path d="M146.74 132.1Q155 134.86 163.26 133.21" fill="none" stroke="#3A2830" stroke-width="2.72" stroke-linecap="round"/><ellipse cx="133" cy="142.4" rx="3" ry="3.4" fill="#3A2830"/><g transform="translate(200,154) rotate(28)">
+    <linearGradient id="scr52" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#facfcf"/><stop offset="1" stop-color="#F5A7A7"/></linearGradient>
+    <rect x="-19" y="-28" width="38" height="56" rx="10" fill="#F5A7A7" opacity=".55" filter="url(#ag48)"/>
+    <rect x="-15" y="-24" width="30" height="48" rx="7" fill="#3A2830" />
+    <rect x="-12.4" y="-21.4" width="24.8" height="42.8" rx="5.4" fill="url(#scr52)"/>
+    <path d="M-3 -5L5 0L-3 5Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" opacity=".95"/>
+  </g><ellipse cx="188" cy="169.5" rx="11.5" ry="10.5" fill="#B9A9C4" opacity=".55" filter="url(#ab247)"/><circle cx="187" cy="166" r="10.5" fill="url(#a43)"/><circle cx="183.85" cy="162.325" r="3.675" fill="#fff" opacity=".7" filter="url(#ab247)"/></g>
+    <path d="M194 64h6.3l-6.3 6.3h6.3" fill="none" stroke="#FFFFFF" stroke-width="2.34" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
