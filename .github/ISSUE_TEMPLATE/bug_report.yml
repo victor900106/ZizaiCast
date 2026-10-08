@@ -1,0 +1,81 @@
+name: 🐞 問題回報 Bug report
+description: 連不上、畫面或聲音異常、當掉… / Something doesn't work
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        謝謝回報！請先看 README 的「常見問題」與「目前的限制」（例如 iPhone 無法從電腦操控、DRM 影片黑畫面是手機端限制）。
+        Thanks! Please check the README FAQ / Known limits first. English is welcome.
+        ⚠️ 請勿貼出個人資料、截圖中的私人訊息或配對 QR 碼。 Please don't post personal data.
+  - type: input
+    id: version
+    attributes:
+      label: 自在投影版本 / App version
+      description: 系統匣選單最上面或「設定 → 檢查更新」會顯示，例如 0.5.3
+      placeholder: "0.5.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: 連線方式 / Connection
+      options:
+        - iPhone / iPad（AirPlay 螢幕鏡像）
+        - Android 投放 / Smart View（Miracast）
+        - Android 無線偵錯（掃 QR／配對碼）
+        - 與連線無關（安裝、更新、錄影、介面…）/ Not connection related
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: 手機型號與系統版本 / Phone model & OS
+      placeholder: "iPhone 15, iOS 18.1 / Galaxy S24, Android 15"
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本 / Windows version
+      description: 設定 → 系統 → 關於；Miracast 問題請一併提供 `netsh wlan show drivers` 中 Wireless Display Supported 那兩行
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: 網路 / Network
+      options:
+        - 家用 Wi‑Fi（同一台路由器）
+        - 電腦接網路線、手機 Wi‑Fi
+        - 公司／學校／宿舍網路
+        - 手機熱點
+        - 其他 / Other
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生了什麼？怎麼重現？ / What happened, steps to reproduce
+      placeholder: |
+        1. 打開自在投影
+        2. iPhone 控制中心 → 螢幕鏡像 → 自在投影
+        3. 轉圈後顯示「連線中斷」
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你預期的結果 / Expected
+  - type: textarea
+    id: log
+    attributes:
+      label: 記錄檔 / Log
+      description: |
+        `%LOCALAPPDATA%\PhoneMirror\phonemirror.log` 中出問題那段時間的內容（直接拖曳檔案進來也可以）。記錄檔只含連線狀態與裝置名稱，貼上前可自行刪除不想公開的部分。
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 確認 / Checklist
+      options:
+        - label: 手機和電腦在同一個網路，VPN 已關閉 / Same network, VPN off
+        - label: 已看過 README 的常見問題 / I read the FAQ

@@ -1,0 +1,39 @@
+name: 💡 功能建議 Feature request
+description: 想要新功能或改進 / Suggest an idea
+title: "[建議] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解決什麼問題？ / What problem would this solve?
+      placeholder: 例如：上課時想把學生的 Android 手機輪流投到投影機…
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎麼做？ / What would you like?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 相關部分 / Area
+      options:
+        - iPhone / iPad（AirPlay）
+        - Android 投放（Miracast）
+        - Android 無線偵錯／操控
+        - 錄影・截圖
+        - 介面・主題・語言
+        - 安裝・更新
+        - 其他 / Other
+  - type: textarea
+    id: alt
+    attributes:
+      label: 其他做法或參考 / Alternatives, references
+  - type: markdown
+    attributes:
+      value: |
+        自在投影是業餘維護的開源專案，建議會依需求數量與可行性排序；也歡迎直接發 Pull Request（見 CONTRIBUTING.md）。
+        This is a volunteer-run project; 👍 reactions on existing requests help us prioritise.

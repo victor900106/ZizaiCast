@@ -1,0 +1,19 @@
+name: 📦 原始碼索取 Source code request
+description: GPL-3.0 對應原始碼（Release 頁面拿不到時） / Corresponding Source when the release page isn't available to you
+title: "[Source] "
+labels: ["source-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        每個版本的 `ZizaiCast-<版本>-source.zip` 與 `-deps-source.zip` 都附在 Release 頁面。若你拿到的自在投影沒有附上這些檔案，請在這裡告訴我們版本，我們會提供（見 docs/licenses/SOURCE.md 的書面提供）。
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: 你從哪裡取得這個版本？ / Where did you get it?

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 常見問題 FAQ
+    url: https://github.com/victor900106/ZizaiCast#faq
+    about: 找不到電腦、防火牆、Miracast、無線偵錯… 先看這裡 / Common problems
+  - name: 📦 下載原始碼 Download source
+    url: https://github.com/victor900106/ZizaiCast/releases
+    about: 每個版本的完整原始碼 zip 都在 Release 頁面 / Source zips are attached to every release
