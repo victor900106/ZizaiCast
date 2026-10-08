@@ -154,6 +154,12 @@ struct AirPlayServer::Impl {
     std::string registerFile;               // empty = registration off (accept returning clients)
     std::vector<std::string> registeredKeys;  // base64 Ed25519 pks of clients that entered the PIN
     std::atomic<bool> pinShown{false};
+    // The iPhone closes the pair-pin-start connection, shows its PIN prompt and
+    // only reconnects (pair-setup-pin) after the user typed the PIN, so the PIN
+    // must outlive that connection: it stays up until pairing, a new PIN or
+    // kPinShowSec supervisor seconds.
+    static constexpr int kPinShowSec = 90;
+    std::atomic<int> pinSecondsLeft{0};
     std::atomic<bool> clientAnnounced{false};
 
     // multi-phone takeover: name of the admitted session's phone
@@ -263,6 +269,10 @@ struct AirPlayServer::Impl {
         while (!supQuit) {
             supCv.wait_for(lk, std::chrono::seconds(1));
             if (supQuit) break;
+            if (pinSecondsLeft.load() > 0 && --pinSecondsLeft == 0) {
+                log(LogLevel::Info, "PIN timed out (not entered within %d s)", kPinShowSec);
+                hidePin();
+            }
             if (!resetHttpd) {
                 // uxplay.cpp feedback_callback(), once per second
                 if (openConnections.load() > 0) {
@@ -545,7 +555,7 @@ struct AirPlayServer::Impl {
         if (n <= 0) {
             s->resetClock();
             if (s->audio) s->audio->onFlush();
-            s->hidePin();
+            // no hidePin(): the PIN is still needed while the user types it
             s->setCurrentClient(std::string());
             // Only after a client actually asked to connect (GET /info probes
             // from other Apple devices also open and close connections).
@@ -555,8 +565,9 @@ struct AirPlayServer::Impl {
     }
 
     void hidePin() {
+        pinSecondsLeft = 0;
         if (pinShown.exchange(false)) {
-            log(LogLevel::Info, "PIN no longer needed (paired or connection gone)");
+            log(LogLevel::Info, "PIN no longer needed (paired, cancelled or replaced)");
             if (events.onPin) events.onPin(std::string());
         }
     }
@@ -568,6 +579,7 @@ struct AirPlayServer::Impl {
         std::string p = pin ? pin : "";
         s->log(LogLevel::Info, "client must enter PIN %s on the iPhone", p.c_str());
         s->pinShown = true;
+        s->pinSecondsLeft = kPinShowSec;
         if (s->events.onPin) s->events.onPin(p);
     }
 
@@ -810,7 +822,10 @@ struct AirPlayServer::Impl {
     // nullptr; also on a full TEARDOWN) and/or had asked for a PIN.
     static void cbPmConnEnd(void* cls, const char* clientName, bool pinRequested) {
         auto* s = self(cls);
-        if (pinRequested) s->hidePin();  // newcomer cancelled the PIN while another phone mirrors
+        // pinRequested: the newcomer closed its pair-pin-start connection, which
+        // the iPhone always does before showing its PIN prompt; keep the PIN up
+        // (the supervisor hides it if the user cancelled).
+        (void)pinRequested;
         if (clientName) {
             std::lock_guard<std::mutex> lk(s->clientMutex);
             if (s->currentClient == clientName) s->currentClient.clear();
@@ -863,6 +878,7 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     s.missedFeedback = 0;
     s.badVideoFrames = 0;
     s.pinShown = false;
+    s.pinSecondsLeft = 0;
     s.clientAnnounced = false;
     s.setCurrentClient(std::string());
     s.currentVolumeDb = s.opts.initialVolumeDb;  // PM: remembered volume instead of uxplay's full volume
