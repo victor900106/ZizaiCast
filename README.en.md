@@ -32,9 +32,9 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 - ⚡ **Low latency** — about **3 ms** from decode to display on the PC (H.264 hardware decode, developer measurement); up to **3840×2160 (4K) at 60 fps** with H.265.
 - ⏺ **Record, screenshot, send to phone** — one click to MP4 (with audio) or PNG; 0.2 ms A/V offset measured in recording tests. **Send several captures to your phone at once.**
 - 🔍 **Magnifier** — zoom up to 8×, with low-vision colours (more contrast, greyscale, inverted, yellow on black) and a freeze button.
-- 🈯 **On-screen translation** — translates English, Japanese, Korean and Simplified Chinese on screen into English, Traditional Chinese, Japanese or Korean, even packaging, signs and menus seen through the phone camera. **Built-in text recognition (OCR) runs offline on your PC; no text is uploaded.**
-- 🎨 **Pleasant to use** — iPhone device frame, rotation, 4 themes, multi-phone takeover, PIN, tray icon, start with Windows, one-click updates; **English, Traditional Chinese, Japanese and Korean UI**.
-- 🔒 **Stays on your network** — the stream never leaves your LAN; no telemetry, no account. The only routine internet access is the update check; translation models are downloaded once, only after you agree ([details](#privacy)).
+- 🈯 **On-screen translation** — translates English, Japanese, Korean and Simplified Chinese on screen into English, Traditional Chinese, Japanese or Korean, even packaging, signs and menus seen through the phone camera. **Built-in text recognition (OCR) runs offline on your PC; no text is uploaded.** For better results, add the optional **on-device AI translation** (also runs on your PC), or turn on **online translation** with your own key.
+- 🎨 **Pleasant to use** — volume and mute on the toolbar, iPhone device frame, rotation, 4 themes, multi-phone takeover, PIN, tray icon, start with Windows, one-click updates; **English, Traditional Chinese, Japanese and Korean UI**.
+- 🔒 **Stays on your network** — the stream never leaves your LAN; no telemetry, no account. The only routine internet access is the update check; translation models are downloaded once, only after you agree, and online translation is off by default ([details](#privacy)).
 - 🆓 **Free, open source (GPL-3.0), no ads.**
 
 ## 🚀 Get started in 3 steps
@@ -50,17 +50,20 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 
 <div align="center"><img src="docs/readme/phone-pc-en.png" alt="A phone on the left, the Zizai Cast window on a Windows PC on the right, connected over the same Wi‑Fi" width="760"></div>
 
-## 🆕 New in v0.7.2
+## 🆕 New in v0.7.6
 
 | | |
 |---|---|
-| 🔍 **Magnifier** | Zoom up to 8× (Ctrl+wheel, toolbar 1× → 2× → 4×) with a draggable overview; low-vision colours: more contrast, greyscale, inverted, yellow on black (Ctrl+K); freeze the picture (Ctrl+P). |
-| 🈯 **On-screen translation** | Ctrl+L translates English, Japanese, Korean and Simplified Chinese offline, including packaging, signs and menus seen through the phone camera; translations sit over the original and never overlap. Translate a selected area, show the original, keep translating, into Traditional Chinese, English, Japanese or Korean. **Translation and text recognition (built-in OCR) run on this PC; no text is uploaded.** The app asks before downloading the models the first time. |
-| 📤 **Send to phone (several at once)** | After a screenshot or recording, click *Send to phone* and pick the files to send. An Android phone on wireless debugging gets them straight into its gallery; an iPhone or other phone scans a QR code to save them (same Wi‑Fi). Or turn on *Auto-send screenshots and recordings to phone*. |
-| 🌐 **Japanese and Korean UI** | The app and installer now also speak 日本語 and 한국어 (Settings → Language). |
-| 🔔 **Update window** | Shows what changed, with Update now, Remind me later or Skip this version; never pops up over a live mirror. |
+| 🧠 **On-device AI translation (optional)** | Translates Japanese and Korean directly, with more natural wording. Runs on this PC, no text is uploaded, and uses a dedicated graphics card when there is one. Downloaded only when you want it (about 1.3 GB, or 560 MB for the small model); remove it any time. |
+| 🌐 **Online translation (optional)** | Bring your own DeepL or Azure key. Off by default; only after you turn it on and agree is the recognised text (never the picture) sent to the service you picked. |
+| ⚡ **Live translation** | Replaces “Keep translating”: translates again only when the screen changes. Much faster on screens full of text, and text recognition can use the graphics card. |
+| 🈯 **More accurate** | Glossaries for Japanese, Korean and English (menus, stations, signs, app wording); ingredient lists item by item; tables as “label　value”; negations and numbers are checked, lines it is unsure of are marked, and a tap shows the original. @handles, #hashtags and links in social-media screenshots are kept. |
+| 🔊 **Volume and mute** | A volume slider and mute button on the toolbar (Ctrl+↑/↓/M). |
+| ❎ **Close button** | Choose whether closing the window minimizes to the tray or quits; your choice is remembered. Shorter menus, grouped into Settings, Android, Folders and Help. |
+| ⏬ **Faster downloads** | Models download over several connections, with speed and time left; they resume after an interruption and stop at once on Cancel. |
+| 📲 **Save all on iPhone** | The Send to phone page has *Download all (ZIP)*, so an iPhone gets every screenshot and recording at once too. |
 
-Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest).
+Plus many fixes (the picture freezing after translating, a black screen after Wi‑Fi drops, sound drifting after a pause and more). This release includes the unpublished 0.7.3–0.7.5. Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest).
 
 ## 🧩 Features
 
@@ -72,8 +75,8 @@ Full change list on [Releases](https://github.com/victor900106/ZizaiCast/release
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-send-en.jpg" alt="Send to phone: tick this session's screenshots and recordings"><br><b>📤 Send to phone — on the PC</b><br>After screenshots or recordings, click Send to phone and tick the files to send at once.</td>
+<td valign="top"><img src="docs/readme/features/f-phone-en.jpg" alt="Send to phone: the QR code on the PC and the download page on the phone"><br><b>📲 Send to phone — on the phone</b><br>Scan the QR code on an iPhone (same Wi‑Fi), tap Download all (ZIP) and follow the steps on the page to put them in Photos; over wireless debugging Android saves straight to the gallery. <sub>Phone frame drawn.</sub></td>
 <td valign="top"><img src="docs/readme/features/f-jako-en.jpg" alt="Japanese and Korean UI"><br><b>🌏 日本語 / 한국어 UI</b><br>The app and the installer now also speak Japanese and Korean (Settings → Language).</td>
-<td valign="top"></td>
 </tr>
 <tr>
 <td width="33%" valign="top"><img src="docs/readme/features/f-iphone-en.jpg" alt="iPhone mirroring"><br><b>🍎 iPhone / iPad mirroring</b><br>AirPlay screen mirroring with sound, no app on the phone. The iPhone's volume buttons set the PC volume.</td>
@@ -96,7 +99,7 @@ Full change list on [Releases](https://github.com/victor900106/ZizaiCast/release
 <td valign="top"><img src="docs/readme/features/f-language-en.jpg" alt="English and Traditional Chinese UI"><br><b>🌐 English / 繁體中文 / 日本語 / 한국어</b><br>Switch the UI language under Settings → Language (defaults to your Windows display language).</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/readme/features/f-menu-en.jpg" alt="Menu, tray and updates"><br><b>🧰 Menu, tray & updates</b><br>Closes to the tray, starts with Windows, always-on-top, fullscreen; one-click “Update to vX.Y.Z” when a new version exists (never updates by itself).</td>
+<td valign="top"><img src="docs/readme/features/f-menu-en.jpg" alt="Menu, tray and updates"><br><b>🧰 Menu, tray & updates</b><br>Closing the window minimizes to the tray or quits (your choice), starts with Windows, always-on-top, fullscreen; one-click “Update to vX.Y.Z” when a new version exists (never updates by itself).</td>
 <td valign="top"><img src="docs/readme/features/f-about-en.jpg" alt="About window"><br><b>📜 Open & transparent</b><br>“About Zizai Cast” shows the version, the GPL-3.0 licence, where the source lives and the open-source components; licence notices ship with the app.</td>
 <td valign="top"><img src="docs/readme/features/f-speed-en.jpg" alt="Measured numbers"><br><b>⚡ Low latency</b><br>≈3 ms decode → display on the PC; up to 4K at 60 fps. <a href="#measured">See the measurements</a>.</td>
 </tr>
@@ -166,6 +169,7 @@ End-to-end latency also includes the phone's encoder and Wi‑Fi, which we don't
 | Ctrl+T | Always on top | Right-click | Full menu (on an Android picture it is *Back*; use the toolbar's *More* ⋯ instead) |
 | Ctrl+wheel | Magnifier (up to 8×) | Ctrl+K | Low-vision colours |
 | Ctrl+P | Freeze the picture | Ctrl+L | On-screen translation |
+| Ctrl+↑ / Ctrl+↓ | Volume | Ctrl+M | Mute |
 
 <a id="faq"></a>
 
@@ -240,11 +244,13 @@ Windows 10 / 11 (64-bit) only for now. The interface is English, Traditional Chi
 
 - **Picture, sound, recordings and screenshots stay on your LAN and your PC.** No server is involved.
 - **No telemetry, no analytics, no ads, no account.**
-- The only routine internet access is the **update check** (source: `app/updater.cpp`; translation models are downloaded only if you agree, see below):
+- The only routine internet access is the **update check** (source: `app/updater.cpp`; translation models are downloaded and online translation is used only if you agree or turn it on, see below):
   - 30 s after start, then every 24 h, and when you click *Check for updates*: one HTTPS GET to `https://github.com/victor900106/ZizaiCast/releases/latest/download/update.json` with ordinary HTTP headers (User-Agent `ZizaiProjection-Updater/1.0`), no device information.
   - Only when you click *Update to vX.Y.Z* is the installer downloaded from the URL in that manifest (`https://victor900106.github.io/ZizaiCast/download/`, faster than release assets), verified with SHA-256 and run.
   - To turn it off completely, add the line `update_url=` (empty) to `%LOCALAPPDATA%\PhoneMirror\settings.ini`.
 - **On-screen translation runs entirely offline on your PC** (source: `translate/`): neither the picture nor the text is uploaded. The app asks before the first use and only then downloads the models: translation (Firefox Translations, about 50 MB) from `firefox-settings-attachments.cdn.mozilla.net` / `firefox.settings.services.mozilla.com`, text recognition (PaddleOCR, about 37 MB) from `www.modelscope.cn`; every file is checked with SHA-256 and can be removed under *Manage translation models*. If you decline, nothing is downloaded.
+- **On-device AI translation (optional) also runs on your PC**: only when you choose to download it, the app fetches the llama.cpp runtime (MIT) from `github.com` and a Qwen model (Apache-2.0) from `huggingface.co`, about 1.3 GB (560 MB for the small model); the add-on for text recognition on the graphics card comes from Microsoft's `api.nuget.org`. Every file is checked for size and SHA-256 and can be removed any time.
+- **Online translation (optional) is off by default** (source: `translate/src/online_engine*.cpp`): only after you turn it on, agree and enter your own DeepL or Azure key is the recognised text (never the picture) sent over HTTPS to the service you picked (`api.deepl.com` / `api-free.deepl.com` or `api.cognitive.microsofttranslator.com`). The key is encrypted with Windows DPAPI on this PC and never written to the log. Unless you turn it on, nothing is sent.
 - **Send to phone stays on your LAN** (source: `share/`): Android gets files over wireless debugging; other phones scan a QR code and download from a page this PC serves temporarily (only connections from the same local network are accepted). No server in between.
 - Everything else is local-network traffic: AirPlay discovery (mDNS) and streaming, Miracast (built into Windows), Android wireless debugging (the bundled adb talks only to phones you paired).
 - Settings and the log file live in `%LOCALAPPDATA%\PhoneMirror` on your PC.
@@ -298,6 +304,7 @@ Zizai Cast stands on the shoulders of:
 - [scrcpy](https://github.com/Genymobile/scrcpy) (the on-phone server for Android video and control) and Android [platform-tools (adb)](https://developer.android.com/tools/releases/platform-tools)
 - [FFmpeg](https://ffmpeg.org/) (AAC decoding), [OpenSSL](https://www.openssl.org/), [libplist](https://github.com/libimobiledevice/libplist), [pthreads4w](https://sourceforge.net/projects/pthreads4w/), Apple [ALAC](https://github.com/macosforge/alac), [llhttp](https://github.com/nodejs/llhttp)
 - [Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator), [Inno Setup](https://jrsoftware.org/isinfo.php)
+- On-screen translation: [Bergamot](https://github.com/browsermt/bergamot-translator) / [Firefox Translations](https://github.com/mozilla/translations), [ONNX Runtime](https://github.com/microsoft/onnxruntime), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), [llama.cpp](https://github.com/ggml-org/llama.cpp), [Qwen](https://github.com/QwenLM); glossary data from [Wikidata](https://www.wikidata.org) and the Traditional Chinese translations of GNOME, KDE, LibreOffice and Mozilla
 
 ---
 
