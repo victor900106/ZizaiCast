@@ -285,8 +285,8 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
 ------------------------------------------------------------------------------
 第二之四部分　程式另外下載的選用元件（不在安裝程式內，0.7.4）
 ------------------------------------------------------------------------------
-以下元件不由本專案散布，也不在安裝程式內：只有在使用者要使用該功能時
-（翻譯設定），程式才從各自的發布者下載，逐一檢查大小與 SHA-256
+以下元件不在安裝程式內：只有在使用者要使用該功能時（翻譯設定），程式才從
+各自的發布者下載（llama.cpp 執行環境自 0.7.7 起先從本專案未經修改的鏡像下載），逐一檢查大小與 SHA-256
 （translate/src/llm_engine_models.inc、translate/src/ocr_gpu.inc），存放在
 %LOCALAPPDATA%\PhoneMirror\models，可在該處或程式的模型管理中刪除。
 
@@ -300,6 +300,10 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
      另含　　：libomp.dll（LLVM OpenMP 執行環境），Apache-2.0 WITH
                LLVM-exception；授權檔 LICENSE-LLVM-OpenMP 一併解壓在旁。
      原始碼　：https://github.com/ggml-org/llama.cpp/tree/b11514
+     鏡像　　：0.7.7 起先從本專案未經修改的副本下載兩個 zip：
+               https://victor900106.github.io/ZizaiCast/addons/
+               （附 LICENSES.txt：MIT 全文；libomp 的授權在 CPU zip 內），
+               失敗時改用 GitHub release；兩者都檢查固定的 SHA-256。
 
 2d.2 Qwen 語言模型（本機 AI 翻譯），GGUF 檔
      Qwen3.5-2B（Q4_K_M，huggingface.co/unsloth/Qwen3.5-2B-GGUF）、

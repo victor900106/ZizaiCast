@@ -303,9 +303,9 @@ PART 2c — TEXT RECOGNITION onnxruntime.dll + PaddleOCR models (翻譯, 0.7.0)
 ------------------------------------------------------------------------------
 PART 2d — OPTIONAL ADD-ONS DOWNLOADED BY THE PROGRAM (NOT IN THE INSTALLER, 0.7.4)
 ------------------------------------------------------------------------------
-Not distributed by this project and not part of the installer: the program
-downloads them from their publishers only when the user asks for the add-on
-(翻譯 settings), checks every file's size and SHA-256
+Not part of the installer: the program downloads them only when the user
+asks for the add-on (翻譯 settings), from their publishers or (llama.cpp
+runtime, 0.7.7) from this project's unchanged mirror, checks every file's size and SHA-256
 (translate/src/llm_engine_models.inc, translate/src/ocr_gpu.inc) and stores
 them in %LOCALAPPDATA%\PhoneMirror\models. They can be removed there or in
 the program's model manager.
@@ -322,6 +322,11 @@ the program's model manager.
                  LLVM-exception; its licence file LICENSE-LLVM-OpenMP is
                  unpacked next to it.
      Source    : https://github.com/ggml-org/llama.cpp/tree/b11514
+     Mirror    : 0.7.7 and later try the unchanged copies of both zips at
+                 https://victor900106.github.io/ZizaiCast/addons/
+                 (with LICENSES.txt: the MIT text; libomp's licence is in
+                 the CPU zip) first and fall back to the GitHub release;
+                 the pinned SHA-256 is checked either way.
 
 2d.2 Qwen language models (local AI translation), GGUF files
      Qwen3.5-2B (Q4_K_M, huggingface.co/unsloth/Qwen3.5-2B-GGUF),
