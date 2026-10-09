@@ -408,3 +408,27 @@ void dnssd_pm_announce(dnssd_t *dnssd_public)
     dnssd = (dnssd_private_t *) dnssd_public->dnssd_private;
     mdnsd_announce(dnssd->mdnsd, MDNSD_TTL_SERVICE);
 }
+
+int dnssd_pm_build_raop_txt(dnssd_t *dnssd_public)
+{
+    if (!dnssd_public || !dnssd_public->dnssd_private) {
+        return -1;
+    }
+    return dnssd_build_raop_txt(dnssd_public);
+}
+
+int dnssd_pm_raop_registered(dnssd_t *dnssd_public)
+{
+    if (!dnssd_public || !dnssd_public->dnssd_private) {
+        return 0;
+    }
+    return ((dnssd_private_t *) dnssd_public->dnssd_private)->raop_registered != 0;
+}
+
+int dnssd_pm_airplay_registered(dnssd_t *dnssd_public)
+{
+    if (!dnssd_public || !dnssd_public->dnssd_private) {
+        return 0;
+    }
+    return ((dnssd_private_t *) dnssd_public->dnssd_private)->airplay_registered != 0;
+}

@@ -99,6 +99,9 @@ struct raop_rtp_mirror_s {
     int flush;
     thread_handle_t thread_mirror;
     mutex_handle_t run_mutex;
+    /* PM: the accepted mirror stream socket (-1 = none), so that stop can
+     * shutdown() it and wake a blocking recv() */
+    int pm_stream_fd;
 
     /* MUTEX LOCKED VARIABLES END */
     int mirror_data_sock;
@@ -159,6 +162,8 @@ raop_rtp_mirror_t *raop_rtp_mirror_init(logger_t *logger, raop_callbacks_t *call
     raop_rtp_mirror->running = 0;
     raop_rtp_mirror->joined = 1;
     raop_rtp_mirror->flush = NO_FLUSH;
+    raop_rtp_mirror->pm_stream_fd = -1;
+    raop_rtp_mirror->mirror_data_sock = -1;
 
     MUTEX_CREATE(raop_rtp_mirror->run_mutex);
     return raop_rtp_mirror;
@@ -171,6 +176,35 @@ raop_rtp_mirror_init_aes(raop_rtp_mirror_t *raop_rtp_mirror, uint64_t *streamCon
 }
 
 #define RAOP_PACKET_LEN 32768
+#define PM_MIRROR_MAX_PAYLOAD (32 * 1024 * 1024)  /* PM: sanity cap for one mirror packet */
+
+/* PM: publish / clear the stream socket for raop_rtp_mirror_stop() */
+static void
+pm_mirror_set_stream_fd(raop_rtp_mirror_t *raop_rtp_mirror, int fd) {
+    MUTEX_LOCK(raop_rtp_mirror->run_mutex);
+    raop_rtp_mirror->pm_stream_fd = fd;
+    MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
+}
+
+/* PM: close the stream socket (it was leaked when the client closed it) */
+static void
+pm_mirror_close_stream(raop_rtp_mirror_t *raop_rtp_mirror, int *stream_fd) {
+    if (*stream_fd != -1) {
+        pm_mirror_set_stream_fd(raop_rtp_mirror, -1);
+        CLOSESOCKET(*stream_fd);
+        *stream_fd = -1;
+    }
+}
+
+/* PM: socket errors caused by raop_rtp_mirror_stop() (it cancels a blocking
+ * recv/select) are expected: log them at debug level */
+static int
+pm_mirror_err_level(raop_rtp_mirror_t *raop_rtp_mirror) {
+    MUTEX_LOCK(raop_rtp_mirror->run_mutex);
+    int stopping = !raop_rtp_mirror->running;
+    MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
+    return stopping ? LOGGER_DEBUG : LOGGER_ERR;
+}
 /**
  * Mirror
  */
@@ -235,7 +269,7 @@ raop_rtp_mirror_thread(void *arg)
             continue;
         } else if (ret == -1) {
             int sock_err = SOCKET_GET_ERROR();
-            logger_log(raop_rtp_mirror->logger, LOGGER_ERR,
+            logger_log(raop_rtp_mirror->logger, pm_mirror_err_level(raop_rtp_mirror),
                        "raop_rtp_mirror error in select %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
             break;
         }
@@ -254,7 +288,9 @@ raop_rtp_mirror_thread(void *arg)
                            "raop_rtp_mirror error in accept %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
                 break;
             }
+            pm_mirror_set_stream_fd(raop_rtp_mirror, stream_fd);
 
+#ifndef _WIN32
             // We're calling recv for a certain amount of data, so we need a timeout
             struct timeval tv;
             tv.tv_sec = 0;
@@ -265,6 +301,13 @@ raop_rtp_mirror_thread(void *arg)
                            "raop_rtp_mirror could not set stream socket timeout %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
                 break;
             }
+#else
+            /* PM: Windows takes SO_RCVTIMEO as a DWORD in ms; the struct timeval
+             * of upstream read as 0 = no timeout, i.e. blocking reads, which is
+             * what this port runs with (a timed-out recv leaves a Windows socket
+             * in an undefined state). raop_rtp_mirror_stop() shutdown()s the
+             * socket to wake a blocked recv instead of waiting for TCP to give up. */
+#endif
 
             int option = 1;
             if (setsockopt(stream_fd, SOL_SOCKET, SO_KEEPALIVE, CAST &option, sizeof(option)) < 0) {
@@ -326,12 +369,13 @@ raop_rtp_mirror_thread(void *arg)
                 logger_log(raop_rtp_mirror->logger, LOGGER_DEBUG,
                            "raop_rtp_mirror tcp socket was closed by client (recv returned 0); got %d bytes of 128 byte header",readstart);
                 FD_CLR(stream_fd, &rfds);
-                stream_fd = -1;
+                pm_mirror_close_stream(raop_rtp_mirror, &stream_fd);  /* PM: was leaked */
+                readstart = 0;
                 continue;
             } else if (payload == NULL && ret == -1) {
                 int sock_err = SOCKET_GET_ERROR();
                 if (sock_err == SOCKET_ERRORNAME(EAGAIN) || sock_err == SOCKET_ERRORNAME(EWOULDBLOCK)) continue; // Timeouts can happen even if the connection is fine
-                logger_log(raop_rtp_mirror->logger, LOGGER_ERR,
+                logger_log(raop_rtp_mirror->logger, pm_mirror_err_level(raop_rtp_mirror),
                            "raop_rtp_mirror error  in header recv: %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
                 if (sock_err == SOCKET_ERRORNAME(ECONNRESET)) conn_reset = true;; 
                 break;
@@ -385,7 +429,18 @@ raop_rtp_mirror_thread(void *arg)
             /* "streaming report" packets have no timestamp in packet[8:15] */
 
             if (payload == NULL) {
-                payload = malloc(payload_size);
+                /* PM: payload_size comes from the network: cap it, check malloc */
+                if (payload_size < 0 || payload_size > PM_MIRROR_MAX_PAYLOAD) {
+                    logger_log(raop_rtp_mirror->logger, LOGGER_ERR,
+                               "raop_rtp_mirror: invalid payload size %d; closing the mirror stream", payload_size);
+                    break;
+                }
+                payload = malloc(payload_size ? payload_size : 1);
+                if (!payload) {
+                    logger_log(raop_rtp_mirror->logger, LOGGER_ERR,
+                               "raop_rtp_mirror: out of memory for a %d byte packet", payload_size);
+                    break;
+                }
                 readstart = 0;
             }
 
@@ -404,7 +459,7 @@ raop_rtp_mirror_thread(void *arg)
             } else if (ret == -1) {
                 int sock_err = SOCKET_GET_ERROR();
                 if (sock_err == SOCKET_ERRORNAME(EAGAIN) || sock_err == SOCKET_ERRORNAME(EWOULDBLOCK)) continue; // Timeouts can happen even if the connection is fine
-                logger_log(raop_rtp_mirror->logger, LOGGER_ERR, "raop_rtp_mirror error in recv: %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
+                logger_log(raop_rtp_mirror->logger, pm_mirror_err_level(raop_rtp_mirror), "raop_rtp_mirror error in recv: %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
                 if (errno == SOCKET_ERRORNAME(ECONNRESET)) conn_reset = true;
                 break;
             }
@@ -859,9 +914,9 @@ raop_rtp_mirror_thread(void *arg)
         }
     }
     /* Close the stream file descriptor */
-    if (stream_fd != -1) {
-        CLOSESOCKET(stream_fd);
-    }
+    pm_mirror_close_stream(raop_rtp_mirror, &stream_fd);
+    free(payload);  /* PM: a partly read packet when the loop was left */
+    payload = NULL;
 
     // Ensure running reflects the actual state
     MUTEX_LOCK(raop_rtp_mirror->run_mutex);
@@ -877,8 +932,15 @@ raop_rtp_mirror_thread(void *arg)
     }
 
     if (unsupported_codec) {
-        CLOSESOCKET(raop_rtp_mirror->mirror_data_sock);
-        raop_rtp_mirror_stop(raop_rtp_mirror);
+        /* PM: upstream called raop_rtp_mirror_stop() from this thread, which only
+         * worked because stop returned early for a stopped thread; stop now
+         * always joins (and closes the listening socket), so just close it here. */
+        MUTEX_LOCK(raop_rtp_mirror->run_mutex);
+        if (raop_rtp_mirror->mirror_data_sock != -1) {
+            CLOSESOCKET(raop_rtp_mirror->mirror_data_sock);
+            raop_rtp_mirror->mirror_data_sock = -1;
+        }
+        MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
         raop_rtp_mirror->callbacks.video_reset(raop_rtp_mirror->callbacks.cls, RESET_TYPE_RTP_SHUTDOWN);
     }
 
@@ -927,10 +989,13 @@ raop_rtp_mirror_start(raop_rtp_mirror_t *raop_rtp_mirror, unsigned short *mirror
     raop_rtp_mirror->show_client_FPS_data = show_client_FPS_data;
 
     MUTEX_LOCK(raop_rtp_mirror->run_mutex);
-    if (raop_rtp_mirror->running || !raop_rtp_mirror->joined) {
+    if (raop_rtp_mirror->running) {
         MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
         return;
     }
+    MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
+    raop_rtp_mirror_stop(raop_rtp_mirror);  /* PM: join a thread that ended by itself */
+    MUTEX_LOCK(raop_rtp_mirror->run_mutex);
 
     if (raop_rtp_mirror->remote_saddr.ss_family == AF_INET6) {
         use_ipv6 = 1;
@@ -959,14 +1024,25 @@ raop_rtp_mirror_start(raop_rtp_mirror_t *raop_rtp_mirror, unsigned short *mirror
 void raop_rtp_mirror_stop(raop_rtp_mirror_t *raop_rtp_mirror) {
     assert(raop_rtp_mirror);
 
-    /* Check that we are running and thread is not
-     * joined (should never be while still running) */
+    /* PM: join whenever the thread was not joined yet. Upstream returned early
+     * when the thread had already ended by itself (!running): no join, the
+     * listening socket stayed open (the next session's video could land on it
+     * through SO_REUSEADDR: black screen) and destroy freed the struct while
+     * the thread was still in its exit callbacks. */
     MUTEX_LOCK(raop_rtp_mirror->run_mutex);
-    if (!raop_rtp_mirror->running || raop_rtp_mirror->joined) {
+    if (raop_rtp_mirror->joined) {
         MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
         return;
     }
     raop_rtp_mirror->running = 0;
+    if (raop_rtp_mirror->pm_stream_fd != -1) {
+        /* wake a blocking recv() (Windows: no receive timeout) */
+        shutdown(raop_rtp_mirror->pm_stream_fd, SHUT_RDWR);
+#ifdef _WIN32
+        /* shutdown() does not end a recv() that is already blocked on Windows */
+        CancelIoEx((HANDLE) (uintptr_t) raop_rtp_mirror->pm_stream_fd, NULL);
+#endif
+    }
     MUTEX_UNLOCK(raop_rtp_mirror->run_mutex);
 
     /* Join the thread */

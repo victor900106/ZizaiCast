@@ -32,6 +32,7 @@
 #include "netutils.h"
 #include "byteutils.h"
 #include "utils.h"
+#include "pm_ntp_filter.h"
 
 #define USEC_IN_NSECS   1000ULL
 #define MSEC_IN_NSECS   1000000ULL
@@ -594,6 +595,7 @@ raop_ntp_thread(void *arg) {
 
     int ntpcount = 0;
     bool have_offset = false;
+    pm_ntp_filter_t pm_filter = { 0 };  /* PM: EWMA with a step on a real jump */
     
     /* these are NTP timestamps in Q32.32 form */
     q32_32_t t2_raw = 0, t3_raw = 0;
@@ -806,15 +808,27 @@ raop_ntp_thread(void *arg) {
                         if (root_distance > RAOP_NTP_MAX_DIST) {
                             is_synced = false;
                             sync_offset = (int64_t) (data_sorted[0].offset * 1e9);
+                            pm_filter.have = true;  /* upstream: the next synced sample blends from here */
+                            pm_filter.smoothed = data_sorted[0].offset;
+                            pm_filter.far_count = 0;
                         } else {
-                            double offset;
-                            if (have_offset) {
-                                offset = (double) (raop_ntp->sync_offset * 1e-9);
-                                offset = ((1.0 - RAOP_NTP_ALPHA) * offset) +  (RAOP_NTP_ALPHA * data_sorted[0].offset);
-                            } else {
-                                offset = data_sorted[0].offset;
+                            /* PM: upstream blended every sample with alpha 0.05, so a real
+                             * jump of the client clock (iPhone pause/resume) took minutes
+                             * to follow and the timeline was re-latched every 3 s. */
+                            double before = pm_filter.smoothed;
+                            if (pm_ntp_filter_update(&pm_filter, data_sorted[0].offset, RAOP_NTP_ALPHA)) {
+                                logger_log(raop_ntp->logger, LOGGER_INFO,
+                                           "raop_ntp: client clock offset jumped by %+.1f ms: filter stepped",
+                                           (pm_filter.smoothed - before) * 1e3);
+                                /* drop the samples from before the jump */
+                                for (int i = 0; i < RAOP_NTP_DATA_COUNT; i++) {
+                                    if (fabs(raop_ntp->data[i].offset - pm_filter.smoothed) > PM_NTP_STEP_S) {
+                                        raop_ntp->data[i].delay = RAOP_NTP_MAX_DISP;
+                                        raop_ntp->data[i].dispersion = RAOP_NTP_MAX_DISP;
+                                    }
+                                }
                             }
-                            sync_offset = (int64_t) (offset * 1e9);
+                            sync_offset = (int64_t) (pm_filter.smoothed * 1e9);
                             is_synced = true;
                         }
                         uint64_t root_distance_nsec = (uint64_t) (root_distance *1e9);
@@ -874,10 +888,13 @@ raop_ntp_start(raop_ntp_t *raop_ntp, unsigned short *timing_lport)
     raop_ntp->timing_lport = *timing_lport;
 
     MUTEX_LOCK(raop_ntp->run_mutex);
-    if (raop_ntp->running || !raop_ntp->joined) {
+    if (raop_ntp->running) {
         MUTEX_UNLOCK(raop_ntp->run_mutex);
         return;
     }
+    MUTEX_UNLOCK(raop_ntp->run_mutex);
+    raop_ntp_stop(raop_ntp);  /* PM: join a thread that ended by itself */
+    MUTEX_LOCK(raop_ntp->run_mutex);
 
     /* Initialize ports and sockets */
     if (raop_ntp->remote_saddr.ss_family == AF_INET6) {
@@ -904,10 +921,10 @@ raop_ntp_stop(raop_ntp_t *raop_ntp)
 {
     assert(raop_ntp);
 
-    /* Check that we are running and thread is not
-     * joined (should never be while still running) */
+    /* PM: join whenever the thread was not joined yet (upstream returned early
+     * for a thread that had ended by itself: no join, socket left open) */
     MUTEX_LOCK(raop_ntp->run_mutex);
-    if (!raop_ntp->running || raop_ntp->joined) {
+    if (raop_ntp->joined) {
         MUTEX_UNLOCK(raop_ntp->run_mutex);
         return;
     }

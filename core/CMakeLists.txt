@@ -79,3 +79,20 @@ if(MSVC)
   target_compile_options(pm_ntp_test PRIVATE /FIpm_posix.h /wd4244 /wd4267)
 endif()
 target_link_libraries(pm_ntp_test PRIVATE pm_core ws2_32)
+
+# PM: offline replay of the NTP re-latch storm after a pause/resume (pure logic)
+add_executable(pm_clock_test tests/pm_clock_test.cpp)
+target_include_directories(pm_clock_test PRIVATE ${UX})
+
+# PM: offline robustness checks (httpd, stream threads, pairing); loopback-only sockets
+add_executable(pm_robust_test tests/pm_robust_test.c)
+target_include_directories(pm_robust_test PRIVATE ${UX} ${UX}/pm_win)
+target_compile_definitions(pm_robust_test PRIVATE WIN32 HAVE_STRUCT_TIMESPEC)
+if(MSVC)
+  target_compile_options(pm_robust_test PRIVATE /FIpm_posix.h /wd4244 /wd4267)
+endif()
+target_link_libraries(pm_robust_test PRIVATE pm_core ws2_32 ${PM_PLIST_TARGET})
+
+# PM: INFO request-log limiter/formatter (pure, no sockets)
+add_executable(pm_reqlog_test tests/pm_reqlog_test.c)
+target_include_directories(pm_reqlog_test PRIVATE ${UX})

@@ -36,6 +36,9 @@ extern "C" {
 extern int pm_mirror_quick_ack;  // raop_rtp_mirror.c
 }
 
+#include "pm_clock_latch.h"
+#include "pm_audio_advert.h"
+
 namespace pm {
 
 namespace {
@@ -153,13 +156,18 @@ struct AirPlayServer::Impl {
     std::mutex regMutex;
     std::string registerFile;               // empty = registration off (accept returning clients)
     std::vector<std::string> registeredKeys;  // base64 Ed25519 pks of clients that entered the PIN
-    std::atomic<bool> pinShown{false};
     // The iPhone closes the pair-pin-start connection, shows its PIN prompt and
     // only reconnects (pair-setup-pin) after the user typed the PIN, so the PIN
     // must outlive that connection: it stays up until pairing, a new PIN or
-    // kPinShowSec supervisor seconds.
-    static constexpr int kPinShowSec = 90;
-    std::atomic<int> pinSecondsLeft{0};
+    // kPinShowSec supervisor seconds. The library keeps the same PIN for the
+    // same phone for 120 s after its last pair-pin-start (raop.c
+    // PM_PIN_WINDOW_NS), so the PIN on screen is the one that is valid.
+    // pinMutex makes show (httpd thread) / hide / timeout (supervisor) atomic
+    // including the onPin call, so a timeout can't hide a PIN just shown.
+    static constexpr int kPinShowSec = 120;
+    std::mutex pinMutex;
+    bool pinShown = false;    // pinMutex
+    int pinSecondsLeft = 0;   // pinMutex
     std::atomic<bool> clientAnnounced{false};
 
     // multi-phone takeover: name of the admitted session's phone
@@ -184,13 +192,16 @@ struct AirPlayServer::Impl {
     std::atomic<int> openConnections{0};
     std::atomic<unsigned> missedFeedback{0};
     std::mutex clockMutex;
-    bool haveClockOffset = false;
-    bool clockFromNtp = false;      // offset taken from the NTP clock sync (else provisional, from arrival)
-    int64_t remoteClockOffset = 0;  // local - remote (ns)
+    ClockLatch clock;  // remote -> local offset shared by audio and video (clockMutex)
     bool h265 = false;              // effective (Options::h265, or forced on for height > 1080)
     std::atomic<unsigned> badVideoFrames{0};
     VideoTiming vt;  // only touched from the mirror thread
     std::atomic<float> currentVolumeDb{0.0f};  // reported back in GET /info (initialVolume)
+    // PM: the last audible level (-30..0).  A mute (-144) is not reported as
+    // initialVolume to the next connection: currentVolumeDb goes back to this
+    // when the session ends.
+    std::atomic<float> lastAudibleDb{-15.0f};
+    static bool audibleDb(float db) { return db >= -30.0f && db <= 0.0f; }
 
     // supervisor thread (feedback watchdog + httpd relaunch)
     std::thread supervisor;
@@ -211,48 +222,48 @@ struct AirPlayServer::Impl {
 
     void resetClock() {
         std::lock_guard<std::mutex> lk(clockMutex);
-        haveClockOffset = false;
-        clockFromNtp = false;
-        remoteClockOffset = 0;
+        clock.reset();
     }
 
     // Sender timestamp (remote clock) -> localTimeNs() clock. As in uxplay.cpp
     // ONE remote->local offset is used for audio and video of a session, so
     // the two streams share a timeline. The offset comes from the NTP clock
     // sync (raop_ntp: ntpLocal = remote mapped with the current NTP offset,
-    // 0 while not synced yet): latched at the first synced packet, re-latched
-    // only if the NTP estimate moves away by more than kClockRelatchNs (drift
-    // or a better sync), so the timeline has no jitter from NTP updates.
-    // Before the first NTP sync a provisional offset is taken from the arrival
-    // time and replaced once NTP is available (both logged as "[clock]").
-    static constexpr int64_t kClockRelatchNs = 20'000'000;
+    // 0 while not synced yet). The latch/re-latch/slew policy is ClockLatch
+    // (pm_clock_latch.h): one re-latch for a real move, then a settle window
+    // in which further NTP moves are slewed, not stepped (no re-latch storm
+    // after a pause/resume). Before the first NTP sync a provisional offset
+    // is taken from the arrival time and replaced once NTP is available.
     uint64_t toLocal(uint64_t ntpLocal, uint64_t ntpRemote, const char* stream) {
         if (!ntpRemote) return get_local_time();  // no sender timestamp (audio before its first sync)
         std::lock_guard<std::mutex> lk(clockMutex);
-        if (ntpLocal) {
-            const int64_t off = static_cast<int64_t>(ntpLocal) - static_cast<int64_t>(ntpRemote);
-            if (!haveClockOffset) {
-                log(LogLevel::Info, "[clock] timeline offset latched from the NTP clock sync (first %s packet)", stream);
-            } else if (!clockFromNtp) {
-                log(LogLevel::Info, "[clock] NTP clock sync established (%s): provisional offset corrected by %+.1f ms",
-                    stream, (off - remoteClockOffset) / 1e6);
-            } else if (std::llabs(off - remoteClockOffset) > kClockRelatchNs) {
-                log(LogLevel::Info, "[clock] NTP offset moved by %+.1f ms (clock drift / resync): timeline re-latched",
-                    (off - remoteClockOffset) / 1e6);
-            } else {
-                return static_cast<uint64_t>(static_cast<int64_t>(ntpRemote) + remoteClockOffset);
-            }
-            remoteClockOffset = off;
-            haveClockOffset = true;
-            clockFromNtp = true;
-        } else if (!haveClockOffset) {
-            remoteClockOffset = static_cast<int64_t>(get_local_time()) - static_cast<int64_t>(ntpRemote);
-            haveClockOffset = true;
-            clockFromNtp = false;
+        const ClockLatch::Result r =
+            clock.map(static_cast<int64_t>(get_local_time()), ntpLocal, ntpRemote);
+        switch (r.event) {
+        case ClockLatch::Event::None: break;
+        case ClockLatch::Event::Provisional:
             log(LogLevel::Info, "[clock] no NTP clock sync yet: provisional offset from the arrival of the first %s packet",
                 stream);
+            break;
+        case ClockLatch::Event::NtpLatched:
+            log(LogLevel::Info, "[clock] timeline offset latched from the NTP clock sync (first %s packet)", stream);
+            break;
+        case ClockLatch::Event::NtpEstablished:
+            log(LogLevel::Info, "[clock] NTP clock sync established (%s): provisional offset corrected by %+.1f ms",
+                stream, r.deltaNs / 1e6);
+            break;
+        case ClockLatch::Event::Relatched:
+            log(LogLevel::Info,
+                "[clock] NTP offset moved by %+.1f ms (clock drift / resync): timeline re-latched; further moves "
+                "are slewed for %d s",
+                r.deltaNs / 1e6, static_cast<int>(ClockLatch::kSettleNs / 1'000'000'000));
+            break;
+        case ClockLatch::Event::Settled:
+            log(LogLevel::Info, "[clock] timeline settled: slewed %+.1f ms after the re-latch, %+.1f ms left",
+                r.deltaNs / 1e6, r.residualNs / 1e6);
+            break;
         }
-        return static_cast<uint64_t>(static_cast<int64_t>(ntpRemote) + remoteClockOffset);
+        return r.localNs;
     }
 
     void requestHttpdReset(const char* why) {
@@ -264,14 +275,18 @@ struct AirPlayServer::Impl {
         supCv.notify_all();
     }
 
+    static constexpr unsigned kFeedbackWarnSec = 6;
     void supervisorLoop() {
         std::unique_lock<std::mutex> lk(supMutex);
         while (!supQuit) {
             supCv.wait_for(lk, std::chrono::seconds(1));
             if (supQuit) break;
-            if (pinSecondsLeft.load() > 0 && --pinSecondsLeft == 0) {
-                log(LogLevel::Info, "PIN timed out (not entered within %d s)", kPinShowSec);
-                hidePin();
+            {
+                std::lock_guard<std::mutex> pl(pinMutex);
+                if (pinSecondsLeft > 0 && --pinSecondsLeft == 0) {
+                    log(LogLevel::Info, "PIN timed out (not entered within %d s)", kPinShowSec);
+                    hidePinLocked();
+                }
             }
             if (!resetHttpd) {
                 // uxplay.cpp feedback_callback(), once per second
@@ -283,7 +298,10 @@ struct AirPlayServer::Impl {
                             missed, opts.feedbackTimeoutSec);
                         resetHttpd = true;
                     } else {
-                        if (missed > 2)
+                        // The heartbeat comes every 2 s and 3-5 s gaps are ordinary
+                        // jitter (phone pauses, session ends): warn from 6 s on, once
+                        // every 3 s of the same gap.
+                        if (missed >= kFeedbackWarnSec && (missed - kFeedbackWarnSec) % 3 == 0)
                             log(LogLevel::Warning,
                                 "%u s since last client feedback (expected every 2 s); client may be offline",
                                 missed);
@@ -555,6 +573,11 @@ struct AirPlayServer::Impl {
         if (n <= 0) {
             s->resetClock();
             if (s->audio) s->audio->onFlush();
+            if (!audibleDb(s->currentVolumeDb.load())) {
+                s->log(LogLevel::Info, "volume %.2f dB (mute) not carried over: next connection starts at %.2f dB",
+                       s->currentVolumeDb.load(), s->lastAudibleDb.load());
+                s->currentVolumeDb = s->lastAudibleDb.load();
+            }
             // no hidePin(): the PIN is still needed while the user types it
             s->setCurrentClient(std::string());
             // Only after a client actually asked to connect (GET /info probes
@@ -564,19 +587,26 @@ struct AirPlayServer::Impl {
         }
     }
 
-    void hidePin() {
+    void hidePinLocked() {  // pinMutex held
         pinSecondsLeft = 0;
-        if (pinShown.exchange(false)) {
+        if (pinShown) {
+            pinShown = false;
             log(LogLevel::Info, "PIN no longer needed (paired, cancelled or replaced)");
             if (events.onPin) events.onPin(std::string());
         }
     }
+    void hidePin() {
+        std::lock_guard<std::mutex> pl(pinMutex);
+        hidePinLocked();
+    }
 
     // raop_handler_pairpinstart: a client that has not paired before asks for
-    // a PIN; the library picks a fresh random 4-digit PIN for every attempt.
+    // a PIN; the library keeps one PIN per phone for its pairing attempt (a
+    // repeated pair-pin-start shows the same PIN again).
     static void cbDisplayPin(void* cls, char* pin) {
         auto* s = self(cls);
         std::string p = pin ? pin : "";
+        std::lock_guard<std::mutex> pl(s->pinMutex);
         s->log(LogLevel::Info, "client must enter PIN %s on the iPhone", p.c_str());
         s->pinShown = true;
         s->pinSecondsLeft = kPinShowSec;
@@ -606,10 +636,10 @@ struct AirPlayServer::Impl {
         std::lock_guard<std::mutex> lk(s->regMutex);
         if (s->registerFile.empty()) return true;
         bool ok = pk && std::find(s->registeredKeys.begin(), s->registeredKeys.end(), pk) != s->registeredKeys.end();
+        // Normal flow: the iPhone always tries pair-verify first; an unknown
+        // key gets 470 and the iPhone then starts PIN pairing.
         if (!ok)
-            s->log(LogLevel::Warning,
-                   "returning client is not in the PIN register (%s): refused; forget this receiver on the "
-                   "iPhone or delete the register file to pair again",
+            s->log(LogLevel::Info, "new client (not in the PIN register %s): starting PIN pairing",
                    s->registerFile.c_str());
         return ok;
     }
@@ -735,6 +765,12 @@ struct AirPlayServer::Impl {
     }
     static void cbVideoResume(void* cls) {
         self(cls)->log(LogLevel::Info, "video_resume");
+        {
+            // the phone's clock offset may have jumped during the pause: allow
+            // one immediate re-latch (then slew; see ClockLatch)
+            std::lock_guard<std::mutex> lk(self(cls)->clockMutex);
+            self(cls)->clock.onResume();
+        }
         if (self(cls)->video) self(cls)->video->onPaused(false);
     }
     static void cbVideoFlush(void* cls) { self(cls)->log(LogLevel::Debug, "video_flush"); }
@@ -752,6 +788,10 @@ struct AirPlayServer::Impl {
                "[audio-timing] audio stream SETUP: audio_get_format ct=%u spf=%u usingScreen=%d isMedia=%d "
                "audioFormat=0x%llx",
                *ct, *spf, (int)*usingScreen, (int)*isMedia, (unsigned long long)*audioFormat);
+        if (!*usingScreen && pm_audio_advert_plan(s->opts.advertiseAudio).mode != 1)
+            s->log(LogLevel::Warning, "[audio-advert] audio-only AirPlay session (usingScreen=0) although "
+                   "airplay_advertise_audio=%d: the phone found this PC as a speaker anyway",
+                   pm_audio_advert_plan(s->opts.advertiseAudio).mode);
         s->markAudio(1);
         // All AirPlay audio formats are 44100 Hz stereo (renderers/audio_renderer.c caps).
         AudioCodec codec;
@@ -792,6 +832,7 @@ struct AirPlayServer::Impl {
     static void cbAudioSetVolume(void* cls, float volume) {
         auto* s = self(cls);
         s->currentVolumeDb = volume;
+        if (audibleDb(volume)) s->lastAudibleDb = volume;
         s->log(LogLevel::Info, "audio_set_volume: %.2f dB", volume);
         if (s->audio) s->audio->onVolume(volume);
     }
@@ -877,11 +918,15 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     s.openConnections = 0;
     s.missedFeedback = 0;
     s.badVideoFrames = 0;
-    s.pinShown = false;
-    s.pinSecondsLeft = 0;
+    {
+        std::lock_guard<std::mutex> pl(s.pinMutex);
+        s.pinShown = false;
+        s.pinSecondsLeft = 0;
+    }
     s.clientAnnounced = false;
     s.setCurrentClient(std::string());
     s.currentVolumeDb = s.opts.initialVolumeDb;  // PM: remembered volume instead of uxplay's full volume
+    if (Impl::audibleDb(s.opts.initialVolumeDb)) s.lastAudibleDb = s.opts.initialVolumeDb;
     if (s.audio) s.audio->onVolume(s.opts.initialVolumeDb);
     s.resetClock();
     // uxplay.cpp main(): initialises the QPC frequency used by the Windows
@@ -921,7 +966,9 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     dnssd_set_airplay_features(s.dnssd, 0, 0);   // HLS video off
     dnssd_set_airplay_features(s.dnssd, 4, 0);   // HLS off
     dnssd_set_airplay_features(s.dnssd, 7, 1);   // screen mirroring
-    dnssd_set_airplay_features(s.dnssd, 9, 1);   // audio
+    // audio (bit 9): settings.ini airplay_advertise_audio A/B switch, see pm_audio_advert.h
+    const pm_audio_advert_t audioAdv = pm_audio_advert_plan(s.opts.advertiseAudio);
+    dnssd_set_airplay_features(s.dnssd, 9, audioAdv.feature_bit9);
     dnssd_set_airplay_features(s.dnssd, 27, 1);  // legacy pairing (uxplay sets it with -pin; always on here)
     dnssd_set_airplay_features(s.dnssd, 42, s.h265 ? 1 : 0);  // Screen Multi Codec (H.265)
 
@@ -998,7 +1045,7 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     s.vt = VideoTiming{};
     pm_mirror_quick_ack = s.opts.mirrorQuickAck ? 1 : 0;
     // uxplay: "if (pin_pw == 1) raop_set_plist(raop, "pin", pin)"; pin 0 = a
-    // new random PIN for every pair-pin-start.
+    // random PIN per phone and pairing attempt (raop.c pm_pin_issue).
     if (s.opts.requirePin) raop_set_plist(s.raop, "pin", 0);
 
     unsigned short tcp[3] = {0, 0, 0}, udp[3] = {0, 0, 0};
@@ -1024,7 +1071,12 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     s.log(LogLevel::Info, "AirPlay server listening on TCP port %u", p);
 
     // --- register_dnssd() ---
-    err = dnssd_register_raop(s.dnssd, p);
+    if (audioAdv.raop_service) {
+        err = dnssd_register_raop(s.dnssd, p);
+    } else {
+        // the TXT record is still built: GET /info "txtRAOP" answers as before
+        err = dnssd_pm_build_raop_txt(s.dnssd);
+    }
     if (!err) err = dnssd_register_airplay(s.dnssd, p);
     if (err) {
         s.log(LogLevel::Error,
@@ -1040,13 +1092,32 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
     std::string raopId;
     for (char c : s.mac)
         if (c != ':') raopId += static_cast<char>(toupper(static_cast<unsigned char>(c)));
-    s.log(LogLevel::Info,
-          "mDNS: advertising \"%s._airplay._tcp.local\" and \"%s@%s._raop._tcp.local\" on port %u, "
-          "features=0x%llX (H.265 %s, PIN %s, takeover %s)",
-          s.name.c_str(), raopId.c_str(), s.name.c_str(), p,
-          (unsigned long long) dnssd_get_airplay_features(s.dnssd), s.h265 ? "on" : "off",
-          s.opts.requirePin ? "required" : "off",
-          s.opts.takeoverPolicy == TakeoverPolicy::KeepCurrent ? "KeepCurrent" : "NewReplacesOld");
+    if (audioAdv.raop_service) {
+        s.log(LogLevel::Info,
+              "mDNS: advertising \"%s._airplay._tcp.local\" and \"%s@%s._raop._tcp.local\" on port %u, "
+              "features=0x%llX (H.265 %s, PIN %s, takeover %s)",
+              s.name.c_str(), raopId.c_str(), s.name.c_str(), p,
+              (unsigned long long) dnssd_get_airplay_features(s.dnssd), s.h265 ? "on" : "off",
+              s.opts.requirePin ? "required" : "off",
+              s.opts.takeoverPolicy == TakeoverPolicy::KeepCurrent ? "KeepCurrent" : "NewReplacesOld");
+    } else {
+        s.log(LogLevel::Info,
+              "mDNS: advertising \"%s._airplay._tcp.local\" only (no _raop._tcp) on port %u, "
+              "features=0x%llX (H.265 %s, PIN %s, takeover %s)",
+              s.name.c_str(), p, (unsigned long long) dnssd_get_airplay_features(s.dnssd),
+              s.h265 ? "on" : "off", s.opts.requirePin ? "required" : "off",
+              s.opts.takeoverPolicy == TakeoverPolicy::KeepCurrent ? "KeepCurrent" : "NewReplacesOld");
+    }
+    if (audioAdv.mode == 1) {
+        s.log(LogLevel::Info, "[audio-advert] airplay_advertise_audio=1: also offered as an AirPlay speaker "
+              "(features bit 9 on, _raop._tcp registered)");
+    } else {
+        s.log(LogLevel::Warning,
+              "[audio-advert] A/B TEST airplay_advertise_audio=%d: NOT offered as an audio-only AirPlay "
+              "speaker (features bit 9 %s, _raop._tcp not registered). Screen Mirroring and its sound are "
+              "unchanged; if a mirroring session has no sound, try airplay_advertise_audio=2 or 1",
+              audioAdv.mode, audioAdv.feature_bit9 ? "on" : "OFF");
+    }
     s.logInterfaces("mDNS advertising on", s.currentInterfaces());
 
     {

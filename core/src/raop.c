@@ -31,6 +31,7 @@
 #include "compat.h"
 #include "raop_rtp_mirror.h"
 #include "raop_ntp.h"
+#include "pm_reqlog.h"
 
 
 /* libplist-2.3.0  API change */
@@ -41,6 +42,19 @@ static void plist_mem_free(void *ptr) {
     }
 }
 #endif
+
+/* PM: per-client pairing PINs (see pm_pin_issue) */
+#define PM_PIN_SLOTS 4
+#define PM_PIN_WINDOW_NS (120ULL * 1000000000ULL)  /* after the last pair-pin-start */
+#define PM_PIN_MAX_FAILURES 3                      /* wrong entries before a new PIN */
+typedef struct pm_pin_slot_s {
+    bool used;
+    unsigned char addr[16];
+    int addrlen;
+    char pin[5];
+    uint64_t expires_ns;  /* get_local_time() */
+    int failures;
+} pm_pin_slot_t;
 
 struct raop_s {
     /* Callbacks for audio and video */
@@ -75,8 +89,11 @@ struct raop_s {
     int audio_delay_micros;
 
      /* for temporary storage of pin during pair-pin start */
-    unsigned short pin;
+    unsigned short pin;   /* PM: > 9999 = fixed PIN (pin % 10000); else a random PIN per client */
     bool use_pin;
+    /* PM: PINs handed out by pair-pin-start, per client address (only the httpd
+     * thread touches them). See pm_pin_issue() / pm_pin_lookup(). */
+    pm_pin_slot_t pm_pins[PM_PIN_SLOTS];
   
      /* public key as string */
     char pk_str[2*ED25519_KEY_SIZE + 1];
@@ -103,6 +120,9 @@ struct raop_s {
     raop_pm_takeover_t pm_takeover_policy;
     char pm_replaced_deviceid[64];   /* deviceID of the client most recently replaced by a takeover */
     uint64_t pm_replaced_ns;         /* ... and when (get_local_time) */
+
+    /* PM: rate limiter for the one-line INFO request log (httpd thread only) */
+    pm_reqlog_t pm_reqlog;
 };
 
 struct raop_conn_s {
@@ -155,6 +175,67 @@ pm_find_active_session(raop_t *raop, raop_conn_t *except) {
 static bool
 pm_same_remote(const raop_conn_t *a, const raop_conn_t *b) {
     return a->remotelen == b->remotelen && !memcmp(a->remote, b->remote, a->remotelen);
+}
+
+/* PM: the PIN of a pairing attempt. The iPhone sends pair-pin-start, closes
+ * that connection, shows its PIN prompt and sends pair-setup-pin on a new
+ * connection once the user typed the PIN, and it may repeat pair-pin-start
+ * (cancel + retry). Upstream drew a new PIN on every pair-pin-start (the
+ * user then typed the PIN shown first while a newer one was valid) and reset
+ * the PIN to 0 after pair-setup-pin step 1 (a pair-setup-pin without a fresh
+ * pair-pin-start then paired with "0000").
+ * Here a PIN belongs to the client address that asked for it: it stays the
+ * same for further pair-pin-starts of that client while it is valid (until
+ * paired, PM_PIN_WINDOW_NS after the last pair-pin-start, or
+ * PM_PIN_MAX_FAILURES wrong entries), other clients get their own PIN, and
+ * pair-setup-pin without a valid PIN for its address is refused (470). */
+static pm_pin_slot_t *
+pm_pin_lookup(raop_t *raop, const raop_conn_t *conn) {
+    uint64_t now = get_local_time();
+    for (int i = 0; i < PM_PIN_SLOTS; i++) {
+        pm_pin_slot_t *s = &raop->pm_pins[i];
+        if (!s->used) continue;
+        if ((int64_t) (now - s->expires_ns) >= 0 || s->failures >= PM_PIN_MAX_FAILURES) {
+            s->used = false;  /* expired or used up */
+            continue;
+        }
+        if (s->addrlen == conn->remotelen && conn->remotelen <= (int) sizeof(s->addr) &&
+            !memcmp(s->addr, conn->remote, conn->remotelen)) {
+            return s;
+        }
+    }
+    return NULL;
+}
+
+/* returns the slot (PIN reused or new) or NULL if no random PIN could be made */
+static pm_pin_slot_t *
+pm_pin_issue(raop_t *raop, const raop_conn_t *conn, bool *reused) {
+    pm_pin_slot_t *s = pm_pin_lookup(raop, conn);
+    *reused = (s != NULL);
+    if (!s) {
+        int pin_4;
+        if (raop->pin > 9999) {
+            pin_4 = raop->pin % 10000;
+        } else {
+            pin_4 = random_pin();
+            if (pin_4 < 0) return NULL;
+        }
+        /* a free slot, else the one that expires first */
+        pm_pin_slot_t *oldest = &raop->pm_pins[0];
+        for (int i = 0; i < PM_PIN_SLOTS; i++) {
+            if (!raop->pm_pins[i].used) { s = &raop->pm_pins[i]; break; }
+            if ((int64_t) (raop->pm_pins[i].expires_ns - oldest->expires_ns) < 0) oldest = &raop->pm_pins[i];
+        }
+        if (!s) s = oldest;
+        memset(s, 0, sizeof(*s));
+        if (conn->remotelen > (int) sizeof(s->addr)) return NULL;
+        memcpy(s->addr, conn->remote, conn->remotelen);
+        s->addrlen = conn->remotelen;
+        snprintf(s->pin, sizeof(s->pin), "%04d", pin_4 % 10000);
+        s->used = true;
+    }
+    s->expires_ns = get_local_time() + PM_PIN_WINDOW_NS;
+    return s;
 }
 
 /* PM: a phone that was just replaced may not take the receiver back within this
@@ -226,6 +307,40 @@ conn_init(void *opaque, unsigned char *local, int locallen, unsigned char *remot
     return conn;
 }
 
+/* PM: one INFO line per request (body redacted, see pm_reqlog.h). result is the
+ * status sent back ("200 OK") or what happened instead ("no reply ..."). */
+static void
+pm_log_request(raop_conn_t *conn, http_request_t *request, const char *result, unsigned skipped) {
+    raop_t *raop = conn->raop;
+    char client[64] = { '\0' };
+    char line[512];
+    int body_len = 0;
+    utils_ipaddress_to_string(conn->remotelen, conn->remote, conn->zone_id, client, (int) sizeof(client));
+    http_request_get_data(request, &body_len);
+    pm_reqlog_format(line, sizeof(line), http_request_get_method(request), http_request_get_url(request),
+                     http_request_get_protocol(request), client,
+                     http_request_get_header(request, "User-Agent"),
+                     http_request_get_header(request, "X-Apple-Session-ID") != NULL, body_len,
+                     http_request_get_header(request, "Content-Type"), result, skipped);
+    logger_log(raop->logger, LOGGER_INFO, "%s", line);
+}
+
+/* "RTSP/1.0 200 OK\r\n..." -> "200 OK" */
+static void
+pm_response_status(http_response_t *response, char *out, size_t n) {
+    int len = 0;
+    const char *data = http_response_get_data(response, &len);
+    const char *sp = data ? memchr(data, ' ', len > 64 ? 64 : len) : NULL;
+    size_t o = 0;
+    if (sp) {
+        for (sp++; sp < data + len && *sp != '\r' && *sp != '\n' && o + 1 < n && o < 40; sp++) {
+            out[o++] = *sp;
+        }
+    }
+    out[o] = '\0';
+    if (!o) snprintf(out, n, "?");
+}
+
 static void
 conn_request(void *ptr, http_request_t *request, http_response_t **response) {
     char *response_data = NULL;
@@ -260,6 +375,12 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
         return;
     }
 
+    /* PM: INFO request log, rate-limited (pm_reqlog.h) */
+    unsigned pm_skipped = 0;
+    bool pm_log_req = pm_reqlog_should_log(&raop->pm_reqlog, method, url,
+                                           http_request_get_header(request, "Content-Type"),
+                                           get_local_time() / 1000000, &pm_skipped);
+
 #define MAX_HDR_FIELDS 20
 #define MAX_HDR_FIELD_LEN 64
 #define MAX_HDR_VALUE_LEN 1024
@@ -273,6 +394,7 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
                    num_fields, (int) max_field_len, (int) max_value_len);
         *response = http_response_create();
         http_response_init(*response, protocol, 431, "Request Header Fields Too Large");
+        if (pm_log_req) pm_log_request(conn, request, "431 Request Header Fields Too Large", pm_skipped);
         return;
     }
 
@@ -284,6 +406,7 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
         int cseq_val = parse_int(cseq_req);
         if (cseq_val < 0) {
             logger_log(raop->logger, LOGGER_ERR, "rejecting request with invalid CSeq value %s", cseq_req);
+            if (pm_log_req) pm_log_request(conn, request, "no reply (invalid CSeq)", pm_skipped);
             return;   //CSeq header field had invalid value
         }
         snprintf(cseq_buf, sizeof(cseq_buf), "%u", (unsigned int) cseq_val);
@@ -300,6 +423,7 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
  /* this rejects messages from _airplay._tcp for video streaming protocol unless bool raop->hls_support is true*/   
     if (!cseq && !raop->hls_support && !ble) {
         logger_log(raop->logger, LOGGER_INFO, "ignoring AirPlay video streaming request (use option -hls to activate HLS support)");
+        if (pm_log_req) pm_log_request(conn, request, "no reply (HLS off)", pm_skipped);
         return;
     }
 
@@ -366,7 +490,7 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
                 }
 
                 raop_ntp_t *raop_ntp = raop_conn->raop_ntp;
-                if (raop_rtp) {
+                if (raop_ntp) {  /* PM: upstream tested raop_rtp here */
                     logger_log(raop->logger, LOGGER_DEBUG, "New AirPlay connection: stopping NTP time"
                                " service on RAOP connection %p", raop_conn);
                     raop_ntp_stop(raop_ntp);
@@ -543,6 +667,11 @@ conn_request(void *ptr, http_request_t *request, http_response_t **response) {
         }
     }
     http_response_finish(*response, response_data, response_datalen);
+    if (pm_log_req) {
+        char pm_status[48];
+        pm_response_status(*response, pm_status, sizeof(pm_status));
+        pm_log_request(conn, request, pm_status, pm_skipped);
+    }
     int len = 0;
     const char *data = http_response_get_data(*response, &len);
     if (response_data && response_datalen > 0) {
@@ -602,6 +731,23 @@ conn_destroy(void *ptr) {
     raop_t *raop = conn->raop;
     logger_log(raop->logger, LOGGER_DEBUG, "Destroying connection");
 
+    /* PM: stop and join the stream threads BEFORE the callbacks below: they
+     * reset sinks/clock state that the stream threads were still using */
+    if (conn->raop_rtp) {
+        /* This is done in case TEARDOWN was not called */
+        raop_rtp_destroy(conn->raop_rtp);
+        conn->raop_rtp = NULL;
+    }
+    if (conn->raop_rtp_mirror) {
+        /* This is done in case TEARDOWN was not called */
+        raop_rtp_mirror_destroy(conn->raop_rtp_mirror);
+        conn->raop_rtp_mirror = NULL;
+    }
+    if (conn->raop_ntp) {
+        raop_ntp_destroy(conn->raop_ntp);
+        conn->raop_ntp = NULL;
+    }
+
     if (raop->callbacks.conn_destroy) {
         raop->callbacks.conn_destroy(raop->callbacks.cls);
     }
@@ -609,18 +755,6 @@ conn_destroy(void *ptr) {
     if ((conn->pm_active || conn->pm_pin_requested) && raop->callbacks.pm_conn_end) {
         raop->callbacks.pm_conn_end(raop->callbacks.cls, conn->pm_active ? (conn->pm_name ? conn->pm_name : "") : NULL,
                                     conn->pm_pin_requested);
-    }
-
-    if (conn->raop_rtp) {
-        /* This is done in case TEARDOWN was not called */
-        raop_rtp_destroy(conn->raop_rtp);
-    }
-    if (conn->raop_rtp_mirror) {
-        /* This is done in case TEARDOWN was not called */
-        raop_rtp_mirror_destroy(conn->raop_rtp_mirror);
-    }
-    if (conn->raop_ntp) {
-        raop_ntp_destroy(conn->raop_ntp);
     }
 
     if (raop->callbacks.video_flush) {

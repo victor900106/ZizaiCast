@@ -29,6 +29,16 @@
 #include "logger.h"
 #include "utils.h"
 
+#ifdef _WIN32
+#define SOCKET_SET_ERROR_PM(e) WSASetLastError(e)
+#else
+#define SOCKET_SET_ERROR_PM(e) (errno = (e))
+#endif
+
+/* PM: test hooks (tests/pm_robust_test.c); NULL in the app */
+int (*pm_httpd_select_hook)(int nfds, void *rfds, void *tv) = NULL;
+int (*pm_httpd_accept_hook)(int server_fd, void *addr, void *addrlen) = NULL;
+
 static const char *typename[] = {
     [CONNECTION_TYPE_UNKNOWN] = "Unknown",
     [CONNECTION_TYPE_RAOP]    = "RAOP",
@@ -307,12 +317,14 @@ httpd_accept_connection(httpd_t *httpd, int server_fd, int is_ipv6)
     int ret, fd;
 
     remote_saddrlen = sizeof(remote_saddr);
-    fd = accept(server_fd, (struct sockaddr *)&remote_saddr, &remote_saddrlen);
+    fd = pm_httpd_accept_hook ? pm_httpd_accept_hook(server_fd, (void *) &remote_saddr, (void *) &remote_saddrlen)
+                              : accept(server_fd, (struct sockaddr *)&remote_saddr, &remote_saddrlen);
     if (fd == -1) {
         /* FIXME: Error happened */
         int sock_err = SOCKET_GET_ERROR();
-        logger_log(httpd->logger, LOGGER_ERR, "httpd: error in accept: %d %s",
+        logger_log(httpd->logger, LOGGER_DEBUG, "httpd: error in accept: %d %s",
                    sock_err, SOCKET_ERROR_STRING(sock_err));
+        SOCKET_SET_ERROR_PM(sock_err);  /* PM: the caller logs it (rate-limited) */
         return -1;
     }
 
@@ -403,6 +415,10 @@ httpd_thread(void *arg)
 
     bool logger_debug = (logger_get_level(httpd->logger) >= LOGGER_DEBUG);
     assert(httpd);
+    /* PM: a failing select/accept no longer ends the listener thread for good
+     * (the server then looked alive but nobody listened); log (rate-limited),
+     * back off briefly and keep serving. */
+    unsigned int pm_select_errors = 0, pm_accept_errors = 0;  /* in a row */
 
     while (1) {
         fd_set rfds;
@@ -453,37 +469,70 @@ httpd_thread(void *arg)
             }
         }
 
-        nfds_set = select(nfds, &rfds, NULL, NULL, &tv);
+        nfds_set = pm_httpd_select_hook ? pm_httpd_select_hook(nfds, (void *) &rfds, (void *) &tv)
+                                         : select(nfds, &rfds, NULL, NULL, &tv);
+        time_t now = time(NULL);
+        if (nfds_set == -1) {
+            int sock_err = SOCKET_GET_ERROR();
+            if (pm_select_errors++ < 3) {
+                logger_log(httpd->logger, LOGGER_ERR,
+                           "httpd error in select: %d %s (listener kept running)", sock_err, SOCKET_ERROR_STRING(sock_err));
+            }
+            usleep(100000);
+            continue;
+        }
+        pm_select_errors = 0;
+
+        /* PM: drop dead connections on every pass, not only when they are
+         * readable (idle probes otherwise kept their slot until all 12 were
+         * taken); the reversed-HTTP event channel is idle by design. */
+        for (int i = 0; i < httpd->max_connections; i++) {
+            http_connection_t *connection = &httpd->connections[i];
+            if (connection->connected && connection->type != CONNECTION_TYPE_PTTH &&
+                now - connection->last_active > timeout_limit) {
+                logger_log(httpd->logger, LOGGER_WARNING,
+                           "httpd closing dead connection on socket %d after timeout_limit = %d seconds of inactivity",
+                            connection->socket_fd, timeout_limit);
+                httpd_remove_connection(httpd, connection, 0);
+            }
+        }
         if (nfds_set == 0) {
             /* Timeout happened */
             continue;
-        } else if (nfds_set == -1) {
-            int sock_err = SOCKET_GET_ERROR();
-            logger_log(httpd->logger, LOGGER_ERR,
-                       "httpd error in select: %d %s", sock_err, SOCKET_ERROR_STRING(sock_err));
-            break;
         }
 
+        bool accept_failed = false;
+        int accept_err = 0;
         if (httpd->open_connections < httpd->max_connections &&
             httpd->server_fd4 != -1 && FD_ISSET(httpd->server_fd4, &rfds)) {
             int ret = httpd_accept_connection(httpd, httpd->server_fd4, 0);
             if (ret == -1) {
-                logger_log(httpd->logger, LOGGER_ERR, "httpd error in accept ipv4");
-                break;
+                accept_err = SOCKET_GET_ERROR();
+                accept_failed = true;
             } else if (ret == 0) {
                 continue;
             }
         }
-        time_t now = time(NULL);
         if (httpd->open_connections < httpd->max_connections &&
             httpd->server_fd6 != -1 && FD_ISSET(httpd->server_fd6, &rfds)) {
             int ret = httpd_accept_connection(httpd, httpd->server_fd6, 1);
             if (ret == -1) {
-                logger_log(httpd->logger, LOGGER_ERR, "httpd error in accept ipv6");
-                break;
+                accept_err = SOCKET_GET_ERROR();
+                accept_failed = true;
             } else if (ret == 0) {
                 continue;
             }
+        }
+        if (accept_failed) {
+            if (pm_accept_errors++ < 3) {
+                logger_log(httpd->logger, LOGGER_ERR, "httpd error in accept: %d %s (listener kept running)",
+                           accept_err, SOCKET_ERROR_STRING(accept_err));
+            }
+            if (pm_accept_errors > 10) {
+                usleep(100000);  /* persistent failure: do not spin */
+            }
+        } else {
+            pm_accept_errors = 0;
         }
         for (int i = 0; i < httpd->max_connections; i++) {
             int recv_datalen = 0;
@@ -494,12 +543,6 @@ httpd_thread(void *arg)
             }
             if (!FD_ISSET(connection->socket_fd, &rfds)) {
                 continue;
-            }
-            if (now - connection->last_active > timeout_limit) {
-                logger_log(httpd->logger, LOGGER_WARNING,
-                           "httpd closing dead connection on socket %d after timeout_limit = %d seconds of inactivity",
-                            connection->socket_fd, timeout_limit);
-                httpd_remove_connection(httpd, connection, 0);
             }
             /* If not in the middle of request, allocate one */
             if (!connection->request) {
@@ -701,9 +744,21 @@ httpd_start(httpd_t *httpd, unsigned short *port)
     assert(port);
 
     MUTEX_LOCK(httpd->run_mutex);
-    if (httpd->running || !httpd->joined) {
+    if (httpd->running) {
         MUTEX_UNLOCK(httpd->run_mutex);
         return 0;
+    }
+    if (!httpd->joined) {
+        /* PM: the old thread ended by itself and was never joined; upstream
+         * returned 0 here and the caller believed the server was listening */
+        MUTEX_UNLOCK(httpd->run_mutex);
+        THREAD_JOIN(httpd->thread);
+        MUTEX_LOCK(httpd->run_mutex);
+        httpd->joined = 1;
+        if (httpd->running) {
+            MUTEX_UNLOCK(httpd->run_mutex);
+            return -3;
+        }
     }
 
     httpd->server_fd4 = netutils_init_socket(port, 0, 0);
@@ -751,7 +806,7 @@ httpd_is_running(httpd_t *httpd)
     assert(httpd);
 
     MUTEX_LOCK(httpd->run_mutex);
-    running = httpd->running || !httpd->joined;
+    running = httpd->running;  /* PM: an exited, unjoined thread is not running */
     MUTEX_UNLOCK(httpd->run_mutex);
 
     return running;
@@ -763,10 +818,11 @@ httpd_stop(httpd_t *httpd)
     assert(httpd);
 
     MUTEX_LOCK(httpd->run_mutex);
-    if (!httpd->running || httpd->joined) {
+    if (httpd->joined) {
         MUTEX_UNLOCK(httpd->run_mutex);
         return;
     }
+    /* PM: also join a thread that already ended by itself (!running) */
     httpd->running = 0;
     MUTEX_UNLOCK(httpd->run_mutex);
 

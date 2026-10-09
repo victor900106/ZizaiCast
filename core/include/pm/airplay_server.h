@@ -92,6 +92,13 @@ public:
         // once (SIO_TCP_SET_ACK_FREQUENCY = 1) instead of Windows' delayed
         // ACKs. Process-wide; takes effect for the next mirror connection.
         bool mirrorQuickAck = false;
+        // A/B test (0.7.6, TikTok "AirPlay" cast bar during mirroring): offer
+        // this PC as an audio-only AirPlay target too? 1 = yes (UxPlay
+        // default: features bit 9 + _raop._tcp), 0 = Screen Mirroring only
+        // (bit 9 off, no _raop._tcp), 2 = bit 9 on but no _raop._tcp. The
+        // mirroring session's own sound is not affected by the receiver in
+        // any mode (core/src/pm_audio_advert.h). Needs stop()+start().
+        int advertiseAudio = 1;
     };
 
     // Picture-quality presets (display size requested from the iPhone):
@@ -123,8 +130,9 @@ public:
         // an onClientConnecting/onPin. Not sent for bare GET /info probes.
         std::function<void()> onClientDisconnected;
         // requirePin only: "1234" = show this PIN; "" = hide it again (the
-        // client paired / sent SETUP, or all connections went away). A wrong
-        // PIN or a retry produces a new onPin with a new PIN.
+        // client paired / sent SETUP, or the PIN timed out). A phone keeps
+        // the same PIN for its pairing attempt: a retry shows it again; a new
+        // PIN comes after 120 s without a retry or 3 wrong entries.
         std::function<void(const std::string& pin)> onPin;
         // TakeoverPolicy::NewReplacesOld: newName's phone replaced oldName's
         // session (old connection already closed, sinks already reset).

@@ -59,5 +59,11 @@ void httpd_stop(httpd_t *httpd);
 
 void httpd_destroy(httpd_t *httpd);
 
+/* PM: test hooks (NULL in the app): replace select() / accept() in the
+ * httpd thread (rfds is an fd_set *, tv a struct timeval *, addr a struct
+ * sockaddr *, addrlen a socklen_t *). */
+extern int (*pm_httpd_select_hook)(int nfds, void *rfds, void *tv);
+extern int (*pm_httpd_accept_hook)(int server_fd, void *addr, void *addrlen);
+
 
 #endif

@@ -103,6 +103,12 @@ DNSSD_API int dnssd_pm_scan_interfaces(dnssd_pm_iface_t *out, int max);
 DNSSD_API int dnssd_pm_restart(dnssd_t *dnssd);
 /* re-send the announcement on all advertised interfaces */
 DNSSD_API void dnssd_pm_announce(dnssd_t *dnssd);
+/* build the _raop._tcp TXT record (still served by GET /info "txtRAOP") without
+ * registering the service; no network I/O (0 = ok) */
+DNSSD_API int dnssd_pm_build_raop_txt(dnssd_t *dnssd);
+/* 1 if _raop._tcp / _airplay._tcp are currently registered */
+DNSSD_API int dnssd_pm_raop_registered(dnssd_t *dnssd);
+DNSSD_API int dnssd_pm_airplay_registered(dnssd_t *dnssd);
 
 /* p2p support (macOS only) */
 #if defined(__APPLE__) && defined(UXPLAY_HAVE_APPLE_P2P)

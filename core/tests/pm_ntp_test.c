@@ -22,6 +22,7 @@
 #include "raop.h"
 #include "raop_ntp.h"
 #include "logger.h"
+#include "netutils.h"
 
 #define SEC 1000000000ULL
 #define SECONDS_1900_TO_1970 2208988800ULL
@@ -105,6 +106,7 @@ static int check(const char *what, raop_ntp_t *ntp, uint64_t (*map)(raop_ntp_t *
 int main(void) {
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
+    pm_netutils_loopback_only = 1;  /* raop_ntp's socket on 127.0.0.1: no firewall prompt */
     ntp_global_init();
     g_boot_local_ns = (int64_t) raop_ntp_get_local_time() - BOOT_AGO_NS;
 

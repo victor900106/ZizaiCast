@@ -110,6 +110,8 @@ netutils_get_address(void *sockaddr, int *length, unsigned int *zone_id, unsigne
     return NULL;
 }
 
+int pm_netutils_loopback_only = 0;
+
 int
 netutils_init_socket(unsigned short *port, int use_ipv6, int use_udp)
 {
@@ -154,7 +156,7 @@ netutils_init_socket(unsigned short *port, int use_ipv6, int use_udp)
 
         /* Initialize sockaddr for bind */
         sin6ptr->sin6_family = family;
-        sin6ptr->sin6_addr = in6addr_any;
+        sin6ptr->sin6_addr = pm_netutils_loopback_only ? in6addr_loopback : in6addr_any;
         sin6ptr->sin6_port = htons(*port);
 
 #ifndef _WIN32
@@ -180,7 +182,7 @@ netutils_init_socket(unsigned short *port, int use_ipv6, int use_udp)
 
         /* Initialize sockaddr for bind */
         sinptr->sin_family = family;
-        sinptr->sin_addr.s_addr = INADDR_ANY;
+        sinptr->sin_addr.s_addr = pm_netutils_loopback_only ? htonl(INADDR_LOOPBACK) : INADDR_ANY;
         sinptr->sin_port = htons(*port);
 
         socklen = sizeof(*sinptr);

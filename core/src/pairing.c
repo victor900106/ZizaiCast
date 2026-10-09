@@ -507,7 +507,7 @@ random_pin() {
 int
 srp_new_user(pairing_session_t *session, pairing_t *pairing, const char *device_id, const char *pin,
              const char **salt, int *len_salt, const char **pk, int *len_pk) {
-    if (strlen(device_id) > SRP_USERNAME_SIZE) {
+    if (!session || !device_id || !pin || strlen(device_id) > SRP_USERNAME_SIZE) {  /* PM: NULL checks */
         return -1;
     }
 
@@ -564,6 +564,10 @@ srp_validate_proof(pairing_session_t *session, pairing_t *pairing, const unsigne
                    int len_A, unsigned char *proof, int proof_len) {
     int authenticated  = 0;
     const unsigned char *B =  NULL;
+    if (!session->srp || !A || len_A <= 0) {
+        /* PM: step 2 without step 1 (no SRP state): was a NULL dereference */
+        return -3;
+    }
     const unsigned char *b = session->srp->private_key;
     int len_b = SRP_PRIVATE_KEY_SIZE;
     int len_B = 0;
@@ -577,6 +581,11 @@ srp_validate_proof(pairing_session_t *session, pairing_t *pairing, const unsigne
                                                     A, len_A,
                                                     b, len_b,
                                                     &B, &len_B, NULL, NULL, 1);
+    if (!verifier) {  /* PM: e.g. an invalid A */
+        free(session->srp);
+        session->srp = NULL;
+        return -1;
+    }
 
     srp_verifier_verify_session(verifier, proof, &M2);
     authenticated = srp_verifier_is_authenticated(verifier);
@@ -589,6 +598,9 @@ srp_validate_proof(pairing_session_t *session, pairing_t *pairing, const unsigne
     }
     session_key = srp_verifier_get_session_key(verifier, &len_K);
     if (len_K != SRP_SESSION_KEY_SIZE) {
+        srp_verifier_delete(verifier);  /* PM: was leaked */
+        free(session->srp);
+        session->srp = NULL;
         return -2;
     }
     memcpy(session->srp->session_key, session_key, len_K);
@@ -602,6 +614,10 @@ srp_confirm_pair_setup(pairing_session_t *session, pairing_t *pairing,
     unsigned char aesKey[16] = {0}, aesIV[16] = {0};
     unsigned char hash[SHA512_DIGEST_LENGTH] = {0};
     unsigned char pk[ED25519_KEY_SIZE] = {0};
+    if (!session->srp) {
+        /* PM: step 3 without a validated step 2 (no SRP state): was a NULL dereference */
+        return -1;
+    }
     /* decrypt client epk to get client pk, authenticate with auth_tag*/ 
 
     const char *salt = "Pair-Setup-AES-Key";

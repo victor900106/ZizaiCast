@@ -254,24 +254,27 @@ raop_handler_pairpinstart(raop_conn_t *conn,
                           char **response_data, int *response_datalen) {
     raop_t *raop = conn->raop;
     logger_log(raop->logger, LOGGER_INFO, "client sent PAIR-PIN-START request");
+    if (!raop->use_pin) {
+        /* PM: PIN pairing is off on this receiver */
+        logger_log(raop->logger, LOGGER_INFO, "PAIR-PIN-START refused: PIN pairing is off");
+        http_response_init(response, "RTSP/1.0", 470, "Client Authentication Failure");
+        return;
+    }
     conn->pm_pin_requested = true;  /* PM: hide the PIN again if this connection goes away */
-    int pin_4 = 0;
-    if (raop->pin > 9999) {
-        pin_4 = raop->pin % 10000;
-    } else {
-        pin_4 = random_pin();
-        if (pin_4 < 0) {
-            logger_log(raop->logger, LOGGER_ERR, "Failed to generate random pin");
-        } else {
-            raop->pin = (unsigned short) pin_4 % 10000;
-        }
+    bool reused = false;
+    pm_pin_slot_t *slot = pm_pin_issue(raop, conn, &reused);
+    if (!slot) {
+        logger_log(raop->logger, LOGGER_ERR, "Failed to generate random pin");
+        http_response_init(response, "RTSP/1.0", 470, "Client Authentication Failure");
+        return;
     }
     char pin[6] = { '\0' };
-    snprintf(pin, 5, "%04u", pin_4);
+    snprintf(pin, sizeof(pin), "%s", slot->pin);
     if (raop->callbacks.display_pin) {
          raop->callbacks.display_pin(raop->callbacks.cls, pin);
     }
-    logger_log(raop->logger, LOGGER_INFO, "*** CLIENT MUST NOW ENTER PIN = \"%s\" AS AIRPLAY PASSWORD", pin);
+    logger_log(raop->logger, LOGGER_INFO, "*** CLIENT MUST NOW ENTER PIN = \"%s\" AS AIRPLAY PASSWORD (%s)", pin,
+               reused ? "same PIN as this client's last request" : "new PIN");
 }
 
 static void
@@ -285,6 +288,11 @@ raop_handler_pairsetup_pin(raop_conn_t *conn,
     bool logger_debug = (logger_get_level(raop->logger) >= LOGGER_DEBUG);
     request_data = http_request_get_data(request, &request_datalen);
     logger_log(raop->logger, LOGGER_INFO, "client requested pair-setup-pin, datalen = %d", request_datalen);
+    if (!raop->use_pin) {
+        /* PM: PIN pairing is off: nothing to set up (and no PIN to check) */
+        logger_log(raop->logger, LOGGER_INFO, "pair-setup-pin refused: PIN pairing is off");
+        goto authentication_failed;
+    }
     if (request_datalen > 0) {
         char *header_str= NULL; 
         http_request_get_header_string(request, &header_str);
@@ -317,20 +325,28 @@ raop_handler_pairsetup_pin(raop_conn_t *conn,
         char *method = NULL;
         char *user = NULL;
         plist_get_string_val(req_method_node, &method);
-        if (strncmp(method, "pin", strlen (method))) {
-            logger_log(raop->logger, LOGGER_ERR, "error, required method is \"pin\", client requested \"%s\"", method);
-            free (method);
+        if (!method || strcmp(method, "pin")) {  /* PM: strncmp(.., strlen(method)) accepted "" */
+            logger_log(raop->logger, LOGGER_ERR, "error, required method is \"pin\", client requested \"%s\"",
+                       method ? method : "");
+            plist_mem_free(method);
             plist_free (req_root_node);
-            return;
+            goto authentication_failed;
         }
         plist_mem_free(method);
         method = NULL;
         plist_get_string_val(req_user_node, &user);
-        logger_log(raop->logger, LOGGER_INFO, "pair-setup-pin:  device_id = %s", user);
-        snprintf(pin, 6, "%04u", raop->pin % 10000);
-        if (raop->pin < 10000) {
-            raop->pin = 0;
+        logger_log(raop->logger, LOGGER_INFO, "pair-setup-pin:  device_id = %s", user ? user : "");
+        /* PM: only the PIN that pair-pin-start showed for this client; never a
+         * fallback (upstream used raop->pin, 0 = "0000" without pair-pin-start) */
+        pm_pin_slot_t *slot = pm_pin_lookup(raop, conn);
+        if (!slot || !user) {
+            logger_log(raop->logger, LOGGER_INFO, "pair-setup-pin refused: no valid PIN was shown for this client "
+                       "(PIN timed out, or no PAIR-PIN-START)");
+            plist_mem_free(user);
+            plist_free(req_root_node);
+            goto authentication_failed;
         }
+        snprintf(pin, sizeof(pin), "%s", slot->pin);
         int ret = srp_new_user(conn->session, raop->pairing, (const char *) user,
                                (const char *) pin, &salt, &len_salt, &pk, &len_pk);
         plist_mem_free(user);
@@ -359,19 +375,37 @@ raop_handler_pairsetup_pin(raop_conn_t *conn,
         uint64_t client_proof_len = 0;
         plist_get_data_val(req_pk_node, &client_pk, &client_pk_len); 
         plist_get_data_val(req_proof_node, &client_proof, &client_proof_len);
+        /* PM: the SRP proof (SHA-1: 20 bytes) was copied as 64 bytes (over-read) */
+        if (!client_pk || !client_proof || client_proof_len < 20 || client_proof_len > sizeof(proof) || client_pk_len == 0 || client_pk_len > 1024) {
+            logger_log(raop->logger, LOGGER_ERR, "pair-setup-pin (step 2): malformed request (pk %llu bytes, proof %llu bytes)",
+                       (unsigned long long) client_pk_len, (unsigned long long) client_proof_len);
+            free(client_pk);
+            free(client_proof);
+            plist_free(req_root_node);
+            goto authentication_failed;
+        }
         if (logger_debug) {
             char *str = utils_data_to_string((const unsigned char *) client_proof, client_proof_len, 20);
             logger_log(raop->logger, LOGGER_DEBUG, "client SRP6a proof <M> :\n%s", str);	    
             free (str);
         }
-        memcpy(proof, client_proof, sizeof(proof));
+        memcpy(proof, client_proof, (size_t) client_proof_len);
         free (client_proof);
         int ret = srp_validate_proof(conn->session, raop->pairing, (const unsigned char *) client_pk,
                                      (int) client_pk_len, proof, (int) sizeof(proof));
         free (client_pk);
         plist_free(req_root_node);
         if (ret < 0) {
-            logger_log(raop->logger, LOGGER_ERR, "Client Authentication Failure (client proof not validated)");
+            /* PM: count it against this client's PIN; after PM_PIN_MAX_FAILURES the
+             * next pair-pin-start shows a new PIN */
+            if (ret == -3) {
+                logger_log(raop->logger, LOGGER_ERR, "pair-setup-pin (step 2) without step 1: refused");
+                goto authentication_failed;
+            }
+            pm_pin_slot_t *slot = pm_pin_lookup(raop, conn);
+            if (slot) slot->failures++;
+            logger_log(raop->logger, LOGGER_ERR, "Client Authentication Failure: wrong PIN entered on the client "
+                       "(%d of %d tries)", slot ? slot->failures : 0, PM_PIN_MAX_FAILURES);
             goto authentication_failed;
         }
         if (logger_debug) {
@@ -397,6 +431,16 @@ raop_handler_pairsetup_pin(raop_conn_t *conn,
         int ret = 0;
         plist_get_data_val(req_epk_node, &client_epk, &client_epk_len); 
         plist_get_data_val(req_authtag_node, &client_authtag, &client_authtag_len);
+        /* PM: fixed sizes are copied below (over-read for shorter data) */
+        if (!client_epk || !client_authtag || client_epk_len != ED25519_KEY_SIZE ||
+            client_authtag_len != GCM_AUTHTAG_SIZE) {
+            logger_log(raop->logger, LOGGER_ERR, "pair-setup-pin (step 3): malformed request (epk %llu bytes, authTag %llu bytes)",
+                       (unsigned long long) client_epk_len, (unsigned long long) client_authtag_len);
+            free(client_epk);
+            free(client_authtag);
+            plist_free(req_root_node);
+            goto authentication_failed;
+        }
 
         if (logger_debug) {
             char *str = utils_data_to_string((const unsigned char *) client_epk, client_epk_len, 16);
@@ -417,6 +461,8 @@ raop_handler_pairsetup_pin(raop_conn_t *conn,
             goto authentication_failed;
         } else {
             logger_log(raop->logger, LOGGER_DEBUG, "pair-pin-setup success\n");
+            pm_pin_slot_t *slot = pm_pin_lookup(raop, conn);
+            if (slot) slot->used = false;  /* PM: paired: this PIN is used up */
         }
         pairing_session_set_setup_status(conn->session);
         plist_t res_root_node = plist_new_dict();
@@ -983,6 +1029,18 @@ raop_handler_setup(raop_conn_t *conn,
         }
         unsigned short timing_lport = raop->timing_lport;
 
+        /* PM: a repeated first SETUP on this connection overwrote (leaked) the
+         * running stream objects and their threads/sockets: destroy them first
+         * (rtp and mirror use ntp, so ntp last) */
+        if (conn->raop_rtp) {
+            raop_rtp_destroy(conn->raop_rtp);
+        }
+        if (conn->raop_rtp_mirror) {
+            raop_rtp_mirror_destroy(conn->raop_rtp_mirror);
+        }
+        if (conn->raop_ntp) {
+            raop_ntp_destroy(conn->raop_ntp);
+        }
         conn->raop_ntp = NULL;
         conn->raop_rtp = NULL;
         conn->raop_rtp_mirror = NULL;
@@ -1221,8 +1279,10 @@ raop_handler_set_parameter(raop_conn_t *conn,
             memcpy(datastr, data, datalen);
             if ((datalen >= 8) && !strncmp(datastr, "volume: ", 8)) {
                 float vol = 0.0f;
-                sscanf(datastr+8, "%f", &vol);
-                if (conn->raop_rtp && raop_rtp_is_running(conn->raop_rtp)) {
+                /* PM: an unreadable value is ignored (it used to become 0 dB = full volume) */
+                if (sscanf(datastr+8, "%f", &vol) != 1) {
+                    logger_log(raop->logger, LOGGER_WARNING, "ignoring unreadable volume parameter");
+                } else if (conn->raop_rtp && raop_rtp_is_running(conn->raop_rtp)) {
                     raop_rtp_set_volume(conn->raop_rtp, vol);
                 } else if (raop->callbacks.audio_set_volume) {
                     /* set volume in playbin (hls) */
@@ -1371,14 +1431,16 @@ raop_handler_teardown(raop_conn_t *conn,
             }
         }
     } else if (teardown_110) {
+        /* PM: stop (join) the mirror thread before the reset callback: it reset
+         * state the mirror thread was still writing (video timing) */
+        if (conn->raop_rtp_mirror) {
+        /* Stop our video RTP session */
+            raop_rtp_mirror_stop(conn->raop_rtp_mirror);
+        }
         if (raop->hls_pending) {
             raop->callbacks.video_reset(raop->callbacks.cls, RESET_TYPE_RTP_TO_HLS_TEARDOWN);
         } else {
             raop->callbacks.video_reset(raop->callbacks.cls, RESET_TYPE_RTP_SHUTDOWN);
-        }
-        if (conn->raop_rtp_mirror) {
-        /* Stop our video RTP session */
-            raop_rtp_mirror_stop(conn->raop_rtp_mirror);
         }
     } else {
         /* Destroy our sessions */
@@ -1391,6 +1453,11 @@ raop_handler_teardown(raop_conn_t *conn,
             conn->raop_rtp_mirror = NULL;
             /*fix for iOS >= 27 (does not send teardown_110 when mirrroring is stopped) */
             raop->callbacks.video_reset(raop->callbacks.cls, RESET_TYPE_RTP_SHUTDOWN);
+        }
+        /* PM: the NTP thread and its UDP socket ran on until the connection closed */
+        if (conn->raop_ntp) {
+            raop_ntp_destroy(conn->raop_ntp);
+            conn->raop_ntp = NULL;
         }
         /* PM: full TEARDOWN = the session is over even if the client keeps the RTSP
          * connection open a while: it no longer blocks/counts for a takeover. */

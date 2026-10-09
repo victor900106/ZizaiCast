@@ -181,6 +181,8 @@ raop_rtp_init(logger_t *logger, raop_callbacks_t *callbacks, raop_ntp_t *ntp, co
     raop_rtp->running = 0;
     raop_rtp->joined = 1;
     raop_rtp->flush = NO_FLUSH;
+    raop_rtp->csock = -1;  /* PM: stop() closes only what was opened */
+    raop_rtp->dsock = -1;
 
     MUTEX_CREATE(raop_rtp->run_mutex);
     return raop_rtp;
@@ -778,12 +780,15 @@ raop_rtp_start_audio(raop_rtp_t *raop_rtp,  unsigned short *control_rport, unsig
     assert(raop_rtp);
 
     MUTEX_LOCK(raop_rtp->run_mutex);
-    if (raop_rtp->running || !raop_rtp->joined) {
+    if (raop_rtp->running) {
         MUTEX_UNLOCK(raop_rtp->run_mutex);
         /* PM: log it, the stream keeps running on the old sockets */
         logger_log(raop_rtp->logger, LOGGER_INFO, "[audio-timing] audio stream already running: SETUP keeps it");
         return;
     }
+    MUTEX_UNLOCK(raop_rtp->run_mutex);
+    raop_rtp_stop(raop_rtp);  /* PM: join a thread that ended by itself (select error) */
+    MUTEX_LOCK(raop_rtp->run_mutex);
 
     raop_rtp->ct = *ct;
     raop_rtp->rtp_clock_rate = SECOND_IN_NSECS / *sr;
@@ -860,11 +865,14 @@ raop_rtp_set_coverart(raop_rtp_t *raop_rtp, const char *data, int datalen)
         return;
     }
     unsigned char *coverart = (unsigned char *) malloc(datalen);
-    assert(coverart);
+    if (!coverart) {
+        return;  /* PM: no assert on an allocation failure */
+    }
     memcpy(coverart, data, datalen);
 
     /* Set coverart in thread instead */
     MUTEX_LOCK(raop_rtp->run_mutex);
+    free(raop_rtp->coverart);  /* PM: an image not yet picked up by the thread leaked */
     raop_rtp->coverart = coverart;
     raop_rtp->coverart_len = datalen;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
@@ -922,10 +930,10 @@ raop_rtp_stop(raop_rtp_t *raop_rtp)
 {
     assert(raop_rtp);
 
-    /* Check that we are running and thread is not
-     * joined (should never be while still running) */
+    /* PM: join whenever the thread was not joined yet (upstream returned early
+     * for a thread that had ended by itself: no join, sockets left open) */
     MUTEX_LOCK(raop_rtp->run_mutex);
-    if (!raop_rtp->running || raop_rtp->joined) {
+    if (raop_rtp->joined) {
         MUTEX_UNLOCK(raop_rtp->run_mutex);
         return;
     }
@@ -938,11 +946,21 @@ raop_rtp_stop(raop_rtp_t *raop_rtp)
     /* Join the thread */
     THREAD_JOIN(raop_rtp->thread);
 
-    if (raop_rtp->csock != -1) {
+    /* PM: the kernel-timestamp sessions own the sockets: destroy them (they
+     * leaked, and a later init_sockets failure closed their stale handles) */
+    if (raop_rtp->rtp_session_csock != NULL) {
+        kernel_timestamp_session_destroy(raop_rtp->rtp_session_csock);
+        raop_rtp->rtp_session_csock = NULL;
+        raop_rtp->csock = -1;
+    } else if (raop_rtp->csock != -1) {
         CLOSESOCKET(raop_rtp->csock);
         raop_rtp->csock = -1;
     }
-    if (raop_rtp->dsock != -1) {
+    if (raop_rtp->rtp_session_dsock != NULL) {
+        kernel_timestamp_session_destroy(raop_rtp->rtp_session_dsock);
+        raop_rtp->rtp_session_dsock = NULL;
+        raop_rtp->dsock = -1;
+    } else if (raop_rtp->dsock != -1) {
         CLOSESOCKET(raop_rtp->dsock);
         raop_rtp->dsock = -1;
     }

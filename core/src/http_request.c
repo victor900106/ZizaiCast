@@ -178,11 +178,19 @@ on_header_value(llhttp_t *parser, const char *at, size_t length)
     return 0;
 }
 
+#define PM_HTTP_MAX_BODY (16u * 1024u * 1024u)
+
 static int
 on_body(llhttp_t *parser, const char *at, size_t length)
 {
     http_request_t *request = parser->data;
 
+    /* PM: the body size comes from the network: cap it (cover art is the
+     * largest legitimate body, well below this) */
+    if ((size_t) request->datalen + length > PM_HTTP_MAX_BODY) {
+        llhttp_set_error_reason(parser, "request body over 16 MB");
+        return HPE_USER;
+    }
     size_t new_size = request->datalen + length + 1;
     char *new_data = realloc(request->data, new_size);
     if (!new_data) {

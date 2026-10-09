@@ -18,6 +18,9 @@
 int netutils_init();
 void netutils_cleanup();
 int netutils_init_socket(unsigned short *port, int use_ipv6, int use_udp);
+/* PM: tests only: bind to the loopback address instead of the wildcard (no
+ * firewall prompt for offline tests). 0 in the app. */
+extern int pm_netutils_loopback_only;
 unsigned char *netutils_get_address(void *sockaddr, int *length, unsigned int *zone_id, unsigned short *port);
 int netutils_parse_address(int family, const char *src, void *dst, int dstlen);
 
