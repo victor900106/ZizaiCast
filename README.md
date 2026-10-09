@@ -50,20 +50,22 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <div align="center"><img src="docs/readme/phone-pc.png" alt="左邊是手機，右邊是電腦上的自在投影視窗，透過同一個 Wi‑Fi 連線" width="760"></div>
 
-## 🆕 v0.7.6 新功能
+## 🆕 v0.7.7 新功能
 
 | | |
 |---|---|
+| 📱 **手機與網頁截圖翻得更準**（0.7.7） | 導覽列、按鈕、振假名、漢字表格和瀏覽器網址列不再被誤翻；換行的段落當成一整句翻譯；品牌名、使用者名稱、@帳號和網址會保留。剛開啟程式就按「即時翻譯」也能用。 |
+| 🧭 **更簡單的翻譯選單**（0.7.7） | 「翻譯」選單只留常用動作，其他選項在「翻譯設定 ▸」；「管理翻譯模型」依語言列出。 |
 | 🧠 **本機 AI 翻譯（選用）** | 日文、韓文直接翻成中文，用詞更自然；在這台電腦上執行，文字不會上傳，有獨立顯示卡時用顯示卡加速。需要時再下載（約 1.3 GB，小模型約 560 MB），可隨時刪除。 |
 | 🌐 **線上翻譯（選用）** | 使用你自己的 DeepL 或 Azure 金鑰；預設關閉，開啟並同意後才會把辨識出的文字（不含畫面）送到你選的服務。 |
 | ⚡ **即時翻譯** | 取代「連續翻譯」：畫面有變化才重新翻譯；文字很多的畫面快很多，文字辨識也能用顯示卡加速。 |
 | 🈯 **翻得更準** | 日文、韓文、英文詞彙表（菜單、車站、標示、介面用語），成分表逐項翻譯，表格顯示成「標籤　值」；否定和數字會核對，沒把握的句子會標出來，點一下看原文。推文截圖的 @帳號、#標籤、網址會保留。 |
 | 🔊 **音量與靜音** | 工具列新增音量滑桿和靜音（Ctrl+↑／↓／M）。 |
-| ❎ **按 X 時** | 可選縮到系統匣或結束程式，並記住你的選擇；選單變短，分成「設定」「Android」「資料夾」「說明」。 |
-| ⏬ **下載更快** | 模型同時用多條連線下載，顯示速度和剩餘時間，中斷後可接著下載，「取消」立即停止。 |
+| ❎ **關閉視窗時** | 可選縮到系統匣或結束程式，並記住你的選擇；選單變短，分成「設定」「Android」「資料夾」「說明」。 |
+| ⏬ **下載更快** | 模型同時用多條連線下載（本機 AI 執行環境改從本專案的 GitHub Pages 鏡像下載），顯示速度和剩餘時間，中斷後可接著下載，「取消」立即停止。 |
 | 📲 **iPhone 一次存全部** | 「傳到手機」的網頁新增「全部下載（ZIP）」，iPhone 也能一次拿到所有截圖和錄影。 |
 
-另外修正了許多問題（翻譯後畫面卡住、Wi‑Fi 斷線後黑畫面、暫停後影音不同步等）。這一版合併了沒有公開過的 0.7.3–0.7.5。完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
+另外修正了許多問題（翻譯後畫面卡住、Wi‑Fi 斷線後黑畫面、暫停後影音不同步等）。0.7.6 合併了沒有公開過的 0.7.3–0.7.5。完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
 
 ## 🧩 功能一覽
 
@@ -99,7 +101,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 <td valign="top"><img src="docs/readme/features/f-language.jpg" alt="繁體中文與英文介面"><br><b>🌐 繁體中文／English／日本語／한국어</b><br>介面可切換繁體中文、英文、日文或韓文（設定 → 語言 / Language），預設跟隨 Windows 的顯示語言。</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/readme/features/f-menu.jpg" alt="選單與系統匣"><br><b>🧰 選單・系統匣・自動更新</b><br>按 X 時可選縮到系統匣待命或結束程式、開機自動啟動、視窗置頂、全螢幕；有新版時選「更新到 vX.Y.Z」一鍵更新（不會自己偷偷更新）。</td>
+<td valign="top"><img src="docs/readme/features/f-menu.jpg" alt="選單與系統匣"><br><b>🧰 選單・系統匣・自動更新</b><br>關閉視窗時可選縮到系統匣待命或結束程式、開機自動啟動、視窗置頂、全螢幕；有新版時選「更新到 vX.Y.Z」一鍵更新（不會自己偷偷更新）。</td>
 <td valign="top"><img src="docs/readme/features/f-about.jpg" alt="關於視窗"><br><b>📜 開源・授權透明</b><br>「關於自在投影」列出版本、GPL-3.0 授權、原始碼位置與使用的開源元件；授權聲明隨程式安裝。</td>
 <td valign="top"><img src="docs/readme/features/f-speed.jpg" alt="實測數據"><br><b>⚡ 低延遲</b><br>電腦端解碼到顯示約 3 ms；最高 4K / 60 fps。<a href="#measured">看實測數據</a>。</td>
 </tr>
@@ -257,7 +259,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
   - 只有在你按下「更新到 vX.Y.Z」時，才會從清單裡的網址（`https://victor900106.github.io/ZizaiCast/download/`，速度比 Releases 快）下載安裝程式，並以 SHA-256 驗證後執行。
   - 不想檢查更新：在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=`（留空）即可完全關閉。
 - **畫面翻譯完全在電腦上離線執行**（程式碼：`translate/`）：畫面和文字都不會上傳。第一次使用前會先詢問，你同意後才下載模型：翻譯模型（Firefox Translations，約 50 MB）來自 `firefox-settings-attachments.cdn.mozilla.net`／`firefox.settings.services.mozilla.com`，文字辨識模型（PaddleOCR，約 37 MB）來自 `www.modelscope.cn`；每個檔案都以 SHA-256 驗證，可以在「管理翻譯模型」刪除。不同意的話不會連線。
-- **本機 AI 翻譯（選用）也在電腦上執行**：只有在你選擇下載時，才從 `github.com`（llama.cpp 執行環境，MIT）與 `huggingface.co`（Qwen 模型，Apache-2.0）下載，約 1.3 GB（小模型約 560 MB）；用顯示卡做文字辨識的附加元件來自 Microsoft 的 `api.nuget.org`。每個檔案都以大小和 SHA-256 驗證，可以隨時刪除。
+- **本機 AI 翻譯（選用）也在電腦上執行**：只有在你選擇下載時，才從本專案的鏡像 `victor900106.github.io/ZizaiCast/addons/`（llama.cpp 官方檔案未經修改，MIT；連不上時改用 `github.com`）與 `huggingface.co`（Qwen 模型，Apache-2.0）下載，約 1.3 GB（小模型約 560 MB）；用顯示卡做文字辨識的附加元件來自 Microsoft 的 `api.nuget.org`。每個檔案都以大小和 SHA-256 驗證，可以隨時刪除。
 - **線上翻譯（選用）預設關閉**（程式碼：`translate/src/online_engine*.cpp`）：只有在你開啟、同意並填入自己的 DeepL 或 Azure 金鑰後，才把辨識出的文字（不含畫面）以 HTTPS 送到你選的服務（`api.deepl.com`／`api-free.deepl.com` 或 `api.cognitive.microsofttranslator.com`）。金鑰用 Windows DPAPI 加密存在這台電腦，不會寫進記錄檔。沒有開啟就完全不會連線。
 - **傳到手機只在區域網路**（程式碼：`share/`）：Android 經無線偵錯直接傳進相簿；其他手機掃 QR 碼，從這台電腦上暫時開啟的網頁下載（只接受同一個區域網路的連線），不經過任何伺服器。
 - 其他網路活動都在區域網路內：AirPlay 的裝置探索（mDNS）與串流、Miracast（Windows 內建）、Android 無線偵錯（程式自帶的 adb，只連你配對的手機）。

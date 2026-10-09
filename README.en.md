@@ -50,20 +50,22 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 
 <div align="center"><img src="docs/readme/phone-pc-en.png" alt="A phone on the left, the Zizai Cast window on a Windows PC on the right, connected over the same Wi‑Fi" width="760"></div>
 
-## 🆕 New in v0.7.6
+## 🆕 New in v0.7.7
 
 | | |
 |---|---|
+| 📱 **Better phone and web screenshots** (0.7.7) | Navigation bars, buttons, furigana, kanji grids and browser address bars are no longer mistranslated; paragraphs that wrap are translated as one sentence; brand names, user names, @handles and links are kept. Live translation works right after the app starts. |
+| 🧭 **Simpler Translate menu** (0.7.7) | The Translate menu keeps the everyday actions, the rest is under *Translation settings ▸*; *Manage translation models* lists models by language. |
 | 🧠 **On-device AI translation (optional)** | Translates Japanese and Korean directly, with more natural wording. Runs on this PC, no text is uploaded, and uses a dedicated graphics card when there is one. Downloaded only when you want it (about 1.3 GB, or 560 MB for the small model); remove it any time. |
 | 🌐 **Online translation (optional)** | Bring your own DeepL or Azure key. Off by default; only after you turn it on and agree is the recognised text (never the picture) sent to the service you picked. |
 | ⚡ **Live translation** | Replaces “Keep translating”: translates again only when the screen changes. Much faster on screens full of text, and text recognition can use the graphics card. |
 | 🈯 **More accurate** | Glossaries for Japanese, Korean and English (menus, stations, signs, app wording); ingredient lists item by item; tables as “label　value”; negations and numbers are checked, lines it is unsure of are marked, and a tap shows the original. @handles, #hashtags and links in social-media screenshots are kept. |
 | 🔊 **Volume and mute** | A volume slider and mute button on the toolbar (Ctrl+↑/↓/M). |
-| ❎ **Close button** | Choose whether closing the window minimizes to the tray or quits; your choice is remembered. Shorter menus, grouped into Settings, Android, Folders and Help. |
-| ⏬ **Faster downloads** | Models download over several connections, with speed and time left; they resume after an interruption and stop at once on Cancel. |
+| ❎ **When closing the window** | Choose whether closing the window minimizes to the tray or quits; your choice is remembered. Shorter menus, grouped into Settings, Android, Folders and Help. |
+| ⏬ **Faster downloads** | Models download over several connections (the on-device AI runtime now comes from this project's GitHub Pages mirror), with speed and time left; they resume after an interruption and stop at once on Cancel. |
 | 📲 **Save all on iPhone** | The Send to phone page has *Download all (ZIP)*, so an iPhone gets every screenshot and recording at once too. |
 
-Plus many fixes (the picture freezing after translating, a black screen after Wi‑Fi drops, sound drifting after a pause and more). This release includes the unpublished 0.7.3–0.7.5. Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest).
+Plus many fixes (the picture freezing after translating, a black screen after Wi‑Fi drops, sound drifting after a pause and more). 0.7.6 included the unpublished 0.7.3–0.7.5. Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest).
 
 ## 🧩 Features
 
@@ -249,7 +251,7 @@ Windows 10 / 11 (64-bit) only for now. The interface is English, Traditional Chi
   - Only when you click *Update to vX.Y.Z* is the installer downloaded from the URL in that manifest (`https://victor900106.github.io/ZizaiCast/download/`, faster than release assets), verified with SHA-256 and run.
   - To turn it off completely, add the line `update_url=` (empty) to `%LOCALAPPDATA%\PhoneMirror\settings.ini`.
 - **On-screen translation runs entirely offline on your PC** (source: `translate/`): neither the picture nor the text is uploaded. The app asks before the first use and only then downloads the models: translation (Firefox Translations, about 50 MB) from `firefox-settings-attachments.cdn.mozilla.net` / `firefox.settings.services.mozilla.com`, text recognition (PaddleOCR, about 37 MB) from `www.modelscope.cn`; every file is checked with SHA-256 and can be removed under *Manage translation models*. If you decline, nothing is downloaded.
-- **On-device AI translation (optional) also runs on your PC**: only when you choose to download it, the app fetches the llama.cpp runtime (MIT) from `github.com` and a Qwen model (Apache-2.0) from `huggingface.co`, about 1.3 GB (560 MB for the small model); the add-on for text recognition on the graphics card comes from Microsoft's `api.nuget.org`. Every file is checked for size and SHA-256 and can be removed any time.
+- **On-device AI translation (optional) also runs on your PC**: only when you choose to download it, the app fetches the llama.cpp runtime (MIT, the official files unchanged) from this project's mirror `victor900106.github.io/ZizaiCast/addons/` (falling back to `github.com`) and a Qwen model (Apache-2.0) from `huggingface.co`, about 1.3 GB (560 MB for the small model); the add-on for text recognition on the graphics card comes from Microsoft's `api.nuget.org`. Every file is checked for size and SHA-256 and can be removed any time.
 - **Online translation (optional) is off by default** (source: `translate/src/online_engine*.cpp`): only after you turn it on, agree and enter your own DeepL or Azure key is the recognised text (never the picture) sent over HTTPS to the service you picked (`api.deepl.com` / `api-free.deepl.com` or `api.cognitive.microsofttranslator.com`). The key is encrypted with Windows DPAPI on this PC and never written to the log. Unless you turn it on, nothing is sent.
 - **Send to phone stays on your LAN** (source: `share/`): Android gets files over wireless debugging; other phones scan a QR code and download from a page this PC serves temporarily (only connections from the same local network are accepted). No server in between.
 - Everything else is local-network traffic: AirPlay discovery (mDNS) and streaming, Miracast (built into Windows), Android wireless debugging (the bundled adb talks only to phones you paired).
