@@ -546,6 +546,7 @@ if (-not $NoDeps) {
             $readme.Add("  https://www.modelscope.cn/models/RapidAI/RapidOCR")
             $readme.Add("  llama.cpp runtime b11514 for local AI translation (llama.dll, ggml*.dll, ggml-vulkan.dll; MIT;")
             $readme.Add("  libomp.dll Apache-2.0 WITH LLVM-exception): https://github.com/ggml-org/llama.cpp/releases/tag/b11514")
+            $readme.Add("  (0.7.7+: unchanged mirror of the two zips at https://victor900106.github.io/ZizaiCast/addons/)")
             $readme.Add("  Qwen3.5 / Qwen3 GGUF models (Apache-2.0): https://huggingface.co/Qwen (files: translate/src/llm_engine_models.inc)")
             $readme.Add("  OCR on the GPU: onnxruntime.dll 1.24.4 DirectML build (MIT) and DirectML.dll 1.15.4 (Microsoft DirectML")
             $readme.Add("  licence), from Microsoft's NuGet packages Microsoft.ML.OnnxRuntime.DirectML / Microsoft.AI.DirectML")
