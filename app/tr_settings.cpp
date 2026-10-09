@@ -118,6 +118,8 @@ struct LlmUi {
     std::atomic<double> bytesPerSec{0}, secondsLeft{-1};
     bool cancelling = false;  // 取消中…: the button off, repeat clicks ignored
     std::atomic<bool> verifying{false};  // 驗證中…: the final SHA-256 check
+    std::mutex pendingMu;
+    std::vector<std::string> pending;    // files still downloading ("runtime", "gpu", "model")
     bool ocrCancelling = false;
     std::atomic<bool> cancel{false};
     std::thread worker;
@@ -163,6 +165,20 @@ std::wstring llmResultText(int r) {
     case llm::Result::UnknownModel: return tr(S::TrLlmErrModel);
     default: return {};
     }
+}
+
+// The small parts still downloading when the model is already in ("" otherwise).
+std::wstring pendingParts() {
+    std::lock_guard<std::mutex> l(Ai.pendingMu);
+    std::wstring s;
+    for (const auto& p : Ai.pending) {
+        if (p == "model") return {};
+        const wchar_t* name = p == "runtime" ? tr(S::TrDlPartRuntime) : p == "gpu" ? tr(S::TrDlPartGpu) : nullptr;
+        if (!name) continue;
+        if (!s.empty()) s += L"、";
+        s += name;
+    }
+    return s;
 }
 
 std::vector<Item> llmItems() {
@@ -254,6 +270,9 @@ std::vector<Item> llmItems() {
             add(Kind::Status, tr(S::TrDlCancelling));
         } else if (Ai.verifying.load()) {
             add(Kind::Status, tr(S::TrDlVerifying));
+        } else if (const std::wstring tail = pendingParts(); p >= 0.9 && !tail.empty()) {
+            // The model is in, a small part is still coming: say which, so it does not look stuck.
+            add(Kind::Status, fmt(S::TrLlmProgressTail, {pct, tail}));
         } else if (bps > 0 && left >= 0) {
             if (bps >= 1024.0 * 1024) swprintf_s(speed, L"%.1f MB/s", bps / (1024.0 * 1024));
             else swprintf_s(speed, L"%.0f KB/s", bps / 1024.0);
@@ -388,6 +407,10 @@ void llmStartDownload() {
             Ai.bytesPerSec = d.bytesPerSec;
             Ai.secondsLeft = d.secondsLeft;
             Ai.verifying = d.verifying;
+            {
+                std::lock_guard<std::mutex> l(Ai.pendingMu);
+                Ai.pending = d.pending;
+            }
             progress(d.fraction);
         };
         std::wstring detail;

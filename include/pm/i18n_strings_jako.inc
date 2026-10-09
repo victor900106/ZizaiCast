@@ -968,20 +968,20 @@ PM_JAKO(MenuTrDarkCards, L"濃い色の枠（読みやすい）",
         L"어두운 상자(읽기 쉬움)")
 PM_JAKO(TrLayoutToast, L"翻訳の表示方法：{0}",
         L"번역 표시 방법: {0}")
-PM_JAKO(MenuCloseAction, L"× を押したとき",
-        L"X를 눌렀을 때")
+PM_JAKO(MenuCloseAction, L"ウィンドウを閉じるとき",
+        L"창을 닫을 때")
 PM_JAKO(CloseActAsk, L"毎回確認する",
         L"매번 묻기")
 PM_JAKO(CloseActTray, L"通知領域に最小化",
         L"알림 영역으로 최소화")
 PM_JAKO(CloseActQuit, L"終了する",
         L"종료")
-PM_JAKO(CloseActToast, L"× を押したとき：{0}",
-        L"X를 눌렀을 때: {0}")
-PM_JAKO(CloseAskTitle, L"× を押したときの動作は？",
-        L"X를 누르면 어떻게 할까요?")
-PM_JAKO(CloseAskBody, L"通知領域に最小化すると、{0} はバックグラウンドで iPhone と Android のミラーリングを受信し続け、スマホが接続するとウィンドウが自動で表示されます。\nあとで右クリック メニューの「設定 ▸ × を押したとき」で変更できます。",
-        L"알림 영역으로 최소화하면 {0}이(가) 백그라운드에서 iPhone과 Android 미러링을 계속 수신하고, 휴대폰이 연결되면 창이 자동으로 나타납니다.\n나중에 오른쪽 클릭 메뉴의 \"설정 ▸ X를 눌렀을 때\"에서 바꿀 수 있습니다.")
+PM_JAKO(CloseActToast, L"ウィンドウを閉じるとき：{0}",
+        L"창을 닫을 때: {0}")
+PM_JAKO(CloseAskTitle, L"Zizai Cast を終了しますか？それとも右下に最小化しますか？",
+        L"Zizai Cast를 종료할까요, 아니면 오른쪽 아래로 최소화할까요?")
+PM_JAKO(CloseAskBody, L"右下に最小化すると、{0} はバックグラウンドで iPhone と Android のミラーリングを受信し続け、スマホが接続するとウィンドウが自動で表示されます。\nこの選択は、あとで右クリック メニューの「設定 ▸ ウィンドウを閉じるとき」で変更できます。",
+        L"오른쪽 아래로 최소화하면 {0}이(가) 백그라운드에서 iPhone과 Android 미러링을 계속 수신하고, 휴대폰이 연결되면 창이 자동으로 나타납니다.\n이 선택은 나중에 오른쪽 클릭 메뉴의 \"설정 ▸ 창을 닫을 때\"에서 바꿀 수 있습니다.")
 PM_JAKO(CloseAskTray, L"通知領域に最小化（受信を続ける）",
         L"알림 영역으로 최소화(계속 수신)")
 PM_JAKO(CloseAskQuit, L"アプリを終了",
@@ -1047,6 +1047,9 @@ PM_JAKO(TrDlEtaSec, L"残り約 {0} 秒", L"약 {0}초 남음")
 PM_JAKO(TrDlEtaMin, L"残り約 {0} 分", L"약 {0}분 남음")
 PM_JAKO(TrDlCancelling, L"キャンセル中…", L"취소 중…")
 PM_JAKO(TrDlVerifying, L"検証中…", L"확인 중…")
+PM_JAKO(TrLlmProgressTail, L"ダウンロード中 {0}%（{1}）…", L"다운로드 중 {0}% ({1})…")
+PM_JAKO(TrDlPartRuntime, L"実行コンポーネント", L"실행 구성 요소")
+PM_JAKO(TrDlPartGpu, L"GPU コンポーネント", L"GPU 구성 요소")
 PM_JAKO(TrLlmReady, L"ダウンロード済み · {0}",
         L"다운로드됨 · {0}")
 PM_JAKO(TrLlmRemove, L"削除",
@@ -1249,3 +1252,11 @@ PM_JAKO(TrOcrGpuProgress, L"文字認識の高速化：ダウンロード中 {0}
         L"문자 인식 가속: 다운로드 중 {0}% ({1}/{2} MB)")
 PM_JAKO(TrOcrGpuReady, L"文字認識のグラフィックスカード高速化をダウンロードしました。Zizai Cast の再起動後に使われます",
         L"문자 인식용 그래픽 카드 가속을 다운로드했습니다. Zizai Cast를 다시 시작하면 사용됩니다")
+PM_JAKO(MenuTrSettings, L"翻訳の設定",
+        L"번역 설정")
+PM_JAKO(TrModelNoDownload, L"ダウンロード不要",
+        L"다운로드 필요 없음")
+PM_JAKO(TrModelSharedBy, L"（{0}でも使用）",
+        L" ({0}에서도 사용)")
+PM_JAKO(TrDeleteSharedAsk, L"{0}の翻訳にもこのファイルが必要です。削除すると{0}も翻訳できなくなります。それでも削除しますか？",
+        L"{0} 번역에도 이 파일이 필요합니다. 삭제하면 {0}도 번역할 수 없습니다. 그래도 삭제할까요?")

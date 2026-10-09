@@ -878,6 +878,9 @@ enum Command : UINT {
     CmdTrOnline,
     // 設定 ▸ 實驗：只提供螢幕鏡像 (hidden A/B item, 0.7.6; settings.ini airplay_advertise_audio)
     CmdAudioAdvertAB = 250,
+    // 管理翻譯模型 ▸ one source language for the current target (+ index in kModelSources, 0.7.7;
+    // 260..273 are app/volume_ui.h VolumeCommand)
+    CmdTrDeleteLang0 = 290,
 };
 // Translation model pairs (translate/src/models.inc) for 管理翻譯模型.
 // "ocr": the PaddleOCR text recognition models (models\ocr, 0.7.0).
@@ -1936,8 +1939,11 @@ void translateCommand(UINT cmd) {
     case CmdTranslateLive:
         if (!t.live() && !needPicture()) break;
         t.setTarget(translateTarget());
-        t.setLive(!t.live(), kLiveSeconds);
-        g.log->write("info", t.live() ? "translate live on" : "translate live off");
+        {
+            const bool cold = !t.live() && !t.active();
+            t.setLive(!t.live(), kLiveSeconds);
+            g.log->write("info", t.live() ? (cold ? "translate live on (first run: whole picture)" : "translate live on") : "translate live off");
+        }
         if (t.live()) returnToLive("live mode");  // live follows the moving picture
         break;
     case CmdTranslateClose:
@@ -2026,17 +2032,108 @@ void deleteModels(std::vector<int> pairs) {
     g.window->showToast(failed ? std::wstring(tr(S::TrDeleteFailed)) : fmt(S::TrDeleted, {mbText(freed)}), 4000);
 }
 
+void askDeleteModelSet(std::vector<int> pairs, const std::wstring& label, const std::wstring& body);
+
 void askDeleteModels(int pair) {  // -1: all
     std::vector<int> pairs;
-    unsigned long long bytes = 0;
     for (int i = 0; i < kModelPairCount; ++i)
-        if ((pair < 0 || pair == i) && dirBytes(modelPairDir(i)) > 0) pairs.push_back(i), bytes += dirBytes(modelPairDir(i));
+        if ((pair < 0 || pair == i) && dirBytes(modelPairDir(i)) > 0) pairs.push_back(i);
+    askDeleteModelSet(std::move(pairs), pair < 0 ? std::wstring() : pairLabel(pair), {});
+}
+
+// 管理翻譯模型 by language (0.7.7): the user reads FROM a language; the pivot
+// pairs behind it (ja-en + en-zhHant for 日文 → 繁體中文) stay out of sight.
+constexpr pm::translate::Lang kModelSources[5] = {pm::translate::Lang::Ja, pm::translate::Lang::Ko,
+                                                   pm::translate::Lang::En, pm::translate::Lang::ZhHans,
+                                                   pm::translate::Lang::ZhHant};
+pm::translate::Lang translateTarget();
+
+int modelPairIndex(const std::string& pair) {
+    for (int i = 0; i < kModelPairCount; ++i)
+        if (pair == kModelPairs[i]) return i;
+    return -1;
+}
+
+// kModelPairs indices that source `src` needs for the current target (empty:
+// none needed, or not supported: *supported false).
+std::vector<int> sourcePairs(pm::translate::Lang src, bool* supported = nullptr) {
+    bool ok = true;
+    std::vector<int> v;
+    for (const std::string& p : pm::translate::ModelStore::pairsFor(src, translateTarget(), &ok)) {
+        const int i = modelPairIndex(p);
+        if (i >= 0) v.push_back(i);
+        else ok = false;
+    }
+    if (supported) *supported = ok;
+    return v;
+}
+
+bool sourceDownloaded(pm::translate::Lang src) {
+    bool ok = false;
+    const std::vector<int> v = sourcePairs(src, &ok);
+    if (!ok || v.empty()) return false;
+    for (int i : v)
+        if (!pm::translate::ModelStore::installed(kModelPairs[i])) return false;
+    return true;
+}
+
+// Pairs deleting language `src` frees: its own, minus those another
+// downloaded language (same target) still needs (en-zhHant for 韓文 too).
+std::vector<int> sourceDeletablePairs(int source) {
+    std::vector<int> keep;
+    for (int k = 0; k < 5; ++k)
+        if (k != source && kModelSources[k] != translateTarget() && sourceDownloaded(kModelSources[k]))
+            for (int i : sourcePairs(kModelSources[k])) keep.push_back(i);
+    std::vector<int> v;
+    for (int i : sourcePairs(kModelSources[source]))
+        if (std::find(keep.begin(), keep.end(), i) == keep.end() && dirBytes(modelPairDir(i)) > 0) v.push_back(i);
+    return v;
+}
+
+std::wstring modelSourceLabel(int source) {
+    return pm::translate::langName(kModelSources[source]) + L" → " + pm::translate::langName(translateTarget());
+}
+
+// A downloaded language whose files are all shared (英文 → 繁體中文 while 日文
+// also needs en-zhHant): its own pairs on disk, and the other downloaded
+// languages that would lose them, as 「日文」 / 「日文、韓文」. Empty when
+// deleting the language frees files of its own (no question then).
+struct SharedModels {
+    std::vector<int> pairs;
+    std::wstring users;
+};
+SharedModels sourceSharedModels(int source) {
+    SharedModels r;
+    if (!sourceDeletablePairs(source).empty()) return r;
+    for (int i : sourcePairs(kModelSources[source]))
+        if (dirBytes(modelPairDir(i)) > 0) r.pairs.push_back(i);
+    if (r.pairs.empty()) return r;
+    const bool spaced = pm::i18n::en() || pm::i18n::lang() == pm::i18n::Lang::Ko;
+    for (int k = 0; k < 5; ++k) {
+        if (k == source || kModelSources[k] == translateTarget() || !sourceDownloaded(kModelSources[k])) continue;
+        const std::vector<int> theirs = sourcePairs(kModelSources[k]);
+        bool uses = false;
+        for (int i : r.pairs) uses |= std::find(theirs.begin(), theirs.end(), i) != theirs.end();
+        if (!uses) continue;
+        if (!r.users.empty()) r.users += spaced ? L", " : L"、";
+        r.users += pm::translate::langName(kModelSources[k]);
+    }
+    if (r.users.empty()) r.pairs.clear();
+    return r;
+}
+
+void askDeleteModelSet(std::vector<int> pairs, const std::wstring& label, const std::wstring& body = {}) {  // label empty: 刪除全部
+    unsigned long long bytes = 0;
+    for (int i : pairs) bytes += dirBytes(modelPairDir(i));
     if (pairs.empty()) return;
+    const int pair = label.empty() ? -1 : 0;
     if (IsWindowVisible(g.hwnd) == FALSE) bringToFront();
     pm::ui::AskPanel::Info a;
     a.glyph = 0xE74D;  // Delete
     a.title = tr(S::TrDeleteTitle);
-    a.body = pair < 0 ? fmt(S::TrDeleteAllAsk, {mbText(bytes)}) : fmt(S::TrDeleteAsk, {pairLabel(pair), mbText(bytes)});
+    a.body = !body.empty() ? body
+             : pair < 0    ? fmt(S::TrDeleteAllAsk, {mbText(bytes)})
+                           : fmt(S::TrDeleteAsk, {label, mbText(bytes)});
     a.primary = tr(S::TrDeleteBtn);
     a.secondary = tr(S::Cancel);
     a.danger = true;
@@ -2144,8 +2241,8 @@ void createTranslator() {
     cb.changed = []() { refreshToolbar(); };
     cb.finished = [](bool ok, const pm::translate::ScreenTranslator::Timing& t) {
         char buf[200];
-        std::snprintf(buf, sizeof buf, "translate %s: %d lines, %d blocks, %d translated, ocr %.0f ms, translate %.0f ms, total %.0f ms",
-                      ok ? "done" : "ended", t.lines, t.blocks, t.translated, t.ocrMs, t.translateMs, t.totalMs);
+        std::snprintf(buf, sizeof buf, "translate%s %s: %d lines, %d blocks, %d translated, ocr %.0f ms, translate %.0f ms, total %.0f ms",
+                      t.live ? " live run" : "", ok ? "done" : "ended", t.lines, t.blocks, t.translated, t.ocrMs, t.translateMs, t.totalMs);
         g.log->write("info", buf);
         // Nothing to show (declined download, no text, OCR language missing):
         // do not leave the picture frozen with an empty overlay.
@@ -2823,6 +2920,17 @@ void runCommand(UINT cmd) {
     case CmdTrOnline: pm::ui::trset::openOnline(); break;
     default:
         if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
+        else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {
+            const int k = static_cast<int>(cmd - CmdTrDeleteLang0);
+            // Files another downloaded language needs too: say so once; if
+            // confirmed they go, and that language shows 未下載 (asks to
+            // download again when it is next needed).
+            const SharedModels sh = sourceSharedModels(k);
+            if (!sh.pairs.empty())
+                askDeleteModelSet(sh.pairs, modelSourceLabel(k), fmt(S::TrDeleteSharedAsk, {sh.users}));
+            else
+                askDeleteModelSet(sourceDeletablePairs(k), modelSourceLabel(k), {});
+        }
         break;
     }
 }
@@ -3340,20 +3448,47 @@ std::vector<MenuItem> magnifierItems() {
     return v;
 }
 
-// 管理翻譯模型 ▸ one row per pair (已下載 · size / 未下載 · size; a downloaded
-// one is deleted after a confirm), 開啟模型資料夾, 刪除全部.
+// 管理翻譯模型 ▸ one row per language the user reads FROM, for the current
+// target (「日文 → 繁體中文　已下載 · 104 MB」: the total of the files it needs,
+// pivot pairs included), 文字辨識（PaddleOCR）, 開啟模型資料夾, 刪除全部. A
+// downloaded row is deleted after a confirm, keeping files that another
+// downloaded language still needs.
 std::vector<MenuItem> modelItems() {
     std::vector<MenuItem> v;
     v.push_back(MenuItem::note(tr(S::TrModelsNote)));
     bool any = false;
-    for (int i = 0; i < kModelPairCount; ++i) {
+    for (int i = 0; i < kModelPairCount; ++i) any |= dirBytes(modelPairDir(i)) > 0;
+    for (int k = 0; k < 5; ++k) {
+        if (kModelSources[k] == translateTarget()) continue;
+        bool ok = false;
+        const std::vector<int> pairs = sourcePairs(kModelSources[k], &ok);
+        if (!ok) continue;
+        std::wstring right;
+        bool ready = false;
+        if (pairs.empty()) {
+            right = tr(S::TrModelNoDownload);  // 簡體中文 → 繁體中文: converted without a model
+        } else {
+            ready = sourceDownloaded(kModelSources[k]);
+            std::vector<std::string> names;
+            unsigned long long have = 0;
+            for (int i : pairs) names.push_back(kModelPairs[i]), have += dirBytes(modelPairDir(i));
+            right = ready ? fmt(S::TrModelReady, {mbText(have)})
+                          : fmt(S::TrModelMissing, {mbText(pm::translate::ModelStore::missingBytes(names))});
+        }
+        const SharedModels sh = sourceSharedModels(k);
+        if (ready && !sh.pairs.empty()) right += fmt(S::TrModelSharedBy, {sh.users});  // （日文也會用到）
+        MenuItem m = MenuItem::command(CmdTrDeleteLang0 + k, modelSourceLabel(k), ready ? kIcoDelete : 0, right);
+        m.enabled = !sourceDeletablePairs(k).empty() || !sh.pairs.empty();
+        v.push_back(std::move(m));
+    }
+    {  // 文字辨識（PaddleOCR）
+        const int i = modelPairIndex("ocr");
         const unsigned long long have = dirBytes(modelPairDir(i));
         const bool ready = pm::translate::ModelStore::installed(kModelPairs[i]);
         const std::wstring right = ready ? fmt(S::TrModelReady, {mbText(have)})
                                          : fmt(S::TrModelMissing, {mbText(pm::translate::ModelStore::missingBytes({kModelPairs[i]}))});
         MenuItem m = MenuItem::command(CmdTrDelete0 + i, pairLabel(i), ready ? kIcoDelete : 0, right);
         m.enabled = have > 0;
-        any |= have > 0;
         v.push_back(std::move(m));
     }
     v.push_back(MenuItem::separator());
@@ -3364,7 +3499,10 @@ std::vector<MenuItem> modelItems() {
     return v;
 }
 
-// 翻譯 ▸ 翻譯整個畫面, 框選翻譯, 顯示原文 ✓, 連續翻譯 ✓, [關閉翻譯], 翻成：繁體中文 / English, 管理翻譯模型 ▸.
+std::vector<MenuItem> translateSettingsItems();
+
+// 翻譯 ▸ [手機畫面出現後才能使用], 翻譯整個畫面, 框選翻譯, 顯示原文 ✓, 即時翻譯 ✓,
+// [關閉翻譯], 翻譯設定 ▸ (right: the target language).
 std::vector<MenuItem> translateItems() {
     const bool on = viewAvailable() && g.translator;
     const bool active = on && g.translator->active();
@@ -3390,6 +3528,15 @@ std::vector<MenuItem> translateItems() {
         v.push_back(std::move(close));
     }
     v.push_back(MenuItem::separator());
+    v.push_back(valueSubmenu(tr(S::MenuTrSettings), kIcoSettings, translateSettingsItems(),
+                             pm::translate::langName(translateTarget())));
+    return v;
+}
+
+// 翻譯 ▸ 翻譯設定 ▸ 翻成 (radio), 翻譯顯示方式 (radio + 深色方框), 本機 AI 翻譯…,
+// 線上翻譯（選用）…, 管理翻譯模型 ▸ (0.7.7: out of the 翻譯 submenu itself).
+std::vector<MenuItem> translateSettingsItems() {
+    std::vector<MenuItem> v;
     v.push_back(MenuItem::caption(tr(S::MenuTrTarget)));
     // Targets with an offline model from English (other sources pivot via English):
     // 繁體中文, English, 日本語, 한국어 — each named in its own language.
@@ -3421,11 +3568,11 @@ std::vector<MenuItem> translateItems() {
     }
     v.push_back(checkItem(CmdTrDarkCards, tr(S::MenuTrDarkCards), 0, g.settings.translateDark));
     v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::submenu(tr(S::MenuTrModels), kIcoModels, modelItems()));
     if (pm::ui::trset::available()) {  // the optional engines' settings (0.7.4)
         v.push_back(checkItem(CmdTrLocalAi, tr(S::MenuTrLocalAi), kIcoLocalAi, pm::ui::trset::localAiOn()));
         v.push_back(checkItem(CmdTrOnline, tr(S::MenuTrOnline), kIcoOnline, pm::ui::trset::onlineEnabled()));
     }
+    v.push_back(MenuItem::submenu(tr(S::MenuTrModels), kIcoModels, modelItems()));
     return v;
 }
 
@@ -3566,9 +3713,14 @@ void devMenuShots(int hotRow, bool submenus = false) {
         if (m.kind != MenuItem::Kind::Submenu) continue;
         const std::wstring base = L"menu_sub" + std::to_wstring(i);
         pm::ui::renderMenuPng(m.sub, (dir / (base + L".png")).wstring());
-        for (size_t j = 0; j < m.sub.size(); ++j)
-            if (m.sub[j].kind == MenuItem::Kind::Submenu)
-                pm::ui::renderMenuPng(m.sub[j].sub, (dir / (base + L"_" + std::to_wstring(j) + L".png")).wstring());
+        for (size_t j = 0; j < m.sub.size(); ++j) {
+            if (m.sub[j].kind != MenuItem::Kind::Submenu) continue;
+            const std::wstring b2 = base + L"_" + std::to_wstring(j);
+            pm::ui::renderMenuPng(m.sub[j].sub, (dir / (b2 + L".png")).wstring());
+            for (size_t k = 0; k < m.sub[j].sub.size(); ++k)
+                if (m.sub[j].sub[k].kind == MenuItem::Kind::Submenu)
+                    pm::ui::renderMenuPng(m.sub[j].sub[k].sub, (dir / (b2 + L"_" + std::to_wstring(k) + L".png")).wstring());
+        }
         if (m.text != tr(S::MenuSettings)) continue;
         pm::ui::renderMenuPng(m.sub, (dir / L"menu_settings.png").wstring());
         for (const MenuItem& s : m.sub)

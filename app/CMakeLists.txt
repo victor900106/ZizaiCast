@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.7.6)
+set(PM_APP_VERSION 0.7.7)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
