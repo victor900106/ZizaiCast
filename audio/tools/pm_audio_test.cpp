@@ -15,6 +15,12 @@
 // device) and, on the real device, the time until the tone actually appears
 // in the default device's mix (WASAPI loopback capture). Default volume -20 dB.
 //
+// --session-test: reconnect after a muted session (tap clock, no device, no
+// sound): session 1 is muted by the phone (-144 dB), resetSession() (what the
+// app does when a phone connects) must restore the remembered gain, drop the
+// decoder (packets before the next onFormat are ignored) and reopen the
+// output; session 2 sends no volume and must be audible.
+//
 // --bench [N]: decodes the encoded AUs N times (default 20) with the
 // receiver's decoder (FFmpeg libavcodec) and with fdk-aac's decoder as the
 // reference: per-AU CPU cost, output length, best alignment lag (must be 0 =
@@ -563,11 +569,72 @@ int runBench(pm::AudioCodec codec, const Encoded& enc, int rate, int ch, int spf
     return ok ? 0 : 1;
 }
 
+// --session-test (see the header comment).
+static int runSessionTest(pm::AudioCodec codec, const Encoded& enc, int rate, int ch, int spf) {
+    std::mutex mu;
+    float peak = 0;
+    pm::AudioPlayerConfig cfg;
+    cfg.log = [](const std::string& l) { std::printf("  [player] %s\n", l.c_str()); };
+    cfg.pcmTap = [&](const int16_t* p, size_t frames, int c, int) {
+        std::lock_guard<std::mutex> lk(mu);
+        for (size_t i = 0; i < frames * size_t(c); ++i) peak = std::max(peak, std::fabs(p[i] / 32768.0f));
+    };
+    pm::AudioPlayer player(cfg);
+    player.start();
+    auto stream = [&](double sec) {
+        using clock = std::chrono::steady_clock;
+        const size_t n = std::min(enc.aus.size(), size_t(sec * rate / spf));
+        auto t0 = clock::now();
+        for (size_t i = 0; i < n; ++i) {
+            std::this_thread::sleep_until(
+                t0 + std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(double(i) * spf / rate)));
+            player.onPacket(enc.aus[i].data(), enc.aus[i].size(), 0);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));  // drain
+    };
+    auto takePeak = [&] {
+        std::lock_guard<std::mutex> lk(mu);
+        return std::exchange(peak, 0.0f);
+    };
+    int fails = 0;
+    auto expect = [&](bool ok, const char* what) {
+        std::printf("%s: %s\n", ok ? "PASS" : "FAIL", what);
+        if (!ok) ++fails;
+    };
+    timeBeginPeriod(1);
+    // Session 1: the phone mutes, then goes away.
+    player.onVolume(-20.0f);
+    player.onFormat(codec, rate, ch, spf);
+    player.onVolume(-144.0f);
+    stream(0.6);
+    const float p1 = takePeak();
+    expect(p1 < 1e-4f, "session 1 muted by the phone: silent");
+    const uint64_t opens1 = player.stats().deviceReopens;
+    // Phone reconnects: the app resets the session with the remembered volume.
+    player.resetSession("test: phone connecting", -20.0f);
+    expect(std::fabs(player.gain() - pm::AudioPlayer::airplayDbToGain(-20.0f)) < 1e-4f,
+           "resetSession restores the remembered gain");
+    const uint64_t pk0 = player.stats().framesDecoded;
+    stream(0.2);  // packets before the new SETUP: no decoder, ignored
+    expect(player.stats().framesDecoded == pk0 && takePeak() < 1e-4f, "packets before the next onFormat are dropped");
+    // Session 2: no volume message from the phone.
+    player.onFormat(codec, rate, ch, spf);
+    stream(0.6);
+    const float p2 = takePeak();
+    std::printf("session 2 peak %.3f\n", p2);
+    expect(p2 > 0.02f, "session 2 (no volume sent) is audible");
+    expect(player.stats().deviceReopens > opens1, "output reopened for the new session");
+    player.stop();
+    timeEndPeriod(1);
+    std::printf("RESULT session-test: %d failure(s)\n", fails);
+    return fails ? 1 : 0;
+}
+
 int main(int argc, char** argv) {
     std::string wavPath;
     pm::AudioCodec codec = pm::AudioCodec::AAC_ELD;
     double toneSec = 3.0, sweepSec = 3.0, volumeDb = 0.0, jitterMs = 0.0;
-    bool flushTest = false, volumeSet = false, monitorTest = false;
+    bool flushTest = false, volumeSet = false, monitorTest = false, sessionTest = false;
     int benchReps = 0;
     int cycles = 4;
     double playSec = 1.0, pauseSec = 1.0, setupGapMs = 0.0;
@@ -592,6 +659,7 @@ int main(int argc, char** argv) {
         else if (a == "--tap") wavPath = "-";
         else if (a == "--jitter") jitterMs = std::atof(next());
         else if (a == "--monitor") monitorTest = true;
+        else if (a == "--session-test") sessionTest = true;
         else if (a == "--bench") benchReps = (i + 1 < argc && std::atoi(argv[i + 1]) > 0) ? std::atoi(argv[++i]) : 20;
         else {
             std::printf("usage: pm_audio_test [--wav out.wav] [--codec eld|lc|alac] [--tone S] [--sweep S] "
@@ -685,6 +753,7 @@ int main(int argc, char** argv) {
         }
         return runBench(codec, enc, rate, ch, spf, benchReps);
     }
+    if (sessionTest) return runSessionTest(codec, enc, rate, ch, spf);
     if (flushTest)
         return runFlushTest(codec, enc, rate, ch, spf, !wavPath.empty(), volumeDb, cycles, playSec, pauseSec, resume,
                             setupGapMs, toneFreq);

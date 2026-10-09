@@ -226,6 +226,38 @@ struct AudioPlayer::Impl {
         return r > 0 && c > 0;
     }
 
+    // ---- periodic stats line (render thread) ----
+    int64_t statAt = 0;
+    uint64_t statPk = 0, statFr = 0, statErr = 0, statUnder = 0, statDrop = 0;
+    bool statFlowing = false;
+    void maybeLogStats() {
+        const int64_t now = nowNs();
+        if (!statAt) statAt = now;
+        if (now - statAt < 5'000'000'000LL) return;
+        const uint64_t pk = packets, fr = framesDecoded, er = decodeErrors, un = underruns, dr = droppedFrames;
+        if (pk != statPk) {
+            double bufMs;
+            int r;
+            {
+                std::lock_guard<std::mutex> lk(ringMu);
+                r = rate;
+                bufMs = rate > 0 ? 1000.0 * double(count) / rate : 0.0;
+            }
+            logf("%.0fs: %llu packets, %llu frames decoded (%d Hz), %llu decode errors, %llu underruns, %llu frames "
+                 "dropped | buffer %.0f ms, gain %.2f, device %s",
+                 (now - statAt) / 1e9, (unsigned long long)(pk - statPk), (unsigned long long)(fr - statFr), r,
+                 (unsigned long long)(er - statErr), (unsigned long long)(un - statUnder),
+                 (unsigned long long)(dr - statDrop), bufMs, targetGain.load(), deviceOpen ? "open" : "CLOSED");
+            statFlowing = true;
+        } else if (statFlowing) {
+            logf("no audio packets for 5 s (stream idle; gain %.2f, device %s)", targetGain.load(),
+                 deviceOpen ? "open" : "closed");
+            statFlowing = false;
+        }
+        statAt = now;
+        statPk = pk, statFr = fr, statErr = er, statUnder = un, statDrop = dr;
+    }
+
     void run();
     void runTap();
     void runWasapi();
@@ -335,6 +367,7 @@ void AudioPlayer::Impl::runWasapi() {
         uint64_t gen;
         if (!currentFormat(r, c, gen)) {
             WaitForSingleObject(wake, 50);
+            maybeLogStats();
             continue;
         }
         deviceChanged = false;
@@ -394,6 +427,7 @@ void AudioPlayer::Impl::runWasapi() {
         while (running && !deviceChanged) {
             DWORD w = WaitForMultipleObjects(2, waits, FALSE, 200);
             if (!running || deviceChanged) break;
+            maybeLogStats();
             if (w == WAIT_OBJECT_0 + 1) {
                 // Woken: format change / flush; check generation via pull below.
             }
@@ -547,6 +581,34 @@ void AudioPlayer::setPcmMonitor(PcmMonitor fn) {
         d_->monitor = std::move(fn);
     }
     // `old` (and whatever it captured) is destroyed outside the lock.
+}
+
+void AudioPlayer::resetSession(const char* why, float gainDb) {
+    {
+        std::lock_guard<std::mutex> lk(d_->decMu);
+        d_->dec.reset();
+    }
+    bool hadStream;
+    {
+        std::lock_guard<std::mutex> lk(d_->ringMu);
+        hadStream = d_->capFrames > 0;
+        // No format: the render thread closes the WASAPI stream (pull() sees
+        // the new generation) and waits; the next onFormat opens a fresh one.
+        d_->rate = d_->ch = 0;
+        d_->capFrames = d_->prefillFrames = 0;
+        d_->ring.clear();
+        d_->rd = d_->count = 0;
+        d_->primed = false;
+        d_->markWhat = nullptr;
+        d_->startPacketNs = d_->lastPacketNs = 0;
+        ++d_->formatGen;
+    }
+    const float before = d_->targetGain.load();
+    if (gainDb >= -30.0f && gainDb <= 0.0f) d_->targetGain = airplayDbToGain(gainDb);
+    d_->logf("session reset (%s): decoder and jitter buffer dropped, %s; gain %.2f -> %.2f", why ? why : "?",
+             hadStream ? "WASAPI stream closed (a fresh one opens with the next audio stream)" : "no stream was open",
+             before, d_->targetGain.load());
+    SetEvent(d_->wake);
 }
 
 void AudioPlayer::onVolume(float airplayDb) { d_->targetGain = airplayDbToGain(airplayDb); }

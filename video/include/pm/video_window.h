@@ -59,6 +59,9 @@ public:
         // (GPU convert + copy submission, map, NV12 assembly; excl. the tap).
         long long framesTapped = 0;
         double tapAvgMs = 0, tapP95Ms = 0;
+        // Every Present that reached DXGI (pictures + UI / animation frames):
+        // frames drawn per second while idle or on a static picture.
+        long long presentsTotal = 0;
     };
 
     VideoWindow();
@@ -120,6 +123,9 @@ public:
     // (holdMs: fully visible that long instead, for longer hints).
     void showToast(const std::wstring& text);
     void showToast(const std::wstring& text, int holdMs);
+    // Screenshot feedback: a short white veil over the picture (not the
+    // window; nothing with Windows 「顯示動畫」 off).  Thread-safe.
+    void flash();
 
     // ---- Live toolbar ----
     // A themed rounded pill of icon buttons at the top centre of the live
@@ -143,6 +149,14 @@ public:
     //     toggled buttons (放大鏡, 翻譯, 凍結) get the theme's accent (0.7.2).
     //   * optional: left out when the window is too narrow for every button
     //     at the smallest size (the command is also in 更多 / the menu).
+    //   * slider >= 0: a compact horizontal slider (~72 DIP, value 0..1)
+    //     instead of a button (volume); toggled greys it (muted).  Left out
+    //     only after every optional button (an optional button right before
+    //     it, e.g. its speaker, only after the slider), when even then too narrow.
+    //     Press / drag on it: onSlide(id, value, done) on the UI thread
+    //     (the knob follows at once; done = released).  The wheel over it, or
+    //     over the button just before it (even while the slider is left
+    //     out), calls onWheel(id, notches) (+ = up).  No onClick for it.
     // Call again to update (e.g. toggled); an empty list removes it.
     struct ToolbarItem {
         int id = 0;
@@ -153,8 +167,11 @@ public:
         bool groupStart = false;
         bool recording = false;
         bool optional = false;
+        float slider = -1;
     };
     void setLiveToolbar(std::vector<ToolbarItem> items, std::function<void(int id)> onClick);
+    void setLiveToolbarSlider(std::function<void(int id, float value, bool done)> onSlide,
+                              std::function<void(int id, int notches)> onWheel);
 
     // Saves the most recent decoded picture (cropped, no letterbox, with the
     // current rotation / mirroring) as a 24-bit PNG.  Returns false if nothing
@@ -232,7 +249,10 @@ public:
     ViewState viewState() const;
     // Called on the UI thread after the user changed the view with the
     // built-in input (wheel / drag / keys), e.g. to update menus.  Changes
-    // made through the setters above are not reported.
+    // made through the setters above are not reported.  Also called (frozen
+    // = false) if a GPU device loss ended a freeze because the frozen picture
+    // could not be kept; the text overlay was cleared then too.  (Normally
+    // the frozen picture survives a device loss unchanged.)
     void setViewHandler(std::function<void(const ViewState&)> fn);
 
     // ---- Text overlay (on-screen translation; drawn by video/, filled by pm_translate) ----
@@ -259,8 +279,13 @@ public:
         int lines = 1;          // text lines of the original in the box (font size ~ box height / lines)
         uint32_t bg = 0, fg = 0;  // 0xRRGGBB: background / text colour around the original (if colors)
         bool colors = false;
+        bool online = false;    // translated online: a 「線上」 badge (card corner / list row)
     };
     void setTextOverlay(std::vector<TextBox> boxes);
+    // After a translation (the app, from ScreenTranslator::lastItems()): the
+    // shown boxes whose `original` is listed get the 「線上」 badge, the others
+    // lose it.  The next setTextOverlay starts without badges again.
+    void setTextOverlayOnline(std::vector<std::wstring> originals);
     // 翻譯 ▸ 顯示方式: mode 0 automatic (listed when > 30 % do not fit), 1
     // 原位顯示 (whatever fits in place, the rest listed), 2 清單顯示 (all
     // listed); dark: 深色方框 (the 0.7.0 dark cards, low vision) instead of

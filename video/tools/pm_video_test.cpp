@@ -35,7 +35,9 @@
 //   --ntp0-every N   every Nth frame carries ntpLocalNs = 0 (ASAP fallback)
 // Robustness:
 //   --test-at T:C[:A][,T:C[:A]...]  at T ms after the window appears post the
-//                    test hook (lParam A): C=0 simulated device removal,
+//                    test hook (lParam A): C=0 simulated device removal
+//                    (A=1: seen while uploading the next decoded picture,
+//                    i.e. from inside the decoder's output callback),
 //                    1 power-saving GPU, 2 WARP, 3 automatic GPU choice;
 //                    fault injection (0.6.2 watchdog): 20 the decoder stops
 //                    returning pictures (A = more hardware instances that do
@@ -45,6 +47,11 @@
 //                    next A non-IDR AUs, 26 display change after which the
 //                    power-saving GPU is preferred
 //   --display-change-at T[,T...]  post a real WM_DISPLAYCHANGE to the window
+//   --fullscreen-check  self-checking (PASS/FAIL, exit code = failures), on a
+//                    HIDDEN window (never on screen): F11 covers the nearest
+//                    monitor; after its rect is knocked off (a stale rcMonitor
+//                    after a resolution / scaling change) WM_DISPLAYCHANGE and
+//                    WM_DPICHANGED fit it to the monitor again
 //   --cover-at T:MS[,...]  a topmost opaque layered window over the test
 //                    window for MS ms (only with the off-screen window: it
 //                    is never on a monitor)
@@ -92,6 +99,12 @@
 //                    paused, landscape 1280x720, narrow 400x800, 3440x1440)
 //                    saved to DIR with saveWindowShot, then process CPU while
 //                    the idle screen animates and once it has settled (~80 s)
+//   --anim-bench     off-screen: frames drawn per second (+ process CPU) idle
+//                    animating / animations off / hidden / minimised / settled,
+//                    a static live picture with and without the toolbar,
+//                    recording, live video (the stream file is ignored)
+//   --anim-shots DIR off-screen: frame strips of the hover / press / focus /
+//                    reaction transitions (window shots, names = ms after the trigger)
 //   --bgra-bench W,H BGRA pictures W x H at --fps (60) for --seconds (5),
 //                    moving pattern; prints call / upload / present / tap
 //                    cost and process CPU (add --tap for the frame tap)
@@ -545,6 +558,86 @@ void runMascotTour(pm::VideoWindow& win, At at, const std::wstring& dir) {
     std::fflush(stdout);
 }
 
+// ---- --fullscreen-check: fullscreen re-fit after display changes ----
+// The window is hidden first and never shown again (fullscreen is not
+// toggled off: SetWindowPlacement would show it).
+int runFullscreenCheck(pm::VideoWindow& win) {
+    int failures = 0;
+    auto expect = [&](bool ok, const char* what, const RECT& r) {
+        if (!ok) ++failures;
+        std::printf("[fullscreen] %s %s: window %ld,%ld %ldx%ld\n", ok ? "PASS" : "FAIL", what, r.left, r.top,
+                    r.right - r.left, r.bottom - r.top);
+        std::fflush(stdout);
+    };
+    auto onUi = [](std::function<void()> fn) {
+        HANDLE done = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        runOnUi([&] {
+            fn();
+            SetEvent(done);
+        });
+        WaitForSingleObject(done, 5000);
+        CloseHandle(done);
+    };
+    auto wait = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
+    HWND hwnd = win.hwnd();
+    wait(500);
+    bool hidden = false;
+    onUi([&] {
+        ShowWindow(hwnd, SW_HIDE);
+        hidden = !IsWindowVisible(hwnd);
+    });
+    if (!hidden) {
+        std::printf("[fullscreen] FAIL could not hide the window (check skipped: nothing goes on screen)\n");
+        return 1;
+    }
+    auto state = [&](RECT& wr, RECT& mon) {
+        onUi([&] {
+            MONITORINFO mi{sizeof(mi)};
+            GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi);
+            GetWindowRect(hwnd, &wr);
+            mon = mi.rcMonitor;
+        });
+    };
+    // Knocks the window off the monitor rect (still on the same monitor).
+    auto knock = [&](RECT& to) {
+        onUi([&] {
+            MONITORINFO mi{sizeof(mi)};
+            GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi);
+            to = {mi.rcMonitor.left + 40, mi.rcMonitor.top + 30, mi.rcMonitor.left + 40 + 700, mi.rcMonitor.top + 30 + 500};
+            SetWindowPos(hwnd, nullptr, to.left, to.top, 700, 500, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+        });
+    };
+    RECT wr{}, mon{}, off{};
+    PostMessageW(hwnd, WM_KEYDOWN, VK_F11, 0);
+    wait(300);
+    state(wr, mon);
+    expect(EqualRect(&wr, &mon) != 0, "F11 covers the nearest monitor", wr);
+    knock(off);
+    wait(100);
+    state(wr, mon);
+    expect(EqualRect(&wr, &off) != 0, "rect knocked off the monitor (stale rcMonitor)", wr);
+    onUi([&] {
+        SendMessageW(hwnd, WM_DISPLAYCHANGE, 32,
+                     MAKELPARAM(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)));
+    });
+    wait(100);
+    state(wr, mon);
+    expect(EqualRect(&wr, &mon) != 0, "WM_DISPLAYCHANGE re-fits it to the monitor", wr);
+    knock(off);
+    wait(100);
+    onUi([&] {
+        const UINT dpi = GetDpiForWindow(hwnd);
+        SendMessageW(hwnd, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&off));
+    });
+    wait(100);
+    state(wr, mon);
+    expect(EqualRect(&wr, &mon) != 0, "WM_DPICHANGED re-fits it (not the suggested rect)", wr);
+    bool stillHidden = false;
+    onUi([&] { stillHidden = !IsWindowVisible(hwnd); });
+    expect(stillHidden, "the window stayed hidden throughout", wr);
+    return failures;
+}
+
 // ---- --android: BGRA pictures, remote input, idle hints + help link ----
 
 // 720x1280 test picture (BGRA): x / y gradients in red / green, 64 px
@@ -767,13 +860,23 @@ int runAndroid(pm::VideoWindow& win, At at, TapCapture& cap) {
         key(msg, vk, scan);
         wait(30);
     };
-    BYTE saved[256]{};
+    // This thread's key state (what TranslateMessage / GetKeyState see) is
+    // set explicitly: no modifiers held and Caps Lock off, whatever the
+    // user's real keyboard is doing (Caps Lock on made 'A' -> 'A').
+    BYTE saved[256]{}, clean[256]{};
+    onUi([&] {
+        GetKeyboardState(saved);
+        std::memcpy(clean, saved, sizeof(clean));
+        for (int vk : {VK_SHIFT, VK_LSHIFT, VK_RSHIFT, VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_MENU, VK_LMENU, VK_RMENU,
+                       VK_CAPITAL})
+            clean[vk] = 0;
+        SetKeyboardState(clean);
+    });
     keyStep(WM_KEYDOWN, 'A', 0x1E);
     keyStep(WM_KEYUP, 'A', 0x1E);
-    onUi([&] {  // Ctrl held (this thread's key state, as GetKeyState sees it)
-        GetKeyboardState(saved);
+    onUi([&] {  // Ctrl held
         BYTE ks[256];
-        std::memcpy(ks, saved, sizeof(ks));
+        std::memcpy(ks, clean, sizeof(ks));
         ks[VK_CONTROL] = ks[VK_LCONTROL] = 0x80;
         SetKeyboardState(ks);
     });
@@ -901,6 +1004,25 @@ int runFreezeStream(pm::VideoWindow& win, At at, Feed feed, TapCapture& cap, con
     const bool grabbed = win.grabPicture(g, gw, gh);
     chk.expect(grabbed && gw > 0 && gh > 0, "grabPicture of a frozen decoded picture",
                std::to_string(gw) + "x" + std::to_string(gh));
+    // Device lost while frozen (plain, then from inside the decoder
+    // callback): the same picture stays frozen, not the newest decoded one.
+    const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
+    const struct { int ms; LPARAM lp; const char* what; } losses[] = {
+        {2500, 0, "device loss while frozen: the same picture stays frozen"},
+        {3300, 1, "device loss inside the decoder callback while frozen: the same picture stays frozen"}};
+    for (const auto& l : losses) {
+        at(l.ms);
+        PostMessageW(win.hwnd(), testMsg, 0, l.lp);
+        at(l.ms + 700);
+        std::vector<uint8_t> c, g2;
+        int w2 = 0, h2 = 0;
+        shotPx(c);
+        const bool grabbed2 = win.grabPicture(g2, w2, h2);
+        const double dWin = diff(b, c), dPic = grabbed2 && w2 == gw && h2 == gh ? diff(g, g2) : -1;
+        std::snprintf(buf, sizeof(buf), "window mean |diff| %.4f, grabPicture %dx%d mean |diff| %.4f, frozen %d, recoveries %lld",
+                      dWin, w2, h2, dPic, win.viewState().frozen ? 1 : 0, win.stats().deviceRecoveries);
+        chk.expect(dWin >= 0 && dWin < 0.05 && dPic >= 0 && dPic < 0.05 && win.viewState().frozen, l.what, buf);
+    }
     win.zoomAt(3, 0.5f, 0.5f);
     win.setFilter(pm::VideoWindow::Filter::Contrast);
     at(4200);
@@ -925,6 +1047,233 @@ int runFreezeStream(pm::VideoWindow& win, At at, Feed feed, TapCapture& cap, con
 // window fed with --png (a phone screenshot, e.g. a translate/testdata screen;
 // default: the synthetic pattern) at 30 fps with a moving bar at the bottom.
 // Window shots of every state go to DIR (looked at by a human).
+// ---- --anim-bench: frames drawn per second in the states that matter for
+// CPU (idle animating / settled / hidden / minimised, a static live picture
+// with and without the toolbar, recording, live video).  Off-screen window,
+// posted mouse, no sound, no network.  presentsTotal counts every Present.
+void runAnimBench(pm::VideoWindow& win) {
+    const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
+    HWND h = win.hwnd();
+    SendMessageW(h, testMsg, 12, 1);  // posted mouse only
+    auto sleep = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
+    auto onUi = [&](std::function<void()> fn) {
+        HANDLE done = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        runOnUi([&] {
+            fn();
+            SetEvent(done);
+        });
+        WaitForSingleObject(done, 5000);
+        CloseHandle(done);
+    };
+    RECT rc{};
+    GetClientRect(h, &rc);
+    const LPARAM centre = MAKELPARAM(rc.right / 2, rc.bottom * 3 / 5), corner = MAKELPARAM(4, 4);
+    // Measures for ms; mover: post a mouse move every 300 ms (keeps the toolbar up).
+    auto measure = [&](const char* what, int ms, bool mover = false, LPARAM where = 0) {
+        const auto s0 = win.stats();
+        const double c0 = processCpuMs();
+        const auto w0 = std::chrono::steady_clock::now();
+        for (int t = 0; t < ms; t += 100) {
+            if (mover && t % 300 == 0) PostMessageW(h, WM_MOUSEMOVE, 0, where + (t / 300 % 2));
+            sleep(100);
+        }
+        const auto s1 = win.stats();
+        const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - w0).count();
+        const double cpu = processCpuMs() - c0;
+        std::printf("[bench] %-44s frames drawn %6.1f/s  pictures %5.1f/s  CPU %5.2f %% of one core\n", what,
+                    (s1.presentsTotal - s0.presentsTotal) / wall, (s1.framesPresented - s0.framesPresented) / wall,
+                    cpu / (wall * 10));
+        std::fflush(stdout);
+    };
+    runOnUi([&] {
+        win.setIdleHints({L"iPhone：控制中心 → 螢幕鏡像輸出", L"Android：設定 → 投放 → 自在投影"});
+        win.setIdleOptions({{1, L"開機時自動啟動", true}, {2, L"連線時需要輸入 PIN 碼", false}}, [](int, bool) {});
+        win.setIdleActions({{L"顯示 Android QR 碼", true, [] {}}, {L"怎麼連線？", false, [] {}}});
+    });
+    sleep(800);
+    PostMessageW(h, WM_MOUSEMOVE, 0, corner);  // activity: the ambient animation runs
+    sleep(300);
+    measure("idle, animating (after activity)", 5000);
+    SendMessageW(h, testMsg, 17, 1);  // 「顯示動畫」 off (test override)
+    PostMessageW(h, WM_MOUSEMOVE, 0, corner + 1);
+    sleep(1500);
+    PostMessageW(h, WM_MOUSEMOVE, 0, corner);
+    sleep(300);
+    measure("idle, animations off (Windows setting)", 5000);
+    SendMessageW(h, testMsg, 17, 2);  // back to the system setting
+    PostMessageW(h, WM_MOUSEMOVE, 0, corner + 1);
+    sleep(300);
+    onUi([&] { ShowWindow(h, SW_HIDE); });
+    sleep(300);
+    measure("idle, window hidden (tray)", 3000);
+    onUi([&] { ShowWindow(h, SW_SHOWNOACTIVATE); });
+    sleep(300);
+    onUi([&] { ShowWindow(h, SW_SHOWMINNOACTIVE); });
+    sleep(300);
+    measure("idle, minimised", 3000);
+    onUi([&] { ShowWindow(h, SW_SHOWNOACTIVATE); });
+    PostMessageW(h, WM_MOUSEMOVE, 0, corner);
+    sleep(500);
+    measure("idle, animating (again, warm)", 5000);
+    std::printf("[bench] waiting 42 s for the idle animation to settle...\n");
+    std::fflush(stdout);
+    sleep(42000);
+    measure("idle, settled (> 40 s without activity)", 5000);
+
+    // Live: one BGRA picture, then nothing (a static phone screen, as scrcpy sends it).
+    constexpr int PW = 720, PH = 1280, PS = PW * 4;
+    const auto pattern = makePattern(PW, PH, PS);
+    auto toolbar = [&](bool rec) {
+        std::vector<pm::VideoWindow::ToolbarItem> items = {
+            {1, 0xE722, L"截圖"}, {2, 0xE7C8, L"錄影", rec, false, false, rec}, {3, 0xE8B9, L"放大鏡", false, false, true},
+            {4, 0xE767, L"喇叭", false, false, true, false, true}, {5, 0, L"音量", false, false, false, false, false, 0.6f},
+            {6, 0xE711, L"中斷連線", false, true, true}};
+        onUi([&, items] { win.setLiveToolbar(items, [](int) {}); });
+    };
+    toolbar(false);
+    win.submitBgraFrame(pattern.data(), PW, PH, PS, static_cast<uint64_t>(utcNs()));
+    sleep(3500);  // fade-in done, toolbar (shown by no movement) stays hidden
+    measure("live, static screen, toolbar hidden", 5000);
+    measure("live, static screen, toolbar shown", 5000, true, centre);
+    win.setRecording(true);
+    toolbar(true);
+    sleep(3000);  // the toolbar hides again
+    measure("recording, static screen, toolbar hidden", 5000);
+    measure("recording, static screen, toolbar shown", 5000, true, centre);
+    std::atomic<bool> stopFeed{false};
+    std::thread feeder([&] {
+        while (!stopFeed) {
+            win.submitBgraFrame(pattern.data(), PW, PH, PS, static_cast<uint64_t>(utcNs()));
+            sleep(33);
+        }
+    });
+    sleep(500);
+    measure("recording, video 30 fps, toolbar hidden", 5000);
+    win.setRecording(false);
+    toolbar(false);
+    sleep(2500);
+    measure("live, video 30 fps, toolbar hidden", 5000);
+    stopFeed = true;
+    feeder.join();
+    win.onReset();
+    sleep(600);
+}
+
+// ---- --anim-shots DIR: frame strips of the hover / press / focus / reaction
+// transitions (window shots from the back buffer of the off-screen window,
+// posted mouse and keys; names carry the ms after the trigger).
+void runAnimShots(pm::VideoWindow& win, const std::wstring& dir) {
+    CreateDirectoryW(dir.c_str(), nullptr);
+    const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
+    HWND h = win.hwnd();
+    SendMessageW(h, testMsg, 12, 1);  // posted mouse only
+    using clock = std::chrono::steady_clock;
+    auto sleep = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
+    auto shot = [&](const std::wstring& name) {
+        const bool ok = win.saveWindowShot(dir + L"\\" + name + L".png");
+        if (!ok) std::printf("[shots] %ls FAILED\n", name.c_str());
+    };
+    // Shots at these ms after trigger() (each named prefix_<ms>).
+    auto strip = [&](const wchar_t* prefix, std::function<void()> trigger, std::initializer_list<int> times) {
+        const auto t0 = clock::now();
+        trigger();
+        std::printf("[shots] %ls:", prefix);
+        for (int t : times) {
+            std::this_thread::sleep_until(t0 + std::chrono::milliseconds(t));
+            const int real = static_cast<int>(std::chrono::duration<double, std::milli>(clock::now() - t0).count());
+            wchar_t n[96];
+            swprintf_s(n, L"%ls_%03d", prefix, t);
+            shot(n);
+            std::printf(" %d(%d)", t, real);
+        }
+        std::printf("\n");
+        std::fflush(stdout);
+    };
+    auto hook = [&](WPARAM w, LPARAM l) { return SendMessageW(h, testMsg, w, l); };
+    auto move = [&](LPARAM lp) { PostMessageW(h, WM_MOUSEMOVE, 0, lp); };
+    const LPARAM away = MAKELPARAM(4, 4);
+    runOnUi([&] {
+        win.setIdleHints({L"iPhone：控制中心 → 螢幕鏡像輸出", L"Android：設定 → 投放 → 自在投影"});
+        win.setIdleOptions({{1, L"開機時自動啟動", true}, {2, L"連線時需要輸入 PIN 碼", false}}, [](int, bool) {});
+        win.setIdleActions({{L"顯示 Android QR 碼", true, [] {}}, {L"怎麼連線？", false, [] {}}});
+    });
+    sleep(1500);
+    move(away);
+    sleep(300);
+    const LPARAM opt1 = hook(18, 1), qr = hook(10, 0), link = hook(10, 1);
+    std::printf("[shots] option %s, QR %s, link %s\n", opt1 == -1 ? "none" : "ok", qr == -1 ? "none" : "ok",
+                link == -1 ? "none" : "ok");
+    shot(L"idle_rest");
+    const auto hoverTimes = {0, 40, 80, 120, 200};
+    const auto outTimes = {0, 60, 120, 180, 260};
+    strip(L"option_hover_in", [&] { move(opt1); }, hoverTimes);
+    strip(L"option_press", [&] { PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, opt1); }, {0, 35, 70, 120});
+    strip(L"option_release_tick", [&] { PostMessageW(h, WM_LBUTTONUP, 0, opt1); }, {0, 60, 120, 200, 300, 420});
+    strip(L"option_hover_out", [&] { move(away); }, outTimes);
+    strip(L"qr_hover_in", [&] { move(qr); }, hoverTimes);
+    strip(L"qr_press", [&] { PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, qr); }, {0, 35, 70, 120});
+    PostMessageW(h, WM_LBUTTONUP, 0, away);  // released elsewhere: no click
+    strip(L"qr_hover_out", [&] { move(away); }, outTimes);
+    strip(L"link_hover_in", [&] { move(link); }, hoverTimes);
+    strip(L"link_hover_out", [&] { move(away); }, outTimes);
+    strip(L"focus_tab1", [&] { PostMessageW(h, WM_KEYDOWN, VK_TAB, 0); }, {0, 60, 140});
+    strip(L"focus_tab3", [&] {
+        PostMessageW(h, WM_KEYDOWN, VK_TAB, 0);
+        PostMessageW(h, WM_KEYDOWN, VK_TAB, 0);
+    }, {140});
+    PostMessageW(h, WM_KEYDOWN, VK_ESCAPE, 0);
+    sleep(300);
+    strip(L"idle_dots_breath", [] {}, {0, 450, 900, 1350});
+    // 「Found a phone」: surprised face, eyes to the phone, sparkles, then the hop.
+    strip(L"found_phone", [&] { win.setConnecting(L"Victor 的 Pixel"); },
+          {0, 80, 160, 260, 420, 600, 800, 1000, 1300});
+    win.onReset();
+    sleep(1200);
+    move(away);
+    sleep(300);
+    // Reduced motion (Windows 「顯示動畫」 off): plain 120 ms fades.
+    hook(17, 1);
+    strip(L"reduced_option_hover_in", [&] { move(opt1); }, {0, 60, 120});
+    move(away);
+    sleep(300);
+    hook(17, 2);
+
+    // Live toolbar over a still picture.
+    constexpr int PW = 720, PH = 1280, PS = PW * 4;
+    const auto pattern = makePattern(PW, PH, PS);
+    std::vector<pm::VideoWindow::ToolbarItem> items = {
+        {1, 0xE722, L"截圖"}, {2, 0xE7C8, L"錄影", false, false, false, true}, {3, 0xE8B9, L"放大鏡", false, false, true},
+        {4, 0xE767, L"喇叭", false, false, true, false, true}, {5, 0, L"音量", false, false, false, false, false, 0.6f},
+        {6, 0xE711, L"中斷連線", false, true, true}};
+    runOnUi([&] { win.setLiveToolbar(items, [](int) {}); });
+    strip(L"xfade_in", [&] { win.submitBgraFrame(pattern.data(), PW, PH, PS, static_cast<uint64_t>(utcNs())); },
+          {0, 60, 120, 200, 300, 420});
+    sleep(800);
+    RECT rc{};
+    GetClientRect(h, &rc);
+    move(MAKELPARAM(rc.right / 2, rc.bottom / 2));
+    sleep(400);
+    const LPARAM b0 = hook(11, 0), b4 = hook(11, 4), b5 = hook(11, 5);
+    std::printf("[shots] toolbar buttons %s %s %s\n", b0 == -1 ? "none" : "ok", b4 == -1 ? "none" : "ok",
+                b5 == -1 ? "none" : "ok");
+    auto keepUp = [&] { move(MAKELPARAM(rc.right / 2, rc.bottom / 2 + 1)); };
+    strip(L"tool_hover_in", [&] { move(b0); }, hoverTimes);
+    strip(L"tool_press", [&] { PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, b0); }, {0, 35, 70, 120});
+    strip(L"tool_release", [&] { PostMessageW(h, WM_LBUTTONUP, 0, b0); }, {0, 60, 120});
+    strip(L"tool_hover_out", [&] { keepUp(); }, outTimes);
+    strip(L"tool_danger_hover_in", [&] { move(b5); }, hoverTimes);
+    strip(L"tool_slider_hover_in", [&] { move(b4); }, hoverTimes);
+    keepUp();
+    strip(L"shutter_toast", [&] {
+        win.flash();
+        win.showToast(L"已儲存截圖");
+    }, {0, 20, 40, 110, 220, 320});
+    keepUp();
+    sleep(2600);  // the toolbar hides
+    strip(L"xfade_out", [&] { win.onReset(); }, {0, 80, 160, 280, 420, 560});
+    sleep(800);
+}
+
 template <class At>
 int runMagnifier(pm::VideoWindow& win, At at, TapCapture& cap, const std::wstring& dir, const std::wstring& png) {
     using PE = pm::VideoWindow::PointerEvent;
@@ -1387,7 +1736,9 @@ int wmain(int argc, wchar_t** argv) {
         long arg;
     };
     std::vector<TestEv> tests;
-    bool freezeReport = false, watchdogOff = false, offscreen = false;
+    bool freezeReport = false, watchdogOff = false, offscreen = false, fullscreenCheck = false;
+    bool animBench = false;
+    const wchar_t* shotsDir = nullptr;
     for (int i = 2; i < argc; ++i) {
         const bool hasValue = i + 1 < argc;
         if (!wcscmp(argv[i], L"--demo-ui")) demo = true;
@@ -1395,6 +1746,8 @@ int wmain(int argc, wchar_t** argv) {
         else if (!wcscmp(argv[i], L"--tap")) tap = true;
         else if (!wcscmp(argv[i], L"--android")) android = tap = true;
         else if (!wcscmp(argv[i], L"--mascot-tour") && hasValue) tourDir = argv[++i];
+        else if (!wcscmp(argv[i], L"--anim-bench")) animBench = offscreen = true;
+        else if (!wcscmp(argv[i], L"--anim-shots") && hasValue) shotsDir = argv[++i], offscreen = true;
         else if (!wcscmp(argv[i], L"--magnifier") && hasValue) magDir = argv[++i], tap = true;
         else if (!wcscmp(argv[i], L"--png") && hasValue) pngPath = argv[++i];
         else if (!wcscmp(argv[i], L"--freeze-stream") && hasValue) freezeDir = argv[++i], tap = true, offscreen = true;
@@ -1449,6 +1802,7 @@ int wmain(int argc, wchar_t** argv) {
             }
         } else if (!wcscmp(argv[i], L"--freeze-report")) freezeReport = true;
         else if (!wcscmp(argv[i], L"--offscreen")) offscreen = true;
+        else if (!wcscmp(argv[i], L"--fullscreen-check")) fullscreenCheck = offscreen = true;
         else if (!wcscmp(argv[i], L"--watchdog") && hasValue) watchdogOff = !_wcsicmp(argv[++i], L"off");
     }
     std::stable_sort(tests.begin(), tests.end(), [](const TestEv& a, const TestEv& b) { return a.ms < b.ms; });
@@ -1487,7 +1841,7 @@ int wmain(int argc, wchar_t** argv) {
                 codec == pm::VideoCodec::H265 ? "HEVC" : "H.264", fps, demo ? ", UI demo" : "");
 
     pm::VideoWindow win;
-    const bool tall = demo || demo2 || android || tourDir || magDir;
+    const bool tall = demo || demo2 || android || tourDir || magDir || animBench || shotsDir;
     if (tourDir || magDir) SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
     if (!win.create(L"PhoneMirror - pm_video_test", tall ? 540 : width, tall ? 960 : height)) return 1;
     TapCapture cap;
@@ -1659,8 +2013,14 @@ int wmain(int argc, wchar_t** argv) {
     int exitCode = -1;
     std::thread feeder([&] {
         timeBeginPeriod(1);
-        if (tourDir) {
+        if (animBench) {
+            runAnimBench(win);
+        } else if (shotsDir) {
+            runAnimShots(win, shotsDir);
+        } else if (tourDir) {
             runMascotTour(win, at, tourDir);
+        } else if (fullscreenCheck) {
+            exitCode = runFullscreenCheck(win);
         } else if (android) {
             exitCode = runAndroid(win, at, cap);
         } else if (magDir) {

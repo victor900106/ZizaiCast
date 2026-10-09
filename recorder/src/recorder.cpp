@@ -69,6 +69,7 @@ constexpr int64_t kAudioTolNs = 40'000'000;       // audio timestamp drift toler
 constexpr int64_t kMinLagNs = 1'000'000'000;      // live fill stays this far behind "now"
 constexpr int64_t kMaxAheadNs = 3'000'000'000;    // stamps later than now + this are clamped
 constexpr int kDefaultW = 1280, kDefaultH = 720;  // canvas if no picture ever arrives
+constexpr int64_t kStartPictureNs = 250'000'000;  // no live picture this long after start -> the start picture
 
 struct VFrame {
     ComPtr<IMFMediaBuffer> buf;  // packed NV12, stride == w (from the buffer pool)
@@ -98,7 +99,12 @@ struct Recorder::Impl {
     std::mutex qMu;
     std::condition_variable qCv;
     bool stopReq = false;
+    int64_t stopAtNs = 0;  // steady ns of stop()
     std::deque<VFrame> vq;
+    // setStartPicture(): used if no picture arrives within kStartPictureNs of
+    // start() (a paused / still phone sends none); dropped once one does.
+    VFrame startPic;
+    int64_t startNs = 0;
 
     // ---- NV12 buffer pool (guarded by poolMu) ----
     // Media buffers are recycled once nobody but the pool references them
@@ -194,17 +200,35 @@ struct Recorder::Impl {
     LONGLONG slotHns(int64_t slot) const { return LONGLONG(slot * 10'000'000LL / fps); }
 
     // ------------------------------------------------------------------
+    // Fragmented MP4 (moov up front, then a moof + mdat about every 0.3 s):
+    // after a crash, a kill or a power cut everything up to the last
+    // fragment still plays (a plain MP4 has no index until Finalize() and is
+    // then unreadable). Finalize() adds the duration and an mfra index, so a
+    // finished file plays and seeks in Media Player / Photos like a plain one.
+    // Falls back to a plain MP4 if this Windows has no fragmented sink.
+    bool fragmented = true;
     bool createWriter(bool hw) {
         writer.Reset();
         DeleteFileW(path.c_str());
-        ComPtr<IMFAttributes> attr;
-        MFCreateAttributes(&attr, 4);
-        attr->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, hw ? TRUE : FALSE);
-        attr->SetGUID(MF_TRANSCODE_CONTAINERTYPE, MFTranscodeContainerType_MPEG4);
-        HRESULT hr = MFCreateSinkWriterFromURL(path.c_str(), nullptr, attr.Get(), &writer);
-        if (FAILED(hr)) {
+        HRESULT hr = E_FAIL;
+        for (int k = fragmented ? 0 : 1; k < 2 && !writer; ++k) {
+            ComPtr<IMFAttributes> attr;
+            MFCreateAttributes(&attr, 4);
+            attr->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, hw ? TRUE : FALSE);
+            attr->SetGUID(MF_TRANSCODE_CONTAINERTYPE,
+                          k == 0 ? MFTranscodeContainerType_FMPEG4 : MFTranscodeContainerType_MPEG4);
+            hr = MFCreateSinkWriterFromURL(path.c_str(), nullptr, attr.Get(), &writer);
+            if (FAILED(hr)) {
+                writer.Reset();
+                DeleteFileW(path.c_str());
+                if (k == 0) {
+                    logf("fragmented MP4 not available (hr=0x%08lx); writing a plain MP4", (unsigned long)hr);
+                    fragmented = false;
+                }
+            }
+        }
+        if (!writer) {
             logf("cannot create sink writer for the file (hr=0x%08lx)", (unsigned long)hr);
-            writer.Reset();
             return false;
         }
         hwCreate = hw;
@@ -321,8 +345,9 @@ struct Recorder::Impl {
                 break;
             }
         }
-        logf("writing %dx%d@%d H.264 %.1f Mbps (%s, %s) + AAC-LC %d Hz stereo 192 kbps", w, h, fps, br / 1e6,
-             name.c_str(), isHw ? "hardware" : (hw ? "software fallback" : "software"), outRate);
+        logf("writing %dx%d@%d H.264 %.1f Mbps (%s, %s) + AAC-LC %d Hz stereo 192 kbps, %s MP4", w, h, fps, br / 1e6,
+             name.c_str(), isHw ? "hardware" : (hw ? "software fallback" : "software"), outRate,
+             fragmented ? "fragmented" : "plain");
         return S_OK;
     }
 
@@ -671,6 +696,7 @@ struct Recorder::Impl {
         HRESULT hrMf = MFStartup(MF_VERSION, MFSTARTUP_LITE);
         bool ok = SUCCEEDED(hrMf) && createWriter(true);
         if (!ok && FAILED(hrMf)) logf("MFStartup failed (hr=0x%08lx)", (unsigned long)hrMf);
+        startNs = steadyNowNs();  // start() returns now (the start picture's stamp and grace period)
         started.set_value(ok);
         if (!ok) {
             if (SUCCEEDED(hrMf)) MFShutdown();
@@ -695,6 +721,16 @@ struct Recorder::Impl {
                 aqNs = 0;
                 stopping = stopReq;
                 lag = std::max(kMinLagNs, maxLateNs + 500'000'000);
+                if (startPic.buf) {
+                    if (!vLocal.empty() || opened) {
+                        startPic = {};  // a live picture came first
+                    } else if (stopping || steadyNowNs() - startNs >= kStartPictureNs) {
+                        logf("no live picture %.0f ms after start: starting from the picture on screen",
+                             (steadyNowNs() - startNs) / 1e6);
+                        vLocal.push_back(std::move(startPic));
+                        startPic = {};
+                    }
+                }
             }
             if (!failed) {
                 if (!opened) {
@@ -741,6 +777,9 @@ struct Recorder::Impl {
 
         if (opened) {
             if (!failed) {
+                // The live fill stays ~1 s behind; a still picture (or silence)
+                // at the end lasts until stop() was called.
+                if (stopAtNs > t0) fillTo(stopAtNs - t0);
                 // Pad both tracks to a common end (last picture lasts one frame).
                 const int64_t vEnd = slotNs(nextSlot + (held && !heldEmitted ? 1 : 0));
                 const int64_t aEnd = int64_t(audioWritten) * 1'000'000'000 / outRate;
@@ -793,6 +832,7 @@ bool Recorder::start(const std::wstring& mp4Path, int fps) {
     d.path = mp4Path;
     d.fps = std::clamp(fps, 1, 240);
     d.failed = false;
+    d.fragmented = true;
     d.opened = false;
     d.encoderReady = false;
     d.writer.Reset();
@@ -807,6 +847,7 @@ bool Recorder::start(const std::wstring& mp4Path, int fps) {
     d.rsRate = 0;
     d.scSrcW = d.scSrcH = 0;
     d.pendingAudio.clear();
+    d.startPic = {};
     d.pendingAudioNs = 0;
     d.statSeconds = 0;
     d.statVideoFrames = d.statAudioFrames = d.statDropped = d.statBytes = 0;
@@ -836,6 +877,7 @@ void Recorder::stop() {
     {
         std::lock_guard<std::mutex> lk(d_->qMu);
         d_->stopReq = true;
+        d_->stopAtNs = steadyNowNs();
     }
     d_->qCv.notify_one();
     d_->thread.join();
@@ -900,6 +942,30 @@ void Recorder::onVideoFrame(const uint8_t* nv12, int width, int height, int stri
         f.h = h;
         f.pts = pts;
         d_->vq.push_back(std::move(f));
+    }
+    d_->qCv.notify_one();
+}
+
+void Recorder::setStartPicture(const uint8_t* nv12, int width, int height, int stride) {
+    if (!d_->running || d_->failed || !nv12 || width < 2 || height < 2 || stride < width) return;
+    const int w = width & ~1, h = height & ~1;
+    const size_t frameBytes = size_t(w) * h * 3 / 2;
+    ComPtr<IMFMediaBuffer> buf;
+    if (FAILED(MFCreateMemoryBuffer(DWORD(frameBytes), &buf))) return;
+    BYTE* p = nullptr;
+    if (FAILED(buf->Lock(&p, nullptr, nullptr))) return;
+    for (int y = 0; y < h; ++y) std::memcpy(p + size_t(y) * w, nv12 + size_t(y) * stride, w);
+    const uint8_t* uv = nv12 + size_t(stride) * height;
+    for (int y = 0; y < h / 2; ++y) std::memcpy(p + size_t(w) * h + size_t(y) * w, uv + size_t(y) * stride, w);
+    buf->Unlock();
+    buf->SetCurrentLength(DWORD(frameBytes));
+    {
+        std::lock_guard<std::mutex> lk(d_->qMu);
+        if (d_->stopReq) return;
+        d_->startPic.buf = std::move(buf);
+        d_->startPic.w = w;
+        d_->startPic.h = h;
+        d_->startPic.pts = d_->startNs;  // the recording starts with it
     }
     d_->qCv.notify_one();
 }

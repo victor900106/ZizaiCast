@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "mf_decoder.h"
@@ -83,8 +84,12 @@ public:
     }
     bool paused() const { return paused_; }
     void setConnecting(const std::wstring& name);
-    void setOptions(std::vector<Option> options) { options_ = std::move(options); }
-    void setHover(int index) { hover_ = index; }
+    // A check box whose state changed (same labels) animates its tick.
+    void setOptions(std::vector<Option> options);
+    void setHover(int index) {
+        hover_ = index;
+        hoverTo(UiOption, index);
+    }
     // Idle screen: subtitle lines replacing the default hint (empty: default;
     // a tab starts a smaller, muted suffix) and the row of actions under the
     // check boxes (primary: outlined pill button, else an underlined link).
@@ -94,11 +99,26 @@ public:
     };
     void setHints(std::vector<std::wstring> lines) { hints_ = std::move(lines); }
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }
-    void setActionHover(int index) { actionHot_ = index; }
+    void setActionHover(int index) {
+        actionHot_ = index;
+        hoverTo(UiAction, index);
+    }
+    // ---- Hover / press / keyboard focus feedback ----
+    // Kinds: the idle screen's check boxes and actions, the toolbar's buttons.
+    // Hover eases in over 120 ms and out over 180 ms; a pressed element
+    // shrinks to 96 % (toolbar 92 %); the focused one gets a ring.
+    enum UiKind { UiOption = 0, UiAction = 1, UiTool = 2 };
+    void setPressed(int kind, int index);  // kind < 0: nothing pressed
+    void setFocus(int kind, int index);    // kind < 0: no focus ring
     void setPin(const std::wstring& pin);
     // holdMs: how long the toast stays fully visible, at least its reading
     // time (2.5-8 s by length; <= 0: just that).
     void showToast(const std::wstring& text, double holdMs = 0);
+    // Screenshot taken: a short white veil over the picture only (none with
+    // reduced motion).
+    void flash() {
+        if (!reduced_) flashAt_ = clockMs();
+    }
 
     // ---- Live toolbar (pill of icon buttons at the top of the picture) ----
     struct ToolItem {
@@ -107,7 +127,14 @@ public:
         bool toggled = false, danger = false, group = false;
         bool recording = false;  // toggled = REC red + pulsing dot (else the accent)
         bool optional = false;   // hidden when the window is too narrow for every button
+        // >= 0: a compact horizontal slider at this position (0..1) instead of a
+        // button (glyph unused; toggled = greyed, e.g. muted).  Hidden only when
+        // the window is too narrow even without every optional button.
+        float slider = -1;
     };
+    // Slider track ends: this fraction of the item's height in from each side
+    // (hit rect -> value mapping in VideoWindow uses the same).
+    static constexpr float kToolSliderInset = 0.22f;
     void setToolbar(std::vector<ToolItem> items);
     // Mouse moved over the window: show it (fade in) for ~2 s.
     bool toolbarActivity();  // true if that needs a frame (fading in)
@@ -122,6 +149,11 @@ public:
     const RECT& toolbarPill() const { return toolPill_; }
     // User activity: restarts the idle screen's ambient animation.
     void poke() { ambientUntil_ = clockMs() + kAmbientMs; }
+    // Windows 「顯示動畫」 off (SPI_GETCLIENTAREAANIMATION): no ambient motion
+    // (the idle screen is a static picture), no hop / hearts / sparkles /
+    // flash, every transition a plain fade of at most 120 ms.
+    void setReducedMotion(bool on) { reduced_ = on; }
+    bool reducedMotion() const { return reduced_; }
 
     // ---- Presentation / theme / recording ----
     struct Palette {
@@ -161,9 +193,14 @@ public:
     void setView(const View& v);
     const View& view() const { return view_; }
     // Freeze: keeps a copy of the current picture on screen while decoding
-    // (and the frame tap / recorder) go on with the live stream.
+    // (and the frame tap / recorder) go on with the live stream.  A CPU copy
+    // of it is kept too, so a device loss does not swap it for another
+    // picture: attachDevice() uploads it again.
     void setFrozen(bool on);
     bool frozen() const { return frozenOn_; }
+    // After attachDevice(): true (once) if a freeze ended because its picture
+    // could not be restored (no CPU copy); the text overlay was cleared too.
+    bool takeFrozenDropped() { return std::exchange(frozenDropped_, false); }
     // Translated text boxes (content coords) drawn over the picture.
     struct TextBox {
         float x0, y0, x1, y1;
@@ -171,12 +208,21 @@ public:
         int lines = 1;
         uint32_t bg = 0, fg = 0;  // 0xRRGGBB sampled from the picture (colors)
         bool colors = false;
+        // Set by setTextOverlay from the marks at the start of text (pm_translate,
+        // text_util.h kOverlayRow / kOverlayUncertain): 1 a table row (listed as
+        // 「標籤　值」), 2 a translation that failed a check (listed, its checked
+        // key facts highlighted, selecting its row shows the original).
+        int kind = 0;
+        std::wstring facts;  // kind 2: the checked key facts (the text's last line 「⚠ …」)
+        bool online = false;  // (part of) it came from online translation: a 「線上」 badge (card corner, list row)
     };
     // In place: each block's area painted in its background colour with the
     // translation in its text colour (dark cards with the 加強對比 / 黃字黑底
     // filters), never overlapping; blocks whose translation does not fit
     // readably get numbered markers and a list panel (text_overlay.cpp).
     void setTextOverlay(std::vector<TextBox> boxes);
+    // The boxes whose original is in `originals` get the 「線上」 badge (the others lose it).
+    void setTextOverlayOnline(const std::vector<std::wstring>& originals);
     void setTextOverlayOriginal(bool on) { showOriginal_ = on; }
     // List panel / markers: item = list number - 1.  hot: under the cursor
     // (-1 none); selected: clicked (reveal: scroll the list to it); scroll in DIPs.
@@ -318,6 +364,18 @@ private:
     // The picture on screen: the frozen copy while frozen, else the live one.
     const Picture& shown() const { return frozenOn_ && frozen_.valid() ? frozen_ : cur_; }
     bool copyPicture(const Picture& from, Picture& to);
+    // A picture's planes on the CPU (tightly packed rows), for re-uploading
+    // after a device loss: Y (or BGRA) and, unless BGRA, the interleaved UV.
+    struct CpuPicture {
+        bool bgra = false, tenBit = false;
+        UINT w = 0, h = 0, yRow = 0, uvRow = 0, uvH = 0;
+        VideoFormat fmt;
+        std::vector<uint8_t> y, uv;
+    };
+    bool readBackPicture(const Picture& p, CpuPicture& c);  // waits for the GPU
+    bool restorePicture(const CpuPicture& c, Picture& p);   // as a software (R8/R8G8 or BGRA) picture
+    void keepFrozenCopy();      // frozen_ -> frozenCpu_
+    void restoreFrozen();       // attachDevice(): frozenCpu_ -> frozen_ (or end the freeze)
     // Draws pic into vp with the zoom of view (identity: whole picture), its
     // filter, rotation and (if mirror) mirroring.
     void drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp, const Picture& pic, const View& view,
@@ -375,6 +433,7 @@ private:
         float lift = 0;           // 0..1 float height (shadow)
         float sx = 1, sy = 1;     // squash / stretch (incl. hover grow)
         float opacity = 1;
+        float faceX = 0, faceY = 0;  // face layer offset (frame units): she looks at the phone
         bool lit = true;          // phone screen on
         float beamT0 = 0, beamT1 = 0, beamK = 0;  // visible part of the beam, strength
         double beamFlow = 0;      // beam animation phase
@@ -399,6 +458,21 @@ private:
     void drawSpinner(D2D1_POINT_2F c, float radius, double now);
     void drawZzz(const Layout& L, const Pose& P, double now);
     void drawOptions(float top, float textSize, const D2D1_RECT_F& region);
+    // An eased 0..1 level (hover, press, focus) that reverses from where it is.
+    struct Fade {
+        bool on = false, softOff = false;
+        float from = 0;
+        double at = -1e9, inMs = 120, outMs = 180;
+    };
+    static constexpr int kUiKinds = 3, kUiMax = 32;
+    Fade uiHot_[kUiKinds][kUiMax], uiPress_[kUiKinds][kUiMax], uiFocus_[kUiKinds][kUiMax];
+    float fadeLevel(const Fade& f, double now) const;
+    void fadeTo(Fade& f, bool on, double now, double inMs, double outMs, bool softOff = false);
+    float uiLevel(const Fade (&set)[kUiKinds][kUiMax], int kind, int index, double now) const {
+        return kind >= 0 && kind < kUiKinds && index >= 0 && index < kUiMax ? fadeLevel(set[kind][index], now) : 0.f;
+    }
+    void hoverTo(int kind, int index);
+    bool uiAnimating(double now) const;
     struct ActionLayout {
         ComPtr<IDWriteTextLayout> text;
         float w = 0;  // pill / link width including padding (DIPs)
@@ -491,6 +565,11 @@ private:
 
     Palette pal_;
     int theme_ = 0;
+    bool reduced_ = false;  // setReducedMotion
+    // A transition's duration: as designed, or a plain 120 ms fade with reduced motion.
+    double ms(double normal) const { return reduced_ && normal > 120 ? 120 : normal; }
+    double lastPictureAt_ = -1e9;  // newest picture shown (REC dot pulses only while pictures flow)
+    float recPulse(double now) const;
     bool dimmed_ = false;
     double dimAt_ = -1e9;
     float dimFrom_ = 0;
@@ -504,6 +583,9 @@ private:
     double zoomAt_ = -1e9;  // zoom level changed (big indicator)
     bool frozenOn_ = false;
     Picture frozen_;
+    CpuPicture frozenCpu_;        // CPU copy of frozen_ (survives releaseDevice)
+    bool frozenWasUp_ = false;    // releaseDevice() dropped a frozen picture
+    bool frozenDropped_ = false;  // takeFrozenDropped()
     std::vector<TextBox> boxes_;
     bool showOriginal_ = false;
     std::wstring busy_;
@@ -537,6 +619,9 @@ private:
         int item = 0;         // index into ovItems_
         float y = 0, h = 0;   // in the scrolled content
         FitCand fc;
+        FitCand facts, alt;   // kind 2: the checked key facts (below fc), the original (shown when selected)
+        float factsY = 0;     // facts' top, relative to fc's
+        float badgeY = -1;    // online: the 「線上」 badge's top, relative to fc's (-1 none)
     };
     std::vector<OvItem> ovItems_;
     std::vector<OvRow> ovRows_;
@@ -562,15 +647,23 @@ private:
     void overlayChecks(float s);
     void legacyChecks(const D2D1_RECT_F& pic);
     void drawOverlayList(const D2D1_RECT_F& pic);
+    // The 「線上」 pill (TrOnlineBadge) at x, y (top-left; right: x is its right
+    // edge), text size fs; returns its size (DIPs). draw false: measure only.
+    D2D1_SIZE_F onlineBadge(float x, float y, float fs, bool right, bool yellowMode, bool draw = true);
     // Mascot: hover grow, click / connect reaction (hop + hearts [+ bubble]).
     bool mascotHot_ = false;
     double mascotHotAt_ = -1e9;
     double reactAt_ = -1e9;
+    double surpriseAt_ = -1e9;  // a phone was found: surprised face, eyes to the phone, sparkles
+    double flashAt_ = -1e9;     // flash(): screenshot veil
+    std::vector<double> optAt_; // per check box: when its state last changed (tick draw-on)
+    void drawSparkles(const Pose& P, double now);
     bool reactBubble_ = false;
     int bubbleLine_ = -1;
     bool connectIntro_ = false;  // connecting scene starts with the happy hop
     RECT mascotRect_{};
     float sceneOpacity_ = 1;  // opacity of the scene being drawn (drawTextBlock)
+    float sceneDy_ = 0;       // layoutFor(): the status scene shifted (DIPs; the cross-fade to a picture lifts it)
 
     // Frame tap
     struct TapSlot {

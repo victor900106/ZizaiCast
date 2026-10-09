@@ -32,8 +32,9 @@ public:
     Recorder(const Recorder&) = delete;
     Recorder& operator=(const Recorder&) = delete;
 
-    // Starts writing an MP4 (H.264 video via Media Foundation hardware encoder
-    // when available, AAC-LC 44.1/48 kHz stereo audio). Returns false if the
+    // Starts writing a fragmented MP4 (H.264 video via Media Foundation
+    // hardware encoder when available, AAC-LC 44.1/48 kHz stereo audio): a
+    // crash still leaves a playable file up to the last ~0.3 s fragment. Returns false if the
     // file cannot be created (or a recording is already active).
     bool start(const std::wstring& mp4Path, int fps = 60);
     void stop();  // finalizes the file; safe to call twice; returns after the file is closed
@@ -45,6 +46,13 @@ public:
     // when not recording (ignored).
     void onVideoFrame(const uint8_t* nv12, int width, int height, int stride, uint64_t ptsNs);
     void onPcm(const int16_t* pcm, size_t frames, int channels, int sampleRate, uint64_t whenNs);
+    // The picture on screen when recording starts (same NV12 layout as
+    // onVideoFrame; copied). If no picture arrives through onVideoFrame
+    // within ~0.25 s of start() -- the phone has paused the stream on a still
+    // screen, or a still Android screen sends nothing -- the recording starts
+    // from this one (stamped at start()) instead of keeping nothing. Dropped
+    // once a live picture arrives first. Call after start().
+    void setStartPicture(const uint8_t* nv12, int width, int height, int stride);
 
     // Diagnostic lines (encoder chosen, canvas, errors, final summary). Called
     // from the recorder thread. Set before start(). Empty = OutputDebugString.

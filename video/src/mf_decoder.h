@@ -33,6 +33,8 @@ struct VideoFormat {
 class MfDecoder {
 public:
     // Called for every decoded picture (on the decode thread, synchronously).
+    // It must not close() the decoder (decode() would then return
+    // MF_E_SHUTDOWN): defer a device loss until decode() returns.
     using OutputFn = std::function<void(IMFSample* sample, const VideoFormat& fmt)>;
 
     MfDecoder() = default;

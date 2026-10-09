@@ -158,13 +158,66 @@ float lineWidth(const std::vector<float>& w, std::pair<size_t, size_t> l) {
 }  // namespace
 
 void Renderer::setTextOverlay(std::vector<TextBox> boxes) {
+    // The same blocks again with better translations (progressive display:
+    // the LLM's pass, or more chunks of a dense screen): the list keeps its
+    // scroll position.
+    bool sameBlocks = boxes.size() >= boxes_.size() && !boxes_.empty();
+    for (size_t i = 0; sameBlocks && i < boxes_.size(); ++i)
+        sameBlocks = boxes[i].original == boxes_[i].original && boxes[i].x0 == boxes_[i].x0 && boxes[i].y0 == boxes_[i].y0;
+
+    const float scroll = ovScroll_;
     boxes_ = std::move(boxes);
+    // Marks of pm_translate (translate/src/text_util.h kOverlayRow /
+    // kOverlayUncertain) at the start of a translation: a table row, a
+    // translation that still failed a check (its last line 「⚠ …」: the
+    // checked key facts).  Both are always listed (owner decisions: tables in
+    // the numbered list as 「標籤　值」; doubtful text with its key facts
+    // highlighted and the original a tap away).
+    for (TextBox& b : boxes_) {
+        while (!b.text.empty() && (b.text[0] == 0xE000 || b.text[0] == 0xE001)) {
+            b.kind |= b.text[0] == 0xE000 ? 1 : 2;
+            b.text.erase(0, 1);
+        }
+        if (b.kind & 2) {
+            const size_t f = b.text.rfind(L"\n\x26A0");
+            if (f != std::wstring::npos) {
+                b.facts = b.text.substr(f + 1);
+                b.text.erase(f);
+            }
+        }
+    }
     fit_.clear();
     ovValid_ = false;
     ovHot_ = ovSel_ = -1;
     ovReveal_ = false;
     ovScroll_ = 0;
+    if (sameBlocks) ovScroll_ = scroll;  // (the selection is reset with the UI side: VideoWindow::setTextOverlay)
     ovHits_ = {};
+}
+
+void Renderer::setTextOverlayOnline(const std::vector<std::wstring>& originals) {
+    bool changed = false;
+    for (TextBox& b : boxes_) {
+        const bool on = std::find(originals.begin(), originals.end(), b.original) != originals.end();
+        changed |= on != b.online;
+        b.online = on;
+    }
+    if (changed) ovValid_ = false;  // list rows grow by the badge
+}
+
+D2D1_SIZE_F Renderer::onlineBadge(float x, float y, float fs, bool right, bool yellowMode, bool draw) {
+    auto l = layout(tr(S::TrOnlineBadge), fs, 400, DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
+    if (!l) return {0, 0};
+    const float tw = textW(l.Get()), th = textH(l.Get());
+    const float w = std::ceil(tw) + fs * 1.0f, h = th + fs * 0.2f;
+    if (!draw) return {w, h};
+    const float left = right ? x - w : x;
+    l->SetMaxWidth(std::ceil(tw) + 2);
+    d2dTarget_->FillRoundedRectangle({{left, y, left + w, y + h}, h / 2, h / 2},
+                                     brush(yellowMode ? D2D1::ColorF(1, 0.92f, 0.1f) : pal_.accent, 0.94f));
+    d2dTarget_->DrawTextLayout({left + fs * 0.5f, y + fs * 0.1f}, l.Get(),
+                               brush(yellowMode ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1)));
+    return {w, h};
 }
 
 bool Renderer::setText(const std::wstring& text, float size, float maxW, DWRITE_FONT_WEIGHT weight, bool force, FitCand& c) {
@@ -243,7 +296,10 @@ bool Renderer::setText(const std::wstring& text, float size, float maxW, DWRITE_
     if (!c.text) return false;
     c.text->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
     c.text->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-    c.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, size * 1.22f, size * 0.96f);
+    // One line: no leading needed (it kept stacked one-line cards of an app's
+    // list from fitting between their neighbours).
+    if (br.lines.size() == 1) c.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, size * 1.12f, size * 0.91f);
+    else c.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, size * 1.22f, size * 0.96f);
     DWRITE_TEXT_METRICS tm{};
     c.text->GetMetrics(&tm);
     c.w = tm.widthIncludingTrailingWhitespace;
@@ -357,13 +413,29 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
     // cannot get that at kMinRead goes to the list, it is never squeezed in).
     const float half = kGap / 2;
     std::vector<D2D1_RECT_F> placed;
-    int notFit = 0, partial = 0;
+    int notFit = 0, partial = 0, forced = 0;
     for (size_t i = 0; i < n; ++i) {
         OvItem& it = ovItems_[i];
         if (ovMode_ == 2) continue;  // 清單顯示
+        if (boxes_[it.box].kind) {   // table rows, doubtful text: always listed (not "not fitting")
+            ++forced;
+            continue;
+        }
         const float bw = it.r.right - it.r.left, bh = it.r.bottom - it.r.top;
         const auto& cands = fitsFor(static_cast<size_t>(it.box), bw, bh, it.lineH, pw);
         const float px = padX(it.lineH), py = padY(it.lineH);
+        // Lines set close together (a list in an app: 24 px pitch, 4.5 px
+        // between glyph bands): the vertical padding shrinks so that two
+        // stacked cards keep kGap - else every second line went to the list.
+        float gapAbove = 1e9f, gapBelow = 1e9f;
+        for (size_t j = 0; j < n; ++j) {
+            if (j == i) continue;
+            const auto& o = ovItems_[j].r;
+            if (std::min(o.right, it.r.right) - std::max(o.left, it.r.left) <= 0) continue;
+            if (o.bottom <= it.r.top + 1) gapAbove = std::min(gapAbove, it.r.top - o.bottom);
+            if (o.top >= it.r.bottom - 1) gapBelow = std::min(gapBelow, o.top - it.r.bottom);
+        }
+        const float pyTop = std::clamp((gapAbove - kGap) / 2, 0.f, py), pyBottom = std::clamp((gapBelow - kGap) / 2, 0.f, py);
         for (size_t k = 0; k < cands.size() && it.cand < 0; ++k) {
             const FitCand& c = cands[k];
             const float tw = c.wide ? c.w : std::max(c.w, bw);
@@ -372,14 +444,23 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
             // Centred on the original lines (a larger card grows both ways, into the gaps between rows).
             const float ty = it.r.top + (bh - c.h) / 2;
             const D2D1_RECT_F text{tx, ty, tx + tw, ty + c.h};
-            const D2D1_RECT_F card = inflate(unite(it.r, text), px, c.h > bh ? 0.5f : py);
+            D2D1_RECT_F card = inflate(unite(it.r, text), px, 0);
+            if (c.h > bh) card.top -= 0.5f, card.bottom += 0.5f;
+            else card.top -= pyTop, card.bottom += pyBottom;
             if (!inside(card, pic, 1.f)) continue;
             // Not far bigger than the original (it would bury the picture).
             if ((card.right - card.left) * (card.bottom - card.top) > 3.5f * std::max(1.f, bw * bh) + 200) continue;
             bool clash = false;
-            for (size_t j = 0; j < n && !clash; ++j) clash = j != i && overlaps(card, cores[j], 0.f);
-            for (const auto& q : placed) clash = clash || overlaps(inflate(card, half, half), inflate(q, half, half), 0.f);
-            if (clash || blocked(card)) continue;
+            int clashWith = -1;
+            for (size_t j = 0; j < n && !clash; ++j)
+                if (j != i && overlaps(card, cores[j], 0.f)) clash = true, clashWith = static_cast<int>(j);
+            bool clashCard = false;
+            for (const auto& q : placed) clashCard = clashCard || overlaps(inflate(card, half, half), inflate(q, half, half), 0.f);
+            static const bool dbgWhy = std::getenv("PM_OVERLAY_DEBUG") != nullptr;
+            if (dbgWhy && (clash || clashCard || blocked(card)))
+                std::fprintf(stderr, "  [overlay]   box %d way %zu (%.0fx%.0f, size %.1f%s): %s %d\n", it.box, k, c.w, c.h, c.size, c.wide ? " wide" : "",
+                             clash ? "covers block" : clashCard ? "covers a card" : "blocked", clashWith >= 0 ? ovItems_[clashWith].box : -1);
+            if (clash || clashCard || blocked(card)) continue;
             it.cand = static_cast<int>(k);
             it.fc = c;
             it.card = card;
@@ -399,7 +480,7 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
     ovHits_.notFitting = notFit;
     // Automatic: more than 30 % do not fit in place -> every block listed
     // (half an overlay is confusing; the picture stays visible with numbers).
-    const int whole = static_cast<int>(n) - partial;
+    const int whole = static_cast<int>(n) - partial - forced;
     bool listAll = ovMode_ == 2 || (ovMode_ == 0 && notFit * 10 > whole * 3);
     if (listAll)
         for (auto& it : ovItems_) it.cand = -1;
@@ -427,7 +508,8 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
                 const float tw = c.wide ? c.w : std::max(c.w, bw);
                 const float ty = it.r.top + (bh - c.h) / 2;
                 const D2D1_RECT_F text{it.text.left, ty, it.text.left + tw, ty + c.h};
-                const D2D1_RECT_F card = inflate(unite(it.r, text), padX(it.lineH), c.h > bh ? 0.5f : padY(it.lineH));
+                D2D1_RECT_F card = inflate(unite(it.r, text), padX(it.lineH), c.h > bh ? 0.5f : 0.f);
+                if (c.h <= bh) card.top = std::min(card.top, it.card.top), card.bottom = std::max(card.bottom, it.card.bottom);  // the padding it had
                 if (!inside(card, inflate(it.card, 0.01f, 0.01f), 0.f)) continue;
                 it.fc = std::move(c);
                 it.text = text;
@@ -514,8 +596,29 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
             if (!setText(boxes_[ovItems_[row.item].box].text, fs, textWMax, DWRITE_FONT_WEIGHT_NORMAL, true, row.fc)) continue;
             row.fc.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, fs * 1.35f, fs * 1.05f);
             row.fc.h = textH(row.fc.text.Get());
+            float textHgt = row.fc.h;
+            const TextBox& tb = boxes_[ovItems_[row.item].box];
+            if (tb.kind & 2) {
+                // The checked key facts below the translation; the original
+                // (shown instead while the row is selected) takes the same room.
+                if (!tb.facts.empty() && setText(tb.facts, fs * 0.92f, textWMax, DWRITE_FONT_WEIGHT_SEMI_BOLD, true, row.facts)) {
+                    row.facts.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, fs * 1.3f, fs * 1.0f);
+                    row.facts.h = textH(row.facts.text.Get());
+                    row.factsY = row.fc.h + fs * 0.15f;
+                    textHgt = row.factsY + row.facts.h;
+                }
+                if (!tb.original.empty() && setText(L"\x21C4 " + tb.original, fs, textWMax, DWRITE_FONT_WEIGHT_NORMAL, true, row.alt)) {
+                    row.alt.text->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, fs * 1.35f, fs * 1.05f);
+                    row.alt.h = textH(row.alt.text.Get());
+                    textHgt = std::max(textHgt, row.alt.h);
+                }
+            }
+            if (tb.online) {  // the 「線上」 badge under the text
+                row.badgeY = textHgt + fs * 0.25f;
+                textHgt = row.badgeY + onlineBadge(0, 0, fs * 0.72f, false, false, false).height;
+            }
             row.y = y;
-            row.h = std::max(badge, row.fc.h) + fs * 0.7f;
+            row.h = std::max(badge, textHgt) + fs * 0.7f;
             y += row.h;
             ovRows_.push_back(std::move(row));
         }
@@ -591,7 +694,7 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
         if (!moved) break;
         int nl = 0;
         for (const auto& it : ovItems_) nl += it.cand < 0;
-        if (ovMode_ == 0 && !listAll && (nl - partial) * 10 > whole * 3) {
+        if (ovMode_ == 0 && !listAll && (nl - partial - forced) * 10 > whole * 3) {
             listAll = true;
             for (auto& it : ovItems_) it.cand = -1;
         }
@@ -723,6 +826,8 @@ void Renderer::overlayChecks(float s) {
     for (const auto& row : ovRows_) {
         minFont = std::min(minFont, ovFs_);
         if (row.fc.w > row.fc.maxW + 0.75f) ovHits_.truncated += 1;  // a character runs out of the panel
+        for (const FitCand* x : {&row.facts, &row.alt})
+            if (x->text && x->w > x->maxW + 0.75f) ovHits_.truncated += 1;
         ovHits_.kinsoku += row.fc.kinsoku;
         ovHits_.shortLast += row.fc.shortLast;
         const float top = ovRowsArea_.top + row.y;
@@ -791,6 +896,12 @@ void Renderer::drawTextOverlay(const D2D1_RECT_F& pic, float radius) {
             d2dTarget_->FillRoundedRectangle({it.card, crad, crad}, brush(bg));
         }
         d2dTarget_->DrawTextLayout({it.text.left, it.text.top}, it.fc.text.Get(), brush(fg));
+        // Translated online: a small 「線上」 pill on the card's top-right corner.
+        if (b.online) {
+            const float bfs = std::clamp(it.lineH * 0.36f, 8.f, 11.f);
+            const D2D1_SIZE_F bs = onlineBadge(0, 0, bfs, true, filter == 4, false);
+            onlineBadge(it.card.right + bs.height * 0.25f, it.card.top - bs.height * 0.55f, bfs, true, filter == 4);
+        }
     }
     if (!ovListed_.empty()) drawOverlayList(pic);
     d2dTarget_->PopAxisAlignedClip();
@@ -905,7 +1016,21 @@ void Renderer::drawOverlayList(const D2D1_RECT_F& pic) {
             d2dTarget_->DrawTextLayout({c.x - tw / 2 - 1, c.y - th / 2}, l.Get(),
                                        brush(yellowMode ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1)));
         }
-        d2dTarget_->DrawTextLayout({A.left + pad + badge + fs * 0.55f, top + fs * 0.35f}, row.fc.text.Get(), brush(fg));
+        const D2D1_POINT_2F at{A.left + pad + badge + fs * 0.55f, top + fs * 0.35f};
+        if (row.badgeY >= 0) onlineBadge(at.x, at.y + row.badgeY, fs * 0.72f, false, yellowMode);
+        if (row.alt.text || row.facts.text) {
+            // Doubtful translation: a warning bar; selected, the original instead.
+            const D2D1_COLOR_F warn = yellowMode ? yellow : luma(card) > 0.5f ? D2D1::ColorF(0.78f, 0.36f, 0.f) : D2D1::ColorF(1.f, 0.66f, 0.2f);
+            d2dTarget_->FillRoundedRectangle({{A.left + 1, top + fs * 0.3f, A.left + 4, top + row.h - fs * 0.3f}, 1.5f, 1.5f}, brush(warn));
+            if (k == ovSel_ && row.alt.text) {
+                d2dTarget_->DrawTextLayout(at, row.alt.text.Get(), brush(fg));
+                continue;
+            }
+            d2dTarget_->DrawTextLayout(at, row.fc.text.Get(), brush(fg));
+            if (row.facts.text) d2dTarget_->DrawTextLayout({at.x, at.y + row.factsY}, row.facts.text.Get(), brush(warn));
+            continue;
+        }
+        d2dTarget_->DrawTextLayout(at, row.fc.text.Get(), brush(fg));
     }
     d2dTarget_->PopAxisAlignedClip();
     if (maxScroll > 0) {  // scroll bar

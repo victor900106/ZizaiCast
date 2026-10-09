@@ -272,6 +272,11 @@ struct VideoWindow::Impl {
     std::optional<std::vector<video::Renderer::ToolItem>> toolbarReq;
     std::vector<int> toolIds;
     std::function<void(int)> toolFn;
+    // Slider items (volume): the last items handed over (UI thread copy, so a
+    // drag shows at once) and the slide / wheel handlers.
+    std::vector<video::Renderer::ToolItem> toolItemsUi;
+    std::function<void(int, float, bool)> toolSlideFn;
+    std::function<void(int, int)> toolWheelFn;
     bool toolActivityReq = false, toolLeaveReq = false;
     int toolHoverReq = -2;  // -2 none, else hovered button (-1: none)
     bool toolInsideReq = false;
@@ -327,6 +332,14 @@ struct VideoWindow::Impl {
     std::atomic<bool> refsDropped{false};  // a non-IDR AU was dropped before decoding
     // Presentation / theme / recording / mascot requests (-1 = none).
     int themeReq = -1, dimReq = -1, frameReq = -1, recReq = -1, mascotHoverReq = -1;
+    int motionReq = -1;           // 1 reduced motion (Windows 「顯示動畫」 off), 0 full
+    // Pressed element / keyboard focus ring (kind * 1000 + index, -1 none, -2 no request).
+    int pressReq = -2, focusReq = -2;
+    bool flashReq = false;
+    bool pressSent = false;       // UI thread: an element is shown pressed
+    int focusUi = -1;             // UI thread: idle screen element with the focus ring (check boxes, then actions)
+    int motionOverride = -1;      // UI thread: test hook 17 (-1 follow Windows)
+    int motionSent = -1;          // UI thread: last value sent
     bool xformChanged = false, mascotClickReq = false, tapChanged = false;
     // Magnifier / filter / freeze / text overlay / region selection requests.
     // viewUi + frozenUi: the latest requested state (any thread, under m);
@@ -336,6 +349,7 @@ struct VideoWindow::Impl {
     bool viewChanged = false;
     int frozenReq = -1, originalReq = -1;
     std::optional<std::vector<video::Renderer::TextBox>> boxesReq;
+    std::optional<std::vector<std::wstring>> onlineReq;  // setTextOverlayOnline
     std::optional<std::wstring> busyReq;
     // Text overlay list panel / markers: requests (UI thread) and the
     // published hit rectangles (worker).
@@ -385,6 +399,8 @@ struct VideoWindow::Impl {
     int toolHotUi = -1;            // toolbar button under the cursor
     bool toolInsideUi = false;     // cursor on the toolbar pill
     int pressedTool = -2;          // left press on the pill: button (-1 padding), -2 none
+    int slidingTool = -1;          // slider item being dragged (capture held), -1 none
+    int toolWheelAcc = 0;          // wheel delta not yet a whole notch (touchpads)
     double lastToolPokeUi = -1e9;
     bool synthMouse = false;       // test hook: no TrackMouseEvent (posted moves)
     // Remote control
@@ -405,6 +421,14 @@ struct VideoWindow::Impl {
     LUID adapterLuid{};
     int forceAdapter = 0;     // test hook: 0 auto, 1 power-saving GPU, 2 WARP
     bool deviceLost = false;  // device objects released, re-creation pending
+    // Inside feed() (the decoder's output callback runs within
+    // MfDecoder::drain) the decoder must not be closed: a device failure
+    // seen there only sets lostInDecode, and feed() checks the device once
+    // decode() has returned.
+    bool inFeed = false, lostInDecode = false;
+    // Test hook (--test-at T:0:1): the next decoded picture's upload fails
+    // and the device reports removal, from inside the decoder callback.
+    bool faultLoseInDecode = false, faultRemoved = false;
     double lostAt = 0, nextRecoverAt = 0;
     int recoverAttempts = 0;
     video::MfDecoder dec;
@@ -470,8 +494,11 @@ struct VideoWindow::Impl {
     enum Stage : int { StWait, StDecode, StFrameWait, StPresent, StRecover, StTap, StOther };
     struct Diag {
         std::atomic<long long> auIn{0}, auDropped{0}, auFed{0}, auSkipped{0}, mftOut{0}, decoded{0}, presented{0},
-            presentOk{0}, presentOccl{0}, presentErr{0}, waitTimeouts{0}, recoveries{0};
+            presentOk{0}, presentOccl{0}, presentErr{0}, waitTimeouts{0}, recoveries{0}, auBytes{0};
         std::atomic<double> lastIdrAt{-1}, lastAuAt{-1}, stageAt{0};
+        // Freeze diagnostics: when the shown picture was frozen (-1: live) and
+        // when the newest live picture was decoded.
+        std::atomic<double> frozenSince{-1}, lastPictureAt{-1};
         std::atomic<int> stage{StWait};
         std::atomic<long> lastPresentHr{0}, lastDecodeHr{0};
         std::atomic<bool> occluded{false}, hw{false};
@@ -491,6 +518,7 @@ struct VideoWindow::Impl {
         long long dropped = 0;
         const double now = nowMs();
         dg.auIn.fetch_add(1, std::memory_order_relaxed);
+        dg.auBytes.fetch_add(static_cast<long long>(au.data.size()), std::memory_order_relaxed);
         dg.lastAuAt.store(now, std::memory_order_relaxed);
         if (au.irap) dg.lastIdrAt.store(now, std::memory_order_relaxed);
         bool faultDrop = false;
@@ -674,11 +702,58 @@ struct VideoWindow::Impl {
         dxgiMgr.Reset();
         dev.Reset();
         deviceLost = true;
+        faultRemoved = false;
         lostAt = nowMs();
         nextRecoverAt = 0;
         recoverAttempts = 0;
         newPicture = false;
         needPresent = true;
+    }
+
+    // Freeze on / off on the renderer, with a diagnostic line.  Unfreezing
+    // always returns to the live picture (the newest decoded one); the log
+    // says how old that is and what arrived while frozen.
+    void applyFrozen(bool on, const char* why) {
+        const bool was = ren.frozen();
+        ren.setFrozen(on);
+        if (was == on) return;
+        const double now = nowMs();
+        const double since = dg.frozenSince.exchange(on ? now : -1.0);
+        if (on) {
+            freezeAuIn = dg.auIn.load();
+            freezeDecoded = dg.decoded.load();
+            log("picture frozen (%s)", why);
+            return;
+        }
+        const double pic = dg.lastPictureAt.load(), au = dg.lastAuAt.load(), idr = dg.lastIdrAt.load();
+        log("picture unfrozen (%s) after %.1f s: live picture again (newest decoded %.1f s ago; while frozen %lld AUs "
+            "in, %lld pictures decoded; last AU %.1f s ago, last IDR %.1f s ago%s)",
+            why, since >= 0 ? (now - since) / 1000 : -1.0, pic >= 0 ? (now - pic) / 1000 : -1.0,
+            dg.auIn.load() - freezeAuIn, dg.decoded.load() - freezeDecoded, au >= 0 ? (now - au) / 1000 : -1.0,
+            idr >= 0 ? (now - idr) / 1000 : -1.0, refsLost ? "; references lost, wrong until the next IDR" : "");
+    }
+    long long freezeAuIn = 0, freezeDecoded = 0;
+
+    // The renderer ended a freeze whose picture did not survive a device
+    // loss (and cleared the text overlay): the UI state follows, and the
+    // view handler (UI thread) hears about it, like a user change.
+    void freezeDropped() {
+        dg.frozenSince.store(-1.0);
+        log("picture unfrozen (device lost; the frozen picture could not be kept), text overlay cleared");
+        std::shared_ptr<std::function<void(const VideoWindow::ViewState&)>> fn;
+        VideoWindow::ViewState vs;
+        {
+            std::lock_guard lk(m);
+            if (frozenReq < 0) frozenUi = false;  // a newer request still applies
+            boxesReq.reset();                     // boxes for the frozen picture
+            fn = viewFn;
+            vs = viewStateLocked();
+        }
+        static const UINT runOnUiMsg = RegisterWindowMessageW(L"PhoneMirror.Video.RunOnUi");
+        if (HWND h = hwnd.load(); h && fn && *fn && runOnUiMsg) {
+            auto* call = new std::function<void()>([fn, vs] { (*fn)(vs); });
+            if (!PostMessageW(h, runOnUiMsg, 0, reinterpret_cast<LPARAM>(call))) delete call;
+        }
     }
 
     // Re-feeds the access units since the last key frame into a freshly opened
@@ -693,7 +768,7 @@ struct VideoWindow::Impl {
                 "until the next IDR lack references",
                 gopMaxAUs(), gopMaxBytes() >> 20);
         }
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = 0; i < n && !deviceLost; ++i) {  // lost again: recovery re-feeds
             skipOutput = i + 1 < n;
             feed(gop[i].data.data(), gop[i].data.size(), -1, gop[i].due);
         }
@@ -708,10 +783,17 @@ struct VideoWindow::Impl {
     bool checkDevice() {
         if (deviceLost) return true;
         if (!dev) return false;
-        const HRESULT r = dev->GetDeviceRemovedReason();
+        const HRESULT r = faultRemoved ? DXGI_ERROR_DEVICE_REMOVED : dev->GetDeviceRemovedReason();
         if (SUCCEEDED(r)) return false;
-        loseDevice("device removed", r);
+        loseDevice(faultRemoved ? "device removed (test: seen inside the decoder callback)" : "device removed", r);
         return true;
+    }
+
+    // A device call failed: check the device now, or (inside the decoder
+    // callback) once feed() returns.
+    void deviceFailed() {
+        if (inFeed) lostInDecode = true;
+        else checkDevice();
     }
 
     bool recoverDevice() {
@@ -729,6 +811,7 @@ struct VideoWindow::Impl {
         }
         const double tDevice = nowMs();
         deviceLost = false;
+        if (ren.takeFrozenDropped()) freezeDropped();
         hwBroken = false;  // new device: give DXVA another chance
         // Decoder on the new device; re-feed everything since the last key
         // frame so the next picture is complete.
@@ -742,6 +825,10 @@ struct VideoWindow::Impl {
         } else {
             waitKey = true;
             if (!decoderMissing && !dec.isOpen()) openDecoder();
+        }
+        if (deviceLost) {  // lost again during the re-feed: start over
+            log("device lost again during the re-feed (attempt %d)", recoverAttempts + 1);
+            return false;
         }
         if (bgraLive) showBgra(-1, 0);  // the BGRA source's last picture (no tap: already delivered)
         const double tEnd = nowMs();
@@ -862,6 +949,7 @@ struct VideoWindow::Impl {
         if (pendingSince < 0) pendingSince = t;
         ++pendingPictures;
         if (!live) return;
+        dg.lastPictureAt.store(t, std::memory_order_relaxed);
         if (reportDecodeBack) {
             reportDecodeBack = false;
             video::wdlog("pictures decoded again %.0f ms after the decoder restart", t - decRecoverAt);
@@ -880,6 +968,7 @@ struct VideoWindow::Impl {
         const double tIn = ringIn[slot];
         const uint64_t pts = ringPts[slot];
         if (skipOutput) return;
+        if (lostInDecode) return;  // the device is gone: recovery re-feeds the GOP
         bgraLive = false;  // a decoded stream took over
         srcW.store(fmt.visibleWidth(), std::memory_order_relaxed);
         srcH.store(fmt.visibleHeight(), std::memory_order_relaxed);
@@ -892,16 +981,25 @@ struct VideoWindow::Impl {
             const double step = k >= 2 ? std::clamp(held[k - 1].due - held[k - 2].due, 0.0, 50.0) : 1000.0 / 60;
             due = held.back().due + step;
         }
+        const bool faultLose = std::exchange(faultLoseInDecode, false);
+        if (faultLose) {
+            log("fault injection: device removal seen while uploading a decoded picture (inside the decoder callback)");
+            faultRemoved = true;
+        }
         if (syncActive && due != kNoTime) {
             Held h;
-            if (!ren.hold(sample, fmt, h.pic)) {  // waits for GPU completion
-                checkDevice();
+            if (faultLose || !ren.hold(sample, fmt, h.pic)) {  // waits for GPU completion
+                deviceFailed();
                 return;
             }
             h.due = due;
             h.tIn = tIn;
             h.decoded = nowMs();
             if (tap) tapPicture(&h.pic, pts);
+            if (lostInDecode) {  // the tap found the device gone: nothing is held on a lost device
+                ren.recycle(std::move(h.pic));
+                return;
+            }
             if (held.size() >= kSyncMaxHeld) {  // more than the cap: show the oldest now
                 showHeld(held.front(), kNoTime);
                 held.pop_front();
@@ -909,8 +1007,8 @@ struct VideoWindow::Impl {
             held.push_back(std::move(h));
         } else {
             dropHeld();  // older than this one
-            if (!ren.upload(sample, fmt)) {  // waits for GPU completion
-                checkDevice();
+            if (faultLose || !ren.upload(sample, fmt)) {  // waits for GPU completion
+                deviceFailed();
                 return;
             }
             pictureTIn = tIn;
@@ -999,10 +1097,14 @@ struct VideoWindow::Impl {
         ringPts[slot] = pts;
         ringSubmit[slot] = nowMs();
         const long long out0 = dec.counters().outputs;
+        inFeed = true;
         const HRESULT hr =
             dec.decode(p, n, seq * 166667, [this](IMFSample* s, const video::VideoFormat& f) { onDecoded(s, f); });
+        inFeed = false;
         dg.mftOut.fetch_add(dec.counters().outputs - out0, std::memory_order_relaxed);
         if (FAILED(hr)) dg.lastDecodeHr.store(hr, std::memory_order_relaxed);
+        // A device failure inside the callback: now the decoder may close.
+        if (std::exchange(lostInDecode, false)) checkDevice();
         return hr;
     }
 
@@ -1075,8 +1177,8 @@ struct VideoWindow::Impl {
                 dec.close();
                 if (openDecoder()) {
                     const size_t n = au.irap ? 0 : gopTruncated ? std::min<size_t>(gop.size(), 1) : gop.size();
-                    for (size_t i = 0; i < n; ++i) feed(gop[i].data.data(), gop[i].data.size(), -1, kNoTime);
-                    feed(au.data.data(), au.data.size(), au.tIn, au.due, au.pts);
+                    for (size_t i = 0; i < n && !deviceLost; ++i) feed(gop[i].data.data(), gop[i].data.size(), -1, kNoTime);
+                    if (!deviceLost) feed(au.data.data(), au.data.size(), au.tIn, au.due, au.pts);
                 }
             } else if (++errorStreak > 30) {
                 log("too many decode errors, restarting decoder");
@@ -1099,7 +1201,7 @@ struct VideoWindow::Impl {
         // Keep a ring slot free (several pictures in one decode batch); the
         // usual delivery happens after Present (off the latency path).
         if (ren.tapPending() >= video::Renderer::kTapRing - 1) deliverTaps(false);
-        if (!ren.tapSubmit(pic, pts)) checkDevice();
+        if (!ren.tapSubmit(pic, pts)) deviceFailed();
     }
 
     void deliverTaps(bool all) {
@@ -1158,7 +1260,7 @@ struct VideoWindow::Impl {
                frameReq >= 0 || recReq >= 0 || mascotHoverReq >= 0 || xformChanged || mascotClickReq || tapChanged ||
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
                toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
-               busyReq || selChanged;
+               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq;
     }
 
     // Takes everything queued plus control flags; returns false on stop.
@@ -1188,6 +1290,8 @@ struct VideoWindow::Impl {
         bool reset = false, codecCh = false, resize = false, paint = false, poke = false, optsCh = false,
              hoverCh = false, syncCh = false, adapterCh = false;
         int pause = -1, hov = -1, vis = -1, test = -1, theme = -1, dim = -1, frame = -1, rec = -1, mHover = -1;
+        int motion = -1, pressR = -2, focusR = -2;
+        bool flashR = false;
         LPARAM testLp = 0;
         bool xform = false, mClick = false, tapCh = false;
         UINT w = 0, h = 0, dpi = 0;
@@ -1205,6 +1309,7 @@ struct VideoWindow::Impl {
         std::optional<video::Renderer::View> view;
         int frozenR = -1, originalR = -1;
         std::optional<std::vector<video::Renderer::TextBox>> boxes;
+        std::optional<std::vector<std::wstring>> onlineMarks;
         std::optional<std::wstring> busy;
         int ovHot = -2, ovSel = -2, ovMode = -1, ovDark = -1;
         bool ovReveal = false;
@@ -1218,6 +1323,7 @@ struct VideoWindow::Impl {
             frozenR = std::exchange(frozenReq, -1);
             originalR = std::exchange(originalReq, -1);
             boxes = std::exchange(boxesReq, std::nullopt);
+            onlineMarks = std::exchange(onlineReq, std::nullopt);
             busy = std::exchange(busyReq, std::nullopt);
             ovHot = std::exchange(ovHotReq, -2);
             ovMode = std::exchange(ovModeReq, -1);
@@ -1253,6 +1359,10 @@ struct VideoWindow::Impl {
             test = std::exchange(testReq, -1);
             testLp = testArg;
             theme = std::exchange(themeReq, -1);
+            motion = std::exchange(motionReq, -1);
+            pressR = std::exchange(pressReq, -2);
+            focusR = std::exchange(focusReq, -2);
+            flashR = std::exchange(flashReq, false);
             dim = std::exchange(dimReq, -1);
             frame = std::exchange(frameReq, -1);
             rec = std::exchange(recReq, -1);
@@ -1274,7 +1384,12 @@ struct VideoWindow::Impl {
             static const char* const kTests[] = {"simulated device removal (test)", "switch to power-saving GPU (test)",
                                                  "switch to WARP (test)", "back to automatic GPU choice (test)"};
             if (test >= 1 && test <= 3) forceAdapter = test == 3 ? 0 : test;
-            if (test <= 3) loseDevice(kTests[test], DXGI_ERROR_DEVICE_REMOVED);
+            if (test == 0 && testLp == 1) {  // removal seen inside the decoder callback (next picture)
+                faultLoseInDecode = true;
+                log("fault injection: device removal at the next decoded picture");
+            } else if (test <= 3) {
+                loseDevice(kTests[test], DXGI_ERROR_DEVICE_REMOVED);
+            }
             else injectFault(test, testLp);
         }
         if (adapterCh) checkAdapter("display / monitor change");
@@ -1296,6 +1411,22 @@ struct VideoWindow::Impl {
         if ((codecCh || reset) && tapOn.load()) deliverTaps(true);  // the last pictures of the stream
         if (theme >= 0) {
             ren.setTheme(theme);
+            paint = true;
+        }
+        if (motion >= 0) {
+            ren.setReducedMotion(motion == 1);
+            paint = true;
+        }
+        if (pressR != -2) {
+            ren.setPressed(pressR < 0 ? -1 : pressR / 1000, pressR < 0 ? -1 : pressR % 1000);
+            paint = true;
+        }
+        if (flashR) {
+            ren.flash();
+            paint = true;
+        }
+        if (focusR != -2) {
+            ren.setFocus(focusR < 0 ? -1 : focusR / 1000, focusR < 0 ? -1 : focusR % 1000);
             paint = true;
         }
         if (dim >= 0) {
@@ -1367,6 +1498,7 @@ struct VideoWindow::Impl {
             paint = true;
         }
         if (reset) {
+            if (ren.frozen()) applyFrozen(false, "stream reset");
             ren.reset();
             pictureTIn = -1;
             newPicture = false;
@@ -1409,18 +1541,22 @@ struct VideoWindow::Impl {
         if (poke) {
             const bool wasIdle = ren.nextFrameInMs() < 0;
             ren.poke();
-            if (wasIdle) paint = true;
+            if (wasIdle && ren.nextFrameInMs() >= 0) paint = true;  // (reduced motion: stays a still picture)
         }
         if (view) {
             ren.setView(*view);
             paint = true;
         }
         if (frozenR >= 0) {
-            ren.setFrozen(frozenR == 1);
+            applyFrozen(frozenR == 1, "request");
             paint = true;
         }
         if (boxes) {
             ren.setTextOverlay(std::move(*boxes));
+            paint = true;
+        }
+        if (onlineMarks) {
+            ren.setTextOverlayOnline(*onlineMarks);
             paint = true;
         }
         if (originalR >= 0) {
@@ -1765,12 +1901,13 @@ struct VideoWindow::Impl {
     // warning when the render thread is stuck (it cannot report that
     // itself).  Sleeps on monEvent while no stream is live.
     struct Counts {
-        long long in, drop, skip, fed, mft, dec, pres, ok, occl, err, wto;
+        long long in, drop, skip, fed, mft, dec, pres, ok, occl, err, wto, bytes;
     };
     Counts counts() const {
         auto l = [](const std::atomic<long long>& a) { return a.load(std::memory_order_relaxed); };
         return {l(dg.auIn),   l(dg.auDropped),  l(dg.auSkipped), l(dg.auFed),      l(dg.mftOut),     l(dg.decoded),
-                l(dg.presented), l(dg.presentOk), l(dg.presentOccl), l(dg.presentErr), l(dg.waitTimeouts)};
+                l(dg.presented), l(dg.presentOk), l(dg.presentOccl), l(dg.presentErr), l(dg.waitTimeouts),
+                l(dg.auBytes)};
     }
 
     static const char* stageName(int s) {
@@ -1827,13 +1964,23 @@ struct VideoWindow::Impl {
             q = queue.size();
         }
         const double idr = dg.lastIdrAt.load();
-        log("%.0fs: AU in %lld drop %lld skip %lld | fed %lld > MFT %lld > pictures %lld (%s) | presented %lld (ok %lld, "
-            "occluded %lld, failed %lld, last 0x%08lx; frame-wait timeouts %lld) | queue %zu | last IDR %.1f s ago, GOP %d%s",
-            (now - last) / 1000, c.in - prev.in, c.drop - prev.drop, c.skip - prev.skip, c.fed - prev.fed,
-            c.mft - prev.mft, c.dec - prev.dec, dg.hw.load() ? "hw" : "sw", c.pres - prev.pres, c.ok - prev.ok,
-            c.occl - prev.occl, c.err - prev.err, static_cast<unsigned long>(dg.lastPresentHr.load()),
-            c.wto - prev.wto, q, idr >= 0 ? (now - idr) / 1000 : -1.0, dg.gopAUs.load(),
-            dg.gopTrunc.load() ? " (truncated)" : "");
+        // avg AU size: an unchanging phone screen arrives as ~1-2 KB P-frames
+        // (the picture really is still on the phone, not stuck here).
+        // FROZEN: the window shows the frozen copy (凍結 / translation).
+        const long long nAu = c.in - prev.in;
+        const double frz = dg.frozenSince.load(), pic = dg.lastPictureAt.load();
+        char tail[96] = "";
+        if (frz >= 0)
+            std::snprintf(tail, sizeof tail, " | FROZEN for %.1f s (newest live picture %.1f s old)", (now - frz) / 1000,
+                          pic >= 0 ? (now - pic) / 1000 : -1.0);
+        log("%.0fs: AU in %lld (avg %.1f KB) drop %lld skip %lld | fed %lld > MFT %lld > pictures %lld (%s) | presented "
+            "%lld (ok %lld, occluded %lld, failed %lld, last 0x%08lx; frame-wait timeouts %lld) | queue %zu | last IDR "
+            "%.1f s ago, GOP %d%s%s",
+            (now - last) / 1000, nAu, nAu > 0 ? (c.bytes - prev.bytes) / 1024.0 / nAu : 0.0, c.drop - prev.drop,
+            c.skip - prev.skip, c.fed - prev.fed, c.mft - prev.mft, c.dec - prev.dec, dg.hw.load() ? "hw" : "sw",
+            c.pres - prev.pres, c.ok - prev.ok, c.occl - prev.occl, c.err - prev.err,
+            static_cast<unsigned long>(dg.lastPresentHr.load()), c.wto - prev.wto, q,
+            idr >= 0 ? (now - idr) / 1000 : -1.0, dg.gopAUs.load(), dg.gopTrunc.load() ? " (truncated)" : "", tail);
         prev = c;
         last = now;
     }
@@ -1891,6 +2038,22 @@ struct VideoWindow::Impl {
                          SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
             fullscreen = false;
         }
+    }
+
+    // Fullscreen: cover the (nearest) monitor again after a display change
+    // (resolution, scaling, monitor removed / added: rcMonitor was read once
+    // by toggleFullscreen()).  No-op if not fullscreen or already fitted.
+    void refitFullscreen(const char* why) {
+        if (!fullscreen) return;
+        MONITORINFO mi{sizeof(mi)};
+        RECT wr{};
+        if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi) || !GetWindowRect(hwnd, &wr) ||
+            EqualRect(&wr, &mi.rcMonitor))
+            return;
+        log("fullscreen re-fitted to the monitor (%s): %ldx%ld at (%ld,%ld)", why, mi.rcMonitor.right - mi.rcMonitor.left,
+            mi.rcMonitor.bottom - mi.rcMonitor.top, mi.rcMonitor.left, mi.rcMonitor.top);
+        SetWindowPos(hwnd, nullptr, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left,
+                     mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
     }
 
     // Index of the idle check box at the mouse position (client pixels), or -1.
@@ -1960,6 +2123,99 @@ struct VideoWindow::Impl {
         }
         wake();
         if (cb) cb(id, checked);  // UI thread
+    }
+
+    // Windows 「顯示動畫」 (SPI_GETCLIENTAREAANIMATION), or the test override,
+    // to the renderer when it changed.
+    void sendMotion() {
+        BOOL on = TRUE;
+        if (!SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &on, 0)) on = TRUE;
+        const int reduced = motionOverride >= 0 ? motionOverride : (on ? 0 : 1);
+        if (reduced == motionSent) return;
+        motionSent = reduced;
+        {
+            std::lock_guard lk(m);
+            motionReq = reduced;
+        }
+        wake();
+    }
+
+    // Press feedback (kind: video::Renderer::UiKind; < 0 released).
+    void sendPress(int kind, int index) {
+        if (kind < 0 && !pressSent) return;
+        pressSent = kind >= 0;
+        {
+            std::lock_guard lk(m);
+            pressReq = kind < 0 ? -1 : kind * 1000 + index;
+        }
+        wake();
+    }
+    void sendFocus(int kind, int index) {
+        {
+            std::lock_guard lk(m);
+            focusReq = kind < 0 ? -1 : kind * 1000 + index;
+        }
+        wake();
+    }
+    void clearFocus() {
+        if (focusUi < 0) return;
+        focusUi = -1;
+        sendFocus(-1, -1);
+    }
+
+    // Idle screen keyboard: Tab / Shift+Tab move a focus ring over the check
+    // boxes and the actions, Space / Enter use the focused one, Esc hides the
+    // ring.  Only while they are shown (never live: keys go to the phone).
+    bool idleKey(UINT msg, WPARAM wp) {
+        int nOpt = 0;
+        std::vector<int> acts;
+        {
+            std::lock_guard lk(m);
+            nOpt = static_cast<int>(optionRects.size());
+            for (size_t i = 0; i < linkRects.size(); ++i)
+                if (linkRects[i].right > linkRects[i].left) acts.push_back(static_cast<int>(i));
+        }
+        const int n = nOpt + static_cast<int>(acts.size());
+        if (msg == WM_KEYUP) {
+            if ((wp == VK_SPACE || wp == VK_RETURN) && pressSent) {
+                sendPress(-1, -1);
+                return true;
+            }
+            return false;
+        }
+        if (n == 0) {
+            clearFocus();
+            return false;
+        }
+        if (focusUi >= n) focusUi = -1;
+        switch (wp) {
+        case VK_TAB: {
+            if (GetKeyState(VK_CONTROL) < 0 || GetKeyState(VK_MENU) < 0) return false;
+            const bool back = GetKeyState(VK_SHIFT) < 0;
+            focusUi = focusUi < 0 ? (back ? n - 1 : 0) : (focusUi + (back ? n - 1 : 1)) % n;
+            break;
+        }
+        case VK_SPACE:
+        case VK_RETURN:
+            if (focusUi < 0) return false;
+            if (focusUi < nOpt) {
+                sendPress(video::Renderer::UiOption, focusUi);
+                toggleOption(focusUi);
+            } else {
+                sendPress(video::Renderer::UiAction, acts[focusUi - nOpt]);
+                clickLink(acts[focusUi - nOpt]);
+            }
+            return true;
+        case VK_ESCAPE:
+            if (focusUi < 0) return false;
+            clearFocus();
+            return true;
+        default:
+            return false;
+        }
+        if (focusUi < nOpt) sendFocus(video::Renderer::UiOption, focusUi);
+        else sendFocus(video::Renderer::UiAction, acts[focusUi - nOpt]);
+        return true;
     }
 
     void markDirty() {
@@ -2076,6 +2332,90 @@ struct VideoWindow::Impl {
         const POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
         if (buttonsDown || !inToolPill(pt)) return false;
         pressedTool = hitTool(pt);
+        if (pressedTool >= 0 && toolIsSlider(pressedTool)) {  // a slider: drag (capture) from here
+            slidingTool = pressedTool;
+            pressedTool = -2;
+            SetCapture(hwnd);
+            slideTool(pt.x, false);
+        } else if (pressedTool >= 0) {
+            sendPress(video::Renderer::UiTool, pressedTool);
+        }
+        return true;
+    }
+
+    bool toolIsSlider(int i) {
+        std::lock_guard lk(m);
+        return i >= 0 && i < static_cast<int>(toolItemsUi.size()) && toolItemsUi[i].slider >= 0;
+    }
+
+    // Slider drag: the value at client x (track = the hit rect less
+    // kToolSliderInset x its height at each end), shown at once and passed to
+    // the slide handler (done = released / capture lost).
+    void slideTool(int x, bool done) {
+        const int i = slidingTool;
+        std::function<void(int, float, bool)> cb;
+        int id = 0;
+        float v = 0;
+        bool ok = true;
+        {
+            std::lock_guard lk(m);
+            if (i < 0 || i >= static_cast<int>(toolItemsUi.size()) || i >= static_cast<int>(toolIds.size()) ||
+                toolItemsUi[i].slider < 0) {  // the toolbar changed under the drag
+                ok = false;
+            } else {
+                v = toolItemsUi[i].slider;
+            }
+        }
+        if (!ok) {
+            slidingTool = -1;
+            if (GetCapture() == hwnd) ReleaseCapture();
+            return;
+        }
+        {
+            std::lock_guard lk(m);
+            if (i < static_cast<int>(toolRects.size()) && toolRects[i].right > toolRects[i].left) {
+                const RECT& r = toolRects[i];
+                const float inset = (r.bottom - r.top) * video::Renderer::kToolSliderInset;
+                const float span = std::max(1.f, (r.right - r.left) - 2 * inset);
+                v = std::clamp((x - (r.left + inset)) / span, 0.f, 1.f);
+            }
+            if (v != toolItemsUi[i].slider) {
+                toolItemsUi[i].slider = v;
+                toolbarReq = toolItemsUi;
+                dirty = true;
+            }
+            id = toolIds[i];
+            cb = toolSlideFn;
+        }
+        wake();
+        if (done) {
+            slidingTool = -1;
+            if (GetCapture() == hwnd) ReleaseCapture();
+        }
+        if (cb) cb(id, v, done);  // UI thread
+    }
+
+    // Wheel over a slider, or over the button just before one (the speaker of
+    // a volume slider, even when the slider is hidden): whole notches to the
+    // wheel handler (+ up).  False if neither.
+    bool toolWheel(POINT pt, int delta) {
+        const int hit = hitTool(pt);
+        std::function<void(int, int)> cb;
+        int id = 0;
+        {
+            std::lock_guard lk(m);
+            const int n = static_cast<int>(std::min(toolItemsUi.size(), toolIds.size()));
+            int i = -1;
+            if (hit >= 0 && hit < n && toolItemsUi[hit].slider >= 0) i = hit;
+            else if (hit >= 0 && hit + 1 < n && toolItemsUi[hit + 1].slider >= 0) i = hit + 1;
+            if (i < 0) return false;
+            id = toolIds[i];
+            cb = toolWheelFn;
+        }
+        toolWheelAcc += delta;
+        const int notches = toolWheelAcc / WHEEL_DELTA;
+        toolWheelAcc -= notches * WHEEL_DELTA;
+        if (notches && cb) cb(id, notches);  // UI thread
         return true;
     }
 
@@ -2665,6 +3005,21 @@ struct VideoWindow::Impl {
             if (!r || r->right <= r->left) return -1;
             return MAKELRESULT((r->left + r->right) / 2, (r->top + r->bottom) / 2);
         }
+        if (msg == kTestMsg && kTestMsg && wp == 18) {
+            // Test hook: centre of idle check box row lp in client px, -1 if not shown.
+            std::lock_guard lk(m);
+            const size_t i = static_cast<size_t>(lp);
+            if (i >= optionRects.size() || optionRects[i].right <= optionRects[i].left) return -1;
+            const RECT& r = optionRects[i];
+            return MAKELRESULT((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+        }
+        if (msg == kTestMsg && kTestMsg && wp == 17) {
+            // Test hook: lp = 1 animations off (as with Windows 「顯示動畫」
+            // off), 0 on, 2 follow the Windows setting again.
+            motionOverride = lp == 2 ? -1 : lp ? 1 : 0;
+            sendMotion();
+            return 0;
+        }
         if (msg == kTestMsg && kTestMsg && wp == 11) {
             // Test hook: centre of live-toolbar button lp in client px, -1
             // if the toolbar is not up.
@@ -2718,6 +3073,12 @@ struct VideoWindow::Impl {
                 panMove(lp);
                 return 0;
             }
+            if (slidingTool >= 0) {  // dragging a toolbar slider: the toolbar stays, nothing else
+                toolActivity();
+                setToolHot(slidingTool, true);
+                slideTool(GET_X_LPARAM(lp), false);
+                return 0;
+            }
             // Live toolbar: shown by any movement; on it, nothing goes to the phone.
             toolActivity();
             const POINT mpt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
@@ -2753,6 +3114,7 @@ struct VideoWindow::Impl {
         }
         case WM_MOUSELEAVE:
             trackingMouse = false;
+            if (slidingTool >= 0) return 0;  // a slider drag (captured) goes on outside
             ovSetHot(-1);
             ovOnUi = kOvNone;
             setToolHot(-1, false);
@@ -2760,6 +3122,7 @@ struct VideoWindow::Impl {
             setHover(-1);
             setLinkHot(-1);
             setMascotHot(false);
+            sendPress(-1, -1);
             return 0;
         case WM_SETCURSOR:
             if (LOWORD(lp) == HTCLIENT && (selecting || panning)) {
@@ -2792,9 +3155,16 @@ struct VideoWindow::Impl {
             pressedUi = hitTest(lp);
             pressedLink = pressedUi < 0 ? hitLink(lp) : -1;
             pressedMascot = pressedUi < 0 && pressedLink < 0 && hitMascot(lp);
+            clearFocus();  // the ring is for the keyboard
+            if (pressedUi >= 0) sendPress(video::Renderer::UiOption, pressedUi);
+            else if (pressedLink >= 0) sendPress(video::Renderer::UiAction, pressedLink);
             return 0;
         case WM_LBUTTONUP: {
             if (selectMouse(msg, lp)) return 0;
+            if (slidingTool >= 0) {  // toolbar slider released
+                slideTool(GET_X_LPARAM(lp), true);
+                return 0;
+            }
             if (ovPress != kOvNone) {  // pressed on the list / a marker: a click if released on the same thing
                 const int p = std::exchange(ovPress, kOvNone);
                 bool marker = false;
@@ -2805,6 +3175,7 @@ struct VideoWindow::Impl {
                 panEnd();
                 return 0;
             }
+            sendPress(-1, -1);
             if (pressedTool != -2) {  // pressed on the toolbar: a click if released on the same button
                 const int i = std::exchange(pressedTool, -2);
                 if (i >= 0 && hitTool({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}) == i) clickTool(i);
@@ -2832,6 +3203,8 @@ struct VideoWindow::Impl {
             pressedUi = hitTest(lp);
             pressedLink = pressedUi < 0 ? hitLink(lp) : -1;
             pressedMascot = pressedUi < 0 && pressedLink < 0 && hitMascot(lp);
+            if (pressedUi >= 0) sendPress(video::Renderer::UiOption, pressedUi);
+            else if (pressedLink >= 0) sendPress(video::Renderer::UiAction, pressedLink);
             if (pressedUi < 0 && pressedLink < 0 && !pressedMascot) toggleFullscreen();
             return 0;
         case WM_RBUTTONDOWN:
@@ -2859,7 +3232,10 @@ struct VideoWindow::Impl {
         case WM_MOUSEWHEEL:
         case WM_MOUSEHWHEEL: {
             POINT wpt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
-            if (ScreenToClient(hwnd, &wpt) && inToolPill(wpt)) return 0;
+            if (ScreenToClient(hwnd, &wpt) && inToolPill(wpt)) {  // the toolbar's; a slider (volume) steps
+                if (msg == WM_MOUSEWHEEL && slidingTool < 0) toolWheel(wpt, GET_WHEEL_DELTA_WPARAM(wp));
+                return 0;
+            }
             if (selecting) return 0;
             if (const int oh = ovHit(wpt); oh != kOvNone && !hitIsMarker(wpt)) {  // scrolls the translation list
                 {
@@ -2875,6 +3251,12 @@ struct VideoWindow::Impl {
         }
         case WM_CAPTURECHANGED:
             if (reinterpret_cast<HWND>(lp) != hwnd) {
+                if (slidingTool >= 0) {  // slider drag cut short: keep where it got to
+                    POINT cp{};
+                    GetCursorPos(&cp);
+                    ScreenToClient(hwnd, &cp);
+                    slideTool(cp.x, true);
+                }
                 cancelButtons();
                 panning = false;
                 if (selecting && selDragging) endSelect(false);
@@ -2895,11 +3277,13 @@ struct VideoWindow::Impl {
                 endSelect(false);
                 return 0;
             }
+            if (idleKey(msg, wp)) return 0;
             if (keyEvent(msg, wp)) return 0;
             if (magKey(msg, wp)) return 0;
             if (wp == VK_F11 || (wp == VK_ESCAPE && fullscreen)) toggleFullscreen();
             return 0;
         case WM_KEYUP:
+            if (idleKey(msg, wp)) return 0;
             if (keyEvent(msg, wp)) return 0;
             break;
         case WM_CHAR:
@@ -2929,10 +3313,16 @@ struct VideoWindow::Impl {
             if (!fullscreen)
                 SetWindowPos(hwnd, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
                              SWP_NOZORDER | SWP_NOACTIVATE);
+            else
+                refitFullscreen("DPI change");  // the suggested rect is not the monitor
             return 0;
         }
+        case WM_SETTINGCHANGE:  // e.g. 「顯示動畫」 (SPI_SETCLIENTAREAANIMATION) switched
+            sendMotion();
+            break;
         case WM_DISPLAYCHANGE:  // display mode / GPU / monitor topology changed
             requestAdapterCheck();
+            refitFullscreen("display change");
             break;
         case WM_WINDOWPOSCHANGED: {
             // Moved to a monitor on another GPU?
@@ -2941,6 +3331,7 @@ struct VideoWindow::Impl {
                 const bool first = lastMonitor == nullptr;
                 lastMonitor = mon;
                 if (!first) requestAdapterCheck();
+                if (!first) refitFullscreen("moved to another monitor");  // e.g. its monitor was unplugged
             }
             break;  // DefWindowProc sends WM_SIZE / WM_MOVE
         }
@@ -3039,6 +3430,7 @@ bool VideoWindow::create(const wchar_t* title, int clientWidth, int clientHeight
         return false;
     }
     impl_->startMonitor();
+    impl_->sendMotion();
     if (!impl_->wd) log("watchdog off (PM_VIDEO_WATCHDOG=0): 0.6.1 behaviour");
     ShowWindow(impl_->hwnd, offscreen ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
     UpdateWindow(impl_->hwnd);
@@ -3082,6 +3474,7 @@ VideoWindow::Stats VideoWindow::stats() const {
     percentile(std::move(t), s.tapAvgMs, s.tapP95Ms);
     s.syncPresented = static_cast<long long>(y.size());
     absPercentile(std::move(y), s.syncErrAvgMs, s.syncErrAbsP95Ms);
+    s.presentsTotal = impl_->dg.presentOk.load() + impl_->dg.presentOccl.load();
     return s;
 }
 
@@ -3287,6 +3680,14 @@ void VideoWindow::showPin(const std::wstring& pin) {
 
 void VideoWindow::showToast(const std::wstring& text) { showToast(text, 0); }
 
+void VideoWindow::flash() {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->flashReq = true;
+    }
+    impl_->wake();
+}
+
 void VideoWindow::showToast(const std::wstring& text, int holdMs) {
     {
         std::lock_guard lk(impl_->m);
@@ -3301,17 +3702,26 @@ void VideoWindow::setLiveToolbar(std::vector<ToolbarItem> items, std::function<v
     std::vector<video::Renderer::ToolItem> ri;
     std::vector<int> ids;
     for (auto& t : items) {
-        ri.push_back({t.glyph, std::move(t.tooltip), t.toggled, t.danger, t.groupStart, t.recording, t.optional});
+        ri.push_back({t.glyph, std::move(t.tooltip), t.toggled, t.danger, t.groupStart, t.recording, t.optional,
+                      t.slider});
         ids.push_back(t.id);
     }
     {
         std::lock_guard lk(impl_->m);
+        impl_->toolItemsUi = ri;
         impl_->toolbarReq = std::move(ri);
         impl_->toolIds = std::move(ids);
         impl_->toolFn = std::move(onClick);
         impl_->dirty = true;
     }
     impl_->wake();
+}
+
+void VideoWindow::setLiveToolbarSlider(std::function<void(int id, float value, bool done)> onSlide,
+                                       std::function<void(int id, int notches)> onWheel) {
+    std::lock_guard lk(impl_->m);
+    impl_->toolSlideFn = std::move(onSlide);
+    impl_->toolWheelFn = std::move(onWheel);
 }
 
 namespace {
@@ -3453,13 +3863,24 @@ void VideoWindow::setViewHandler(std::function<void(const ViewState&)> fn) {
 void VideoWindow::setTextOverlay(std::vector<TextBox> boxes) {
     std::vector<video::Renderer::TextBox> out;
     out.reserve(boxes.size());
-    for (auto& b : boxes)
+    for (auto& b : boxes) {
         out.push_back({b.x0, b.y0, b.x1, b.y1, std::move(b.text), std::move(b.original), std::max(1, b.lines), b.bg, b.fg,
                        b.colors});
+        out.back().online = b.online;
+    }
     {
         std::lock_guard lk(impl_->m);
         impl_->boxesReq = std::move(out);
+        impl_->onlineReq.reset();  // (marks of the previous boxes)
         impl_->ovSelUi = -1;
+    }
+    impl_->wake();
+}
+
+void VideoWindow::setTextOverlayOnline(std::vector<std::wstring> originals) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->onlineReq = std::move(originals);
     }
     impl_->wake();
 }

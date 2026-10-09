@@ -287,6 +287,10 @@ HRESULT MfDecoder::drain(const OutputFn& out) {
             if (!faultDrop_) out(ob.pSample, fmt_);
             if (providesSamples_) ob.pSample->Release();
             else swSample_.Reset();
+            // Backstop: the callback must not close() this decoder (the
+            // window defers device loss until decode() returns); if it did
+            // anyway, stop before touching the released MFT.
+            if (!mft_) return MF_E_SHUTDOWN;
         }
     }
     return S_OK;

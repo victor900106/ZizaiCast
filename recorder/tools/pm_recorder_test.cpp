@@ -13,6 +13,8 @@
 // usage: pm_recorder_test [--out F] [--seconds S] [--size WxH] [--fps N]
 //        [--rotate-at S] [--audio-gap S:LEN] [--video-stall S:LEN]
 //        [--flash S,S,...] [--rate HZ] [--no-audio] [--audio-start S]
+//        [--start-picture]   (setStartPicture() with frame 0 right after start;
+//                             with --video-stall 0:S the phone "is paused")
 #include <pm/recorder.h>
 
 #include <windows.h>
@@ -140,6 +142,48 @@ int readback(const std::wstring& path) {
     HRESULT ha = r->SetCurrentMediaType(DWORD(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, t);
     t->Release();
     std::printf("readback: decoder setup video hr=0x%08lx audio hr=0x%08lx\n", (unsigned long)hv, (unsigned long)ha);
+    // Duration and seeking as the Windows players see them (a fragmented MP4
+    // cut short by a crash has no duration in its header).
+    {
+        PROPVARIANT v;
+        PropVariantInit(&v);
+        double dur = -1;
+        if (SUCCEEDED(r->GetPresentationAttribute(DWORD(MF_SOURCE_READER_MEDIASOURCE), MF_PD_DURATION, &v)) &&
+            v.vt == VT_UI8)
+            dur = v.uhVal.QuadPart / 1e7;
+        PropVariantClear(&v);
+        ULONG chars = 0;
+        if (SUCCEEDED(r->GetPresentationAttribute(DWORD(MF_SOURCE_READER_MEDIASOURCE),
+                                                  MF_SOURCE_READER_MEDIASOURCE_CHARACTERISTICS, &v)) &&
+            v.vt == VT_UI4)
+            chars = v.ulVal;
+        PropVariantClear(&v);
+        const bool canSeek = (chars & MFMEDIASOURCE_CAN_SEEK) != 0;
+        double seekTo = -1;
+        if (canSeek && dur > 1) {
+            PROPVARIANT pos;
+            PropVariantInit(&pos);
+            pos.vt = VT_I8;
+            pos.hVal.QuadPart = LONGLONG(dur / 2 * 1e7);
+            if (SUCCEEDED(r->SetCurrentPosition(GUID_NULL, pos))) {
+                DWORD idx = 0, flags = 0;
+                LONGLONG ts = 0;
+                IMFSample* s = nullptr;
+                if (SUCCEEDED(r->ReadSample(DWORD(MF_SOURCE_READER_FIRST_VIDEO_STREAM), 0, &idx, &flags, &ts, &s)) &&
+                    s) {
+                    seekTo = ts / 1e7;
+                    s->Release();
+                }
+            }
+            PropVariantInit(&pos);
+            pos.vt = VT_I8;
+            pos.hVal.QuadPart = 0;
+            r->SetCurrentPosition(GUID_NULL, pos);
+        }
+        std::printf("readback: duration %.3f s, %s", dur, canSeek ? "seekable" : "NOT seekable");
+        if (seekTo >= 0) std::printf(" (seek to %.2f s -> first video frame %.3f s)", dur / 2, seekTo);
+        std::printf("\n");
+    }
     uint64_t n[2] = {0, 0}, bytesA = 0;
     LONGLONG first[2] = {-1, -1}, last[2] = {0, 0}, lastDur[2] = {0, 0};
     int errors = 0;
@@ -201,7 +245,7 @@ int main(int argc, char** argv) {
     std::wstring out = L"rec_test.mp4";
     double seconds = 20, rotateAt = 10, gapAt = 6, gapLen = 1, stallAt = 13, stallLen = 0.5, audioStart = 0;
     int W = 2560, H = 1440, fps = 60, rate = 44100;
-    bool noAudio = false;
+    bool noAudio = false, startPicture = false;
     std::vector<double> flashes{3.0, 15.0};
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -217,6 +261,7 @@ int main(int argc, char** argv) {
         else if (a == "--video-stall") std::sscanf(next().c_str(), "%lf:%lf", &stallAt, &stallLen);
         else if (a == "--rate") rate = std::atoi(next().c_str());
         else if (a == "--no-audio") noAudio = true;
+        else if (a == "--start-picture") startPicture = true;
         else if (a == "--audio-start") audioStart = std::atof(next().c_str());
         else if (a == "--flash") {
             flashes.clear();
@@ -238,6 +283,7 @@ int main(int argc, char** argv) {
         return false;
     };
 
+    GpuCounter gpu;  // before start(): opening the PDH query takes a while
     pm::Recorder rec;
     rec.log = [](const std::string& s) { std::printf("[recorder] %s\n", s.c_str()); };
     timeBeginPeriod(1);
@@ -250,6 +296,10 @@ int main(int argc, char** argv) {
 
     const int spf = 480;  // AAC-ELD mirroring packet size
     std::vector<uint8_t> frame;
+    if (startPicture) {
+        drawFrame(frame, W, H, 0, false);
+        rec.setStartPicture(frame.data(), W, H, W);
+    }
     std::vector<int16_t> pcm(spf * 2);
     const int64_t q0 = steadyNs() + 50'000'000, u0 = utcNs() + 50'000'000;
     const auto c0 = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
@@ -257,7 +307,6 @@ int main(int argc, char** argv) {
     const int64_t vTotal = int64_t(seconds * fps);
     const int64_t aTotal = int64_t(seconds * rate / spf);
     double maxVideoCallUs = 0, maxAudioCallUs = 0, drawSec = 0;
-    GpuCounter gpu;
     auto nextGpu = c0 + std::chrono::seconds(1);
     double nextStatsAt = 5;
     while (vIdx < vTotal || aIdx < aTotal) {

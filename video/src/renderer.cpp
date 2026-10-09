@@ -28,9 +28,13 @@ namespace {
 constexpr UINT kSwapFlags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
 // ---- UI timing (ms) ----
-constexpr double kFadeMs = 250;        // picture fade in / out
+// Waiting <-> picture cross-fade with a settle: in, the scene fades over
+// 300 ms (standard) while lifting 8 px and the picture grows 98.5 -> 100 %
+// over 380 ms (outCubic); out, the picture shrinks to 98.8 % (280 ms), the
+// scene fades in over 420 ms (outCubic) and 投投 drops in 10 px (520 ms).
+constexpr double kFadeInMs = 380, kSceneOutMs = 300, kFadeOutMs = 420, kDropMs = 520;
 constexpr double kPinFadeMs = 160;
-constexpr double kToastInMs = 150, kToastHoldMs = 2500, kToastOutMs = 350;
+constexpr double kToastInMs = 220, kToastHoldMs = 2500, kToastOutMs = 260;  // in: outCubic + 8 px rise
 constexpr double kAmbientSettleMs = 1500;  // breathing amplitude eases out
 constexpr double kConnectTimeoutMs = 60000;
 constexpr double kFastFrameMs = 1000.0 / 60, kSlowFrameMs = 1000.0 / 30;
@@ -40,13 +44,15 @@ constexpr float kDimMax = 0.55f;
 constexpr double kHoverMs = 160;
 constexpr double kReactMs = 1250;      // click reaction (hop, hearts, bubble)
 constexpr double kHopMs = 1000;        // squash-and-stretch hop
-constexpr double kConnectIntroMs = 900;  // happy hop before the spinner scene
+constexpr double kConnectIntroMs = 1150;  // surprise + happy hop before the spinner scene
+constexpr double kSurpriseMs = 260;       // 「found a phone」: surprised face before the hop
 constexpr double kTapFlushMs = 20;     // newest tapped picture delivered at the latest after this
 // Live toolbar: shown on mouse movement, hidden kToolHoldMs after the last one.
-constexpr double kToolHoldMs = 2000, kToolInMs = 140, kToolOutMs = 260;
+constexpr double kToolHoldMs = 2000, kToolInMs = 160, kToolOutMs = 260;  // in: outCubic
 constexpr double kTipDelayMs = 450, kTipFadeMs = 120;
 // Magnifier: the big zoom indicator stays this long after a change, then fades.
 constexpr double kZoomShowMs = 1200, kZoomFadeMs = 400;
+constexpr double kFlashInMs = 40, kFlashOutMs = 200;  // screenshot veil
 
 constexpr D2D1_COLOR_F rgb(uint32_t c) {
     return {((c >> 16) & 0xff) / 255.f, ((c >> 8) & 0xff) / 255.f, (c & 0xff) / 255.f, 1};
@@ -74,6 +80,42 @@ constexpr S kSleepyLines[] = {S::Sleepy1, S::Sleepy2, S::Sleepy3};
 float ease(double t) {  // smoothstep on [0,1]
     float x = static_cast<float>(std::clamp(t, 0.0, 1.0));
     return x * x * (3 - 2 * x);
+}
+float outCubic(double t) {  // 1 - (1 - t)^3: enters fast, settles softly
+    const float x = 1 - static_cast<float>(std::clamp(t, 0.0, 1.0));
+    return 1 - x * x * x;
+}
+float inCubic(double t) {
+    const float x = static_cast<float>(std::clamp(t, 0.0, 1.0));
+    return x * x * x;
+}
+// CSS cubic-bezier(x1, y1, x2, y2) at time t (Newton on x).
+float bezier(double t, float x1, float y1, float x2, float y2) {
+    const float x = static_cast<float>(std::clamp(t, 0.0, 1.0));
+    float u = x;
+    for (int i = 0; i < 6; ++i) {
+        const float v = 1 - u;
+        const float fx = 3 * v * v * u * x1 + 3 * v * u * u * x2 + u * u * u - x;
+        const float dx = 3 * v * v * x1 + 6 * v * u * (x2 - x1) + 3 * u * u * (1 - x2);
+        if (std::fabs(dx) < 1e-5f) break;
+        u = std::clamp(u - fx / dx, 0.f, 1.f);
+    }
+    const float v = 1 - u;
+    return 3 * v * v * u * y1 + 3 * v * u * u * y2 + u * u * u;
+}
+float standard(double t) { return bezier(t, 0.4f, 0, 0.2f, 1); }   // material standard
+float softOut(double t) { return bezier(t, 0.22f, 1, 0.36f, 1); }  // gentle ease-out, no overshoot
+D2D1_COLOR_F mixc(D2D1_COLOR_F a, D2D1_COLOR_F b, float t) {
+    return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t};
+}
+D2D1_COLOR_F alphaOf(D2D1_COLOR_F c, float a) {
+    c.a *= a;
+    return c;
+}
+D2D1_RECT_F inflate(D2D1_RECT_F r, float d) { return {r.left - d, r.top - d, r.right + d, r.bottom + d}; }
+// Scale about a point, composed with the target's current transform.
+D2D1::Matrix3x2F scaledAbout(const D2D1_MATRIX_3X2_F& base, float k, D2D1_POINT_2F c) {
+    return D2D1::Matrix3x2F::Scale(k, k, c) * *D2D1::Matrix3x2F::ReinterpretBaseType(&base);
 }
 
 const char kShader[] = R"(
@@ -262,7 +304,10 @@ bool Renderer::init(HWND hwnd, ID3D11Device* device) {
 bool Renderer::attachDevice(ID3D11Device* device) {
     dev_ = device;
     dev_->GetImmediateContext(&ctx_);
-    if (createDeviceObjects()) return true;
+    if (createDeviceObjects()) {
+        restoreFrozen();
+        return true;
+    }
     releaseDevice();
     return false;
 }
@@ -392,7 +437,9 @@ void Renderer::releaseDevice() {
     psBgra_.Reset();
     tapCb_.Reset();
     cur_ = {};
-    frozen_ = {};  // re-frozen from the first picture after the recovery
+    // attachDevice() uploads the frozen picture again from frozenCpu_.
+    if (frozenOn_ && frozen_.valid()) frozenWasUp_ = true;
+    frozen_ = {};
     pool_.clear();
     havePicture_ = false;  // a live scene shows black until the decoder delivers again
     ctx_.Reset();
@@ -589,6 +636,7 @@ bool Renderer::copyIn(IMFSample* sample, const VideoFormat& fmt, Picture& p) {
 
 void Renderer::pictureShown() {
     havePicture_ = true;
+    lastPictureAt_ = clockMs();
     if (dimmed_) setDimmed(false);  // the stream is back: no longer "on hold"
     if (scene_ != Scene::Live) {
         const double now = clockMs();
@@ -639,6 +687,8 @@ void Renderer::reset() {
     // filter are the user's viewing preference: they stay).
     frozenOn_ = false;
     frozen_ = {};
+    frozenCpu_ = {};
+    frozenWasUp_ = false;
     boxes_.clear();
     ovHits_ = {};
     ovValid_ = false;
@@ -661,12 +711,31 @@ void Renderer::setConnecting(const std::wstring& name) {
         // She is happy about it: a hop + hearts, then the spinner scene.
         connectIntro_ = !paused_;
         if (connectIntro_) {
-            reactAt_ = now;
+            // Surprised for a moment (eyes to the phone, sparkles at its top),
+            // then the happy hop + hearts.
+            surpriseAt_ = now;
+            reactAt_ = now + kSurpriseMs;
             reactBubble_ = false;
         }
     }
     scene_ = Scene::Connecting;
     sceneAt_ = now;
+}
+
+void Renderer::setOptions(std::vector<Option> options) {
+    // Same check boxes, one changed: its tick draws itself (or is undrawn).
+    const bool same = options.size() == options_.size() &&
+                      std::equal(options.begin(), options.end(), options_.begin(),
+                                 [](const Option& a, const Option& b) { return a.label == b.label; });
+    optAt_.resize(options.size(), -1e9);
+    if (same) {
+        const double now = clockMs();
+        for (size_t i = 0; i < options.size(); ++i)
+            if (options[i].checked != options_[i].checked) optAt_[i] = now;
+    } else {
+        std::fill(optAt_.begin(), optAt_.end(), -1e9);
+    }
+    options_ = std::move(options);
 }
 
 void Renderer::setPin(const std::wstring& pin) {
@@ -697,6 +766,51 @@ void Renderer::showToast(const std::wstring& text, double holdMs) {
 }
 
 // ---------------------------------------------------------------------------
+// Hover / press / focus levels.
+
+float Renderer::fadeLevel(const Fade& f, double now) const {
+    const double e = now - f.at;
+    if (f.on) return f.from + (1 - f.from) * outCubic(e / f.inMs);
+    return f.from * (1 - (f.softOff ? softOut(e / f.outMs) : ease(e / f.outMs)));
+}
+
+void Renderer::fadeTo(Fade& f, bool on, double now, double inMs, double outMs, bool softOff) {
+    if (on == f.on) return;
+    f.from = fadeLevel(f, now);
+    f.on = on;
+    f.at = now;
+    f.inMs = std::max(1.0, ms(inMs));
+    f.outMs = std::max(1.0, ms(outMs));
+    f.softOff = softOff;
+}
+
+void Renderer::hoverTo(int kind, int index) {
+    if (kind < 0 || kind >= kUiKinds) return;
+    const double now = clockMs();
+    for (int i = 0; i < kUiMax; ++i) fadeTo(uiHot_[kind][i], i == index, now, 120, 180);
+}
+
+void Renderer::setPressed(int kind, int index) {
+    const double now = clockMs();
+    for (int k = 0; k < kUiKinds; ++k)
+        for (int i = 0; i < kUiMax; ++i) fadeTo(uiPress_[k][i], k == kind && i == index, now, 70, 120, true);
+}
+
+void Renderer::setFocus(int kind, int index) {
+    const double now = clockMs();
+    for (int k = 0; k < kUiKinds; ++k)
+        for (int i = 0; i < kUiMax; ++i) fadeTo(uiFocus_[k][i], k == kind && i == index, now, 120, 120);
+}
+
+bool Renderer::uiAnimating(double now) const {
+    for (const auto* set : {&uiHot_, &uiPress_, &uiFocus_})
+        for (const auto& kind : *set)
+            for (const Fade& f : kind)
+                if (now - f.at < (f.on ? f.inMs : f.outMs) + 40) return true;
+    return false;
+}
+
+// ---------------------------------------------------------------------------
 // Live toolbar: a themed pill of icon buttons at the top centre of the
 // picture, faded in on mouse movement and out kToolHoldMs after the last one
 // (kept while the cursor is on it).  Tooltip under the hovered button.
@@ -708,16 +822,16 @@ void Renderer::setToolbar(std::vector<ToolItem> items) {
 
 float Renderer::toolbarAlpha(double now) const {
     if (!toolbarAvailable()) return 0;
-    const float in = ease((now - toolInAt_) / kToolInMs);
+    const float in = outCubic((now - toolInAt_) / ms(kToolInMs));
     if (toolInside_ || now < toolUntil_) return in;
-    return std::min(in, 1 - ease((now - toolUntil_) / kToolOutMs));
+    return std::min(in, 1 - ease((now - toolUntil_) / ms(kToolOutMs)));
 }
 
 bool Renderer::toolbarActivity() {
     if (!toolbarAvailable()) return false;
     const double now = clockMs();
     const float a = toolbarAlpha(now);
-    if (a < 1) toolInAt_ = now - kToolInMs * a;  // (re)appear from about the current opacity
+    if (a < 1) toolInAt_ = now - ms(kToolInMs) * (1 - std::cbrt(1 - a));  // (re)appear from the current opacity
     toolUntil_ = std::max(toolUntil_, now + kToolHoldMs);
     return a < 1;  // needs a frame (fade in)
 }
@@ -726,11 +840,13 @@ void Renderer::toolbarLeave() {
     const double now = clockMs();
     toolInside_ = false;
     toolHot_ = -1;
+    hoverTo(UiTool, -1);
     if (toolUntil_ > now) toolUntil_ = now;
 }
 
 void Renderer::setToolbarHover(int index, bool inside) {
     const double now = clockMs();
+    hoverTo(UiTool, index);
     if (index != toolHot_) {
         // Moving between buttons while a tooltip is up: the next one shows at once.
         const bool warm = toolHot_ >= 0 && now - toolHotAt_ >= kTipDelayMs;
@@ -783,9 +899,15 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
     // smallest size) without the optional ones, from the right (0.7.2: an
     // Android phone's 14 buttons ran off a phone-sized window; those
     // commands are also in 更多).  A hidden group start passes its divider on.
+    // A slider (volume) is kSliderUnits buttons wide and goes only after every
+    // optional button.
+    constexpr float kSliderUnits = 72.f / 36.f;
+    auto units = [&](int i) { return toolItems_[i].slider >= 0 ? kSliderUnits : 1.f; };
     std::vector<char> vis(n, 1), grp(n, 0);
+    float shownU = 0;  // shown width in buttons
     auto count = [&](int& shown, int& groups) {
         shown = groups = 0;
+        shownU = 0;
         bool pending = false;
         for (int i = 0; i < n; ++i) {
             pending |= toolItems_[i].group;
@@ -794,16 +916,23 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
             if (shown > 0 && pending) grp[i] = 1, ++groups;
             pending = false;
             ++shown;
+            shownU += units(i);
         }
     };
     int shownN = 0, groups = 0;
     count(shownN, groups);
-    auto widthAt = [&](float k) { return k * (10 + shownN * 36 + std::max(0, shownN - 1) * 2 + groups * 11); };
+    auto widthAt = [&](float k) { return k * (10 + shownU * 36 + std::max(0, shownN - 1) * 2 + groups * 11); };
+    // An optional button right before a slider (its speaker) goes last of all.
+    auto beforeSlider = [&](int i) { return i + 1 < n && toolItems_[i + 1].slider >= 0; };
     for (int i = n - 1; i >= 0 && widthAt(26.f / 36.f) > W - 8; --i)
-        if (toolItems_[i].optional) vis[i] = 0, count(shownN, groups);
+        if (toolItems_[i].optional && toolItems_[i].slider < 0 && !beforeSlider(i)) vis[i] = 0, count(shownN, groups);
+    for (int i = n - 1; i >= 0 && widthAt(26.f / 36.f) > W - 8; --i)
+        if (toolItems_[i].slider >= 0) vis[i] = 0, count(shownN, groups);
+    for (int i = n - 1; i >= 0 && widthAt(26.f / 36.f) > W - 8; --i)
+        if (toolItems_[i].optional && beforeSlider(i)) vis[i] = 0, count(shownN, groups);
     // Natural size, shrunk (down to 26 DIP buttons) to fit the picture.
     float btn = 36, gap = 2, div = 11, pad = 5;
-    const float natural = 2 * pad + shownN * btn + std::max(0, shownN - 1) * gap + groups * div;
+    const float natural = 2 * pad + shownU * btn + std::max(0, shownN - 1) * gap + groups * div;
     const float avail = std::max(120.f, std::min(areaW, W) - 16);
     if (natural > avail) {
         const float k = std::max(26.f / 36.f, avail / natural);
@@ -812,7 +941,7 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
         div *= k;
         pad *= k;
     }
-    const float pillW = 2 * pad + shownN * btn + std::max(0, shownN - 1) * gap + groups * div, pillH = btn + 2 * pad;
+    const float pillW = 2 * pad + shownU * btn + std::max(0, shownN - 1) * gap + groups * div, pillH = btn + 2 * pad;
     // Top centre of the picture; below the Dynamic Island when framed (portrait).
     float top = area.top + 10;
     if (frame) {
@@ -824,7 +953,7 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
     // Never on top of the REC badge: go below it.
     if (recBadge_.right > recBadge_.left && x0 < recBadge_.right + 6 && top < recBadge_.bottom + 4)
         top = recBadge_.bottom + 6;
-    const float y0 = std::round(top - (1 - a) * 6);  // slides down a little while fading in
+    const float y0 = std::round(top - (reduced_ ? 0 : (1 - a) * 6));  // slides down a little while fading in
     const D2D1_RECT_F pill{x0, y0, x0 + pillW, y0 + pillH};
     const float r = pillH / 2;
     // Soft shadow, card, hairline accent border.
@@ -850,33 +979,66 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
                                  brush(pal_.fg, 0.20f * a), 1.f);
             x += div;
         }
+        if (it.slider >= 0) {
+            // Track (inset kToolSliderInset x height on each side), filled up to
+            // the knob in the accent (greyed when toggled = muted), knob.
+            const float sw = btn * kSliderUnits;
+            const D2D1_RECT_F b{x, pill.top + pad, x + sw, pill.top + pad + btn};
+            const bool hot = i == toolHot_;
+            const float hl = uiLevel(uiHot_, UiTool, i, now);  // the knob grows a little on hover
+            const float inset = btn * kToolSliderInset, cy = (b.top + b.bottom) / 2;
+            const float x0t = b.left + inset, x1t = b.right - inset;
+            const float v = std::clamp(it.slider, 0.f, 1.f), kx = x0t + (x1t - x0t) * v;
+            const float th = std::max(3.f, btn * 0.11f);
+            const D2D1_COLOR_F fill = it.toggled ? pal_.fg : pal_.accent;
+            const float fillA = it.toggled ? 0.35f : 0.95f;
+            d2dTarget_->FillRoundedRectangle({{x0t, cy - th / 2, x1t, cy + th / 2}, th / 2, th / 2},
+                                             brush(pal_.fg, 0.20f * a));
+            if (kx > x0t + 0.5f)
+                d2dTarget_->FillRoundedRectangle({{x0t, cy - th / 2, kx, cy + th / 2}, th / 2, th / 2},
+                                                 brush(fill, fillA * a));
+            const float kr = btn * (0.17f + 0.026f * hl);
+            d2dTarget_->FillEllipse({{kx, cy}, kr, kr}, brush(fill, (it.toggled ? 0.6f : 1.f) * a));
+            d2dTarget_->DrawEllipse({{kx, cy}, kr - 0.5f, kr - 0.5f}, brush(pal_.card, 0.9f * a), 1.f);
+            if (hot) hotRect = b;
+            if (interactive)
+                toolRects_.push_back({static_cast<LONG>(std::floor(b.left * s)), static_cast<LONG>(std::floor(b.top * s)),
+                                      static_cast<LONG>(std::ceil(b.right * s)), static_cast<LONG>(std::ceil(b.bottom * s))});
+            x += sw + gap;
+            continue;
+        }
         const D2D1_RECT_F b{x, pill.top + pad, x + btn, pill.top + pad + btn};
         const D2D1_ELLIPSE disc{{(b.left + b.right) / 2, (b.top + b.bottom) / 2}, btn / 2, btn / 2};
         const bool hot = i == toolHot_;
+        // Hover eases the wash in (120 ms) and out (180 ms); a press shrinks the button to 92 %.
+        const float hl = uiLevel(uiHot_, UiTool, i, now), pl = reduced_ ? 0.f : uiLevel(uiPress_, UiTool, i, now);
+        D2D1_MATRIX_3X2_F base;
+        d2dTarget_->GetTransform(&base);
+        if (pl > 0.003f) d2dTarget_->SetTransform(scaledAbout(base, 1 - 0.08f * pl, disc.point));
         D2D1_COLOR_F ink = it.danger ? kDangerRed : pal_.fg;
         if (it.toggled && it.recording) {
-            d2dTarget_->FillEllipse(disc, brush(kRecRed, (hot ? 0.36f : 0.24f) * a));
+            d2dTarget_->FillEllipse(disc, brush(kRecRed, (0.24f + 0.12f * hl) * a));
             ink = kRecRed;
         } else if (it.toggled) {  // 放大鏡 / 翻譯 / 凍結 on: the theme's accent, not REC red
-            d2dTarget_->FillEllipse(disc, brush(pal_.accent, (hot ? 0.42f : 0.30f) * a));
+            d2dTarget_->FillEllipse(disc, brush(pal_.accent, (0.30f + 0.12f * hl) * a));
             d2dTarget_->DrawEllipse({disc.point, disc.radiusX - 0.75f, disc.radiusY - 0.75f}, brush(pal_.accent, 0.9f * a),
                                     1.5f);
-        } else if (hot && it.danger) {
-            d2dTarget_->FillEllipse(disc, brush(kDangerRed, 0.92f * a));
-            ink = D2D1::ColorF(1, 1, 1);
-        } else if (hot) {
-            d2dTarget_->FillEllipse(disc, brush(pal_.accent, 0.26f * a));
+        } else if (it.danger) {
+            if (hl > 0.003f) d2dTarget_->FillEllipse(disc, brush(kDangerRed, 0.92f * hl * a));
+            ink = mixc(kDangerRed, D2D1::ColorF(1, 1, 1), hl);
+        } else if (hl > 0.003f) {
+            d2dTarget_->FillEllipse(disc, brush(pal_.accent, 0.26f * hl * a));
         }
         if (icons && it.glyph) {
             const wchar_t g[2] = {it.glyph, 0};
             d2dTarget_->DrawText(g, 1, icons.Get(), b, brush(ink, a));
         }
         if (it.toggled && it.recording) {  // pulsing dot: recording now
-            const float ph = static_cast<float>(std::fmod(now / 1400.0, 1.0));
-            const float pulse = 0.5f + 0.5f * std::cos(ph * 2 * kPi);
+            const float pulse = recPulse(now);
             d2dTarget_->FillEllipse({{b.right - btn * 0.2f, b.top + btn * 0.2f}, btn * 0.08f, btn * 0.08f},
                                     brush(kRecRed, (0.55f + 0.45f * pulse) * a));
         }
+        d2dTarget_->SetTransform(base);
         if (hot) hotRect = b;
         if (interactive)
             toolRects_.push_back({static_cast<LONG>(std::floor(b.left * s)), static_cast<LONG>(std::floor(b.top * s)),
@@ -920,32 +1082,40 @@ double Renderer::nextFrameInMs() const {
     double toolDue = -1;
     if (toolbarAvailable()) {
         const float ta = toolbarAlpha(now);
-        const bool fadingTool = now - toolInAt_ < kToolInMs + kTail ||
-                                (!toolInside_ && now >= toolUntil_ && now - toolUntil_ < kToolOutMs + kTail);
+        const bool fadingTool = now - toolInAt_ < ms(kToolInMs) + kTail ||
+                                (!toolInside_ && now >= toolUntil_ && now - toolUntil_ < ms(kToolOutMs) + kTail);
         const bool tip = ta > 0 && toolHot_ >= 0 && now - toolHotAt_ < kTipDelayMs + kTipFadeMs + kTail;
-        bool recDot = false;
-        for (const auto& t : toolItems_) recDot |= t.toggled && t.recording;
-        toolFast = fadingTool || (tip && now - toolHotAt_ >= kTipDelayMs) || (ta > 0 && recDot);
+        toolFast = fadingTool || (tip && now - toolHotAt_ >= kTipDelayMs);
         if (tip && now - toolHotAt_ < kTipDelayMs) toolDue = kTipDelayMs - (now - toolHotAt_);
         if (ta > 0 && !toolInside_ && now < toolUntil_) {
             const double d = toolUntil_ - now;
             toolDue = toolDue < 0 ? d : std::min(toolDue, d);
         }
     }
-    bool fast = toolFast || now - fadeInAt_ < kFadeMs + kTail || now - fadeOutAt_ < kFadeMs + kTail ||
-                now - pinAt_ < kPinFadeMs + kTail ||
-                (!toast_.empty() && now - toastAt_ < toastHold_ + kToastOutMs + kTail) ||
-                (scene_ == Scene::Connecting && !paused_) || now - dimAt_ < kDimMs + kTail ||
-                now - mascotHotAt_ < kHoverMs + kTail || now - reactAt_ < kReactMs + 250 + kTail ||
-                !busy_.empty() || (now - zoomAt_ >= kZoomShowMs && now - zoomAt_ < kZoomShowMs + kZoomFadeMs + kTail);
+    bool fast = toolFast || now - fadeInAt_ < ms(kFadeInMs) + kTail || now - fadeOutAt_ < ms(kDropMs) + kTail ||
+                now - pinAt_ < ms(kPinFadeMs) + kTail ||
+                (!toast_.empty() && now - toastAt_ < toastHold_ + ms(kToastOutMs) + kTail) ||
+                (scene_ == Scene::Connecting && !paused_) || now - dimAt_ < ms(kDimMs) + kTail ||
+                (!reduced_ && now - mascotHotAt_ < kHoverMs + kTail) ||
+                (now - reactAt_ < kReactMs + 250 + kTail && (!reduced_ || reactBubble_)) ||
+                uiAnimating(now) || !busy_.empty() || now - flashAt_ < kFlashInMs + kFlashOutMs + kTail || (now - zoomAt_ >= kZoomShowMs && now - zoomAt_ < kZoomShowMs + ms(kZoomFadeMs) + kTail);
+    for (double at : optAt_) fast = fast || now - at < 70 + 220 + kTail;  // tick drawing
     if (!fast && now - zoomAt_ < kZoomShowMs) {
         // Event-driven until the big zoom indicator starts to fade.
         const double d = kZoomShowMs - (now - zoomAt_);
         toolDue = toolDue < 0 ? d : std::min(toolDue, d);
     }
+    // Recording: the REC timer ticks once a second (its dot pulses only on
+    // frames drawn anyway: a static phone screen costs 1 frame/s, not 30-60).
+    if (recording_) {
+        const double into = std::fmod(now - recAt_, 1000.0);  // ms into the timer's current second
+        // (Waits up to 120 ms for a picture that redraws it anyway.)
+        const double d = lastRender_ < now - into ? std::max(0.0, 120 - into) : 1000 - into;
+        toolDue = toolDue < 0 ? d : std::min(toolDue, d);
+    }
     // Idle / paused screen: the mascot floats (and blinks) for a while after
-    // any activity, then rests on a static frame.
-    bool slow = ((scene_ == Scene::Idle || paused_) && now < ambientUntil_ + kTail) || recording_;
+    // any activity, then rests on a static frame (at once with reduced motion).
+    bool slow = !reduced_ && (scene_ == Scene::Idle || paused_) && now < ambientUntil_ + kTail;
     if (!fast && !slow) return toolDue;
     // Fully covered window (Present reported occlusion): probe slowly.
     const double period = occluded_ ? 500 : fast ? kFastFrameMs : kSlowFrameMs;
@@ -1010,7 +1180,7 @@ bool Renderer::grab(std::vector<uint8_t>& out, UINT& w, UINT& h, bool mirror) {
 
 // The shown picture, unzoomed and unfiltered (snapshots, OCR).
 bool Renderer::renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror) {
-    if (!havePicture_ || !shown().valid()) return false;
+    if (!(havePicture_ || (frozenOn_ && frozen_.valid())) || !shown().valid()) return false;
     int dw = 0, dh = 0;
     displaySize(dw, dh);
     if (dw <= 0 || dh <= 0) return false;
@@ -1245,6 +1415,13 @@ Renderer::Layout Renderer::layoutFor() const {
     const float rw = L.text.right - L.text.left, rh = L.text.bottom - L.text.top;
     L.title = std::clamp(std::min(rh / 13, rw / 16), 16.f, 56.f);
     L.hint = std::clamp(L.title * 0.56f, 12.f, 30.f);
+    if (sceneDy_ != 0) {  // (sizes above from the unshifted layout)
+        L.anchor.y += sceneDy_;
+        L.mascot.top += sceneDy_;
+        L.mascot.bottom += sceneDy_;
+        L.text.top += sceneDy_;
+        L.text.bottom += sceneDy_;
+    }
     return L;
 }
 
@@ -1276,10 +1453,13 @@ Renderer::Pose Renderer::mascotPose(const Layout& L, Scene scene, double now) {
     Pose P;
     const bool paused = paused_ && scene != Scene::Connecting;
     const bool busy = scene == Scene::Connecting && !paused;
-    const float env = busy ? 1.f : ease((ambientUntil_ - now) / kAmbientSettleMs);
+    const float env = reduced_ ? 0.f : busy ? 1.f : ease((ambientUntil_ - now) / kAmbientSettleMs);
     const double react = now - reactAt_;
     const bool reacting = react >= 0 && react < kReactMs;
-    if (busy) {
+    const double surprise = now - surpriseAt_;
+    if (busy && connectIntro_ && surprise >= 0 && surprise < kSurpriseMs) {
+        P.face = ToutouArt::FaceSurprised;
+    } else if (busy) {
         P.face = connectIntro_ && reacting ? ToutouArt::FaceHappy : ToutouArt::FaceConnecting;
     } else if (paused) {
         P.face = reacting ? ToutouArt::FaceSleepy : ToutouArt::FaceAsleep;
@@ -1307,6 +1487,16 @@ Renderer::Pose Renderer::mascotPose(const Layout& L, Scene scene, double now) {
     const float st = 0.016f * env * std::sin(ph);
     P.sx = 1 - 0.8f * st;
     P.sy = 1 + st;
+    if (busy && connectIntro_ && !reduced_ && surprise >= 0 && surprise < 850) {
+        // A small lift while surprised; the face turns to the phone (160 ms
+        // in, held, 350 ms back).
+        if (surprise < kSurpriseMs) P.dy -= 3 * L.u * std::sin(kPi * static_cast<float>(surprise / kSurpriseMs));
+        const float k = surprise < 160 ? outCubic(surprise / 160) : surprise < 500 ? 1.f : 1 - ease((surprise - 500) / 350);
+        P.faceX = 2.5f * k;
+        P.faceY = -1.f * k;
+    }
+    if (!reduced_ && scene_ != Scene::Live && now - fadeOutAt_ < kDropMs)  // back from a picture: drops in 10 px
+        P.dy -= 10 * (1 - outCubic((now - fadeOutAt_) / kDropMs));
     float hx, hy, hdy;
     hopTransform(L, now, hx, hy, hdy);
     P.sx *= hx;
@@ -1314,14 +1504,17 @@ Renderer::Pose Renderer::mascotPose(const Layout& L, Scene scene, double now) {
     P.dy += hdy;
     const float h = static_cast<float>((now - mascotHotAt_) / kHoverMs);
     const bool hot = mascotHot_ && mascotClickable(now);
-    const float grow = 1 + 0.04f * (hot ? ease(h) : (mascotHot_ ? 0.f : 1 - ease(h)));
+    const float grow = reduced_ ? 1.f : 1 + 0.04f * (hot ? ease(h) : (mascotHot_ ? 0.f : 1 - ease(h)));
     P.sx *= grow;
     P.sy *= grow;
     P.m = D2D1::Matrix3x2F::Translation(-kPivotX, -kPivotY) * D2D1::Matrix3x2F::Scale(P.sx * L.u, P.sy * L.u) *
           D2D1::Matrix3x2F::Translation(L.anchor.x, L.anchor.y + P.dy);
     // Beam: fast and full while connecting (it grows out first), a calm pulse
     // every 6 s on the idle screen, none asleep.
-    if (busy) {
+    if (busy && reduced_) {  // a still beam
+        P.beamT1 = 1;
+        P.beamK = 1;
+    } else if (busy) {
         const double in = now - sceneAt_ - (connectIntro_ ? kConnectIntroMs * 0.6 : 0.0);
         P.beamT1 = ease(in / 450.0);
         P.beamK = P.beamT1 > 0 ? 1.f : 0.f;
@@ -1376,7 +1569,8 @@ void Renderer::drawMascot(const Layout& L, const Pose& P, double now) {
     d2dTarget_->FillEllipse({g, rx, ry}, shadowBrush_.Get());
 
     // The phone screen breathes; the rim light on the cloud follows it.
-    const float breath = 0.5f - 0.5f * std::cos(static_cast<float>(std::fmod(now, 4200.0) / 4200) * 2 * kPi);
+    const float breath =
+        reduced_ ? 1.f : 0.5f - 0.5f * std::cos(static_cast<float>(std::fmod(now, 4200.0) / 4200) * 2 * kPi);
     const float glow = P.lit ? 0.75f + 0.25f * breath : 0.f;
     drawLayer(ToutouArt::Cloud, P.m, P.opacity);
     if (layerBmp_[ToutouArt::Rim]) {
@@ -1389,7 +1583,7 @@ void Renderer::drawMascot(const Layout& L, const Pose& P, double now) {
                                     D2D1_OPACITY_MASK_CONTENT_GRAPHICS, &dst, nullptr);
         d2dTarget_->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     }
-    drawLayer(P.face, P.m, P.opacity);
+    drawLayer(P.face, P.faceX || P.faceY ? D2D1::Matrix3x2F::Translation(P.faceX, P.faceY) * P.m : P.m, P.opacity);
     drawPhone(P, glow);
     drawLayer(static_cast<ToutouArt::Layer>(ToutouArt::HandHold + P.phonePose), P.m, P.opacity);
     drawBeam(P, P.beamT0, P.beamT1, P.beamK, P.beamFlow);
@@ -1521,11 +1715,33 @@ void Renderer::drawBeam(const Pose& P, float t0, float t1, float k, double flow)
     }
 }
 
+// 「Found a phone」: five small sparkles from the phone's top (white and the
+// accent), 180-780 ms after the surprise.
+void Renderer::drawSparkles(const Pose& P, double now) {
+    const double e = now - surpriseAt_ - 180;
+    if (reduced_ || e < 0 || e > 600 || !sparkle_ || scene_ != Scene::Connecting) return;
+    const float t = static_cast<float>(e / 600);
+    const D2D1_POINT_2F o = P.m.TransformPoint({224, 96});
+    const float u = P.m._11;  // DIPs per frame unit (incl. squash)
+    const float grow = t < 0.3f ? outCubic(t / 0.3f) : 1 - inCubic((t - 0.3f) / 0.7f);
+    for (int i = 0; i < 5; ++i) {
+        const float ang = (-160.f + i * 32.f) * kPi / 180.f;
+        const float dist = u * (7 + 13 * outCubic(t));
+        const float size = u * (4.5f + 1.5f * (i % 2)) * grow;
+        if (size <= 0.05f) continue;
+        d2dTarget_->SetTransform(D2D1::Matrix3x2F::Scale(size, size) * D2D1::Matrix3x2F::Rotation(45 * t + i * 9) *
+                                 D2D1::Matrix3x2F::Translation(o.x + std::cos(ang) * dist, o.y + std::sin(ang) * dist));
+        d2dTarget_->FillGeometry(sparkle_.Get(), brush(i % 2 ? pal_.accent : D2D1_COLOR_F{1, 1, 1, 1}, 0.95f));
+    }
+    d2dTarget_->SetTransform(D2D1::IdentityMatrix());
+}
+
 // Hearts bursting from the top of the cloud after a click / when a phone
 // connects (accent and a lighter accent).
 void Renderer::drawMascotFx(const Layout& L, const Pose& P, double now) {
+    drawSparkles(P, now);
     const double e = now - reactAt_;
-    if (e < 0 || e > 1150 || !heart_ || L.u <= 0 || P.face == ToutouArt::FaceSleepy) return;
+    if (reduced_ || e < 0 || e > 1150 || !heart_ || L.u <= 0 || P.face == ToutouArt::FaceSleepy) return;
     const D2D1_POINT_2F o = P.m.TransformPoint({132, 58});
     const float te = static_cast<float>(e / 1150.0);
     constexpr int kHearts = 7;
@@ -1555,7 +1771,7 @@ void Renderer::hopTransform(const Layout& L, double now, float& sx, float& sy, f
     sx = sy = 1;
     dy = 0;
     const double e = now - reactAt_;
-    if (e < 0 || e >= kHopMs) return;
+    if (reduced_ || e < 0 || e >= kHopMs) return;
     const float t = static_cast<float>(e / kHopMs);
     const float mh = L.mascot.bottom - L.mascot.top;
     const float hop = mh * 0.06f;
@@ -1581,9 +1797,9 @@ void Renderer::hopTransform(const Layout& L, double now, float& sx, float& sy, f
 }
 
 bool Renderer::mascotClickable(double now) const {
-    if (!toutou_.loaded() || (!pin_.empty() && (pinVisible_ || now - pinAt_ < kPinFadeMs))) return false;
+    if (!toutou_.loaded() || (!pin_.empty() && (pinVisible_ || now - pinAt_ < ms(kPinFadeMs)))) return false;
     if (paused_) return true;  // the paused screen
-    return scene_ == Scene::Idle && !(havePicture_ && now - fadeOutAt_ < kFadeMs);
+    return scene_ == Scene::Idle && !(havePicture_ && now - fadeOutAt_ < ms(kFadeOutMs));
 }
 
 void Renderer::setMascotHover(bool hot) {
@@ -1628,7 +1844,7 @@ void Renderer::drawBubble(const Layout& L, const Pose& P, double now) {
     tip.x = std::clamp(tip.x, x0 + bh * 0.5f, x0 + bw - bh * 0.5f);
     const float te = static_cast<float>(e);
     float sc = 1;  // pop with a small overshoot (back ease-out)
-    if (te < 220) {
+    if (te < 220 && !reduced_) {
         const float q = te / 220 - 1;
         sc = 0.55f + 0.45f * (1 + 2.70158f * q * q * q + 1.70158f * q * q);
     }
@@ -1715,7 +1931,7 @@ void Renderer::drawZzz(const Layout& L, const Pose& P, double now) {
         const wchar_t* text;
     };
     static constexpr Z kZ[3] = {{188, 64, 11, 0.55f, L"z"}, {199, 50, 14, 0.72f, L"z"}, {212, 33, 18, 0.9f, L"Z"}};
-    const float env = ease((ambientUntil_ - now) / kAmbientSettleMs);
+    const float env = reduced_ ? 0.f : ease((ambientUntil_ - now) / kAmbientSettleMs);
     for (int i = 0; i < 3; ++i) {
         const auto& z = kZ[i];
         const float size = std::max(z.size * L.u, 10.f);
@@ -1729,6 +1945,7 @@ void Renderer::drawZzz(const Layout& L, const Pose& P, double now) {
 }
 
 void Renderer::drawOptions(float top, float size, const D2D1_RECT_F& region) {
+    const double now = clockMs();
     const float s = dpi_ / 96.f;
     const float rw = region.right - region.left;
     const float box = std::round(size * 1.15f);
@@ -1744,33 +1961,69 @@ void Renderer::drawOptions(float top, float size, const D2D1_RECT_F& region) {
     }
     groupW += 2 * padX + box + gap;
     const float left = std::round(region.left + (rw - groupW) / 2);
+    D2D1_MATRIX_3X2_F base;
+    d2dTarget_->GetTransform(&base);
     for (size_t i = 0; i < options_.size(); ++i) {
+        const int ii = static_cast<int>(i);
         const float y = top + rowH * i;
         D2D1_RECT_F row{left, y, left + groupW, y + rowH};
-        const bool hot = hover_ == static_cast<int>(i);
-        if (hot) d2dTarget_->FillRoundedRectangle({row, rowH / 2, rowH / 2}, brush(pal_.accent, 0.12f));
+        // Hover: the row wash, box outline and label ease in / out; a press
+        // shrinks the row to 96 %; keyboard focus draws a ring.
+        const float hl = uiLevel(uiHot_, UiOption, ii, now);
+        const float pl = reduced_ ? 0.f : uiLevel(uiPress_, UiOption, ii, now);
+        const float fl = uiLevel(uiFocus_, UiOption, ii, now);
+        if (pl > 0.003f)
+            d2dTarget_->SetTransform(scaledAbout(base, 1 - 0.04f * pl, {(row.left + row.right) / 2, (row.top + row.bottom) / 2}));
+        if (hl > 0.003f) d2dTarget_->FillRoundedRectangle({row, rowH / 2, rowH / 2}, brush(pal_.accent, 0.12f * hl));
         const float bx = left + padX, by = std::round(y + (rowH - box) / 2);
         D2D1_ROUNDED_RECT b{{bx, by, bx + box, by + box}, box * 0.28f, box * 0.28f};
-        if (options_[i].checked) {
-            d2dTarget_->FillRoundedRectangle(b, brush(pal_.accent));
+        // Tick: checking fills the box (140 ms) and draws the tick along its
+        // stroke (220 ms after 70 ms); unchecking undraws it (120 ms).
+        const double ce = i < optAt_.size() ? now - optAt_[i] : 1e9;
+        const bool on = options_[i].checked;
+        float fillA = 1, tickT = 1;
+        if (reduced_) {
+            fillA = tickT = on ? ease(ce / 120) : 1 - ease(ce / 120);
+        } else if (on) {
+            fillA = outCubic(ce / 140);
+            tickT = softOut((ce - 70) / 220);
+        } else {
+            fillA = tickT = 1 - inCubic(ce / 120);
+        }
+        if (!on || fillA < 1) {
+            const D2D1_ROUNDED_RECT o{{bx + 0.75f, by + 0.75f, bx + box - 0.75f, by + box - 0.75f}, b.radiusX, b.radiusY};
+            d2dTarget_->DrawRoundedRectangle(o, brush(mixc(alphaOf(pal_.dim, 0.85f), pal_.accent, hl), 1 - fillA), 1.5f);
+        }
+        if (fillA > 0.003f) d2dTarget_->FillRoundedRectangle(b, brush(pal_.accent, fillA));
+        if (tickT > 0.003f) {
+            const D2D1_POINT_2F p0{bx + box * 0.26f, by + box * 0.53f}, p1{bx + box * 0.43f, by + box * 0.70f},
+                p2{bx + box * 0.75f, by + box * 0.34f};
+            const float l1 = std::hypot(p1.x - p0.x, p1.y - p0.y), l2 = std::hypot(p2.x - p1.x, p2.y - p1.y);
+            const float len = (l1 + l2) * tickT;
             ComPtr<ID2D1PathGeometry> g;
             ComPtr<ID2D1GeometrySink> sink;
             if (SUCCEEDED(d2d_->CreatePathGeometry(&g)) && SUCCEEDED(g->Open(&sink))) {
-                sink->BeginFigure({bx + box * 0.26f, by + box * 0.53f}, D2D1_FIGURE_BEGIN_HOLLOW);
-                sink->AddLine({bx + box * 0.43f, by + box * 0.70f});
-                sink->AddLine({bx + box * 0.75f, by + box * 0.34f});
+                sink->BeginFigure(p0, D2D1_FIGURE_BEGIN_HOLLOW);
+                if (len <= l1) {
+                    const float k = len / l1;
+                    sink->AddLine({p0.x + (p1.x - p0.x) * k, p0.y + (p1.y - p0.y) * k});
+                } else {
+                    const float k = (len - l1) / l2;
+                    sink->AddLine(p1);
+                    sink->AddLine({p1.x + (p2.x - p1.x) * k, p1.y + (p2.y - p1.y) * k});
+                }
                 sink->EndFigure(D2D1_FIGURE_END_OPEN);
                 sink->Close();
                 d2dTarget_->DrawGeometry(g.Get(), brush(pal_.ink), box * 0.13f, round_.Get());
             }
-        } else {
-            b.rect = {bx + 0.75f, by + 0.75f, bx + box - 0.75f, by + box - 0.75f};
-            d2dTarget_->DrawRoundedRectangle(b, brush(hot ? pal_.accent : pal_.dim, hot ? 1.f : 0.85f), 1.5f);
         }
         if (auto& l = labels[i]) {
             const float tx = bx + box + gap, ty = y + (rowH - textH(l.Get())) / 2;
-            d2dTarget_->DrawTextLayout({tx, ty}, l.Get(), brush(hot ? pal_.fg : pal_.dim));
+            d2dTarget_->DrawTextLayout({tx, ty}, l.Get(), brush(mixc(pal_.dim, pal_.fg, hl)));
         }
+        d2dTarget_->SetTransform(base);
+        if (fl > 0.003f)
+            d2dTarget_->DrawRoundedRectangle({inflate(row, 3), rowH / 2 + 3, rowH / 2 + 3}, brush(pal_.fg, 0.9f * fl), 2.f);
         optionRects_.push_back({static_cast<LONG>(std::floor(row.left * s)), static_cast<LONG>(std::floor(row.top * s)),
                                 static_cast<LONG>(std::ceil(row.right * s)),
                                 static_cast<LONG>(std::ceil(row.bottom * s))});
@@ -1788,7 +2041,7 @@ void Renderer::drawScene(Scene scene, float opacity, double now) {
     sceneOpacity_ = opacity;
     const bool paused = paused_ && scene != Scene::Connecting;
     const bool busy = scene == Scene::Connecting && !paused;
-    const float env = paused ? 0.f : busy ? 1.f : ease((ambientUntil_ - now) / kAmbientSettleMs);
+    const float env = paused || reduced_ ? 0.f : busy ? 1.f : ease((ambientUntil_ - now) / kAmbientSettleMs);
     const Pose P = mascotPose(L, scene, now);
 
     // Behind 投投: a soft accent glow around the phone, floating hearts.
@@ -1812,10 +2065,14 @@ void Renderer::drawScene(Scene scene, float opacity, double now) {
     // Text block.  A phone that starts connecting first gets the happy hop
     // while the idle text gives way to the spinner scene.
     const double intro = now - sceneAt_;
-    if (busy && connectIntro_ && intro < kConnectIntroMs) {
+    if (busy && connectIntro_ && reduced_ && intro < 120) {  // a plain cross-fade
+        const float t = ease(intro / 120);
+        drawTextBlock(Scene::Idle, L, 1 - t, now);
+        drawTextBlock(Scene::Connecting, L, t, now);
+    } else if (busy && connectIntro_ && !reduced_ && intro < kConnectIntroMs) {
         const float t = static_cast<float>(intro);
-        drawTextBlock(Scene::Idle, L, 1 - ease((t - 450) / 250), now);
-        drawTextBlock(Scene::Connecting, L, ease((t - 600) / 300), now);
+        drawTextBlock(Scene::Idle, L, 1 - ease((t - 700) / 250), now);
+        drawTextBlock(Scene::Connecting, L, ease((t - 850) / 300), now);
     } else {
         drawTextBlock(scene, L, 1, now);
     }
@@ -1850,6 +2107,13 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L, float opacity, double
         t1 = tr(S::VidWaitPhone);  // the hints name the platforms
     }
     const bool idle = scene == Scene::Idle && !paused;
+    // Idle: the title's 「…」 becomes three dots that breathe (staggered, 1.8 s)
+    // while the screen animates; the text keeps no ellipsis glyph of its own.
+    bool idleDots = false;
+    if (idle) {
+        if (t1.size() >= 1 && t1.back() == L'\u2026') t1.pop_back(), idleDots = true;
+        else if (t1.size() >= 3 && t1.compare(t1.size() - 3, 3, L"...") == 0) t1.resize(t1.size() - 3), idleDots = true;
+    }
     // Long titles (device names) shrink up to 25% to stay on one line, then wrap.
     float titleSize = L.title;
     ComPtr<IDWriteTextLayout> probe;
@@ -1899,7 +2163,7 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L, float opacity, double
         }
     if (mutedBrush_) mutedBrush_->SetColor({pal_.dim.r, pal_.dim.g, pal_.dim.b, pal_.dim.a * 0.62f});
     const float hintGap = L.hint * 0.45f;
-    const float dotsW = busy ? titleSize * 0.95f : 0;  // fixed slot: the title does not jitter
+    const float dotsW = busy || idleDots ? titleSize * 0.95f : 0;  // fixed slot: the title does not jitter
     // Check boxes and the help link only on a fully shown idle screen (they
     // are clickable).
     const bool full = opacity * sceneOpacity_ >= 0.997f;
@@ -1929,16 +2193,23 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L, float opacity, double
     if (l1) {
         const float dx = -dotsW / 2;
         d2dTarget_->DrawTextLayout({x + dx, y}, l1.Get(), brush(paused ? pal_.dim : pal_.fg));
-        if (busy) {
+        if (busy || idleDots) {
             const float r = std::max(titleSize * 0.065f, 1.5f), step = titleSize * 0.28f;
-            const float x0 = L.text.left + rw / 2 + dx + textW(l1.Get()) / 2 + titleSize * 0.22f + r;
+            const float env = idleDots && !reduced_ ? ease((ambientUntil_ - now) / kAmbientSettleMs) : 0.f;
+            const float x0 = L.text.left + rw / 2 + dx + textW(l1.Get()) / 2 + titleSize * (busy ? 0.22f : 0.12f) + r;
             DWRITE_LINE_METRICS lm{};
             UINT32 lines = 0;
             l1->GetLineMetrics(&lm, 1, &lines);
             const float cy = y + (lines ? lm.baseline : textH(l1.Get()) * 0.8f) - r;
             for (int i = 0; i < 3; ++i) {
-                const float ph = static_cast<float>(std::fmod(now / 1200.0 - i * 0.18, 1.0));
-                const float a = 0.35f + 0.65f * std::pow(std::max(0.f, std::sin(ph * 2 * kPi)), 2.f);
+                float a;
+                if (busy) {
+                    const float ph = static_cast<float>(std::fmod(now / 1200.0 - i * 0.18, 1.0));
+                    a = 0.35f + 0.65f * std::pow(std::max(0.f, std::sin(ph * 2 * kPi)), 2.f);
+                } else {  // idle: a slow breath, 0.45 <-> 1, still once the screen rests
+                    const float ph = static_cast<float>(std::fmod(now / 1800.0 - i * 0.16, 1.0));
+                    a = 1 - env * 0.55f * (0.5f + 0.5f * std::cos(ph * 2 * kPi));
+                }
                 d2dTarget_->FillEllipse({{x0 + i * step, cy}, r, r}, brush(pal_.fg, a));
             }
         }
@@ -1995,9 +2266,12 @@ int Renderer::layoutActions(std::vector<ActionLayout>& out, std::vector<float>& 
 // pill on hover.
 void Renderer::drawActions(const std::vector<ActionLayout>& acts, const std::vector<float>& rowW, float top,
                            float rowH, float rowGap, float gap, const D2D1_RECT_F& region) {
+    const double now = clockMs();
     const float s = dpi_ / 96.f;
     const float cx = (region.left + region.right) / 2;
     actionRects_.assign(actions_.size(), RECT{});
+    D2D1_MATRIX_3X2_F base;
+    d2dTarget_->GetTransform(&base);
     int row = -1;
     float x = 0, y = top;
     for (size_t i = 0; i < acts.size(); ++i) {
@@ -2011,7 +2285,12 @@ void Renderer::drawActions(const std::vector<ActionLayout>& acts, const std::vec
         }
         const D2D1_RECT_F r{x, y, x + a.w, y + rowH};
         x += a.w;
-        const bool hot = actionHot_ == a.index;
+        // Hover eases in (120 ms) / out (180 ms), a press shrinks it to 96 %,
+        // keyboard focus draws a ring.
+        const float hl = uiLevel(uiHot_, UiAction, a.index, now);
+        const float pl = reduced_ ? 0.f : uiLevel(uiPress_, UiAction, a.index, now);
+        const float fl = uiLevel(uiFocus_, UiAction, a.index, now);
+        if (pl > 0.003f) d2dTarget_->SetTransform(scaledAbout(base, 1 - 0.04f * pl, {(r.left + r.right) / 2, (r.top + r.bottom) / 2}));
         IDWriteTextLayout* l = a.text.Get();
         const float tw = textW(l), th = textH(l);
         l->SetMaxWidth(std::ceil(std::min(tw, a.w)) + 2.f);  // exactly-measured width would trigger the ellipsis
@@ -2021,13 +2300,16 @@ void Renderer::drawActions(const std::vector<ActionLayout>& acts, const std::vec
         if (a.primary) {
             const D2D1_ROUNDED_RECT edge{{r.left + 0.75f, r.top + 0.75f, r.right - 0.75f, r.bottom - 0.75f},
                                          rowH / 2 - 0.75f, rowH / 2 - 0.75f};
-            d2dTarget_->FillRoundedRectangle(pill, hot ? brush(pal_.accent) : brush(pal_.accent, 0.10f));
-            d2dTarget_->DrawRoundedRectangle(edge, brush(pal_.accent, hot ? 1.f : 0.85f), 1.5f);
-            d2dTarget_->DrawTextLayout(at, l, hot ? brush(pal_.ink) : brush(pal_.accent));
+            d2dTarget_->FillRoundedRectangle(pill, brush(pal_.accent, 0.10f + 0.90f * hl));
+            d2dTarget_->DrawRoundedRectangle(edge, brush(pal_.accent, 0.85f + 0.15f * hl), 1.5f);
+            d2dTarget_->DrawTextLayout(at, l, brush(mixc(pal_.accent, pal_.ink, hl)));
         } else {
-            if (hot) d2dTarget_->FillRoundedRectangle(pill, brush(pal_.accent, 0.14f));
-            d2dTarget_->DrawTextLayout(at, l, hot ? brush(pal_.fg) : brush(pal_.accent, 0.92f));
+            if (hl > 0.003f) d2dTarget_->FillRoundedRectangle(pill, brush(pal_.accent, 0.14f * hl));
+            d2dTarget_->DrawTextLayout(at, l, brush(mixc(alphaOf(pal_.accent, 0.92f), pal_.fg, hl)));
         }
+        d2dTarget_->SetTransform(base);
+        if (fl > 0.003f)
+            d2dTarget_->DrawRoundedRectangle({inflate(r, 3), rowH / 2 + 3, rowH / 2 + 3}, brush(pal_.fg, 0.9f * fl), 2.f);
         actionRects_[a.index] = {static_cast<LONG>(std::floor(r.left * s)), static_cast<LONG>(std::floor(r.top * s)),
                                 static_cast<LONG>(std::ceil(r.right * s)), static_cast<LONG>(std::ceil(r.bottom * s))};
     }
@@ -2035,7 +2317,7 @@ void Renderer::drawActions(const std::vector<ActionLayout>& acts, const std::vec
 
 void Renderer::drawPin(double now) {
     if (pin_.empty()) return;
-    const float t = ease((now - pinAt_) / kPinFadeMs);
+    const float t = ease((now - pinAt_) / ms(kPinFadeMs));
     const float a = pinVisible_ ? t : 1 - t;
     if (a <= 0.003f) return;
     const float s = dpi_ / 96.f;
@@ -2060,7 +2342,7 @@ void Renderer::drawPin(double now) {
     const float heart = labelSize * 0.9f;
     const float cardH = pad * 0.8f + heart + labelSize * 0.5f + labelH + d * 0.4f + d + pad;
     const float x0 = std::round((W - cardW) / 2), y0 = std::round((H - cardH) / 2);
-    const float lift = pinVisible_ ? (1 - t) * 8 : 0;  // slight rise while fading in
+    const float lift = pinVisible_ && !reduced_ ? (1 - t) * 8 : 0;  // slight rise while fading in
     const D2D1_RECT_F card{x0, y0 + lift, x0 + cardW, y0 + cardH + lift};
     d2dTarget_->FillRoundedRectangle({card, 18, 18}, brush(pal_.card, a));
     d2dTarget_->DrawRoundedRectangle({card, 18, 18}, brush(pal_.accent, 0.28f * a), 1.25f);
@@ -2093,10 +2375,17 @@ void Renderer::drawPin(double now) {
 void Renderer::drawToast(double now) {
     if (toast_.empty()) return;
     const double e = now - toastAt_;
-    float a;
-    if (e < kToastInMs) a = ease(e / kToastInMs);
-    else if (e < toastHold_) a = 1;
-    else a = 1 - ease((e - toastHold_) / kToastOutMs);
+    // In: 220 ms outCubic, rising 8 px and growing from 98 %; out: 260 ms
+    // smoothstep fade in place (reduced motion: 120 ms fades only).
+    float a, rise = 0, scale = 1;
+    if (e < ms(kToastInMs)) {
+        a = reduced_ ? ease(e / ms(kToastInMs)) : outCubic(e / kToastInMs);
+        if (!reduced_) rise = (1 - a) * 8, scale = 0.98f + 0.02f * a;
+    } else if (e < toastHold_) {
+        a = 1;
+    } else {
+        a = 1 - ease((e - toastHold_) / ms(kToastOutMs));
+    }
     if (a <= 0.003f) return;
     const float s = dpi_ / 96.f;
     const float W = width_ / s, H = height_ / s;
@@ -2125,18 +2414,22 @@ void Renderer::drawToast(double now) {
     const float tw = std::min(textW(l.Get()), maxW), th = textH(l.Get());
     const float pillW = tw + 2 * padX, pillH = th + 2 * padY;
     const float x0 = std::round((W - pillW) / 2);
-    float y0 = std::round(H - std::max(20.f, H * 0.05f) - pillH + (1 - a) * 6);
+    float y0 = std::round(H - std::max(20.f, H * 0.05f) - pillH + rise);
     // Above the translation list when that panel fills the bottom (0.7.2:
     // the toast was drawn across its rows).
     if (!boxes_.empty() && !showOriginal_ && ovPanel_.bottom > ovPanel_.top && y0 + pillH > ovPanel_.top &&
         x0 < ovPanel_.right && x0 + pillW > ovPanel_.left && ovPanel_.top - pillH - 10 > H * 0.12f)
-        y0 = std::round(ovPanel_.top - pillH - 10 + (1 - a) * 6);
+        y0 = std::round(ovPanel_.top - pillH - 10 + rise);
     const float rad = std::min(pillH / 2, size * 1.25f);  // one line: a pill; more: a rounded card
     const D2D1_ROUNDED_RECT pill{{x0, y0, x0 + pillW, y0 + pillH}, rad, rad};
+    D2D1_MATRIX_3X2_F base;
+    d2dTarget_->GetTransform(&base);
+    if (scale < 1) d2dTarget_->SetTransform(scaledAbout(base, scale, {x0 + pillW / 2, y0 + pillH / 2}));
     d2dTarget_->FillRoundedRectangle(pill, brush(pal_.card, 0.96f * a));
     d2dTarget_->DrawRoundedRectangle(pill, brush(pal_.accent, 0.35f * a), 1.25f);
     l->SetMaxWidth(std::ceil(tw) + 2.f);  // slack: exactly-measured width triggers the ellipsis
     d2dTarget_->DrawTextLayout({x0 + padX - 1.f, y0 + padY}, l.Get(), brush(pal_.fg, a));
+    d2dTarget_->SetTransform(base);
 }
 
 bool Renderer::render() {
@@ -2156,12 +2449,14 @@ bool Renderer::render() {
         connectIntro_ = false;
         poke();
     }
-    const bool fadingIn = scene_ == Scene::Live && now - fadeInAt_ < kFadeMs;
-    const bool fadingOut = scene_ != Scene::Live && havePicture_ && now - fadeOutAt_ < kFadeMs;
+    const bool fadingIn = scene_ == Scene::Live && now - fadeInAt_ < ms(kFadeInMs);
+    const bool fadingOut = scene_ != Scene::Live && havePicture_ && now - fadeOutAt_ < ms(kFadeOutMs);
     // A frozen picture stays up while the phone screen is off.
-    if (frozenOn_ && !frozen_.valid() && cur_.valid() && havePicture_) copyPicture(cur_, frozen_);
+    if (frozenOn_ && !frozen_.valid() && cur_.valid() && havePicture_ && copyPicture(cur_, frozen_)) keepFrozenCopy();
     const bool frozenUp = frozenOn_ && frozen_.valid();
-    const bool video = havePicture_ && (!paused_ || frozenUp) && (scene_ == Scene::Live || fadingOut);
+    // (A frozen picture restored after a device loss shows before the
+    // decoder has delivered again.)
+    const bool video = (havePicture_ || frozenUp) && (!paused_ || frozenUp) && (scene_ == Scene::Live || fadingOut);
     // Device re-created while live: black until the decoder delivers again
     // (the re-fed key frame, a few ms later).
     const bool blank = scene_ == Scene::Live && !havePicture_ && !paused_;
@@ -2183,7 +2478,21 @@ bool Renderer::render() {
     picRect_ = {};
     if (video) {
         pictureViewport(vp, framed ? &fg : nullptr);
-        if (vp.Width > 0 && vp.Height > 0) drawPicture(rtv_.Get(), vp);
+        if (vp.Width > 0 && vp.Height > 0) {
+            // Settle: the picture grows in from 98.5 % / shrinks to 98.8 % while
+            // cross-fading (not inside a device frame: the bezel stays put).
+            D3D11_VIEWPORT pv = vp;
+            float k = 1;
+            if (!reduced_ && !framed && fadingIn) k = 0.985f + 0.015f * outCubic((now - fadeInAt_) / kFadeInMs);
+            if (!reduced_ && !framed && fadingOut) k = 1 - 0.012f * standard((now - fadeOutAt_) / 280);
+            if (k < 1) {
+                pv.TopLeftX += pv.Width * (1 - k) / 2;
+                pv.TopLeftY += pv.Height * (1 - k) / 2;
+                pv.Width *= k;
+                pv.Height *= k;
+            }
+            drawPicture(rtv_.Get(), pv);
+        }
         if (scene_ == Scene::Live && vp.Width > 0 && vp.Height > 0)
             picRect_ = {static_cast<LONG>(vp.TopLeftX), static_cast<LONG>(vp.TopLeftY),
                         static_cast<LONG>(vp.TopLeftX + vp.Width), static_cast<LONG>(vp.TopLeftY + vp.Height)};
@@ -2201,12 +2510,13 @@ bool Renderer::render() {
     optionRects_.clear();
     actionRects_.clear();
     const float dim = video ? dimLevel(now) : 0.f;
-    const bool overlays = (!pin_.empty() && (pinVisible_ || now - pinAt_ < kPinFadeMs)) ||
-                          (!toast_.empty() && now - toastAt_ < toastHold_ + kToastOutMs);
+    const bool overlays = (!pin_.empty() && (pinVisible_ || now - pinAt_ < ms(kPinFadeMs))) ||
+                          (!toast_.empty() && now - toastAt_ < toastHold_ + ms(kToastOutMs));
     const float toolA = toolbarAlpha(now);
-    const bool magUi = video && (view_.zoom > 1.001f || now - zoomAt_ < kZoomShowMs + kZoomFadeMs || frozenUp ||
+    const bool magUi = video && (view_.zoom > 1.001f || now - zoomAt_ < kZoomShowMs + ms(kZoomFadeMs) || frozenUp ||
                                  !boxes_.empty() || selecting_);
-    const bool need2D = (!video && !blank) || fadingIn || fadingOut || overlays || framed || dim > 0.003f ||
+    const bool flashing = video && now - flashAt_ < kFlashInMs + kFlashOutMs;
+    const bool need2D = (!video && !blank) || fadingIn || fadingOut || overlays || framed || dim > 0.003f || flashing ||
                         recording_ || toolA > 0.003f || magUi || !busy_.empty();
     toolRects_.clear();
     toolPill_ = {};
@@ -2225,14 +2535,26 @@ bool Renderer::render() {
             if (framed) drawDeviceFrame(d2dTarget_.Get(), fg, 1 / s);
             if (dim > 0.003f) d2dTarget_->FillRectangle({0, 0, width_ / s, height_ / s}, brush(D2D1::ColorF(0, 0, 0), dim));
             if (fadingIn) {
-                const float a = 1 - ease((now - fadeInAt_) / kFadeMs);
+                const double e = now - fadeInAt_;
+                const float a = reduced_ ? 1 - ease(e / ms(kFadeInMs)) : 1 - standard(e / kSceneOutMs);
                 drawBackground(a);
+                sceneDy_ = reduced_ ? 0.f : -8 * outCubic(e / kSceneOutMs);
                 drawScene(fadeFrom_, a, now);
+                sceneDy_ = 0;
             } else if (fadingOut) {
-                const float a = ease((now - fadeOutAt_) / kFadeMs);
+                const double e = now - fadeOutAt_;
+                const float a = reduced_ ? ease(e / ms(kFadeOutMs)) : outCubic(e / kFadeOutMs);
                 drawBackground(a);
                 drawScene(Scene::Idle, a, now);
             }
+        }
+        if (flashing && vp.Width > 0) {  // screenshot: a white veil over the picture only
+            const double fe = now - flashAt_;
+            const float fa = fe < kFlashInMs ? 0.28f * outCubic(fe / kFlashInMs)
+                                             : 0.28f * (1 - standard((fe - kFlashInMs) / kFlashOutMs));
+            d2dTarget_->FillRectangle({vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s,
+                                       (vp.TopLeftY + vp.Height) / s},
+                                      brush(D2D1::ColorF(1, 1, 1), fa));
         }
         if (video && vp.Width > 0 && !fadingIn && !fadingOut) {
             const D2D1_RECT_F pr{vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s,
@@ -2347,7 +2669,7 @@ void Renderer::setTheme(int theme) {
 }
 
 float Renderer::dimLevel(double now) const {
-    const float t = ease((now - dimAt_) / kDimMs);
+    const float t = ease((now - dimAt_) / ms(kDimMs));
     const float target = dimmed_ ? kDimMax : 0.f;
     return dimFrom_ + (target - dimFrom_) * t;
 }
@@ -2509,6 +2831,15 @@ void Renderer::drawDeviceFrame(ID2D1RenderTarget* rt, const FrameGeom& g, float 
     rt->SetTransform(saved);
 }
 
+// REC dot: a 1.4 s pulse while pictures flow (frames are drawn anyway);
+// steady on a still phone screen (1 frame/s for the timer) and with reduced
+// motion.
+float Renderer::recPulse(double now) const {
+    if (reduced_ || now - lastPictureAt_ > 250) return 1;
+    const float ph = static_cast<float>(std::fmod((now - recAt_) / 1400.0, 1.0));
+    return 0.5f + 0.5f * std::cos(ph * 2 * kPi);
+}
+
 void Renderer::drawRecBadge(const D2D1_RECT_F& r, float radius, double now) {
     const float w = r.right - r.left, h = r.bottom - r.top;
     const float size = std::clamp(std::min(w, h) / 26.f, 12.f, 20.f);
@@ -2530,8 +2861,7 @@ void Renderer::drawRecBadge(const D2D1_RECT_F& r, float radius, double now) {
     recBadge_ = pill.rect;
     d2dTarget_->FillRoundedRectangle(pill, brush(pal_.card, 0.86f));
     d2dTarget_->DrawRoundedRectangle(pill, brush(pal_.accent, 0.40f), 1.f);
-    const float ph = static_cast<float>(std::fmod((now - recAt_) / 1400.0, 1.0));
-    const float pulse = 0.5f + 0.5f * std::cos(ph * 2 * kPi);
+    const float pulse = recPulse(now);
     const D2D1_POINT_2F c{x0 + padX + dot, y0 + pillH / 2};
     d2dTarget_->FillEllipse({c, dot * (1.5f + 0.5f * (1 - pulse)), dot * (1.5f + 0.5f * (1 - pulse))},
                             brush(kRecRed, 0.22f * pulse));
@@ -2577,7 +2907,104 @@ void Renderer::setFrozen(bool on) {
     if (on == frozenOn_) return;
     frozenOn_ = on;
     frozen_ = {};
-    if (on && cur_.valid() && havePicture_) copyPicture(cur_, frozen_);  // else: from the next picture
+    frozenCpu_ = {};
+    frozenWasUp_ = false;
+    if (on && cur_.valid() && havePicture_ && copyPicture(cur_, frozen_)) keepFrozenCopy();  // else: from the next picture
+}
+
+void Renderer::keepFrozenCopy() {
+    const double t0 = clockMs();
+    if (!readBackPicture(frozen_, frozenCpu_)) {
+        frozenCpu_ = {};
+        log("freeze: could not keep a CPU copy of the frozen picture (a device loss ends the freeze)");
+        return;
+    }
+    log("freeze: CPU copy of the frozen picture kept (%ux%u, %.1f MB, %.1f ms)", frozenCpu_.w, frozenCpu_.h,
+        (frozenCpu_.y.size() + frozenCpu_.uv.size()) / 1048576.0, clockMs() - t0);
+}
+
+bool Renderer::readBackPicture(const Picture& p, CpuPicture& c) {
+    c = {};
+    if (!p.valid() || !dev_ || !ctx_) return false;
+    auto stage = [&](ID3D11Texture2D* t, ComPtr<ID3D11Texture2D>& st) {
+        if (!t) return false;
+        D3D11_TEXTURE2D_DESC td{};
+        t->GetDesc(&td);
+        td.Usage = D3D11_USAGE_STAGING;
+        td.BindFlags = 0;
+        td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        td.MiscFlags = 0;
+        if (FAILED(dev_->CreateTexture2D(&td, nullptr, &st))) return false;
+        ctx_->CopyResource(st.Get(), t);
+        return true;
+    };
+    auto rows = [](const D3D11_MAPPED_SUBRESOURCE& m, size_t first, UINT n, UINT rowBytes, std::vector<uint8_t>& out) {
+        out.resize(static_cast<size_t>(n) * rowBytes);
+        const auto* src = static_cast<const uint8_t*>(m.pData) + first * m.RowPitch;
+        for (UINT r = 0; r < n; ++r)
+            std::memcpy(out.data() + static_cast<size_t>(r) * rowBytes, src + static_cast<size_t>(r) * m.RowPitch, rowBytes);
+    };
+    const UINT bpp = p.tenBit ? 2 : 1;
+    c.bgra = p.bgra;
+    c.tenBit = p.tenBit;
+    c.w = p.w;
+    c.h = p.h;
+    c.fmt = p.fmt;
+    c.yRow = p.bgra ? p.w * 4 : p.w * bpp;
+    c.uvH = (p.h + 1) / 2;
+    c.uvRow = (p.w + 1) / 2 * 2 * bpp;
+    D3D11_MAPPED_SUBRESOURCE m{};
+    if (p.hw) {  // NV12 / P010: the UV plane follows the Y plane (RowPitch x Height)
+        ComPtr<ID3D11Texture2D> st;
+        if (!stage(p.nv12.Get(), st) || FAILED(ctx_->Map(st.Get(), 0, D3D11_MAP_READ, 0, &m))) return false;
+        rows(m, 0, p.h, c.yRow, c.y);
+        rows(m, p.h, c.uvH, c.uvRow, c.uv);
+        ctx_->Unmap(st.Get(), 0);
+        return true;
+    }
+    ComPtr<ID3D11Texture2D> sy, suv;
+    if (!stage(p.y.Get(), sy) || (!p.bgra && !stage(p.uv.Get(), suv))) return false;
+    if (FAILED(ctx_->Map(sy.Get(), 0, D3D11_MAP_READ, 0, &m))) return false;
+    rows(m, 0, p.h, c.yRow, c.y);
+    ctx_->Unmap(sy.Get(), 0);
+    if (p.bgra) return true;
+    if (FAILED(ctx_->Map(suv.Get(), 0, D3D11_MAP_READ, 0, &m))) return false;
+    rows(m, 0, c.uvH, c.uvRow, c.uv);
+    ctx_->Unmap(suv.Get(), 0);
+    return true;
+}
+
+bool Renderer::restorePicture(const CpuPicture& c, Picture& p) {
+    p = {};
+    if (!c.w || !c.h || !dev_ || !ctx_) return false;
+    if (c.bgra) {
+        if (!ensureBgra(p, c.w, c.h)) return false;
+        ctx_->UpdateSubresource(p.y.Get(), 0, nullptr, c.y.data(), c.yRow, 0);
+    } else {
+        if (!ensureTextures(p, false, c.tenBit, c.w, c.h)) return false;
+        ctx_->UpdateSubresource(p.y.Get(), 0, nullptr, c.y.data(), c.yRow, 0);
+        ctx_->UpdateSubresource(p.uv.Get(), 0, nullptr, c.uv.data(), c.uvRow, 0);
+    }
+    p.fmt = c.fmt;
+    return true;
+}
+
+void Renderer::restoreFrozen() {
+    if (!std::exchange(frozenWasUp_, false) || !frozenOn_) return;
+    if (restorePicture(frozenCpu_, frozen_)) {
+        log("freeze: frozen picture restored on the new device");
+        return;
+    }
+    // Re-freezing would show another picture under the old translation:
+    // end the freeze and drop the boxes instead (the window tells the app).
+    log("freeze: the frozen picture could not be restored after the device loss; freeze ended, text overlay cleared");
+    frozenOn_ = false;
+    frozen_ = {};
+    frozenCpu_ = {};
+    boxes_.clear();
+    ovHits_ = {};
+    ovValid_ = false;
+    frozenDropped_ = true;
 }
 
 void Renderer::setBusy(const std::wstring& label) {
@@ -2690,8 +3117,8 @@ void Renderer::drawMagnifierUi(const D2D1_RECT_F& pic, float radius, double now)
     }
     // Big indicator right after a change: "放大 2.5x" in the upper third.
     const double e = now - zoomAt_;
-    if (e < kZoomShowMs + kZoomFadeMs) {
-        const float a = e < kZoomShowMs ? 1.f : 1.f - ease((e - kZoomShowMs) / kZoomFadeMs);
+    if (e < kZoomShowMs + ms(kZoomFadeMs)) {
+        const float a = e < kZoomShowMs ? 1.f : 1.f - ease((e - kZoomShowMs) / ms(kZoomFadeMs));
         const float size = std::clamp(std::min(pw, ph) / 7.f, 26.f, 72.f);
         const std::wstring t = view_.zoom > 1.001f ? pm::i18n::fmt(S::MagZoomFmt, {num}) : tr(S::MagZoomOff);
         if (auto l = layout(t, size, std::max(40.f, pw - 16), DWRITE_FONT_WEIGHT_BOLD, false); l && a > 0.003f) {

@@ -90,6 +90,13 @@ public:
                                           uint64_t whenNs)>;
     void setPcmMonitor(PcmMonitor fn);
 
+    // A new session (phone connecting / gone): drops the decoder and the
+    // jitter buffer and closes the WASAPI stream; the next onFormat opens a
+    // fresh one.  If gainDb is a valid AirPlay volume (-30..0) the gain is
+    // set to it (a mute from the previous session does not carry over).
+    // `why` goes to the log.  Thread-safe.
+    void resetSession(const char* why, float gainDb = 1.0f);
+
     // pm::AudioSink
     void onFormat(AudioCodec codec, int sampleRate, int channels, int samplesPerFrame) override;
     void onPacket(const uint8_t* data, size_t len, uint64_t ntpLocalNs) override;
