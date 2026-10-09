@@ -1,5 +1,7 @@
 #include "scrcpy_proto.h"
 
+#include <windows.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -355,6 +357,11 @@ void InputTranslator::pointer(const VideoWindow::PointerEvent& e) {
     }
 }
 
+uint32_t keyboardMeta() {
+    return (GetKeyState(VK_SHIFT) < 0 ? kMetaShift : 0) | (GetKeyState(VK_CONTROL) < 0 ? kMetaCtrl : 0) |
+           (GetKeyState(VK_MENU) < 0 ? kMetaAlt : 0);
+}
+
 void InputTranslator::key(unsigned vk, bool down, wchar_t ch) {
     // Modifiers: tracked, never sent on their own.
     switch (vk) {
@@ -365,8 +372,13 @@ void InputTranslator::key(unsigned vk, bool down, wchar_t ch) {
         default: break;
     }
 
+    // Held modifiers: the window does not forward Ctrl / Alt (see mods_).
+    const uint32_t held = mods_ ? mods_() : 0;
+    const bool shift = shift_ || (held & kMetaShift), ctrl = ctrl_ || (held & kMetaCtrl),
+               alt = alt_ || (held & kMetaAlt);
+
     // Text (IME commits arrive with vk 0 / VK_PROCESSKEY, or a printable ch).
-    if (down && ch != 0 && (vk == 0 || vk == 0xE5 || (ch >= 0x20 && ch != 0x7f && !ctrl_ && !alt_))) {
+    if (down && ch != 0 && (vk == 0 || vk == 0xE5 || (ch >= 0x20 && ch != 0x7f && !ctrl && !alt))) {
         std::wstring s;
         if (ch >= 0xD800 && ch <= 0xDBFF) { highSurrogate_ = ch; return; }
         if (ch >= 0xDC00 && ch <= 0xDFFF) {
@@ -382,7 +394,7 @@ void InputTranslator::key(unsigned vk, bool down, wchar_t ch) {
 
     uint32_t kc = vkToAndroidKeycode(vk);
     if (!kc) return;
-    uint32_t meta = (shift_ ? kMetaShift : 0) | (ctrl_ ? kMetaCtrl : 0) | (alt_ ? kMetaAlt : 0);
+    uint32_t meta = (shift ? kMetaShift : 0) | (ctrl ? kMetaCtrl : 0) | (alt ? kMetaAlt : 0);
     if (down) {
         bool repeat = keyDownSent_[vk];
         keyDownSent_[vk] = true;

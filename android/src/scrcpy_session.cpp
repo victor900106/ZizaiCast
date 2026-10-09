@@ -3,6 +3,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+#include <chrono>
+
 #include "scrcpy_proto.h"
 
 namespace pm::scrcpy {
@@ -123,7 +125,13 @@ void Session::run(VideoSink* video, AudioSink* audio) {
 }
 
 void Session::stop() {
-    stopping_ = true;
+    {
+        // Under qmu_: the writer checks stopping_ under the same lock, so this
+        // wake-up cannot fall between its check and its wait (lost wake-up =
+        // tcw_.join() below hanging the UI thread).
+        std::lock_guard<std::mutex> lk(qmu_);
+        stopping_ = true;
+    }
     for (uintptr_t s : {video_, audio_, control_})
         if (s != kNone) shutdown(SOCKET(s), SD_BOTH);
     qcv_.notify_all();
@@ -198,7 +206,8 @@ void Session::controlWriter() {
         std::vector<uint8_t> m;
         {
             std::unique_lock<std::mutex> lk(qmu_);
-            qcv_.wait(lk, [&] { return stopping_ || !queue_.empty(); });
+            // Bounded: even a missed notify only delays the exit by 200 ms.
+            while (!stopping_ && queue_.empty()) qcv_.wait_for(lk, std::chrono::milliseconds(200));
             if (stopping_) return;
             m = std::move(queue_.front());
             queue_.pop_front();

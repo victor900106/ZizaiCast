@@ -61,9 +61,40 @@ struct AndroidSource::Impl {
     std::condition_variable qcv;
     std::deque<std::function<void()>> tasks;
     bool quit = false;
-    std::atomic<bool> busy{false};  // a pairing / connect task is queued or running
+    std::atomic<int> busy{0};  // pairing / connect tasks queued or running
 
-    std::atomic<bool> cancelPair{false};
+    // One cancel token per pairing / reconnect request (never a shared flag
+    // that the next task resets: a request cancelled while still queued must
+    // stay cancelled).  `current` is the newest one (under qmu).
+    struct Request {
+        explicit Request(bool p) : pairing(p) {}
+        const bool pairing;               // QR / code pairing (not a reconnect)
+        std::atomic<bool> cancel{false};
+        std::atomic<bool> paired{false};  // adb pair done: closing the panel no longer cancels
+    };
+    std::shared_ptr<Request> current;
+    struct BusyGuard {
+        std::atomic<int>& n;
+        ~BusyGuard() { --n; }
+    };
+    // Queues a request task, cancelling the previous request.
+    void postRequest(bool pairing, std::function<void(Request&)> task) {
+        auto req = std::make_shared<Request>(pairing);
+        ++busy;
+        {
+            std::lock_guard<std::mutex> lk(qmu);
+            if (current) current->cancel = true;
+            current = req;
+        }
+        post([this, req, task = std::move(task)] {
+            BusyGuard g{busy};
+            if (req->cancel) {
+                logf(std::string(req->pairing ? "pairing" : "reconnect") + " cancelled before it ran");
+                return;
+            }
+            task(*req);
+        });
+    }
 
     // 傳到手機 (pushToGallery): one push at a time on its own thread, so it
     // never waits behind a pairing on the worker.
@@ -207,8 +238,8 @@ struct AndroidSource::Impl {
         return false;
     }
 
-    void taskPairQr(pairing::Credentials cred) {
-        struct Busy { std::atomic<bool>& b; ~Busy() { b = false; } } busyGuard{busy};
+    void taskPairQr(pairing::Credentials cred, Request& req) {
+        std::atomic<bool>& cancelPair = req.cancel;
         if (!ensureServer()) return setState(State::Error, L"無法啟動 adb");
         setState(State::WaitingForPairing, L"請用手機掃描 QR 圖碼（開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置）");
         mdns::Browser br;
@@ -236,13 +267,14 @@ struct AndroidSource::Impl {
         std::string guid;
         if (!adb::parsePairResult(r.output, &guid))
             return setState(State::Error, L"配對失敗：" + adb::widen(trim(r.output)));
+        req.paired = true;
         if (!connectAfterPair(guid, target.host, br, &cancelPair))
             return setState(cancelPair ? State::Idle : State::Error,
                             cancelPair ? L"已取消" : L"配對成功，但連線失敗（請確認手機的無線偵錯仍開啟）");
     }
 
-    void taskPairCode(std::string hostPort, std::string code) {
-        struct Busy { std::atomic<bool>& b; ~Busy() { b = false; } } busyGuard{busy};
+    void taskPairCode(std::string hostPort, std::string code, Request& req) {
+        std::atomic<bool>& cancelPair = req.cancel;
         if (!ensureServer()) return setState(State::Error, L"無法啟動 adb");
         setState(State::Pairing, L"正在以配對碼配對 " + adb::widen(hostPort) + L"…");
         mdns::Browser br;
@@ -253,6 +285,7 @@ struct AndroidSource::Impl {
         if (!adb::parsePairResult(r.output, &guid))
             return setState(cancelPair ? State::Idle : State::Error,
                             cancelPair ? L"已取消配對" : L"配對失敗：" + adb::widen(trim(r.output)));
+        req.paired = true;
         std::string host;
         uint16_t port;
         adb::splitHostPort(hostPort, host, port);
@@ -261,8 +294,8 @@ struct AndroidSource::Impl {
                      cancelPair ? L"已取消" : L"配對成功，但連線失敗（請確認手機的無線偵錯仍開啟）");
     }
 
-    void taskReconnect() {
-        struct Busy { std::atomic<bool>& b; ~Busy() { b = false; } } busyGuard{busy};
+    void taskReconnect(Request& req) {
+        std::atomic<bool>& cancelPair = req.cancel;
         if (!ensureServer()) return setState(State::Error, L"無法啟動 adb");
         setState(State::Connecting, L"正在尋找已配對的手機…");
         // Still connected from before?
@@ -305,9 +338,21 @@ struct AndroidSource::Impl {
             name = deviceName;
         }
         auto cancelled = [&] { return cancel->load(); };
+        // Cancelled by stop() (an iPhone took over during start-up): never
+        // leave Connecting behind, auto-reconnect only runs from Idle / Error.
+        // Cancelled by a newer start(): that one sets its own state.
+        auto cancelledIdle = [&] {
+            bool idle;
+            {
+                std::lock_guard<std::mutex> lk(mu);
+                idle = startCancel == cancel && state == State::Connecting;
+            }
+            if (idle) setState(State::Idle, L"已停止投影");
+        };
+        if (cancelled()) return cancelledIdle();  // stopped while queued
         setState(State::Connecting, L"正在啟動投影：" + name);
         auto r = adbRun({"-s", ser, "push", adb::narrow(serverPath), kDeviceJar}, 60000, cancel.get());
-        if (cancelled()) return;
+        if (cancelled()) return cancelledIdle();
         if (!r.ok()) return setState(State::Error, L"無法傳送 scrcpy-server 到手機（連線中斷？）");
 
         uint32_t scid = 0;
@@ -317,6 +362,10 @@ struct AndroidSource::Impl {
         snprintf(sock, sizeof(sock), "scrcpy_%08x", scid);
         r = adbRun({"-s", ser, "forward", "tcp:0", std::string("localabstract:") + sock}, 10000, cancel.get());
         uint16_t port = uint16_t(atoi(trim(r.output).c_str()));
+        if (cancelled()) {
+            if (r.ok() && port) adb.run({"-s", ser, "forward", "--remove", std::string("tcp:") + std::to_string(port)}, 5000);
+            return cancelledIdle();
+        }
         if (!r.ok() || port == 0) return setState(State::Error, L"adb forward 失敗");
 
         char scidArg[32];
@@ -340,6 +389,7 @@ struct AndroidSource::Impl {
             proc->kill();
             adb.run({"-s", ser, "forward", "--remove", std::string("tcp:") + std::to_string(port)}, 5000);
             if (!cancelled()) setState(State::Error, L"投影啟動失敗：" + adb::widen(err));
+            else cancelledIdle();
             return;
         }
         std::weak_ptr<scrcpy::Session> weak = sess;
@@ -371,7 +421,7 @@ struct AndroidSource::Impl {
             sess->stop();
             proc->kill();
             adb.run({"-s", ser, "forward", "--remove", std::string("tcp:") + std::to_string(port)}, 5000);
-            return;
+            return cancelledIdle();
         }
         std::wstring dn = sess->deviceName().empty() ? name : adb::widen(sess->deviceName());
         {
@@ -539,7 +589,10 @@ AndroidSource::AndroidSource() : d_(std::make_unique<Impl>()) {
 }
 
 AndroidSource::~AndroidSource() {
-    d_->cancelPair = true;
+    {
+        std::lock_guard<std::mutex> lk(d_->qmu);
+        if (d_->current) d_->current->cancel = true;
+    }
     d_->pushCancel = true;
     if (d_->pushThread.joinable()) d_->pushThread.join();
     stop();
@@ -583,11 +636,7 @@ bool AndroidSource::beginQrPairing(std::vector<uint8_t>& bgra, int& size, std::w
     auto cred = pairing::randomCredentials();
     if (!pairing::renderQr(cred.qrText(), 8, 4, bgra, size)) return false;
     qrText = adb::widen(cred.qrText());
-    d_->busy = true;
-    d_->post([this, cred] {
-        d_->cancelPair = false;
-        d_->taskPairQr(cred);
-    });
+    d_->postRequest(true, [this, cred](Impl::Request& req) { d_->taskPairQr(cred, req); });
     return true;
 }
 
@@ -599,23 +648,20 @@ bool AndroidSource::pairWithCode(const std::wstring& hostPort, const std::wstrin
         c.find_first_not_of("0123456789") != std::string::npos)
         return false;
     cancelPairing();
-    d_->busy = true;
-    d_->post([this, hp, c] {
-        d_->cancelPair = false;
-        d_->taskPairCode(hp, c);
-    });
+    d_->postRequest(true, [this, hp, c](Impl::Request& req) { d_->taskPairCode(hp, c, req); });
     return true;
 }
 
-void AndroidSource::cancelPairing() { d_->cancelPair = true; }
+// Cancels the pairing request whether it is still queued, listening for the
+// phone or running `adb pair`; once paired, the connect is left to finish.
+void AndroidSource::cancelPairing() {
+    std::lock_guard<std::mutex> lk(d_->qmu);
+    if (d_->current && d_->current->pairing && !d_->current->paired) d_->current->cancel = true;
+}
 
 bool AndroidSource::connectKnownDevices() {
-    if (!d_->inited || d_->busy) return false;
-    d_->busy = true;
-    d_->post([this] {
-        d_->cancelPair = false;
-        d_->taskReconnect();
-    });
+    if (!d_->inited || d_->busy > 0) return false;
+    d_->postRequest(false, [this](Impl::Request& req) { d_->taskReconnect(req); });
     return true;
 }
 
@@ -633,14 +679,16 @@ bool AndroidSource::start(VideoSink* video, AudioSink* audio) {
 }
 
 void AndroidSource::stop() {
-    bool had;
+    bool idle;
     {
         std::lock_guard<std::mutex> lk(d_->mu);
         if (d_->startCancel) *d_->startCancel = true;
-        had = d_->session != nullptr;
+        // A session, or a phone connected / starting without one yet: Idle,
+        // so auto-reconnect (Idle / Error only) still runs later.
+        idle = d_->session != nullptr || d_->state == State::Connecting;
     }
     d_->teardown();
-    if (had) d_->setState(State::Idle, L"已停止投影");
+    if (idle) d_->setState(State::Idle, L"已停止投影");
 }
 
 void AndroidSource::sendPointer(const VideoWindow::PointerEvent& e) {

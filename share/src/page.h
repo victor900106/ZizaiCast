@@ -1,9 +1,12 @@
 // The phone-side page of 傳到手機 (HTML, UTF-8): pictures with a long-press
-// hint, videos with a download button and save-to-Photos steps -- complete
-// without script. Its script (app.js, same origin only) adds 「全部儲存」 /
-// per-item 儲存 through navigator.share({files}) where the browser can share
-// files (iOS: one sheet → 「儲存 N 張影像」 → Photos), and on a live share
-// (自動傳到手機) long-polls list?n=K so new captures appear by themselves.
+// hint, videos with a download button and save-to-Photos steps, and
+// 「全部下載（ZIP）」 (every file as one ZIP, with how to get them into Photos /
+// the gallery) -- complete without script. Its script (app.js, same origin
+// only) swaps the ZIP for 「全部儲存」 / per-item 儲存 through
+// navigator.share({files}) where the browser can share files (a secure
+// context only, so not the LAN page's http; iOS: one sheet → 「儲存 N 張影像」
+// → Photos), and on a live share (自動傳到手機) long-polls list?n=K so new
+// captures appear by themselves.
 // Texts come from pm/i18n_strings.inc (Pg* entries).
 #pragma once
 

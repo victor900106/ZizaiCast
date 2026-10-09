@@ -1,5 +1,7 @@
 // Offline tests for pm_android (no phone needed):
-//   pm_android_test [--live-mdns SECONDS] [--no-adb] [--no-python]
+//   pm_android_test [--live-mdns SECONDS] [--no-adb] [--no-python] [--no-mdns]
+//   (--no-adb --no-mdns: loopback sockets only, so no firewall prompt for a
+//   fresh build directory)
 // Sections: control-message bytes (scrcpy's own test vectors), stream parser
 // (synthesized packets, random chunking), input translation, QR (decoded back
 // with OpenCV via tools/verify_qr.py), DNS/mDNS (parser, loopback responder,
@@ -25,6 +27,9 @@
 #include "pm/android_source.h"
 #include "scrcpy_proto.h"
 #include "scrcpy_session.h"
+#ifdef PM_ANDROID_TEST_VIDEO
+#include "pm/video_window.h"
+#endif
 
 using namespace pm;
 using namespace std::chrono_literals;
@@ -253,6 +258,7 @@ static void testInput() {
     using K = VideoWindow::PointerEvent::Kind;
     std::vector<std::vector<uint8_t>> out;
     InputTranslator t([&](std::vector<uint8_t> m) { out.push_back(std::move(m)); });
+    t.setModifierSource(nullptr);  // only the events below (not this thread's keyboard)
     VideoWindow::PointerEvent e;
     e.kind = K::Down; e.x = 0.5f; e.y = 0.5f;
     t.pointer(e);
@@ -313,8 +319,129 @@ static void testInput() {
     t.key('B', true, L'B');  // shifted letter: text
     t.key(0x10, false, 0);
     CHECK(out.size() == 1 && out[0] == msgText("B"));
+    // VideoWindow never sends Ctrl itself: the held state comes from the
+    // modifier source (GetKeyState in the app) when the key arrives.
+    uint32_t held = 0;
+    t.setModifierSource([&] { return held; });
+    out.clear();
+    held = kMetaCtrl;
+    t.key('V', true, 0);
+    t.key('V', false, 0);
+    held = kMetaCtrl | kMetaShift;
+    t.key('Z', true, 0);  // Ctrl+Shift+Z (redo)
+    t.key('Z', false, 0);
+    held = 0;
+    t.key('V', true, L'v');  // released: text again
+    CHECK(out.size() == 5 && out[0] == msgKeycode(kKeyDown, 50, 0, kMetaCtrl) && out[1] == msgKeycode(kKeyUp, 50, 0, kMetaCtrl) &&
+          out[2] == msgKeycode(kKeyDown, 54, 0, kMetaCtrl | kMetaShift) && out[4] == msgText("v"));
     CHECK(vkToAndroidKeycode(0x25) == 21 && vkToAndroidKeycode(0x2E) == 112 && vkToAndroidKeycode(0x70) == 131);
 }
+
+#ifdef PM_ANDROID_TEST_VIDEO
+// End to end: real VideoWindow key handling -> InputTranslator (the app's
+// path: setKeyHandler -> AndroidSource::sendKey -> translator.key on the UI
+// thread).  Ctrl is held in this thread's key state (what GetKeyState reads)
+// and never sent as a key event, exactly like real input.  The window is
+// created off the desktop and never activated (PM_VIDEO_OFFSCREEN).
+static void testKeysThroughWindow() {
+    section("keys: VideoWindow -> InputTranslator");
+    using namespace scrcpy;
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    VideoWindow win;
+    if (!win.create(L"pm_android_test keys", 320, 240)) {
+        CHECK(!"VideoWindow::create");
+        return;
+    }
+    const HWND hwnd = win.hwnd();
+    std::vector<std::vector<uint8_t>> out;
+    InputTranslator t([&](std::vector<uint8_t> m) { out.push_back(std::move(m)); });  // default: GetKeyState
+    win.setKeyHandler([&](unsigned vk, bool down, wchar_t ch) { t.key(vk, down, ch); });
+    auto pump = [] {
+        MSG m;
+        while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&m);
+            DispatchMessageW(&m);
+        }
+    };
+    BYTE saved[256]{};
+    GetKeyboardState(saved);
+    // Set explicitly, whatever the real keyboard does (incl. Caps Lock).
+    auto hold = [&](bool ctrl, bool shift, bool caps = false) {
+        BYTE ks[256];
+        std::memcpy(ks, saved, sizeof(ks));
+        ks[VK_CONTROL] = ks[VK_LCONTROL] = ctrl ? 0x80 : 0;
+        ks[VK_SHIFT] = ks[VK_LSHIFT] = shift ? 0x80 : 0;
+        ks[VK_MENU] = ks[VK_LMENU] = ks[VK_RMENU] = ks[VK_RCONTROL] = ks[VK_RSHIFT] = 0;
+        ks[VK_CAPITAL] = caps ? 0x01 : 0;  // toggled
+        SetKeyboardState(ks);
+    };
+    // One message at a time, like real input (TranslateMessage's WM_CHAR is next in the queue).
+    auto press = [&](WPARAM vk) {
+        const LPARAM scan = static_cast<LPARAM>(MapVirtualKeyW(static_cast<UINT>(vk), MAPVK_VK_TO_VSC)) << 16;
+        PostMessageW(hwnd, WM_KEYDOWN, vk, 1 | scan);
+        pump();
+        PostMessageW(hwnd, WM_KEYUP, vk, 1 | scan | (3LL << 30));
+        pump();
+    };
+    pump();
+    hold(false, false);
+    press('A');
+    CHECK(out.size() == 1 && out[0] == msgText("a"));
+
+    // Ctrl+A / C / V / X / Z: keycodes with the Ctrl meta, no text.
+    const std::pair<WPARAM, uint32_t> chords[] = {{'A', 29}, {'C', 31}, {'V', 50}, {'X', 52}, {'Z', 54}};
+    for (auto [vk, kc] : chords) {
+        out.clear();
+        hold(true, false);
+        press(vk);
+        hold(false, false);
+        const bool ok = out.size() == 2 && out[0] == msgKeycode(kKeyDown, kc, 0, kMetaCtrl) && out[1] == msgKeycode(kKeyUp, kc, 0, kMetaCtrl);
+        if (!ok) std::printf("  Ctrl+%c: %zu message(s)\n", static_cast<char>(vk), out.size());
+        CHECK(ok);
+    }
+    out.clear();
+    hold(true, true);
+    press('Z');  // Ctrl+Shift+Z
+    hold(false, false);
+    CHECK(out.size() == 2 && out[0] == msgKeycode(kKeyDown, 54, 0, kMetaCtrl | kMetaShift));
+
+    // The app's own shortcuts never reach the phone: Ctrl+Up / Down / M
+    // (volume), Ctrl+Left / Right (rotate), Ctrl+L (translate), Ctrl+D (disconnect).
+    out.clear();
+    for (WPARAM vk : {WPARAM(VK_UP), WPARAM(VK_DOWN), WPARAM('M'), WPARAM(VK_LEFT), WPARAM(VK_RIGHT), WPARAM('L'), WPARAM('D')}) {
+        hold(true, false);
+        press(vk);
+        hold(true, true);  // Ctrl+Shift too (Ctrl+Shift+L: translate a region)
+        press(vk);
+    }
+    hold(false, false);
+    CHECK(out.empty());
+
+    // Ctrl released: plain keys carry no meta (nothing sticks).
+    out.clear();
+    press(VK_UP);
+    press('C');
+    CHECK(out.size() == 3 && out[0] == msgKeycode(kKeyDown, 19, 0, 0) && out[1] == msgKeycode(kKeyUp, 19, 0, 0) &&
+          out[2] == msgText("c"));
+
+    // Real Shift+letter and Caps Lock: the uppercase character as text, no meta.
+    out.clear();
+    hold(false, true);
+    press('B');
+    hold(false, false, true);
+    press('D');
+    hold(false, false);
+    CHECK(out.size() == 2 && out[0] == msgText("B") && out[1] == msgText("D"));
+
+    SetKeyboardState(saved);
+    win.setKeyHandler(nullptr);
+    win.close();
+    for (int i = 0; i < 20; ++i) {
+        pump();
+        Sleep(10);
+    }
+}
+#endif
 
 // ------------------------------------------------------------------ QR --
 
@@ -639,6 +766,68 @@ static void testAdbProcess(const std::wstring& toolsDir) {
 
 // ---------------------------------------------------- fake scrcpy-server --
 
+// Session::stop() while touch traffic keeps the control writer cycling
+// (dragging on the phone while pressing 中斷連線): it must always return.
+static void testSessionStopUnderTraffic() {
+    section("scrcpy session: stop() during control traffic");
+    WSADATA wd;
+    WSAStartup(MAKEWORD(2, 2), &wd);
+    SOCKET ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    sockaddr_in a{};
+    a.sin_family = AF_INET;
+    inet_pton(AF_INET, "127.0.0.1", &a.sin_addr);
+    bind(ls, reinterpret_cast<sockaddr*>(&a), sizeof(a));
+    listen(ls, 8);
+    int len = sizeof(a);
+    getsockname(ls, reinterpret_cast<sockaddr*>(&a), &len);
+    const uint16_t port = ntohs(a.sin_port);
+    constexpr int kRounds = 25;
+    std::thread server([&] {
+        for (int i = 0; i < kRounds; ++i) {
+            SOCKET v = accept(ls, nullptr, nullptr);
+            if (v == INVALID_SOCKET) return;
+            uint8_t dummy = 0;
+            send(v, reinterpret_cast<char*>(&dummy), 1, 0);
+            SOCKET c = accept(ls, nullptr, nullptr);
+            char name[64] = "fake";
+            send(v, name, 64, 0);
+            char b[4096];
+            while (recv(c, b, sizeof(b), 0) > 0) {
+            }
+            closesocket(c);
+            closesocket(v);
+        }
+    });
+    int connected = 0;
+    double worstMs = 0;
+    for (int i = 0; i < kRounds; ++i) {
+        MockVideo mv;
+        scrcpy::Session s;
+        scrcpy::Session::Config cfg;
+        cfg.port = port;
+        cfg.audio = false;
+        cfg.delayMs = 10;
+        if (!s.connect(cfg, nullptr, nullptr)) break;
+        ++connected;
+        s.run(&mv, nullptr);
+        std::atomic<bool> go{true};
+        std::thread touch([&] {
+            const auto m = scrcpy::msgTouch(scrcpy::kMotionMove, scrcpy::kPointerGenericFinger, 10, 10, 100, 100, 1, 0, 0);
+            while (go) s.sendControl(m);
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(5 + i % 7));
+        const auto t0 = std::chrono::steady_clock::now();
+        s.stop();
+        worstMs = std::max(worstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+        go = false;
+        touch.join();
+    }
+    closesocket(ls);
+    server.join();
+    std::printf("  %d stop()s under traffic, slowest %.0f ms\n", connected, worstMs);
+    CHECK(connected == kRounds && worstMs < 1000);
+}
+
 static void testSession() {
     section("scrcpy session vs fake scrcpy-server");
     WSADATA wd;
@@ -782,15 +971,114 @@ static void testSourceApi(const std::wstring& toolsDir) {
     std::printf("\n");
 }
 
+// AndroidSource's state machine against pm_android_fake_adb (no sockets, no
+// phone; one "connected" phone, `push` takes 4 s):
+//   * a stop() while connected or during start-up (an iPhone taking over)
+//     ends in Idle: auto-reconnect only runs from Idle / Error;
+//   * a QR pairing cancelled while still queued behind the busy worker never
+//     runs (it used to reset the shared cancel flag and listen for 10 min).
+static void testSourceStates(const std::wstring& dir) {
+    section("AndroidSource states vs fake adb");
+    using S = AndroidSource::State;
+    const std::wstring tools = dir + L"\\fake-android-tools";
+    CreateDirectoryW(tools.c_str(), nullptr);
+    if (!CopyFileW((dir + L"\\pm_android_fake_adb.exe").c_str(), (tools + L"\\adb.exe").c_str(), FALSE)) {
+        CHECK(!"copy pm_android_fake_adb.exe");
+        return;
+    }
+    std::ofstream(tools + L"\\scrcpy-server", std::ios::binary) << "fake";
+    SetEnvironmentVariableW(L"PM_ADB_PORT", L"15099");
+    AndroidSource src;
+    std::mutex lmu;
+    std::vector<std::string> logs;
+    std::vector<std::pair<S, std::wstring>> states;
+    std::atomic<int> connected{0};
+    src.log = [&](const std::string& s) { std::lock_guard<std::mutex> l(lmu); logs.push_back(s); };
+    src.events.onState = [&](S s, const std::wstring& d) { std::lock_guard<std::mutex> l(lmu); states.emplace_back(s, d); };
+    src.events.onConnected = [&](const std::wstring&) { ++connected; };
+    if (!src.init(tools)) {
+        CHECK(!"init with the fake adb");
+        return;
+    }
+    auto waitFor = [](auto pred, int ms) {
+        for (int t = 0; t < ms && !pred(); t += 20) std::this_thread::sleep_for(20ms);
+        return pred();
+    };
+    auto sawDetail = [&](const wchar_t* prefix, size_t from) {
+        std::lock_guard<std::mutex> l(lmu);
+        for (size_t i = from; i < states.size(); ++i)
+            if (states[i].second.rfind(prefix, 0) == 0) return true;
+        return false;
+    };
+    auto sawLog = [&](const char* text) {
+        std::lock_guard<std::mutex> l(lmu);
+        for (auto& s : logs)
+            if (s.find(text) != std::string::npos) return true;
+        return false;
+    };
+    auto mark = [&] { std::lock_guard<std::mutex> l(lmu); return states.size(); };
+    auto connect = [&] {
+        const int n = connected;
+        CHECK(src.connectKnownDevices());
+        CHECK(waitFor([&] { return connected > n; }, 8000));
+        std::this_thread::sleep_for(200ms);  // the reconnect task returns
+        CHECK(src.state() == S::Connecting);
+    };
+
+    // Connected, but the window is busy (onAndroidConnected keeps the iPhone): stop() -> Idle.
+    connect();
+    src.stop();
+    CHECK(src.state() == S::Idle);
+
+    // An iPhone takes over during the start-up (claimSource -> stop()).
+    connect();
+    size_t m = mark();
+    CHECK(src.start(nullptr, nullptr));
+    CHECK(waitFor([&] { return sawDetail(L"正在啟動投影", m); }, 5000));
+    std::this_thread::sleep_for(300ms);  // inside the 4 s push
+    src.stop();
+    CHECK(waitFor([&] { return src.state() == S::Idle; }, 6000));
+    std::this_thread::sleep_for(500ms);
+    CHECK(src.state() == S::Idle);  // the cancelled start left nothing behind
+
+    // Pairing panel opened and closed while the worker is busy with a start-up.
+    connect();
+    m = mark();
+    CHECK(src.start(nullptr, nullptr));
+    CHECK(waitFor([&] { return sawDetail(L"正在啟動投影", m); }, 5000));
+    std::vector<uint8_t> bgra;
+    int size = 0;
+    std::wstring text;
+    CHECK(src.beginQrPairing(bgra, size, text));  // queued behind the push
+    src.cancelPairing();                          // panel closed
+    src.stop();
+    CHECK(waitFor([&] { return sawLog("pairing cancelled before it ran"); }, 8000));
+    std::this_thread::sleep_for(300ms);
+    {
+        std::lock_guard<std::mutex> l(lmu);
+        bool waited = false;
+        for (size_t i = m; i < states.size(); ++i) waited = waited || states[i].first == S::WaitingForPairing;
+        CHECK(!waited);
+    }
+    CHECK(src.state() == S::Idle);
+    CHECK(src.connectKnownDevices());  // the worker is free again (not "busy")
+    CHECK(waitFor([&] { return connected >= 4; }, 8000));
+    std::lock_guard<std::mutex> l(lmu);
+    std::printf("  states:");
+    for (auto& [s, d] : states) std::printf(" %d", int(s));
+    std::printf("\n");
+}
+
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
     int liveSeconds = 0;
-    bool doAdb = true, python = true;
+    bool doAdb = true, python = true, mdnsLoop = true;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--live-mdns" && i + 1 < argc) liveSeconds = atoi(argv[++i]);
         else if (a == "--no-adb") doAdb = false;
         else if (a == "--no-python") python = false;
+        else if (a == "--no-mdns") mdnsLoop = false;  // its browser binds 0.0.0.0
     }
     std::wstring dir = exeDir();
     std::wstring tools = dir + L"\\android-tools";
@@ -800,11 +1088,16 @@ int main(int argc, char** argv) {
     testControl();
     testParser();
     testInput();
+#ifdef PM_ANDROID_TEST_VIDEO
+    testKeysThroughWindow();
+#endif
     testQr(python, verify);
     testDns();
-    testMdnsLoopback();
+    if (mdnsLoop) testMdnsLoopback();
     testAdbParsers();
     testSession();
+    testSessionStopUnderTraffic();
+    testSourceStates(dir);
     if (doAdb) {
         testAdbProcess(tools);
         testSourceApi(tools);

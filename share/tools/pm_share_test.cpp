@@ -512,6 +512,146 @@ static void testLive(const fs::path& dir) {
     }
 }
 
+// ---- 全部下載（ZIP） ---------------------------------------------------------
+static uint32_t crcBitwise(const std::string& s) {  // independent of the server's table
+    uint32_t c = 0xFFFFFFFFu;
+    for (unsigned char b : s) {
+        c ^= b;
+        for (int k = 0; k < 8; ++k) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1)));
+    }
+    return ~c;
+}
+static uint32_t rd16(const std::string& s, size_t p) { return uint8_t(s[p]) | (uint32_t(uint8_t(s[p + 1])) << 8); }
+static uint32_t rd32(const std::string& s, size_t p) { return rd16(s, p) | (rd16(s, p + 2) << 16); }
+struct Unzipped {
+    std::string name, data;
+    uint32_t flags = 0, method = 0;
+    bool crcOk = false, localOk = false;
+};
+// Reads the archive the way unzippers do: end record → central directory →
+// each local header. Empty on any structural error.
+static std::vector<Unzipped> unzip(const std::string& z, std::string& why) {
+    std::vector<Unzipped> out;
+    if (z.size() < 22 || rd32(z, z.size() - 22) != 0x06054b50u) return why = "no end record", out;
+    const size_t e = z.size() - 22;
+    const uint32_t n = rd16(z, e + 10), cdSize = rd32(z, e + 12), cdOff = rd32(z, e + 16);
+    if (rd16(z, e + 8) != n || size_t(cdOff) + cdSize != e) return why = "bad end record", out;
+    size_t p = cdOff;
+    for (uint32_t i = 0; i < n; ++i) {
+        if (p + 46 > e || rd32(z, p) != 0x02014b50u) return why = "bad central record", std::vector<Unzipped>{};
+        Unzipped u;
+        u.flags = rd16(z, p + 8);
+        u.method = rd16(z, p + 10);
+        const uint32_t crc = rd32(z, p + 16), csz = rd32(z, p + 20), usz = rd32(z, p + 24);
+        const uint32_t nl = rd16(z, p + 28), xl = rd16(z, p + 30), cl = rd16(z, p + 32), lo = rd32(z, p + 42);
+        u.name = z.substr(p + 46, nl);
+        p += 46 + nl + xl + cl;
+        if (size_t(lo) + 30 > z.size() || rd32(z, lo) != 0x04034b50u) return why = "bad local header", std::vector<Unzipped>{};
+        const uint32_t lnl = rd16(z, lo + 26), lxl = rd16(z, lo + 28);
+        u.localOk = rd32(z, lo + 14) == crc && rd32(z, lo + 18) == csz && rd32(z, lo + 22) == usz &&
+                    z.substr(lo + 30, lnl) == u.name && rd16(z, lo + 6) == u.flags;
+        u.data = z.substr(lo + 30 + lnl + lxl, csz);
+        u.crcOk = csz == usz && u.data.size() == usz && crcBitwise(u.data) == crc;
+        out.push_back(std::move(u));
+    }
+    return out;
+}
+
+static void testZip(const fs::path& dir) {
+    section("全部下載（ZIP）");
+    std::error_code ec;
+    fs::create_directories(dir / L"z1", ec);
+    fs::create_directories(dir / L"z2", ec);
+    const fs::path a = dir / L"z1" / L"自在投影_20261009_090000.png", b = dir / L"z1" / L"自在投影_20261009_090100.mp4",
+                   c = dir / L"z2" / L"自在投影_20261009_090000.png";  // same name as a, another folder
+    std::string ab(123457, '\0'), bb(700001, '\0'), cb = "second picture with the same name";
+    for (size_t i = 0; i < ab.size(); ++i) ab[i] = char(i * 31 + 7);
+    for (size_t i = 0; i < bb.size(); ++i) bb[i] = char((i * i) >> 3);
+    std::ofstream(a, std::ios::binary) << ab;
+    std::ofstream(b, std::ios::binary) << bb;
+    std::ofstream(c, std::ios::binary) << cb;
+    pm::share::Server srv;
+    std::vector<pm::share::Server::Access> acc;
+    std::mutex amu;
+    srv.onAccess = [&](const pm::share::Server::Access& x) {
+        std::lock_guard<std::mutex> lk(amu);
+        acc.push_back(x);
+    };
+    pm::share::Server::Options o;
+    o.bindIp = "127.0.0.1";
+    o.ttlSeconds = 60;
+    check(srv.start({a.wstring(), b.wstring(), c.wstring()}, o), "start with 3 files");
+    const uint16_t port = srv.port();
+    const std::string base = pathOf(srv.url());
+    {
+        Resp p = get(port, base, "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)\r\n");
+        check(p.body.find("id=\"zipall\" href=\"zip\" download>") != std::string::npos &&
+                  p.body.find("<div class=\"bar\" id=\"bar\">") != std::string::npos &&
+                  p.body.find(u8(L"全部下載（ZIP，3 個）")) != std::string::npos,
+              "page: 全部下載（ZIP，3 個） visible without the script (bar not hidden)");
+        check(p.body.find("id=\"saveall\" type=\"button\" hidden") != std::string::npos &&
+                  p.body.find("id=\"ziphint\">") != std::string::npos && p.body.find(u8(L"「檔案」App →「下載項目」")) != std::string::npos &&
+                  p.body.find(u8(L"「解壓縮」")) == std::string::npos,
+              "iPhone page: 全部儲存 hidden until the script finds Web Share; the Files → Photos sentence");
+        Resp an = get(port, base, "User-Agent: Mozilla/5.0 (Linux; Android 14; Pixel 8)\r\n");
+        check(an.body.find(u8(L"「解壓縮」")) != std::string::npos && an.body.find(u8(L"下載項目")) == std::string::npos,
+              "Android page: the Extract hint only");
+        Resp js = get(port, base + "app.js");
+        check(js.body.find("zip?from=") != std::string::npos && js.body.find("zipall") != std::string::npos,
+              "app.js keeps the ZIP button (count, zip?from=K)");
+    }
+    {
+        Resp z = get(port, base + "zip");
+        const std::string cd = z.header("Content-Disposition");
+        check(z.status == 200 && z.header("Content-Type") == "application/zip" &&
+                  z.header("Content-Length") == std::to_string(z.body.size()) && cd.rfind("attachment; filename=\"ZizaiCast_", 0) == 0 &&
+                  cd.find(".zip\"") != std::string::npos && z.header("Cache-Control") == "no-store",
+              "GET zip → 200 application/zip, attachment ZizaiCast_….zip, Content-Length = body (" +
+                  std::to_string(z.body.size()) + ")");
+        std::string why;
+        const auto u = unzip(z.body, why);
+        const std::string n0 = u8(L"自在投影_20261009_090000.png"), n2 = u8(L"自在投影_20261009_090000 (2).png");
+        check(u.size() == 3, "archive has 3 entries " + why);
+        if (u.size() == 3) {
+            check(u[0].name == n0 && u[1].name == u8(L"自在投影_20261009_090100.mp4") && u[2].name == n2,
+                  "names in order, UTF-8, the duplicate renamed “… (2).png”");
+            check(u[0].data == ab && u[1].data == bb && u[2].data == cb, "contents byte-identical");
+            check(u[0].crcOk && u[1].crcOk && u[2].crcOk && u[0].localOk && u[1].localOk && u[2].localOk,
+                  "CRC-32 right, local headers = central records");
+            check(u[0].method == 0 && (u[0].flags & 0x0800) && !(u[0].flags & 0x0008), "stored, UTF-8 flag, no data descriptor");
+        }
+        Resp z2 = get(port, base + "zip");
+        check(z2.status == 200 && z2.body == z.body.substr(0, z2.body.size()) && z2.body.size() == z.body.size(),
+              "second download (cached CRCs) identical");
+        Resp f = get(port, base + "zip?from=1");
+        const auto uf = unzip(f.body, why);
+        check(f.status == 200 && uf.size() == 2 && uf[0].data == bb && uf[1].data == cb && uf[1].name == n0,
+              "zip?from=1 → the 2 newer files only (no rename needed)");
+        Resp h = get(port, base + "zip", {}, "HEAD");
+        check(h.status == 200 && h.header("Content-Length") == std::to_string(z.body.size()) && h.body.empty(),
+              "HEAD zip → same Content-Length, no body");
+        check(get(port, base + "zip?from=3").status == 404 && get(port, base + "zip?from=x").status == 404 &&
+                  get(port, base + "zip?n=1").status == 404 && get(port, base + "zip/x").status == 404,
+              "zip?from past the end / garbage → 404");
+        std::string wrong = base.substr(1, 32);
+        wrong[3] = wrong[3] == 'A' ? 'B' : 'A';
+        check(get(port, "/" + wrong + "/zip").status == 404, "zip needs the token");
+        std::lock_guard<std::mutex> lk(amu);
+        int dl = 0;
+        for (const auto& x : acc) dl += x.download && x.file >= 0;
+        check(dl >= 3, "onAccess per file streamed (download, " + std::to_string(dl) + ")");
+    }
+    // A file that disappears is left out; the archive is still valid.
+    fs::remove(c, ec);
+    {
+        Resp z = get(port, base + "zip");
+        std::string why;
+        const auto u = unzip(z.body, why);
+        check(z.status == 200 && u.size() == 2 && u[1].data == bb, "a deleted file is left out (2 entries) " + why);
+    }
+    srv.stop();
+}
+
 static void testQr(const fs::path& dir) {
     section("QR code");
     const std::string url = "http://192.168.1.23:48213/Ab3dE6fGh9Jk2LmN4pQr5StU7vWx8YzA/";
@@ -681,6 +821,106 @@ static int serve(int argc, wchar_t** argv) {
     return 0;
 }
 
+// True if the server closed `s` (recv 0 / reset) within `ms`.
+static bool closedWithin(SOCKET s, int ms) {
+    DWORD to = DWORD(ms);
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&to), sizeof(to));
+    char c;
+    const int k = recv(s, &c, 1, 0);
+    return k == 0 || (k < 0 && WSAGetLastError() != WSAETIMEDOUT);
+}
+
+static void testLimits(const fs::path& dir) {
+    section("connection limits (one LAN host can't take every slot)");
+    const fs::path f = dir / L"limits.png";
+    std::ofstream(f, std::ios::binary) << std::string(1000, 'x');
+    pm::share::Server srv;
+    std::vector<std::string> logs;
+    std::mutex lmu;
+    srv.log = [&](const std::string& s) {
+        std::lock_guard<std::mutex> lk(lmu);
+        logs.push_back(s);
+    };
+    pm::share::Server::Options o;
+    o.bindIp = "127.0.0.1";
+    std::string err;
+    if (!srv.start({f.wstring()}, o, &err)) {
+        check(false, "start (" + err + ")");
+        return;
+    }
+    const uint16_t port = srv.port();
+    const std::string base = pathOf(srv.url());
+    auto logged = [&](const std::string& what) {
+        std::lock_guard<std::mutex> lk(lmu);
+        for (const auto& l : logs)
+            if (l.find(what) != std::string::npos) return true;
+        return false;
+    };
+    // 8 idle sockets from one address: the 9th is refused at once.
+    std::vector<SOCKET> idle;
+    for (int i = 0; i < 8; ++i) idle.push_back(connectTo(port));
+    std::this_thread::sleep_for(300ms);
+    SOCKET ninth = connectTo(port);
+    check(ninth != INVALID_SOCKET && closedWithin(ninth, 1500), "9th connection from one address closed at once");
+    if (ninth != INVALID_SOCKET) closesocket(ninth);
+    check(logged("too many connections from this address"), "logged: too many connections from this address");
+    // The idle ones are dropped ~5 s after accept (no request with the token).
+    const auto t0 = std::chrono::steady_clock::now();
+    bool allClosed = true;
+    for (SOCKET s : idle) allClosed = allClosed && closedWithin(s, 7000);
+    const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    check(allClosed && secs < 6.5, "idle connections closed after ~5 s (" + std::to_string(secs) + " s)");
+    for (SOCKET s : idle) closesocket(s);
+    check(logged("closed (no request within 5 s)"), "logged: closed (no request within 5 s)");
+    std::this_thread::sleep_for(400ms);  // reaped
+    // A trickled head does not get more time.
+    SOCKET slow = connectTo(port);
+    bool cut = false;
+    const auto s0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < 80 && !cut; ++i) {
+        cut = send(slow, "G", 1, 0) != 1;
+        std::this_thread::sleep_for(100ms);
+        if (std::chrono::steady_clock::now() - s0 > 5500ms) break;
+    }
+    check(closedWithin(slow, 2000), "a trickled request head is cut at ~5 s");
+    closesocket(slow);
+    // A wrong token: 404 and the connection closes (no keep-alive).
+    {
+        SOCKET s = connectTo(port);
+        const std::string req = "GET /wrongtoken/ HTTP/1.1\r\nHost: x\r\n\r\n";
+        send(s, req.data(), int(req.size()), 0);
+        std::string pending;
+        const Resp r = readResp(s, false, pending);
+        check(r.status == 404 && r.header("Connection") == "close", "wrong token: 404, Connection: close");
+        check(closedWithin(s, 1500), "wrong token: connection closed");
+        closesocket(s);
+    }
+    // The right token keeps the connection past 5 s (keep-alive).
+    {
+        SOCKET s = connectTo(port);
+        const std::string req = "GET " + base + "v/0 HTTP/1.1\r\nHost: x\r\n\r\n";
+        send(s, req.data(), int(req.size()), 0);
+        std::string pending;
+        const Resp r = readResp(s, false, pending);
+        check(r.status == 200 && r.body.size() == 1000, "right token: 200");
+        check(!closedWithin(s, 6000), "right token: kept alive past 5 s");
+        send(s, req.data(), int(req.size()), 0);
+        const Resp r2 = readResp(s, false, pending);
+        check(r2.status == 200, "right token: second request on the same connection");
+        closesocket(s);
+    }
+    // A phone's normal parallel loads still work right after.
+    std::vector<std::thread> ts;
+    std::atomic<int> ok{0};
+    for (int i = 0; i < 6; ++i)
+        ts.emplace_back([&] {
+            if (get(port, base + "v/0").status == 200) ++ok;
+        });
+    for (auto& t : ts) t.join();
+    check(ok == 6, "6 parallel requests from one address: all 200");
+    srv.stop();
+}
+
 int wmain(int argc, wchar_t** argv) {
     SetConsoleOutputCP(CP_UTF8);
     WSADATA wd;
@@ -691,6 +931,8 @@ int wmain(int argc, wchar_t** argv) {
     testPure();
     testServer(dir);
     testLive(dir);
+    testLimits(dir);
+    testZip(dir);
     testQr(dir);
 #if PM_SHARE_TEST_ANDROID
     testAndroid(dir);

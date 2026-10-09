@@ -4,9 +4,11 @@
 // time (default 10 minutes). The phone scans a QR code of url() with its
 // camera and gets a mobile page (zh / en / ja / ko, themed like the app) with
 // the pictures (long-press → 「加入照片」 in iOS Safari) and videos (play + a
-// download button with instructions), plus 「全部儲存」 (navigator.share with
-// all files: iOS saves them to Photos in one go) where the browser can share
-// files. Live mode (自動傳到手機): the share may start empty, addFile() adds
+// download button with instructions), plus 「全部下載（ZIP）」 (/<token>/zip:
+// every file as one stored ZIP, streamed; the iPhone opens it in Files) --
+// or 「全部儲存」 (navigator.share with all files) where the browser can share
+// files, which needs a secure context, so not on this http page. Live mode
+// (自動傳到手機): the share may start empty, addFile() adds
 // captures while it runs and the open page shows them within a second
 // (long-polled /list). See docs/share.md.
 //
@@ -14,7 +16,9 @@
 // 32-character token (~190 bits) required in every path, constant-time
 // compared; no directory listing (files are addressed by index only); peers
 // outside the interface's subnet are refused; every request is logged with
-// the peer IP. Expiry: no new requests are answered (410) after the deadline;
+// the peer IP; at most 24 connections, 8 per peer address, and a connection
+// that has not sent a request with the token within 5 s of accept (or sends
+// a wrong token) is closed, so one LAN host cannot hold every slot. Expiry: no new requests are answered (410) after the deadline;
 // stop() cuts everything at once.
 //
 // Threading: start / stop / getters from any thread (the app uses its UI

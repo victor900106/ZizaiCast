@@ -98,6 +98,7 @@ ol{margin:6px 4px 0;padding-left:24px;font-size:15px}li{margin:5px 0}
 .bar{position:sticky;top:0;z-index:2;margin:0 0 16px;padding:10px 0 2px;background:linear-gradient(var(--bg) 82%,transparent)}
 .bar .btn{margin:0;box-shadow:0 8px 22px var(--line)}
 .hint{color:var(--dim);font-size:13px;margin:8px 6px 0;text-align:center}.hint b{color:var(--fg)}
+.ziphint{margin:-6px 0 16px}.ziphint .tip{margin-top:0;font-size:14px}.ziphint .os{margin-top:8px}
 .note{margin:0 4px 14px;padding:10px 13px;border-radius:13px;background:var(--soft);font-size:14px;text-align:center}
 .empty{text-align:center;color:var(--dim);padding:30px 18px}
 footer{color:var(--dim);font-size:12.5px;text-align:center;margin:6px 16px 0}
@@ -144,6 +145,21 @@ std::string vidTips(const T& t, const std::string& kind) {
     if (android || both) {
         if (both) h += "<div class=\"os\">Android</div>";
         h += "<div class=\"tip\">" + t(S::PgVidAndroid) + "</div>";
+    }
+    return h;
+}
+
+// Under 「全部下載（ZIP）」: how the ZIP's files get into Photos / the gallery.
+std::string zipTips(const T& t, const std::string& kind) {
+    const bool ios = kind == "ios", android = kind == "android", both = !ios && !android;
+    std::string h;
+    if (ios || both) {
+        if (both) h += "<div class=\"os\">iPhone / iPad</div>";
+        h += "<div class=\"tip\">" + t(S::PgZipHintIos) + "</div>";
+    }
+    if (android || both) {
+        if (both) h += "<div class=\"os\">Android</div>";
+        h += "<div class=\"tip\">" + t(S::PgZipHintAndroid) + "</div>";
     }
     return h;
 }
@@ -244,11 +260,16 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
          (files.size() == 1 ? t(S::PgSubOne, {app}) : t(S::PgSubMany, {app, count})) + "</p>";
     if (live) h += "<p class=\"live\" id=\"live\"><i></i>" + t(S::PgLive) + "</p>";
     h += "</div></header>";
-    // 全部儲存 (the script shows it where the browser can share files).
-    h += "<div class=\"bar\" id=\"bar\" hidden><button class=\"btn\" id=\"saveall\" type=\"button\" disabled>" +
+    // 「全部下載（ZIP）」 for every browser (a plain link: works without the
+    // script too); where the browser can share files (https / localhost only
+    // -- not the LAN page's http) the script swaps it for 「全部儲存」.
+    const std::string noFiles = files.empty() ? " hidden" : "";
+    h += "<div class=\"bar\" id=\"bar\"" + noFiles + "><a class=\"btn\" id=\"zipall\" href=\"zip\" download>" +
+         t(S::PgZipAll, {count}) + "</a><button class=\"btn\" id=\"saveall\" type=\"button\" hidden disabled>" +
          t(S::PgSaveAll, {count}) + "</button>";
-    if (!android) h += "<p class=\"hint\">" + t(S::PgSaveAllHint) + "</p>";
-    h += "</div><p class=\"note\" id=\"note\" hidden></p>";
+    if (!android) h += "<p class=\"hint\" id=\"sharehint\" hidden>" + t(S::PgSaveAllHint) + "</p>";
+    h += "</div><div class=\"ziphint\" id=\"ziphint\"" + noFiles + ">" + zipTips(t, kind) + "</div>";
+    h += "<p class=\"note\" id=\"note\" hidden></p>";
     if (live)
         h += std::string("<section class=\"card empty\" id=\"empty\"") + (files.empty() ? "" : " hidden") + ">" +
              t(S::PgWaiting) + "</section>";
@@ -274,6 +295,8 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
     jsonField(j, "saveAll", u8(pm::i18n::tr(S::PgSaveAll, t.lang)));
     jsonField(j, "allSaved", t(S::PgAllSaved));
     jsonField(j, "preparing", u8(pm::i18n::tr(S::PgPreparing, t.lang)));
+    jsonField(j, "zipAll", u8(pm::i18n::tr(S::PgZipAll, t.lang)));
+    jsonField(j, "zipNew", u8(pm::i18n::tr(S::PgZipNew, t.lang)));
     jsonField(j, "download", t(S::PgDownload));
     jsonField(j, "downloadVideo", t(S::PgDownloadVideo));
     jsonField(j, "imgTips", imgTips(t, kind));
@@ -317,7 +340,13 @@ std::string listJson(const std::vector<PageFile>& files, bool live) {
 }
 
 // The page's script. Progressive: without it the page works as before.
-//  * 全部儲存 / 儲存: navigator.share({files}) with File objects built from
+//  * 全部下載（ZIP）: the server-rendered link (zip = every file as one
+//    stored ZIP). Web Share exists only in a secure context (https /
+//    localhost), so on the phone's http LAN page this is the way to get all
+//    at once. The script keeps its count current, and after a tap on a live
+//    page offers 「下載新的 N 個」 (zip?from=K) once new files arrive.
+//  * 全部儲存 / 儲存 (only where navigator.canShare({files}) holds, i.e. not
+//    over http; replaces the ZIP button): navigator.share({files}) with File objects built from
 //    blobs fetched ahead (the share must start inside the tap: iOS refuses
 //    it after an await), so the button reads 「準備中…」 until every unsaved
 //    file (≤ 200 MB each) is in memory. Shared ones are marked 已儲存.
@@ -339,6 +368,15 @@ try {
   canFiles = !!(navigator.share && navigator.canShare && window.File &&
     navigator.canShare({ files: [new File(['x'], 'x.png', { type: 'image/png' })] }));
 } catch (e) { canFiles = false; }
+var zipA = document.getElementById('zipall'), zipHint = document.getElementById('ziphint');
+var shareHint = document.getElementById('sharehint'), zipFrom = 0;
+if (canFiles) {  // 全部儲存 replaces the ZIP (straight into Photos)
+  zipA.hidden = true; zipHint.hidden = true; btn.hidden = false;
+  if (shareHint) shareHint.hidden = false;
+}
+zipA.addEventListener('click', function () {  // the link itself downloads; remember what it covered
+  zipFrom = items.reduce(function (m, x) { return Math.max(m, x.i + 1); }, 0);
+});
 function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function say(s) { note.textContent = s || ''; note.hidden = !s; }
 function adopt(c) {
@@ -376,8 +414,14 @@ function pending() { return items.filter(function (x) { return !x.saved && !x.fa
 function update() {
   sub.textContent = items.length === 1 ? fill(T.subOne, [T.app]) : fill(T.subMany, [T.app, items.length]);
   if (empty) empty.hidden = items.length > 0;
-  if (!canFiles) return;
   bar.hidden = items.length === 0;
+  if (!canFiles) {
+    zipHint.hidden = items.length === 0;
+    var fresh = zipFrom ? items.filter(function (x) { return x.i >= zipFrom; }).length : 0;
+    zipA.textContent = fresh ? fill(T.zipNew, [fresh]) : fill(T.zipAll, [items.length]);
+    zipA.setAttribute('href', fresh ? 'zip?from=' + zipFrom : 'zip');
+    return;
+  }
   var todo = pending(), ready = todo.filter(function (x) { return x.blob; });
   if (!todo.length) { btn.textContent = T.allSaved; btn.disabled = true; }
   else if (ready.length < todo.length) { btn.textContent = fill(T.preparing, [ready.length, todo.length]); btn.disabled = true; }

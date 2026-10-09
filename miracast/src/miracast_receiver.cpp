@@ -219,6 +219,27 @@ struct MiracastReceiver::Impl : std::enable_shared_from_this<Impl> {
         if (cb) cb(name);
     }
 
+    // The session's Disconnected event.  With takeover, phone B's
+    // ConnectionCreated can come before phone A's Disconnected: an event for
+    // a connection that is no longer the current one must not end B's cast.
+    void onDisconnected(const wmm::MiracastReceiverDisconnectedEventArgs& a) {
+        wmm::MiracastReceiverConnection gone{nullptr};
+        try {
+            gone = a.Connection();
+        } catch (...) {
+        }
+        std::wstring stays;
+        {
+            std::lock_guard lk(m);
+            if (gone && conn && !(gone == conn)) stays = deviceName.empty() ? L"?" : deviceName;
+        }
+        if (!stays.empty()) {
+            logf("miracast: late disconnect of an earlier phone ignored (\"%s\" stays)", narrow(stays).c_str());
+            return;
+        }
+        endCast("phone disconnected", true);
+    }
+
     // Cast ended (Disconnected event, disconnect(), or stop()).
     void endCast(const char* why, bool report) {
         bool had;
@@ -361,8 +382,8 @@ bool MiracastReceiver::start(const std::wstring& friendlyName, VideoWindow* wind
                         i->logf("miracast: MediaSourceCreated error 0x%08lx", static_cast<long>(e.code()));
                     }
             });
-        auto tokDisc = s.Disconnected([weak](const auto&, const wmm::MiracastReceiverDisconnectedEventArgs&) {
-            if (auto i = weak.lock()) i->endCast("phone disconnected", true);
+        auto tokDisc = s.Disconnected([weak](const auto&, const wmm::MiracastReceiverDisconnectedEventArgs& a) {
+            if (auto i = weak.lock()) i->onDisconnected(a);
         });
         auto tokStatus = r.StatusChanged([weak](const auto&, const auto&) {
             if (auto i = weak.lock()) i->refreshFromReceiver();

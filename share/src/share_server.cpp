@@ -2,8 +2,8 @@
 // socket on a LAN address, a thread per connection (HTTP/1.1 keep-alive,
 // GET / HEAD, single byte ranges), a generated mobile page and the shared
 // files. Nothing but /<token>/, /<token>/v/<i>, /<token>/d/<i>, the page's
-// script /<token>/app.js and its file list /<token>/list (long-polled by a
-// live page) exists.
+// script /<token>/app.js, its file list /<token>/list (long-polled by a
+// live page) and all files as one ZIP /<token>/zip[?from=F] exists.
 #include "pm/share_server.h"
 
 #include <winsock2.h>
@@ -12,6 +12,7 @@
 #include <bcrypt.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -32,6 +33,11 @@ namespace {
 
 constexpr int kTokenLen = 32;
 constexpr int kMaxConnections = 24;
+// One LAN host cannot hold every slot: a phone's browser opens up to ~6.
+constexpr int kMaxPerPeer = 8;
+// A connection must send a complete request with the token this soon after
+// accept (else it is closed): idle / slow / token-less sockets free their slot.
+constexpr int kFirstRequestMs = 5000;
 constexpr int kMaxHeaderBytes = 16 * 1024;
 constexpr int kRecvTimeoutMs = 20000;
 constexpr int kSendTimeoutMs = 30000;
@@ -156,6 +162,86 @@ const char* reason(int status) {
     }
 }
 
+// ---- ZIP (stored, no compression) for 「全部下載」 ---------------------------
+// Classic ZIP (no ZIP64): local header + data per entry, the central
+// directory, the end record. Sizes and CRCs are known before the first byte
+// is sent (each file's CRC is computed once and cached), so the response
+// has a Content-Length and no data descriptors -- every unzipper (iOS Files,
+// Android Files, Windows, unzip) reads it. Names are UTF-8 (flag bit 11).
+constexpr uint64_t kZipLimit = 0xFFFFFFFFull;
+
+uint32_t crc32Update(uint32_t crc, const unsigned char* p, size_t n) {
+    static const auto table = [] {
+        std::array<uint32_t, 256> t{};
+        for (uint32_t i = 0; i < 256; ++i) {
+            uint32_t c = i;
+            for (int k = 0; k < 8; ++k) c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            t[i] = c;
+        }
+        return t;
+    }();
+    crc = ~crc;
+    for (size_t i = 0; i < n; ++i) crc = table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
+    return ~crc;
+}
+
+void put16(std::string& o, uint32_t v) {
+    o += char(v & 0xFF);
+    o += char((v >> 8) & 0xFF);
+}
+void put32(std::string& o, uint32_t v) {
+    put16(o, v & 0xFFFF);
+    put16(o, v >> 16);
+}
+
+struct ZipEntry {
+    int index = -1;
+    std::wstring path;
+    std::string name;  // UTF-8, unique within the archive
+    uint64_t size = 0;
+    uint32_t crc = 0;
+    uint16_t dosTime = 0, dosDate = 0x21;  // 1980-01-01
+    uint64_t offset = 0;                   // of the local header
+};
+
+// The 30-byte local header (or the 46-byte central record) + the name.
+std::string zipHeader(const ZipEntry& e, bool central) {
+    std::string o;
+    put32(o, central ? 0x02014b50u : 0x04034b50u);
+    if (central) put16(o, 20);  // made by: MS-DOS, 2.0
+    put16(o, 20);               // needed: 2.0
+    put16(o, 0x0800);           // UTF-8 names
+    put16(o, 0);                // stored
+    put16(o, e.dosTime);
+    put16(o, e.dosDate);
+    put32(o, e.crc);
+    put32(o, uint32_t(e.size));
+    put32(o, uint32_t(e.size));
+    put16(o, uint32_t(e.name.size()));
+    put16(o, 0);  // extra
+    if (central) {
+        put16(o, 0);  // comment
+        put16(o, 0);  // disk
+        put16(o, 0);  // internal attributes
+        put32(o, 0);  // external attributes
+        put32(o, uint32_t(e.offset));
+    }
+    o += e.name;
+    return o;
+}
+
+// "a.png" twice in one archive → "a (2).png".
+std::string uniqueZipName(const std::string& name, std::set<std::string>& used) {
+    if (used.insert(lower(name)).second) return name;
+    const size_t dot = name.rfind('.');
+    const bool ext = dot != std::string::npos && dot > 0;
+    const std::string stem = ext ? name.substr(0, dot) : name, tail = ext ? name.substr(dot) : std::string();
+    for (int k = 2;; ++k) {
+        const std::string n = stem + " (" + std::to_string(k) + ")" + tail;
+        if (used.insert(lower(n)).second) return n;
+    }
+}
+
 }  // namespace
 
 // ------------------------------------------------------------------ helpers --
@@ -233,6 +319,10 @@ struct Server::Impl {
         std::string type;
         bool video = false;
         uint64_t size = 0;
+        // The ZIP's CRC-32, valid for this size + last-write time.
+        bool crcOk = false;
+        uint32_t crc = 0;
+        uint64_t crcSize = 0, crcTime = 0;
     };
     // Grows while serving (addFile); indices never change. Guarded by fmu;
     // fcv wakes the long-polled /list requests (new file, expiry, stop).
@@ -255,6 +345,7 @@ struct Server::Impl {
     struct Conn {
         std::thread t;
         SOCKET s = INVALID_SOCKET;
+        uint32_t peer = 0;  // IPv4, network order
         std::atomic<bool> done{false};
     };
     std::mutex cmu;
@@ -327,13 +418,22 @@ struct Server::Impl {
                 closesocket(s);
                 continue;
             }
+            int fromPeer = 0;
+            for (const Conn& c : conns)
+                if (!c.done && c.peer == peer.sin_addr.s_addr) ++fromPeer;
+            if (fromPeer >= kMaxPerPeer) {
+                logf(std::string(ip) + " refused (too many connections from this address)");
+                closesocket(s);
+                continue;
+            }
             DWORD rto = kRecvTimeoutMs, sto = kSendTimeoutMs;
             setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&rto), sizeof(rto));
             setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&sto), sizeof(sto));
             conns.emplace_back();
             Conn& c = conns.back();
             c.s = s;
-            c.t = std::thread([this, &c, ipStr = std::string(ip)] {
+            c.peer = peer.sin_addr.s_addr;
+            c.t =std::thread([this, &c, ipStr = std::string(ip)] {
                 serve(c.s, ipStr);
                 {
                     std::lock_guard<std::mutex> lk2(cmu);
@@ -351,20 +451,40 @@ struct Server::Impl {
     }
 
     // One connection: requests until close / error / stop.
+    // Until a request carried the token, its whole head must arrive within
+    // kFirstRequestMs of accept (not per recv: a trickle does not count).
     void serve(SOCKET s, const std::string& ip) {
         std::string buf;
+        bool authed = false;
+        const auto firstBy = Clock::now() + std::chrono::milliseconds(kFirstRequestMs);
+        auto tooSlow = [&] { logf(ip + " closed (no request within " + std::to_string(kFirstRequestMs / 1000) + " s)"); };
         for (int n = 0; n < kMaxRequestsPerConn && !stop; ++n) {
             size_t end;
             while ((end = buf.find("\r\n\r\n")) == std::string::npos) {
                 if (buf.size() > size_t(kMaxHeaderBytes)) return;
+                if (!authed) {
+                    const auto left =
+                        std::chrono::duration_cast<std::chrono::milliseconds>(firstBy - Clock::now()).count();
+                    if (left <= 0) return tooSlow();
+                    const DWORD to = DWORD(left);
+                    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&to), sizeof(to));
+                }
                 char tmp[4096];
                 const int k = recv(s, tmp, sizeof(tmp), 0);
-                if (k <= 0 || stop) return;
+                if (k <= 0 || stop) {
+                    if (!authed && k < 0 && WSAGetLastError() == WSAETIMEDOUT) tooSlow();
+                    return;
+                }
                 buf.append(tmp, size_t(k));
             }
             const std::string head = buf.substr(0, end);
             buf.erase(0, end + 4);
-            if (!handle(s, ip, head)) return;
+            const bool was = authed;
+            if (!handle(s, ip, head, authed)) return;
+            if (authed && !was) {  // a real client: the normal keep-alive timeout from now on
+                const DWORD to = kRecvTimeoutMs;
+                setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&to), sizeof(to));
+            }
         }
     }
 
@@ -407,7 +527,8 @@ struct Server::Impl {
     }
 
     // Returns false to close the connection.
-    bool handle(SOCKET s, const std::string& ip, const std::string& head) {
+    // `authed` is set once a request carries the token.
+    bool handle(SOCKET s, const std::string& ip, const std::string& head, bool& authed) {
         const Request rq = parse(head);
         bool keep = rq.version == "HTTP/1.1" ? rq.connection.find("close") == std::string::npos
                                              : rq.connection.find("keep-alive") != std::string::npos;
@@ -459,7 +580,12 @@ struct Server::Impl {
             logf(ip + " " + rq.method + " 404");
             return respond(404, "text/plain; charset=utf-8", "404\n") && keep;
         };
-        if (!tokenOk) return notFound();
+        if (!tokenOk) {  // no keep-alive without the token
+            keep = false;
+            notFound();
+            return false;
+        }
+        authed = true;
         if (isExpired) {
             logf(ip + " " + rq.method + " 410 (expired)");
             if (self->onAccess) self->onAccess(Access{ip, -1, false, 410});
@@ -493,6 +619,17 @@ struct Server::Impl {
                 return respond(410, "application/json; charset=utf-8", "{\"ended\":true}") && keep;
             }
             return respond(200, "application/json; charset=utf-8", listJson(pageFiles(), opts.live)) && keep;
+        }
+        if (seg.size() == 2 && seg[1] == "zip") {  // 全部下載: files F.. as one stored ZIP
+            int from = 0;
+            if (!query.empty()) {
+                if (query.rfind("from=", 0) != 0 || query.size() <= 5 || query.size() > 8 ||
+                    query.find_first_not_of("0123456789", 5) != std::string::npos)
+                    return notFound();
+                from = std::stoi(query.substr(5));
+            }
+            if (from < fileTotal()) return sendZip(s, ip, rq, from, keep, isHead);
+            return notFound();
         }
         if (seg.size() >= 3 && (seg[1] == "v" || seg[1] == "d") && !seg[2].empty() && seg[2].size() <= 3 &&
             seg[2].find_first_not_of("0123456789") == std::string::npos) {
@@ -595,6 +732,138 @@ struct Server::Impl {
         }
         CloseHandle(h);
         if (!ok || left > 0) return false;  // short body: the client must not reuse the connection
+        return keep;
+    }
+
+    // Copies `n` bytes of an open file to `sink` (CRC pass or the socket).
+    template <class Sink>
+    bool pump(HANDLE h, uint64_t n, std::vector<char>& chunk, Sink&& sink) {
+        while (n > 0) {
+            if (stop) return false;
+            DWORD got = 0;
+            const DWORD want = DWORD(std::min<uint64_t>(n, chunk.size()));
+            if (!ReadFile(h, chunk.data(), want, &got, nullptr) || got == 0) return false;
+            if (!sink(chunk.data(), size_t(got))) return false;
+            n -= got;
+        }
+        return true;
+    }
+
+    // GET /<token>/zip[?from=F]: files F.. (in index order) as one stored ZIP
+    // for 「全部下載」. Files that are gone are left out, and so are files that
+    // would take the archive past 4 GB (classic ZIP; they keep their own 下載
+    // button). The panel hears 「手機正在下載：name」 for each file in turn.
+    bool sendZip(SOCKET s, const std::string& ip, const Request& rq, int from, bool keep, bool isHead) {
+        std::vector<ZipEntry> entries;
+        std::set<std::string> used;
+        uint64_t offset = 0, central = 0;
+        std::vector<char> chunk(256 * 1024);
+        const int total = fileTotal();
+        for (int i = from; i < total && !stop; ++i) {
+            const File f = fileAt(i);
+            HANDLE h = CreateFileW(f.path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+            if (h == INVALID_HANDLE_VALUE) continue;
+            LARGE_INTEGER li{};
+            FILETIME wt{}, local{};
+            GetFileSizeEx(h, &li);
+            GetFileTime(h, nullptr, nullptr, &wt);
+            ZipEntry e;
+            e.index = i;
+            e.path = f.path;
+            e.size = uint64_t(li.QuadPart);
+            if (FileTimeToLocalFileTime(&wt, &local)) {
+                WORD dd = 0, dt = 0;
+                if (FileTimeToDosDateTime(&local, &dd, &dt)) e.dosDate = dd, e.dosTime = dt;
+            }
+            const uint64_t when = (uint64_t(wt.dwHighDateTime) << 32) | wt.dwLowDateTime;
+            const std::string name = narrow(f.name);
+            const uint64_t nameMax = name.size() + 8;  // room for " (k)"
+            if (offset + 30 + nameMax + e.size + central + 46 + nameMax + 22 > kZipLimit) {
+                CloseHandle(h);
+                logf(ip + " zip: left out file " + std::to_string(i) + " (the archive would pass 4 GB)");
+                continue;
+            }
+            if (!isHead) {
+                if (f.crcOk && f.crcSize == e.size && f.crcTime == when) {
+                    e.crc = f.crc;
+                } else {  // first time (or the file changed): read it once
+                    uint32_t crc = 0;
+                    const bool ok = pump(h, e.size, chunk, [&](const char* p, size_t n) {
+                        crc = crc32Update(crc, reinterpret_cast<const unsigned char*>(p), n);
+                        return true;
+                    });
+                    if (!ok) {
+                        CloseHandle(h);
+                        continue;
+                    }
+                    e.crc = crc;
+                    std::lock_guard<std::mutex> lk(fmu);
+                    File& g = files[size_t(i)];
+                    g.crcOk = true;
+                    g.crc = crc;
+                    g.crcSize = e.size;
+                    g.crcTime = when;
+                }
+            }
+            CloseHandle(h);
+            e.name = uniqueZipName(name, used);
+            e.offset = offset;
+            offset += 30 + e.name.size() + e.size;
+            central += 46 + e.name.size();
+            entries.push_back(std::move(e));
+        }
+        if (stop) return false;
+        if (entries.empty()) {
+            logf(ip + " " + rq.method + " zip 404 (no readable file)");
+            const std::string out = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 4\r\n"
+                                    "Connection: close\r\n\r\n" + std::string(isHead ? "" : "404\n");
+            sendAll(s, out.data(), out.size(), stop);
+            return false;
+        }
+        const uint64_t len = offset + central + 22;
+        const std::time_t now = std::time(nullptr);
+        std::tm tm{};
+        localtime_s(&tm, &now);
+        wchar_t zipName[64];
+        std::swprintf(zipName, 64, L"ZizaiCast_%04d%02d%02d_%02d%02d%02d.zip", tm.tm_year + 1900, tm.tm_mon + 1,
+                      tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        std::string out = "HTTP/1.1 200 OK\r\nDate: " + httpDate(now) + "\r\nServer: ZizaiCast\r\n";
+        out += "Content-Type: application/zip\r\nContent-Length: " + std::to_string(len) + "\r\n";
+        out += "Content-Disposition: " + contentDisposition(true, zipName) + "\r\n";
+        out += "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n"
+               "X-Robots-Tag: noindex, nofollow\r\n";
+        out += keep ? "Connection: keep-alive\r\nKeep-Alive: timeout=20\r\n" : "Connection: close\r\n";
+        out += "\r\n";
+        logf(ip + " " + rq.method + " zip from " + std::to_string(from) + " 200 (" + std::to_string(entries.size()) +
+             " file(s), " + std::to_string(len) + " bytes)");
+        if (!sendAll(s, out.data(), out.size(), stop)) return false;
+        if (isHead) return keep;
+        for (const ZipEntry& e : entries) {
+            if (self->onAccess) self->onAccess(Access{ip, e.index, true, 200});
+            const std::string lh = zipHeader(e, false);
+            if (!sendAll(s, lh.data(), lh.size(), stop)) return false;
+            HANDLE h = CreateFileW(e.path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+            if (h == INVALID_HANDLE_VALUE) {
+                logf(ip + " zip: file " + std::to_string(e.index) + " vanished, download cut off");
+                return false;  // a short body: the phone sees a failed download, never wrong data
+            }
+            const bool ok = pump(h, e.size, chunk, [&](const char* p, size_t n) { return sendAll(s, p, n, stop); });
+            CloseHandle(h);
+            if (!ok) return false;
+        }
+        std::string tail;
+        for (const ZipEntry& e : entries) tail += zipHeader(e, true);
+        put32(tail, 0x06054b50u);  // end of central directory
+        put16(tail, 0);
+        put16(tail, 0);
+        put16(tail, uint32_t(entries.size()));
+        put16(tail, uint32_t(entries.size()));
+        put32(tail, uint32_t(central));
+        put32(tail, uint32_t(offset));
+        put16(tail, 0);
+        if (!sendAll(s, tail.data(), tail.size(), stop)) return false;
         return keep;
     }
 };

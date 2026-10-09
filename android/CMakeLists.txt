@@ -57,6 +57,14 @@ target_include_directories(pm_android_test PRIVATE src)
 target_link_libraries(pm_android_test PRIVATE pm_android pm_qrcodegen ws2_32)
 target_compile_definitions(pm_android_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN
   "PM_ANDROID_TOOLS_DIR=L\"${CMAKE_CURRENT_SOURCE_DIR}/tools\"")
+# adb stand-in for the AndroidSource state tests (no sockets).
+add_executable(pm_android_fake_adb tools/pm_android_fake_adb.cpp)
+add_dependencies(pm_android_test pm_android_fake_adb)
+# Keys end to end through a real (off-desktop) VideoWindow.
+if(TARGET pm_video)
+  target_link_libraries(pm_android_test PRIVATE pm_video)
+  target_compile_definitions(pm_android_test PRIVATE PM_ANDROID_TEST_VIDEO=1)
+endif()
 if(EXISTS ${PM_ANDROID_TP}/platform-tools/adb.exe)
   pm_android_copy_tools(pm_android_test)
 endif()

@@ -58,6 +58,8 @@ public:
     // 「使用配對碼配對裝置」: hostPort = the IP:port shown under the 6-digit
     // code. Asynchronous; returns false only for malformed input / not init.
     bool pairWithCode(const std::wstring& hostPort, const std::wstring& code);
+    // The pending QR / code pairing: queued, listening or pairing (not once
+    // `adb pair` succeeded; the connect then finishes).  Safe to call always.
     void cancelPairing();
     // Auto-reconnect: browses _adb-tls-connect._tcp for a few seconds and
     // `adb connect`s every phone found (only paired ones succeed).

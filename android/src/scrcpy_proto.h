@@ -120,6 +120,10 @@ std::vector<uint8_t> msgScroll(int32_t x, int32_t y, uint16_t w, uint16_t h, flo
 std::vector<uint8_t> msgBackOrScreenOn(uint8_t action);
 std::vector<uint8_t> msgSimple(MsgType t);
 
+// Ctrl / Alt / Shift as held on the calling thread right now (GetKeyState),
+// as scrcpy meta flags.
+uint32_t keyboardMeta();
+
 // Win32 VK → Android keycode (0 = unmapped).
 uint32_t vkToAndroidKeycode(unsigned vk);
 
@@ -133,6 +137,13 @@ public:
     void setVideoSize(int w, int h);
     void pointer(const VideoWindow::PointerEvent& e);
     void key(unsigned vk, bool down, wchar_t ch);
+    // Modifiers held when a key arrives.  VideoWindow never forwards Ctrl /
+    // Alt themselves (its contract: "modifier state: GetKeyState() inside the
+    // handler"), so by default keyboardMeta() is read on the calling (UI)
+    // thread; added to the modifier events key() tracks itself.  nullptr =
+    // tracked events only (tests).
+    using Modifiers = std::function<uint32_t()>;
+    void setModifierSource(Modifiers m) { mods_ = std::move(m); }
     void reset();  // release a held touch
 
 private:
@@ -142,6 +153,7 @@ private:
     bool touching_ = false;
     int32_t lastX_ = 0, lastY_ = 0;
     bool shift_ = false, ctrl_ = false, alt_ = false;
+    Modifiers mods_ = keyboardMeta;
     bool keyDownSent_[256] = {};
     wchar_t highSurrogate_ = 0;
 };
