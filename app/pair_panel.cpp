@@ -19,6 +19,7 @@
 
 #include "pm/i18n.h"
 #include "popup_menu.h"
+#include "ui_anim.h"
 
 using Microsoft::WRL::ComPtr;
 using pm::i18n::S;
@@ -145,7 +146,12 @@ struct PairPanel::Impl {
     ComPtr<ID2D1SolidColorBrush> brush;
     ComPtr<ID2D1Bitmap> qr;
     Theme th = theme();
+    HoverAnim anim;  // hover / press levels per Hit
+    PanelFade fade;  // open: fade (+ grow) in
+    double qrAt = -1e9;  // QR arrived (reveal)
 };
+constexpr UINT_PTR kQrRevealTimer = 0x7A44;
+constexpr double kQrRevealMs = 320;
 
 bool PairPanel::open(HWND owner, Callbacks cb) {
     if (hwnd_) {
@@ -219,6 +225,7 @@ bool PairPanel::open(HWND owner, Callbacks cb) {
     SetWindowSubclass(editCode_, editProc, kEditSubclass, reinterpret_cast<DWORD_PTR>(hwnd_));
     applyEditFonts();
     layout();
+    impl_->fade.begin(hwnd_);
     ShowWindow(hwnd_, testOffscreen ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
     if (!testOffscreen) SetForegroundWindow(hwnd_);
     return true;
@@ -226,10 +233,11 @@ bool PairPanel::open(HWND owner, Callbacks cb) {
 
 void PairPanel::close() {
     if (!hwnd_) return;
+    prepareCloseFade(hwnd_);  // the picture the close fade shows
     HWND h = hwnd_;
     hwnd_ = nullptr;
     editHost_ = editCode_ = nullptr;
-    DestroyWindow(h);
+    closeWithFade(h);
     destroyTarget();
     delete impl_;
     impl_ = nullptr;
@@ -273,6 +281,7 @@ static bool toModuleGrid(const std::vector<uint8_t>& in, int size, std::vector<u
 }
 
 void PairPanel::setQr(const std::vector<uint8_t>& bgra, int size) {
+    const bool had = qrSize_ > 0;
     if (size <= 0 || bgra.size() < static_cast<size_t>(size) * size * 4) {
         qr_.clear();
         qrSize_ = 0;
@@ -283,6 +292,10 @@ void PairPanel::setQr(const std::vector<uint8_t>& bgra, int size) {
         qrSize_ = size;
     }
     if (impl_) impl_->qr.Reset();
+    if (impl_ && hwnd_ && !had && qrSize_ > 0 && animationsOn()) {  // first QR: revealed from the centre
+        impl_->qrAt = animNowMs();
+        SetTimer(hwnd_, kQrRevealTimer, 16, nullptr);
+    }
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
@@ -447,6 +460,7 @@ void PairPanel::paint() {
     im.rt->BeginDraw();
     draw(im.rt.Get(), im.brush.Get(), im.qr.Get(), false);
     if (im.rt->EndDraw() == D2DERR_RECREATE_TARGET) destroyTarget();
+    im.fade.painted();
 }
 
 // --dev test hook: the panel as it looks now, drawn into a PNG (the edit
@@ -470,6 +484,14 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
     Impl& im = *impl_;
     Factories& f = fx();
     const Theme& t = im.th;
+    auto hl = [&](Hit x) { return im.anim.hot(x); };
+    D2D1_MATRIX_3X2_F base;
+    rt->GetTransform(&base);
+    auto pressAt = [&](Hit x, D2D1_RECT_F r) {  // a pressed button shrinks to 96 %
+        const float k = im.anim.pressScale(x);
+        rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {(r.left + r.right) / 2, (r.top + r.bottom) / 2}) *
+                         *D2D1::Matrix3x2F::ReinterpretBaseType(&base));
+    };
     auto fill = [&](D2D1_RECT_F r, D2D1_COLOR_F c, float radius = 0) {
         b->SetColor(c);
         if (radius > 0) rt->FillRoundedRectangle(D2D1::RoundedRect(r, radius, radius), b);
@@ -504,8 +526,8 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
     text(tr(S::PairTitle), f.title.Get(), rc(kPad, 18, kW - 2 * kPad - 40, 32), t.fg);
     {
         const D2D1_RECT_F cr = rc(kW - 52, 12, 36, 36);
-        if (hot_ == HitClose) fill(cr, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.22f}, 8);
-        b->SetColor(hot_ == HitClose ? t.fg : t.dim);
+        if (const float h = hl(HitClose); h > 0.003f) fill(cr, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.22f * h}, 8);
+        b->SetColor(animMix(t.dim, t.fg, hl(HitClose)));
         const float cx = kW - 34, cy = 30, d = 5.5f;
         rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.6f);
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
@@ -530,7 +552,24 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
             // Pixel-aligned placement so every module has the same width.
             const float leftPx = std::round((cardX + kQrCard / 2) * sc - drawPx / 2);
             const float topPx = std::round((kQrY + kQrCard / 2) * sc - drawPx / 2);
-            rt->DrawBitmap(qrBitmap, rc(leftPx / sc, topPx / sc, drawPx / sc, drawPx / sc), 1, interp);
+            const D2D1_RECT_F qr = rc(leftPx / sc, topPx / sc, drawPx / sc, drawPx / sc);
+            const double qe = animNowMs() - im.qrAt;
+            ComPtr<ID2D1EllipseGeometry> mask;
+            ComPtr<ID2D1Layer> layer;
+            if (!png && qe >= 0 && qe < kQrRevealMs) {
+                // Reveal: a circle growing from the centre (soft-out) while it
+                // fades in (outCubic); a phone can lock on before it ends.
+                const float t = static_cast<float>(qe / kQrRevealMs);
+                const float r = (drawPx / sc) * 0.72f * animSoftOut(t);
+                f.d2d->CreateEllipseGeometry(D2D1::Ellipse({(qr.left + qr.right) / 2, (qr.top + qr.bottom) / 2}, r, r), &mask);
+                rt->CreateLayer(&layer);
+                if (mask && layer)
+                    rt->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), mask.Get(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+                                                        D2D1::IdentityMatrix(), animOutCubic(t)),
+                                  layer.Get());
+            }
+            rt->DrawBitmap(qrBitmap, qr, 1, interp);
+            if (mask && layer) rt->PopLayer();
         } else {
             text(tr(S::PairPreparingQr), f.note.Get(), rc(cardX, kQrY, kQrCard, kQrCard),
                  D2D1_COLOR_F{0.35f, 0.30f, 0.31f, 1});
@@ -569,30 +608,36 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
             m->GetMetrics(&tm);
             linkW_ = (std::min)(tm.widthIncludingTrailingWhitespace, kW - 2 * kPad);
         }
-        text(l, f.link.Get(), rc(kPad, kLinkY, kW - 2 * kPad, kLinkH), hot_ == HitLink ? t.fg : t.accent);
-        b->SetColor(D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, hot_ == HitLink ? 0.9f : 0.45f});
+        const float lh = hl(HitLink);
+        text(l, f.link.Get(), rc(kPad, kLinkY, kW - 2 * kPad, kLinkH), animMix(t.accent, t.fg, lh));
+        b->SetColor(D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.45f + 0.45f * lh});
         rt->DrawLine({kW / 2 - linkW_ / 2, kLinkY + kLinkH - 1}, {kW / 2 + linkW_ / 2, kLinkY + kLinkH - 1}, b, 1);
     }
     // Buttons: [secondary] [primary].
     const float bw = (kW - 2 * kPad - 12) / 2;
     {
         const D2D1_RECT_F r = rc(kPad, kBtnY, bw, kBtnH);
-        fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, hot_ == HitSecondary ? 0.14f : 0.07f}, 9);
+        pressAt(HitSecondary, r);
+        fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.07f + 0.07f * hl(HitSecondary)}, 9);
         stroke(rc(kPad + 0.5f, kBtnY + 0.5f, bw - 1, kBtnH - 1), D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.2f}, 9);
         text(tr(codeMode_ ? S::PairUseQr : S::PairUseCode), f.button.Get(), r, t.fg);
+        rt->SetTransform(base);
     }
     {
         const D2D1_RECT_F r = rc(kPad + bw + 12, kBtnY, bw, kBtnH);
+        const float ph = hl(HitPrimary);
+        pressAt(HitPrimary, r);
         if (codeMode_) {
             D2D1_COLOR_F c = t.accent;
-            if (hot_ == HitPrimary) c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f);
+            c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * ph);
             fill(r, c, 9);
             text(tr(S::PairButton), f.button.Get(), r, t.onAccent);
         } else {
-            fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, hot_ == HitPrimary ? 0.14f : 0.07f}, 9);
+            fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.07f + 0.07f * ph}, 9);
             stroke(rc(r.left + 0.5f, kBtnY + 0.5f, bw - 1, kBtnH - 1), D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.2f}, 9);
             text(tr(S::Cancel), f.button.Get(), r, t.fg);
         }
+        rt->SetTransform(base);
     }
 }
 
@@ -637,7 +682,7 @@ LRESULT PairPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         const Hit nh = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
         if (nh != hot_) {
             hot_ = nh;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, nh);
         }
         return 0;
     }
@@ -645,17 +690,28 @@ LRESULT PairPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         tracking_ = false;
         if (hot_ != HitNone) {
             hot_ = HitNone;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, HitNone);
         }
+        if (pressed_ != HitNone && impl_) impl_->anim.setPressed(h, HitNone);
         return 0;
+    case WM_TIMER:
+        if (impl_ && (impl_->anim.onTimer(h, wp) || impl_->fade.onTimer(h, wp))) return 0;
+        if (wp == kQrRevealTimer) {
+            InvalidateRect(h, nullptr, FALSE);
+            if (!impl_ || animNowMs() - impl_->qrAt > kQrRevealMs + 20) KillTimer(h, kQrRevealTimer);
+            return 0;
+        }
+        break;
     case WM_LBUTTONDOWN:
         pressed_ = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
+        if (impl_) impl_->anim.setPressed(h, pressed_);
         if (pressed_ == HitNone) SetFocus(h);
         return 0;
     case WM_LBUTTONUP: {
         const Hit up = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
         const Hit was = pressed_;
         pressed_ = HitNone;
+        if (impl_) impl_->anim.setPressed(h, HitNone);
         if (up != HitNone && up == was) click(up);
         return 0;
     }

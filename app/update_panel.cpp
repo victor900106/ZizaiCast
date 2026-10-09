@@ -18,6 +18,7 @@
 
 #include "pm/i18n.h"
 #include "popup_menu.h"
+#include "ui_anim.h"
 
 using Microsoft::WRL::ComPtr;
 using pm::i18n::fmt;
@@ -153,6 +154,8 @@ struct UpdatePanel::Impl {
     std::vector<ComPtr<IDWriteTextLayout>> items;  // one per items_ entry (list width)
     ComPtr<IDWriteTextLayout> foot;
     Theme th = theme();
+    HoverAnim anim;  // hover / press levels per Hit
+    PanelFade fade;  // open: fade (+ grow) in
 };
 
 static ComPtr<ID2D1Bitmap> iconBitmapFor(ID2D1RenderTarget* rt, HICON icon) {
@@ -282,6 +285,7 @@ bool UpdatePanel::open(HWND owner, Info info, bool activate) {
     const DWORD round = 2;  // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd_, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, &round, sizeof(round));
     const bool act = activate && !testOffscreen;
+    impl_->fade.begin(hwnd_);
     ShowWindow(hwnd_, act ? SW_SHOWNORMAL : SW_SHOWNOACTIVATE);
     if (act) SetForegroundWindow(hwnd_);
     return true;
@@ -289,10 +293,11 @@ bool UpdatePanel::open(HWND owner, Info info, bool activate) {
 
 void UpdatePanel::close() {
     if (!hwnd_) return;
+    prepareCloseFade(hwnd_);  // the picture the close fade shows
     HWND h = hwnd_;
     const bool hadFocus = GetForegroundWindow() == h;
     hwnd_ = nullptr;
-    DestroyWindow(h);
+    closeWithFade(h);
     destroyTarget();
     delete impl_;
     impl_ = nullptr;
@@ -371,8 +376,14 @@ void UpdatePanel::paint() {
     }
     if (!im.icon) im.icon = iconBitmapFor(im.rt.Get(), info_.icon);
     im.rt->BeginDraw();
+    if (const float k = im.fade.scale(); k < 1) {  // opening: grows from 97 % about the centre
+        const D2D1_SIZE_F sz = im.rt->GetSize();
+        im.rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {sz.width / 2, sz.height / 2}));
+    }
     draw(im.rt.Get(), im.brush.Get(), im.icon.Get());
+    im.rt->SetTransform(D2D1::Matrix3x2F::Identity());
     if (im.rt->EndDraw() == D2DERR_RECREATE_TARGET) destroyTarget();
+    im.fade.painted();
 }
 
 bool UpdatePanel::renderPng(const std::wstring& path) {
@@ -389,6 +400,14 @@ void UpdatePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
     Impl& im = *impl_;
     Factories& f = fx();
     const Theme& t = im.th;
+    auto hl = [&](Hit x) { return im.anim.hot(x); };
+    D2D1_MATRIX_3X2_F base;
+    rt->GetTransform(&base);
+    auto pressAt = [&](Hit x, D2D1_RECT_F r) {  // a pressed button shrinks to 96 %
+        const float k = im.anim.pressScale(x);
+        rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {(r.left + r.right) / 2, (r.top + r.bottom) / 2}) *
+                         *D2D1::Matrix3x2F::ReinterpretBaseType(&base));
+    };
     auto fill = [&](D2D1_RECT_F r, D2D1_COLOR_F c, float radius = 0) {
         b->SetColor(c);
         if (radius > 0) rt->FillRoundedRectangle(D2D1::RoundedRect(r, radius, radius), b);
@@ -424,8 +443,8 @@ void UpdatePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
          t.accent);
     {
         const D2D1_RECT_F cr = rc(kW - 52, 12, 36, 36);
-        if (hot_ == HitClose) fill(cr, withA(t.accent, 0.22f), 8);
-        b->SetColor(hot_ == HitClose ? t.fg : t.dim);
+        if (const float h = hl(HitClose); h > 0.003f) fill(cr, withA(t.accent, 0.22f * h), 8);
+        b->SetColor(animMix(t.dim, t.fg, hl(HitClose)));
         const float cx = kW - 34, cy = 30, d = 5.5f;
         rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.6f);
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
@@ -478,28 +497,30 @@ void UpdatePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
         rt->DrawTextLayout({kPad, footY_}, im.foot.Get(), b);
     }
     // Buttons: 略過這個版本 (link, left) · 稍後提醒 · 立即更新 (primary).
-    auto button = [&](D2D1_RECT_F r, const std::wstring& label, bool primary, bool hot, bool focused) {
-        const float w = r.right - r.left;
+    auto button = [&](D2D1_RECT_F r, const std::wstring& label, bool primary, Hit id, bool focused) {
+        const float w = r.right - r.left, hot = hl(id);
+        pressAt(id, r);
         if (primary) {
             D2D1_COLOR_F c = t.accent;
-            if (hot) c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f);
+            c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * hot);
             fill(r, c, 9);
             text(label, f.button.Get(), r, t.onAccent);
         } else {
-            fill(r, withA(t.fg, hot ? 0.14f : 0.07f), 9);
+            fill(r, withA(t.fg, 0.07f + 0.07f * hot), 9);
             stroke(rc(r.left + 0.5f, r.top + 0.5f, w - 1, kBtnH - 1), withA(t.fg, 0.2f), 9);
             text(label, f.button.Get(), r, t.fg);
         }
+        rt->SetTransform(base);
         if (focused) stroke(rc(r.left - 3, r.top - 3, w + 6, kBtnH + 6), withA(t.fg, 0.85f), 11, 1.5f);
     };
     const float ix = kW - kPad - installW_, lx = ix - 10 - laterW_;
-    button(rc(ix, btnY_, installW_, kBtnH), tr(S::UpdDlgInstall), true, hot_ == HitInstall, focusCues_ && focus_ == 0);
-    button(rc(lx, btnY_, laterW_, kBtnH), tr(S::UpdDlgLater), false, hot_ == HitLater, focusCues_ && focus_ == 1);
+    button(rc(ix, btnY_, installW_, kBtnH), tr(S::UpdDlgInstall), true, HitInstall, focusCues_ && focus_ == 0);
+    button(rc(lx, btnY_, laterW_, kBtnH), tr(S::UpdDlgLater), false, HitLater, focusCues_ && focus_ == 1);
     {
-        const bool hot = hot_ == HitSkip;
+        const float hot = hl(HitSkip);
         const D2D1_RECT_F r = rc(kPad, btnY_, skipW_, kBtnH);
-        text(tr(S::UpdDlgSkip), f.link.Get(), r, hot ? t.fg : t.dim);
-        b->SetColor(withA(hot ? t.fg : t.dim, hot ? 0.8f : 0.4f));
+        text(tr(S::UpdDlgSkip), f.link.Get(), r, animMix(t.dim, t.fg, hot));
+        b->SetColor(withA(animMix(t.dim, t.fg, hot), 0.4f + 0.4f * hot));
         const float uy = btnY_ + kBtnH / 2 + 10;
         rt->DrawLine({kPad, uy}, {kPad + skipW_, uy}, b, 1);
         if (focusCues_ && focus_ == 2) stroke(rc(kPad - 6, btnY_ + 3, skipW_ + 12, kBtnH - 6), withA(t.fg, 0.85f), 7, 1.5f);
@@ -552,7 +573,7 @@ LRESULT UpdatePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         const Hit nh = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
         if (nh != hot_) {
             hot_ = nh;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, nh);
         }
         return 0;
     }
@@ -560,19 +581,25 @@ LRESULT UpdatePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         tracking_ = false;
         if (hot_ != HitNone) {
             hot_ = HitNone;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, HitNone);
         }
+        if (pressed_ != HitNone && impl_) impl_->anim.setPressed(h, HitNone);
         return 0;
     case WM_MOUSEWHEEL:
         scrollBy(-GET_WHEEL_DELTA_WPARAM(wp) / static_cast<float>(WHEEL_DELTA) * 48);
         return 0;
+    case WM_TIMER:
+        if (impl_ && (impl_->anim.onTimer(h, wp) || impl_->fade.onTimer(h, wp))) return 0;
+        break;
     case WM_LBUTTONDOWN:
         pressed_ = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
+        if (impl_) impl_->anim.setPressed(h, pressed_);
         return 0;
     case WM_LBUTTONUP: {
         const Hit up = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
         const Hit was = pressed_;
         pressed_ = HitNone;
+        if (impl_) impl_->anim.setPressed(h, HitNone);
         if (up != HitNone && up == was) click(up);
         return 0;
     }

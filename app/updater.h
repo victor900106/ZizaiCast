@@ -68,5 +68,19 @@ bool installerVersion(const std::wstring& file, std::string& version);
 
 // Lower-case hex SHA-256 of a file ("" on error).
 std::string sha256File(const std::wstring& file);
+// Same, from an open handle (read from the start; the position moves).
+std::string sha256Handle(void* fileHandle);
+
+// Update URLs (manifest and installer) must be https://. Plain http:// is
+// accepted only for this PC (localhost, 127.x.x.x, [::1]: a dev / test
+// server); anything else is refused with `why` set. request() enforces it
+// (and allows no redirect away from a loopback http URL).
+bool urlAllowed(const std::wstring& url, std::string& why);
+
+// Authenticode of an installer (WinVerifyTrust, no UI, no network
+// retrieval). The app's installers are not code-signed today: Unsigned is
+// fine (SHA-256 + https are the check); a file that IS signed must verify.
+enum class Signature { Unsigned, Valid, Invalid };
+Signature checkSignature(const std::wstring& file, void* fileHandle, std::string& detail);
 
 }  // namespace pm::update

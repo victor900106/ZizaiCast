@@ -14,6 +14,7 @@
 
 #include "pm/i18n.h"
 #include "popup_menu.h"
+#include "ui_anim.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -23,6 +24,7 @@ namespace {
 constexpr wchar_t kClass[] = L"PhoneMirrorAskPanel";
 constexpr float kW = 452, kPad = 26, kHeadH = 76, kDisc = 40, kBtnH = 38;
 constexpr float kRowPadX = 14, kRowPadY = 10, kRowGap = 6;
+constexpr float kCheckH = 22, kCheckBox = 18;  // checkbox row (Info::check)
 
 D2D1_COLOR_F rgb(uint32_t c, float a = 1) {
     return {((c >> 16) & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, (c & 255) / 255.0f, a};
@@ -143,6 +145,8 @@ struct AskPanel::Impl {
     std::vector<float> rowH;
     float titleH = 24;
     Theme th = theme();
+    HoverAnim anim;  // hover / press levels per Hit
+    PanelFade fade;  // open: fade (+ grow) in
 };
 
 void AskPanel::layout() {
@@ -172,10 +176,21 @@ void AskPanel::layout() {
     if (!info_.rows.empty()) rowsH_ += 2 * kRowPadY;
     rowsY_ = headH + bodyH_ + (bodyH_ > 0 ? 16 : 0);
     btnY_ = rowsY_ + rowsH_ + (rowsH_ > 0 ? 20 : 6);
-    h_ = std::ceil(btnY_ + kBtnH + 22);
+    checkW_ = 0;
+    if (hasCheck()) {  // [✓] 記住我的選擇 between the body / rows and the buttons
+        checkY_ = btnY_ - (rowsH_ > 0 ? 6 : 0);
+        checkW_ = std::ceil(kCheckBox + 10 + f.width(f.body.Get(), info_.check));
+        btnY_ = checkY_ + kCheckH + 18;
+    }
     primW_ = (std::max)(104.0f, f.width(f.button.Get(), info_.primary) + 40);
     secW_ = info_.secondary.empty() ? 0 : (std::max)(92.0f, f.width(f.button.Get(), info_.secondary) + 36);
+    stacked_ = secW_ > 0 && primW_ + kBtnGap + secW_ > kW - 2 * kPad;
+    h_ = std::ceil(btnY_ + kBtnH + (stacked_ ? kBtnGap + kBtnH : 0) + 22);
 }
+
+float AskPanel::btnW(bool primary) const { return stacked_ ? kW - 2 * kPad : primary ? primW_ : secW_; }
+float AskPanel::primX() const { return kW - kPad - btnW(true); }
+float AskPanel::secX() const { return stacked_ ? kPad : kW - kPad - primW_ - kBtnGap - secW_; }
 
 bool AskPanel::open(HWND owner, Info info, bool activate) {
     if (!fx().init()) return false;
@@ -196,6 +211,7 @@ bool AskPanel::open(HWND owner, Info info, bool activate) {
     hot_ = pressed_ = HitNone;
     focus_ = 0;
     focusCues_ = false;
+    checked_ = info_.checked;
     impl_ = new Impl;
     layout();
 
@@ -237,6 +253,7 @@ bool AskPanel::open(HWND owner, Info info, bool activate) {
     const DWORD round = 2;  // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd_, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, &round, sizeof(round));
     const bool act = activate && !testOffscreen;
+    impl_->fade.begin(hwnd_);
     ShowWindow(hwnd_, act ? SW_SHOWNORMAL : SW_SHOWNOACTIVATE);
     if (act) SetForegroundWindow(hwnd_);
     return true;
@@ -244,12 +261,13 @@ bool AskPanel::open(HWND owner, Info info, bool activate) {
 
 void AskPanel::close(int choice) {
     if (!hwnd_) return;
+    prepareCloseFade(hwnd_);  // the picture the close fade shows
     HWND h = hwnd_;
     const bool hadFocus = GetForegroundWindow() == h;
     std::function<void(int)> done = std::move(info_.done);
     info_.done = nullptr;
     hwnd_ = nullptr;
-    DestroyWindow(h);
+    closeWithFade(h);
     destroyTarget();
     delete impl_;
     impl_ = nullptr;
@@ -273,13 +291,44 @@ AskPanel::Hit AskPanel::hitTest(POINT pt) const {
     const float x = pt.x / s(), y = pt.y / s();
     auto in = [&](D2D1_RECT_F r) { return x >= r.left && x < r.right && y >= r.top && y < r.bottom; };
     if (in(rc(kW - 52, 12, 36, 36))) return HitClose;
-    if (in(rc(kW - kPad - primW_, btnY_, primW_, kBtnH))) return HitPrimary;
-    if (secW_ > 0 && in(rc(kW - kPad - primW_ - 10 - secW_, btnY_, secW_, kBtnH))) return HitSecondary;
+    if (in(rc(primX(), primY(), btnW(true), kBtnH))) return HitPrimary;
+    if (secW_ > 0 && in(rc(secX(), secY(), btnW(false), kBtnH))) return HitSecondary;
+    if (hasCheck() && in(rc(kPad - 6, checkY_ - 5, checkW_ + 12, kCheckH + 10))) return HitCheck;
     return HitNone;
+}
+
+void AskPanel::press(Hit hit) {
+    switch (hit) {
+    case HitPrimary: close(1); break;
+    case HitSecondary: close(info_.secondaryChoice); break;
+    case HitClose: close(0); break;
+    case HitCheck:
+        checked_ = !checked_;
+        if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+        break;
+    default: break;
+    }
 }
 
 void AskPanel::paint() {
     Impl& im = *impl_;
+    // One DPI per window (GetDpiForWindow): a change without WM_DPICHANGED is
+    // caught here - window size, render target DPI / size follow it.
+    if (const UINT wd = GetDpiForWindow(hwnd_); wd && wd != dpi_) {
+        dpi_ = wd;
+        SetWindowPos(hwnd_, nullptr, 0, 0, static_cast<int>(std::lround(kW * s())), static_cast<int>(std::lround(h_ * s())),
+                     SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    if (im.rt) {
+        RECT cr{};
+        GetClientRect(hwnd_, &cr);
+        const D2D1_SIZE_U ps = im.rt->GetPixelSize();
+        if (ps.width != static_cast<UINT32>(cr.right) || ps.height != static_cast<UINT32>(cr.bottom))
+            im.rt->Resize(D2D1::SizeU(cr.right, cr.bottom));
+        float dx = 0, dy = 0;
+        im.rt->GetDpi(&dx, &dy);
+        if (dx != static_cast<float>(dpi_)) im.rt->SetDpi(static_cast<float>(dpi_), static_cast<float>(dpi_));
+    }
     if (!im.rt) {
         RECT r{};
         GetClientRect(hwnd_, &r);
@@ -292,8 +341,14 @@ void AskPanel::paint() {
         im.rt->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     }
     im.rt->BeginDraw();
+    if (const float k = im.fade.scale(); k < 1) {  // opening: grows from 97 % about the centre
+        const D2D1_SIZE_F sz = im.rt->GetSize();
+        im.rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {sz.width / 2, sz.height / 2}));
+    }
     draw(im.rt.Get(), im.brush.Get());
+    im.rt->SetTransform(D2D1::Matrix3x2F::Identity());
     if (im.rt->EndDraw() == D2DERR_RECREATE_TARGET) destroyTarget();
+    im.fade.painted();
 }
 
 bool AskPanel::renderPng(const std::wstring& path) {
@@ -309,6 +364,14 @@ void AskPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b) {
     Impl& im = *impl_;
     Factories& f = fx();
     const Theme& t = im.th;
+    auto hl = [&](Hit x) { return im.anim.hot(x); };
+    D2D1_MATRIX_3X2_F base;
+    rt->GetTransform(&base);
+    auto pressAt = [&](Hit x, D2D1_RECT_F r) {  // a pressed button shrinks to 96 %
+        const float k = im.anim.pressScale(x);
+        rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {(r.left + r.right) / 2, (r.top + r.bottom) / 2}) *
+                         *D2D1::Matrix3x2F::ReinterpretBaseType(&base));
+    };
     auto fill = [&](D2D1_RECT_F r, D2D1_COLOR_F c, float radius = 0) {
         b->SetColor(c);
         if (radius > 0) rt->FillRoundedRectangle(D2D1::RoundedRect(r, radius, radius), b);
@@ -348,8 +411,9 @@ void AskPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b) {
     if (im.title) rt->DrawTextLayout({tx, 26 + (im.titleH < 30 ? (kDisc - im.titleH) / 2 : 0)}, im.title.Get(), b);
     {
         const D2D1_RECT_F cr = rc(kW - 52, 12, 36, 36);
-        if (hot_ == HitClose) fill(cr, withA(t.accent, 0.22f), 8);
-        b->SetColor(hot_ == HitClose ? t.fg : t.dim);
+        const float h = hl(HitClose);
+        if (h > 0.003f) fill(cr, withA(t.accent, 0.22f * h), 8);
+        b->SetColor(mix(t.dim, t.fg, h));
         const float cx = kW - 34, cy = 30, d = 5.5f;
         rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.6f);
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
@@ -373,25 +437,48 @@ void AskPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b) {
         }
     }
     // Buttons: [secondary] [primary].
-    auto button = [&](D2D1_RECT_F r, const std::wstring& label, bool primary, bool hot, bool focused) {
-        const float w = r.right - r.left;
+    auto button = [&](D2D1_RECT_F r, const std::wstring& label, bool primary, Hit id, bool focused) {
+        const float w = r.right - r.left, hot = hl(id);
+        pressAt(id, r);
         if (primary) {
             D2D1_COLOR_F c = info_.danger ? t.danger : t.accent;
-            if (hot) c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f);
+            c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * hot);
             fill(r, c, 9);
             text(label, f.button.Get(), r, info_.danger ? D2D1_COLOR_F{1, 1, 1, 1} : t.onAccent);
         } else {
-            fill(r, withA(t.fg, hot ? 0.14f : 0.07f), 9);
+            fill(r, withA(t.fg, 0.07f + 0.07f * hot), 9);
             stroke(rc(r.left + 0.5f, r.top + 0.5f, w - 1, kBtnH - 1), withA(t.fg, 0.2f), 9);
             text(label, f.button.Get(), r, t.fg);
         }
+        rt->SetTransform(base);
         if (focused) stroke(rc(r.left - 3, r.top - 3, w + 6, kBtnH + 6), withA(t.fg, 0.85f), 11, 1.5f);
     };
-    const float px = kW - kPad - primW_;
-    button(rc(px, btnY_, primW_, kBtnH), info_.primary, true, hot_ == HitPrimary, focusCues_ && focus_ == 0);
+    button(rc(primX(), primY(), btnW(true), kBtnH), info_.primary, true, HitPrimary, focusCues_ && focus_ == 0);
     if (secW_ > 0)
-        button(rc(px - 10 - secW_, btnY_, secW_, kBtnH), info_.secondary, false, hot_ == HitSecondary,
+        button(rc(secX(), secY(), btnW(false), kBtnH), info_.secondary, false, HitSecondary,
                focusCues_ && focus_ == 1);
+    // Checkbox: rounded box (accent with a check mark when on) + label.
+    if (hasCheck()) {
+        const float by = checkY_ + (kCheckH - kCheckBox) / 2;
+        const D2D1_RECT_F box = rc(kPad, by, kCheckBox, kCheckBox);
+        const float hc = hl(HitCheck);
+        pressAt(HitCheck, box);
+        if (checked_) {
+            D2D1_COLOR_F c = t.accent;
+            c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * hc);
+            fill(box, c, 4.5f);
+            b->SetColor(t.onAccent);
+            rt->DrawLine({kPad + 4.2f, by + 9.4f}, {kPad + 7.6f, by + 12.8f}, b, 2.0f);
+            rt->DrawLine({kPad + 7.6f, by + 12.8f}, {kPad + 14.0f, by + 5.6f}, b, 2.0f);
+        } else {
+            fill(box, withA(t.fg, 0.05f + 0.07f * hc), 4.5f);
+            stroke(rc(kPad + 0.75f, by + 0.75f, kCheckBox - 1.5f, kCheckBox - 1.5f), withA(t.fg, 0.55f), 4, 1.5f);
+        }
+        rt->SetTransform(base);
+        text(info_.check, f.body.Get(), rc(kPad + kCheckBox + 10, checkY_ + 1, checkW_, kCheckH), t.fg);
+        if (focusCues_ && focus_ == 2)
+            stroke(rc(kPad - 5, checkY_ - 4, checkW_ + 10, kCheckH + 8), withA(t.fg, 0.85f), 7, 1.5f);
+    }
 }
 
 LRESULT AskPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
@@ -440,7 +527,7 @@ LRESULT AskPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         const Hit nh = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
         if (nh != hot_) {
             hot_ = nh;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, nh);
         }
         return 0;
     }
@@ -448,28 +535,48 @@ LRESULT AskPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         tracking_ = false;
         if (hot_ != HitNone) {
             hot_ = HitNone;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, HitNone);
         }
+        if (pressed_ != HitNone && impl_) impl_->anim.setPressed(h, HitNone);
         return 0;
+    case WM_TIMER:
+        if (impl_ && (impl_->anim.onTimer(h, wp) || impl_->fade.onTimer(h, wp))) return 0;
+        break;
     case WM_LBUTTONDOWN:
         pressed_ = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
+        if (impl_) impl_->anim.setPressed(h, pressed_);
         return 0;
     case WM_LBUTTONUP: {
         const Hit up = hitTest(POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)});
         const Hit was = pressed_;
         pressed_ = HitNone;
-        if (up != HitNone && up == was) close(up == HitPrimary ? 1 : 0);
+        if (impl_) impl_->anim.setPressed(h, HitNone);
+        if (up != HitNone && up == was) press(up);
         return 0;
     }
     case WM_KEYDOWN:
         switch (wp) {
         case VK_ESCAPE: close(0); return 0;
-        case VK_RETURN:
-        case VK_SPACE: close(focus_ == 0 ? 1 : 0); return 0;
-        case VK_TAB:
+        case VK_SPACE:
+            if (focus_ == 2) {
+                press(HitCheck);
+                return 0;
+            }
+            [[fallthrough]];
+        case VK_RETURN: press(focus_ == 1 ? HitSecondary : HitPrimary); return 0;  // Enter on the checkbox: primary
+        case VK_TAB: {  // primary → secondary → checkbox (Shift+Tab backwards)
+            const int n = 3, step = GetKeyState(VK_SHIFT) < 0 ? n - 1 : 1;
+            do focus_ = (focus_ + step) % n;
+            while ((focus_ == 1 && secW_ <= 0) || (focus_ == 2 && !hasCheck()));
+            focusCues_ = true;
+            InvalidateRect(h, nullptr, FALSE);
+            return 0;
+        }
         case VK_LEFT:
         case VK_RIGHT:
-            if (secW_ > 0) focus_ ^= 1;
+        case VK_UP:
+        case VK_DOWN:
+            if (secW_ > 0) focus_ = focus_ == 0 ? 1 : 0;
             focusCues_ = true;
             InvalidateRect(h, nullptr, FALSE);
             return 0;

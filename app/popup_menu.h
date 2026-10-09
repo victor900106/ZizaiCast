@@ -78,6 +78,11 @@ struct MenuOptions {
     bool selectFirst = false;       // opened from the keyboard: focus the first item
     HINSTANCE iconInstance = nullptr;
     int headerIconId = 0;           // icon resource drawn by a Header item
+    // renderMenuPng only (screenshots of the motion states): the hot row's
+    // highlight progress 0..1 and its pressed look; selectFirst draws the
+    // keyboard focus ring.
+    float shotHover = 1;
+    bool shotPressed = false;
 };
 
 // Re-themes every menu opened from now on, derived from a theme swatch

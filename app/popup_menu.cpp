@@ -13,6 +13,13 @@
 // dismiss the menu; keyboard messages for the thread (the owner is the
 // foreground window) are taken out of the loop before dispatch. A 50 ms poll
 // is the backstop when capture / foreground could not be obtained.
+//
+// Motion (0.7.4; none when Windows' "Animation effects" are off,
+// SPI_GETCLIENTAREAANIMATION): each level fades in over 90 ms (the layered
+// window's constant alpha), a row's highlight eases in over 100 ms and out
+// over 150 ms, a pressed row is lit stronger, and a row reached from the
+// keyboard gets a focus ring. One 10 ms timer on the root drives it and
+// stops when nothing moves.
 #include "popup_menu.h"
 #include "pm/i18n.h"
 
@@ -25,6 +32,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <memory>
 
@@ -73,8 +81,16 @@ constexpr float kArrowW = 14;
 constexpr float kPadR = 12;
 constexpr float kMinCardW = 188;
 constexpr float kTextSize = 14, kSmallSize = 12, kIconSize = 16, kHeaderSize = 15;
-constexpr UINT kSubmenuDelayMs = 250;
-constexpr UINT_PTR kHoverTimer = 1, kPollTimer = 2;
+constexpr UINT kSubmenuDelayMs = 200;
+constexpr UINT_PTR kHoverTimer = 1, kPollTimer = 2, kAnimTimer = 3;
+constexpr float kFadeInMs = 90, kHoverInMs = 100, kHoverOutMs = 150;
+
+// Windows' "Animation effects" (Settings > Accessibility > Visual effects).
+bool animationsOn() {
+    BOOL on = TRUE;
+    if (!SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &on, 0)) on = TRUE;
+    return on != FALSE;
+}
 constexpr wchar_t kClassName[] = L"PhoneMirrorPopupMenu";
 
 D2D1_COLOR_F alpha(D2D1_COLOR_F c, float a) {
@@ -189,6 +205,9 @@ struct Level {
     bool hasCheck = false, hasIcon = false, hasArrow = false;
     int hot = -1;      // highlighted row
     int openSub = -1;  // row whose submenu is the next level
+    int pressed = -1;  // row under a held mouse button
+    std::vector<float> hov;  // per row: highlight 0..1 (eases toward hot / openSub)
+    float fade = 1;          // window opacity 0..1 (fade-in on open)
     HDC memDC = nullptr;
     HBITMAP dib = nullptr;
     void* bits = nullptr;  // the DIB's premultiplied BGRA pixels
@@ -271,6 +290,7 @@ void layoutLevel(Level& lv, UINT dpi) {
         lv.rows.push_back({&it, y, h});
         y += h;
     }
+    lv.hov.assign(lv.rows.size(), 0.0f);
     float w = lv.textX + textW + (rightW > 0 ? kGapRight + rightW : 0) + (lv.hasArrow ? kGapRight / 2 + kArrowW : 0) +
               kPadR + kInset;
     w = (std::max)({w, otherW, kMinCardW});
@@ -327,6 +347,9 @@ private:
     void onKey(WPARAM vk);
     void onHoverTimer();
     void onPoll();
+    void startAnim();
+    void onAnimTimer();
+    bool settle(Level& lv, float dtMs);  // one animation step; true if anything changed
     void activate(size_t level, int row, bool fromKeyboard);
     void setHot(size_t level, int row);
     void moveHot(size_t level, int dir, bool fromEnd);
@@ -354,6 +377,11 @@ private:
     UINT result_ = 0;
     bool wasForeground_ = false;
     int pendLevel_ = -1, pendRow_ = -1;  // submenu hover timer target
+    bool anim_ = animationsOn();
+    bool animRunning_ = false;
+    std::chrono::steady_clock::time_point lastTick_{};
+    bool kbFocus_ = false;  // the highlight was moved with the keyboard: focus ring
+    POINT lastMouse_{LONG_MIN, LONG_MIN};
 };
 
 LRESULT CALLBACK menuProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
@@ -405,10 +433,12 @@ bool Tracker::openLevel(const std::vector<MenuItem>& items, POINT anchor, const 
     if (!prepare(*lv)) return false;
 
     Level& ref = *lv;
+    ref.fade = anim_ ? 0.0f : 1.0f;
     levels_.push_back(std::move(lv));
     draw(ref);
     ShowWindow(ref.hwnd, SW_SHOWNOACTIVATE);
     SetWindowPos(ref.hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    if (anim_) startAnim();
     return true;
 }
 
@@ -465,6 +495,9 @@ bool Tracker::renderPng(const std::vector<MenuItem>& items, const std::wstring& 
     layoutLevel(lv, monitorDpi(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY)));
     if (!prepare(lv)) return false;
     lv.hot = hotRow;
+    if (hotRow >= 0 && hotRow < static_cast<int>(lv.hov.size())) lv.hov[hotRow] = opts_.shotHover;
+    if (opts_.shotPressed) lv.pressed = hotRow;
+    kbFocus_ = opts_.selectFirst;
     draw(lv);  // UpdateLayeredWindow without a window does nothing
     GdiFlush();
     ComPtr<IWICBitmap> bmp;
@@ -495,6 +528,8 @@ void Tracker::closeFrom(size_t level) {
     while (levels_.size() > level) levels_.pop_back();
     if (levels_[level - 1]->openSub >= 0) {
         levels_[level - 1]->openSub = -1;
+        if (anim_) startAnim();
+        else settle(*levels_[level - 1], 1e6f);
         redraw(level - 1);
     }
     active_ = (std::min)(active_, levels_.size() - 1);
@@ -516,6 +551,8 @@ void Tracker::openSubmenu(size_t level, int row, bool selectFirst) {
     const RECT anchor{card.left, p.rowTopPx(row), card.right, 0};
     p.openSub = row;
     p.hot = row;
+    if (anim_) startAnim();
+    else settle(p, 1e6f);
     redraw(level);
     if (!openLevel(it.sub, POINT{card.right, anchor.top}, &anchor)) {
         p.openSub = -1;
@@ -531,7 +568,56 @@ void Tracker::setHot(size_t level, int row) {
     Level& lv = *levels_[level];
     if (lv.hot == row) return;
     lv.hot = row;
+    if (lv.pressed != row) lv.pressed = -1;
+    if (anim_) {
+        startAnim();
+        redraw(level);  // the row's text / icon state at once; the wash follows
+        return;
+    }
+    settle(lv, 1e6f);
     redraw(level);
+}
+
+// Highlights ease toward their target (hot or the open submenu's row: 1,
+// else 0); the level fades in. dtMs huge = jump to the end.
+bool Tracker::settle(Level& lv, float dtMs) {
+    bool changed = false;
+    for (size_t i = 0; i < lv.hov.size(); ++i) {
+        const int r = static_cast<int>(i);
+        const float target = ((r == lv.hot && selectable(*lv.rows[i].item)) || r == lv.openSub) ? 1.0f : 0.0f;
+        float& h = lv.hov[i];
+        if (h == target) continue;
+        h = target > h ? (std::min)(target, h + dtMs / kHoverInMs) : (std::max)(target, h - dtMs / kHoverOutMs);
+        changed = true;
+    }
+    if (lv.fade < 1) {
+        lv.fade = (std::min)(1.0f, lv.fade + dtMs / kFadeInMs);
+        changed = true;
+    }
+    return changed;
+}
+
+void Tracker::startAnim() {
+    if (animRunning_ || levels_.empty()) return;
+    animRunning_ = true;
+    lastTick_ = std::chrono::steady_clock::now();
+    SetTimer(levels_[0]->hwnd, kAnimTimer, 10, nullptr);
+}
+
+void Tracker::onAnimTimer() {
+    const auto now = std::chrono::steady_clock::now();
+    const float dt = std::chrono::duration<float, std::milli>(now - lastTick_).count();
+    lastTick_ = now;
+    bool any = false;
+    for (size_t i = 0; i < levels_.size(); ++i)
+        if (settle(*levels_[i], dt)) {
+            draw(*levels_[i]);
+            any = true;
+        }
+    if (!any) {
+        KillTimer(levels_[0]->hwnd, kAnimTimer);
+        animRunning_ = false;
+    }
 }
 
 void Tracker::moveHot(size_t level, int dir, bool fromEnd) {
@@ -561,6 +647,16 @@ void Tracker::activate(size_t level, int row, bool fromKeyboard) {
 }
 
 void Tracker::onMouseMove(POINT pt) {
+    // A real move (not the WM_MOUSEMOVE Windows sends when a window appears
+    // under a still cursor) hands the highlight back to the mouse.
+    if (pt.x != lastMouse_.x || pt.y != lastMouse_.y) {
+        const bool first = lastMouse_.x == LONG_MIN;
+        lastMouse_ = pt;
+        if (!first && kbFocus_) {
+            kbFocus_ = false;
+            for (size_t i = 0; i < levels_.size(); ++i) redraw(i);
+        }
+    }
     const int hit = hitLevel(pt);
     if (hit < 0) {
         // Off the menus: drop the highlight of the deepest level unless it is
@@ -602,16 +698,38 @@ void Tracker::onHoverTimer() {
 }
 
 void Tracker::onButtonDown(POINT pt) {
-    if (hitLevel(pt) < 0) finish(0);  // click outside: dismiss (the click is eaten, like native menus)
+    const int hit = hitLevel(pt);
+    if (hit < 0) {
+        finish(0);  // click outside: dismiss (the click is eaten, like native menus)
+        return;
+    }
+    // Pressed look on a command row until the button comes up (it acts then).
+    Level& lv = *levels_[hit];
+    const int row = lv.rowAt(pt);
+    if (row >= 0 && selectable(*lv.rows[row].item) && lv.rows[row].item->kind == Kind::Command) {
+        if (lv.hot != row) setHot(static_cast<size_t>(hit), row);
+        lv.pressed = row;
+        redraw(static_cast<size_t>(hit));
+    }
 }
 
 void Tracker::onButtonUp(POINT pt) {
+    for (size_t i = 0; i < levels_.size(); ++i)
+        if (levels_[i]->pressed >= 0) {
+            levels_[i]->pressed = -1;
+            redraw(i);
+        }
     const int hit = hitLevel(pt);
     if (hit < 0) return;
     activate(static_cast<size_t>(hit), levels_[hit]->rowAt(pt), false);
 }
 
 void Tracker::onKey(WPARAM vk) {
+    if ((vk == VK_DOWN || vk == VK_UP || vk == VK_HOME || vk == VK_END || vk == VK_RIGHT || vk == VK_LEFT) &&
+        !kbFocus_) {
+        kbFocus_ = true;
+        for (size_t i = 0; i < levels_.size(); ++i) redraw(i);
+    }
     Level& lv = *levels_[active_];
     switch (vk) {
     case VK_DOWN: moveHot(active_, +1, false); break;
@@ -684,6 +802,7 @@ bool Tracker::filter(const MSG& msg) {
     if (m == WM_TIMER && ours(msg.hwnd)) {
         if (msg.wParam == kHoverTimer) onHoverTimer();
         else if (msg.wParam == kPollTimer) onPoll();
+        else if (msg.wParam == kAnimTimer) onAnimTimer();
         return true;
     }
     return false;
@@ -697,7 +816,10 @@ UINT Tracker::run(const std::vector<MenuItem>& items, POINT pt, std::chrono::ste
     wasForeground_ = GetWindowThreadProcessId(GetForegroundWindow(), nullptr) == GetCurrentThreadId();
     SetCapture(root);
     SetTimer(root, kPollTimer, 50, nullptr);
-    if (opts_.selectFirst) moveHot(0, +1, true);
+    if (opts_.selectFirst) {
+        kbFocus_ = true;
+        moveHot(0, +1, true);
+    }
     POINT cur{};
     GetCursorPos(&cur);
     if (hitLevel(cur) >= 0) onMouseMove(cur);  // cursor already over an item
@@ -718,6 +840,7 @@ UINT Tracker::run(const std::vector<MenuItem>& items, POINT pt, std::chrono::ste
     done_ = true;  // WM_CAPTURECHANGED from here on is ours
     KillTimer(root, kPollTimer);
     KillTimer(root, kHoverTimer);
+    KillTimer(root, kAnimTimer);
     if (GetCapture() == root) ReleaseCapture();
     while (!levels_.empty()) {
         ShowWindow(levels_.back()->hwnd, SW_HIDE);
@@ -824,14 +947,25 @@ void Tracker::draw(Level& lv) {
         const float a = enabled ? 1.0f : kDisabledAlpha;
         const bool hot = static_cast<int>(i) == lv.hot && enabled;
         const bool open = static_cast<int>(i) == lv.openSub;
-        if (hot || open) {
+        const bool pressed = hot && static_cast<int>(i) == lv.pressed;
+        // Highlight strength 0..1 (animated, see settle), eased: quick start, soft landing.
+        const float h0 = i < lv.hov.size() ? lv.hov[i] : ((hot || open) ? 1.0f : 0.0f);
+        const float hv = 1 - (1 - h0) * (1 - h0);
+        if (hv > 0.004f) {
             const D2D1_ROUNDED_RECT hr{{left + kInset, top + 1, right - kInset, bottom - 1}, 5, 5};
-            rt->FillRoundedRectangle(hr, fill(alpha(g_pal.accent, hot ? 0.22f : 0.14f)));
-            // Small pink bar at the highlight's left edge.
-            if (hot) {
-                const D2D1_ROUNDED_RECT bar{{left + kInset, cy - 7, left + kInset + 3, cy + 7}, 1.5f, 1.5f};
-                rt->FillRoundedRectangle(bar, fill(g_pal.accent));
+            const float strength = pressed ? 0.36f : (hot || !open) ? 0.22f : 0.14f;
+            rt->FillRoundedRectangle(hr, fill(alpha(g_pal.accent, strength * hv)));
+            // Small pink bar at the highlight's left edge (shorter while pressed).
+            if (hot || !open) {
+                const float bh = pressed ? 5.0f : 7.0f;
+                const D2D1_ROUNDED_RECT bar{{left + kInset, cy - bh, left + kInset + 3, cy + bh}, 1.5f, 1.5f};
+                rt->FillRoundedRectangle(bar, fill(alpha(g_pal.accent, hv)));
             }
+        }
+        if (hot && kbFocus_) {  // keyboard focus ring
+            const D2D1_ROUNDED_RECT ring{
+                {left + kInset + 0.75f, top + 1.75f, right - kInset - 0.75f, bottom - 1.75f}, 4.5f, 4.5f};
+            rt->DrawRoundedRectangle(ring, fill(alpha(g_pal.accent, 0.85f)), 1.5f);
         }
         float x = left + kInset + kPadL;
         if (lv.hasCheck) {
@@ -918,7 +1052,8 @@ void Tracker::draw(Level& lv) {
     POINT src{0, 0};
     SIZE size = lv.winPx;
     POINT dst = lv.winPos;
-    BLENDFUNCTION bf{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+    const BYTE opacity = static_cast<BYTE>(std::lround(std::clamp(lv.fade, 0.0f, 1.0f) * 255));
+    BLENDFUNCTION bf{AC_SRC_OVER, 0, opacity, AC_SRC_ALPHA};
     UpdateLayeredWindow(lv.hwnd, nullptr, &dst, &size, lv.memDC, &src, 0, &bf, ULW_ALPHA);
 }
 

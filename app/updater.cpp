@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <bcrypt.h>
 #include <winhttp.h>
+#include <softpub.h>
+#include <wintrust.h>
 
 #include <algorithm>
 #include <cctype>
@@ -51,6 +53,10 @@ bool request(const std::wstring& url, std::string& error, unsigned long long& to
         return false;
     }
     const bool https = uc.nScheme == INTERNET_SCHEME_HTTPS;
+    if (std::string why; !urlAllowed(url, why)) {
+        error = why;
+        return false;
+    }
     HInternet session(WinHttpOpen(L"ZizaiProjection-Updater/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                   WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
     if (!session) {
@@ -60,7 +66,8 @@ bool request(const std::wstring& url, std::string& error, unsigned long long& to
     WinHttpSetTimeouts(session.h, 10000, 10000, 15000, 30000);
     // GitHub release assets: github.com 302 -> release-assets.githubusercontent.com
     // (HTTPS -> HTTPS, other host). Followed automatically; never down to HTTP.
-    DWORD redirect = WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;
+    // A loopback http:// test server: no redirect at all (it could point off this PC).
+    DWORD redirect = https ? WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP : WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
     WinHttpSetOption(session.h, WINHTTP_OPTION_REDIRECT_POLICY, &redirect, sizeof(redirect));
     // TLS 1.2+ only (WinHTTP's default on Windows 10 includes 1.2).
     DWORD protocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 | 0x00002000 /* TLS1_3 */;
@@ -374,6 +381,15 @@ bool fetchManifest(const std::wstring& url, Manifest& m, std::string& error) {
         error = "manifest incomplete (version / url / sha256)";
         return false;
     }
+    {
+        const int n = MultiByteToWideChar(CP_UTF8, 0, m.url.data(), static_cast<int>(m.url.size()), nullptr, 0);
+        std::wstring wurl(static_cast<size_t>(n), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, m.url.data(), static_cast<int>(m.url.size()), wurl.data(), n);
+        if (std::string why; !urlAllowed(wurl, why)) {
+            error = "manifest installer URL refused: " + why;
+            return false;
+        }
+    }
     for (char& c : m.sha256) {
         if (hexVal(c) < 0) {
             error = "manifest sha256 is not hex";
@@ -479,6 +495,16 @@ std::string sha256File(const std::wstring& file) {
     HANDLE f = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                            FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
     if (f == INVALID_HANDLE_VALUE) return {};
+    std::string hex = sha256Handle(f);
+    CloseHandle(f);
+    return hex;
+}
+
+std::string sha256Handle(void* fileHandle) {
+    HANDLE f = static_cast<HANDLE>(fileHandle);
+    if (f == INVALID_HANDLE_VALUE || !f) return {};
+    LARGE_INTEGER zero{};
+    if (!SetFilePointerEx(f, zero, nullptr, FILE_BEGIN)) return {};
     BCRYPT_ALG_HANDLE alg = nullptr;
     BCRYPT_HASH_HANDLE hash = nullptr;
     std::string hex;
@@ -487,7 +513,12 @@ std::string sha256File(const std::wstring& file) {
         std::vector<unsigned char> buf(256 * 1024);
         DWORD got = 0;
         bool ok = true;
-        while (ReadFile(f, buf.data(), static_cast<DWORD>(buf.size()), &got, nullptr) && got > 0) {
+        for (;;) {
+            if (!ReadFile(f, buf.data(), static_cast<DWORD>(buf.size()), &got, nullptr)) {
+                ok = false;  // a read error must not look like the end of the file
+                break;
+            }
+            if (got == 0) break;
             if (BCryptHashData(hash, buf.data(), got, 0) != 0) {
                 ok = false;
                 break;
@@ -504,8 +535,63 @@ std::string sha256File(const std::wstring& file) {
     }
     if (hash) BCryptDestroyHash(hash);
     if (alg) BCryptCloseAlgorithmProvider(alg, 0);
-    CloseHandle(f);
     return hex;
+}
+
+bool urlAllowed(const std::wstring& url, std::string& why) {
+    URL_COMPONENTS uc{sizeof(uc)};
+    wchar_t host[256] = {};
+    uc.lpszHostName = host;
+    uc.dwHostNameLength = 256;
+    uc.dwSchemeLength = 1;
+    uc.dwUrlPathLength = 1;
+    if (url.empty() || !WinHttpCrackUrl(url.c_str(), 0, 0, &uc)) {
+        why = "bad URL";
+        return false;
+    }
+    if (uc.nScheme == INTERNET_SCHEME_HTTPS) return true;
+    if (uc.nScheme == INTERNET_SCHEME_HTTP) {
+        std::wstring h = host;
+        for (wchar_t& c : h) c = static_cast<wchar_t>(towlower(c));
+        // 127.a.b.c only (digits and dots), not "127.evil.example".
+        const bool loop127 = h.rfind(L"127.", 0) == 0 && h.find_first_not_of(L"0123456789.") == std::wstring::npos;
+        if (h == L"localhost" || h == L"[::1]" || h == L"::1" || loop127) return true;
+        why = "plain http:// refused (https:// only; http only for this PC)";
+        return false;
+    }
+    why = "unsupported URL scheme";
+    return false;
+}
+
+Signature checkSignature(const std::wstring& file, void* fileHandle, std::string& detail) {
+    WINTRUST_FILE_INFO fi{};
+    fi.cbStruct = sizeof(fi);
+    fi.pcwszFilePath = file.c_str();
+    fi.hFile = static_cast<HANDLE>(fileHandle);
+    WINTRUST_DATA wd{};
+    wd.cbStruct = sizeof(wd);
+    wd.dwUIChoice = WTD_UI_NONE;
+    wd.fdwRevocationChecks = WTD_REVOKE_NONE;
+    wd.dwUnionChoice = WTD_CHOICE_FILE;
+    wd.pFile = &fi;
+    wd.dwStateAction = WTD_STATEACTION_VERIFY;
+    wd.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+    GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    const LONG rc = WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &action, &wd);
+    wd.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &action, &wd);
+    char buf[64];
+    std::snprintf(buf, sizeof buf, "0x%08lx", static_cast<unsigned long>(rc));
+    if (rc == ERROR_SUCCESS) {
+        detail = "Authenticode signature valid";
+        return Signature::Valid;
+    }
+    if (rc == TRUST_E_NOSIGNATURE || rc == TRUST_E_SUBJECT_FORM_UNKNOWN || rc == TRUST_E_PROVIDER_UNKNOWN) {
+        detail = std::string("not code-signed (") + buf + ")";
+        return Signature::Unsigned;
+    }
+    detail = std::string("Authenticode signature present but not valid (") + buf + ")";
+    return Signature::Invalid;
 }
 
 }  // namespace pm::update

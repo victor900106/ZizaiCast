@@ -13,6 +13,7 @@
 
 #include "pm/i18n.h"
 #include "popup_menu.h"
+#include "ui_anim.h"
 
 using Microsoft::WRL::ComPtr;
 using pm::i18n::S;
@@ -178,6 +179,8 @@ struct SharePanel::Impl {
     ComPtr<ID2D1SolidColorBrush> brush;
     ComPtr<ID2D1Bitmap> qr;
     Theme th = theme();
+    HoverAnim anim;  // hover / press levels per Hit
+    PanelFade fade;  // open: fade (+ grow) in
 };
 
 bool SharePanel::open(HWND owner, Callbacks cb) {
@@ -231,6 +234,7 @@ bool SharePanel::open(HWND owner, Callbacks cb) {
     const DWORD round = 2;  // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd_, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, &round, sizeof(round));
     SetTimer(hwnd_, kTickTimer, 1000, nullptr);
+    impl_->fade.begin(hwnd_);
     ShowWindow(hwnd_, testOffscreen ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
     if (!testOffscreen) SetForegroundWindow(hwnd_);
     return true;
@@ -238,10 +242,11 @@ bool SharePanel::open(HWND owner, Callbacks cb) {
 
 void SharePanel::close() {
     if (!hwnd_) return;
+    prepareCloseFade(hwnd_);  // the picture the close fade shows
     HWND h = hwnd_;
     hwnd_ = nullptr;
     KillTimer(h, kTickTimer);
-    DestroyWindow(h);
+    closeWithFade(h);
     destroyTarget();
     delete impl_;
     impl_ = nullptr;
@@ -383,8 +388,14 @@ void SharePanel::paint() {
         im.rt->CreateBitmap(D2D1::SizeU(qrSize_, qrSize_), qr_.data(), qrSize_ * 4, bp, &im.qr);
     }
     im.rt->BeginDraw();
+    if (const float k = im.fade.scale(); k < 1) {  // opening: grows from 97 % about the centre
+        const D2D1_SIZE_F sz = im.rt->GetSize();
+        im.rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {sz.width / 2, sz.height / 2}));
+    }
     draw(im.rt.Get(), im.brush.Get(), im.qr.Get());
+    im.rt->SetTransform(D2D1::Matrix3x2F::Identity());
     if (im.rt->EndDraw() == D2DERR_RECREATE_TARGET) destroyTarget();
+    im.fade.painted();
 }
 
 bool SharePanel::renderPng(const std::wstring& path) {
@@ -405,6 +416,15 @@ bool SharePanel::renderPng(const std::wstring& path) {
 void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap* qrBitmap) {
     Factories& f = fx();
     const Theme& t = impl_->th;
+    Impl& im = *impl_;
+    auto hl = [&](Hit x) { return im.anim.hot(x); };
+    D2D1_MATRIX_3X2_F base;
+    rt->GetTransform(&base);
+    auto pressAt = [&](Hit x, D2D1_RECT_F r) {  // a pressed button shrinks to 96 %
+        const float k = im.anim.pressScale(x);
+        rt->SetTransform(D2D1::Matrix3x2F::Scale(k, k, {(r.left + r.right) / 2, (r.top + r.bottom) / 2}) *
+                         *D2D1::Matrix3x2F::ReinterpretBaseType(&base));
+    };
     auto fill = [&](D2D1_RECT_F r, D2D1_COLOR_F c, float radius = 0) {
         b->SetColor(c);
         if (radius > 0) rt->FillRoundedRectangle(D2D1::RoundedRect(r, radius, radius), b);
@@ -423,8 +443,8 @@ void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
     text(tr(S::SharePanelTitle), f.title.Get(), rc(kPad, 18, kW - 2 * kPad - 40, 32), t.fg);
     {
         const D2D1_RECT_F cr = rc(kW - 52, 12, 36, 36);
-        if (hot_ == HitClose) fill(cr, withA(t.accent, 0.22f), 8);
-        b->SetColor(hot_ == HitClose ? t.fg : t.dim);
+        if (const float h = hl(HitClose); h > 0.003f) fill(cr, withA(t.accent, 0.22f * h), 8);
+        b->SetColor(animMix(t.dim, t.fg, hl(HitClose)));
         const float cx = kW - 34, cy = 30, d = 5.5f;
         rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.6f);
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
@@ -455,8 +475,9 @@ void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
     if (!expired_) {
         const std::wstring l = tr(S::SharePanelCopy);
         copyW_ = f.width(f.link.Get(), l);
-        text(l, f.link.Get(), rc(kPad, kCopyY, kW - 2 * kPad, kLinkH), hot_ == HitCopy ? t.fg : t.accent);
-        b->SetColor(withA(t.accent, hot_ == HitCopy ? 0.9f : 0.45f));
+        const float ch = hl(HitCopy);
+        text(l, f.link.Get(), rc(kPad, kCopyY, kW - 2 * kPad, kLinkH), animMix(t.accent, t.fg, ch));
+        b->SetColor(withA(t.accent, 0.45f + 0.45f * ch));
         rt->DrawLine({kW / 2 - copyW_ / 2, kCopyY + kLinkH - 2}, {kW / 2 + copyW_ / 2, kCopyY + kLinkH - 2}, b, 1);
         text(live_ ? pm::i18n::fmt(S::SharePanelLive, {std::to_wstring(liveSent_)}) : countdownText(), f.count.Get(),
              rc(kPad, kCountY, kW - 2 * kPad, 24), t.accent);
@@ -464,25 +485,28 @@ void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
     if (!status_.empty()) text(status_, f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, 40), t.fg);
     else if (live_ && !expired_) text(tr(S::SharePanelLiveHint), f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, 54), t.dim);
 
-    auto button = [&](D2D1_RECT_F r, const wchar_t* label, bool primary, bool hot) {
+    auto button = [&](D2D1_RECT_F r, const wchar_t* label, bool primary, Hit id) {
+        const float hot = hl(id);
+        pressAt(id, r);
         if (primary) {
             D2D1_COLOR_F c = t.accent;
-            if (hot) c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f);
+            c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * hot);
             fill(r, c, 9);
             text(label, f.button.Get(), r, t.onAccent);
         } else {
-            fill(r, withA(t.fg, hot ? 0.14f : 0.07f), 9);
+            fill(r, withA(t.fg, 0.07f + 0.07f * hot), 9);
             stroke(rc(r.left + 0.5f, r.top + 0.5f, r.right - r.left - 1, kBtnH - 1), withA(t.fg, 0.2f), 9);
             text(label, f.button.Get(), r, t.fg);
         }
+        rt->SetTransform(base);
     };
     if (expired_) {
         const float bw = (kW - 2 * kPad - 12) / 2;
-        button(rc(kPad, kBtnY, bw, kBtnH), tr(S::AboutClose), false, hot_ == HitSecondary);
-        button(rc(kPad + bw + 12, kBtnY, bw, kBtnH), tr(S::SharePanelAgain), true, hot_ == HitPrimary);
+        button(rc(kPad, kBtnY, bw, kBtnH), tr(S::AboutClose), false, HitSecondary);
+        button(rc(kPad + bw + 12, kBtnY, bw, kBtnH), tr(S::SharePanelAgain), true, HitPrimary);
     } else {
         button(rc(kPad, kBtnY, kW - 2 * kPad, kBtnH), tr(live_ ? S::SharePanelLiveStop : S::SharePanelStop), false,
-               hot_ == HitPrimary);
+               HitPrimary);
     }
 }
 
@@ -498,6 +522,7 @@ LRESULT SharePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_ERASEBKGND: return 1;
     case WM_TIMER:
+        if (impl_ && (impl_->anim.onTimer(h, wp) || impl_->fade.onTimer(h, wp))) return 0;
         if (wp == kTickTimer && !expired_) {
             if (GetTickCount64() >= deadline_ && deadline_) expired_ = true;  // the server says so too (onExpired)
             InvalidateRect(h, nullptr, FALSE);
@@ -538,7 +563,7 @@ LRESULT SharePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         const Hit nh = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
         if (nh != hot_) {
             hot_ = nh;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, nh);
         }
         return 0;
     }
@@ -546,16 +571,19 @@ LRESULT SharePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
         tracking_ = false;
         if (hot_ != HitNone) {
             hot_ = HitNone;
-            InvalidateRect(h, nullptr, FALSE);
+            if (impl_) impl_->anim.setHot(h, HitNone);
         }
+        if (pressed_ != HitNone && impl_) impl_->anim.setPressed(h, HitNone);
         return 0;
     case WM_LBUTTONDOWN:
         pressed_ = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
+        if (impl_) impl_->anim.setPressed(h, pressed_);
         return 0;
     case WM_LBUTTONUP: {
         const Hit up = hitTest(POINT{static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp))});
         const Hit was = pressed_;
         pressed_ = HitNone;
+        if (impl_) impl_->anim.setPressed(h, HitNone);
         if (up != HitNone && up == was) click(up);
         return 0;
     }

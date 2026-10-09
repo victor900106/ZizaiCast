@@ -24,10 +24,12 @@
 #include <shlobj.h>
 #include <shobjidl.h>
 #include <shlwapi.h>
+#include <wincodec.h>
 
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -58,7 +60,10 @@
 #include "resource.h"
 #include "share_panel.h"
 #include "share_picker.h"
+#include "tr_settings.h"
 #include "updater.h"
+#include "volume_memory.h"
+#include "volume_ui.h"
 
 namespace fs = std::filesystem;
 using pm::i18n::S;
@@ -151,6 +156,8 @@ struct Settings {
     bool requirePin = false;
     bool topmost = false;
     bool trayHintShown = false;
+    int closeButton = 0;       // 按 X 時 (×, Alt+F4): 0 ask (每次詢問), 1 tray (縮到右下角), 2 quit (結束程式)
+    bool closeHintShown = false;  // 「仍在背景執行」 balloon after the first 縮到右下角 (since 按 X 時)
     bool quickAck = true;      // Options::mirrorQuickAck (experimental low-latency ACKs)
     int audioLatencyMs = -1;   // Options::reportedAudioLatencyMs (-1 = library default)
     int quality = 1;           // 0 standard 1920x1080, 1 high 2560x1440, 2 max 3840x2160
@@ -167,6 +174,7 @@ struct Settings {
     bool androidAuto = true;   // reconnect paired Android phones (wireless debugging) when idle
     bool tutorialShown = false;  // 使用教學 opened once at the first start
     bool autoShare = false;      // 截圖／錄影後自動傳到手機 (docs/share.md)
+    bool muted = false;          // 靜音 (volume_ui.h); the level itself stays in volume.txt
     std::string updatedTo;     // set just before an update installs: 「已更新到 vX」 at the next start
     std::string skipVersion;   // 略過這個版本: never prompted again (the menu item stays)
     int language = 0;          // 語言 / Language: 0 auto (Windows UI language), 1 zh-TW, 2 en, 3 ja, 4 ko
@@ -175,11 +183,15 @@ struct Settings {
     int translateTo = 0;       // 翻譯 翻成: 0 auto (UI language), 1 繁體中文, 2 English, 3 日本語, 4 한국어
     int translateLayout = 0;   // 翻譯顯示方式: 0 automatic, 1 原位顯示, 2 清單顯示 (0.7.1)
     bool translateDark = false;  // 深色方框 instead of the picture's own colours (0.7.1)
+    // A/B test (0.7.6): Options::advertiseAudio, settings.ini airplay_advertise_audio
+    // 1 also an AirPlay speaker (default), 0 Screen Mirroring only, 2 bit 9 on but no _raop._tcp
+    int advertiseAudio = 1;
 
     static constexpr const char* kThemeKeys[4] = {"sakura", "mint", "night", "milktea"};
     static constexpr const char* kFilterKeys[5] = {"none", "contrast", "gray", "invert", "yellow"};
     static constexpr const char* kTranslateKeys[5] = {"auto", "zh-Hant", "en", "ja", "ko"};
     static constexpr const char* kLayoutKeys[3] = {"auto", "inplace", "list"};
+    static constexpr const char* kCloseKeys[3] = {"ask", "tray", "quit"};
 
     // Manifest URL in effect: settings.ini update_url, else the build's default.
     std::string effectiveUpdateUrl() const { return updateUrlSet ? updateUrl : std::string(PM_UPDATE_URL_STR); }
@@ -202,6 +214,10 @@ struct Settings {
         s.requirePin = flag("require_pin", false);
         s.topmost = flag("topmost", false);
         s.trayHintShown = flag("tray_hint_shown", false);
+        if (auto it = kv.find("close_button"); it != kv.end())
+            for (int c = 0; c < 3; ++c)
+                if (it->second == kCloseKeys[c]) s.closeButton = c;
+        s.closeHintShown = flag("close_hint_shown", false);
         s.quickAck = flag("quick_ack", true);
         // 影音同步 is disabled (picture fell behind the sound, docs/app.md): the
         // stored value is ignored and the option is not offered in any menu.
@@ -232,6 +248,7 @@ struct Settings {
         s.androidAuto = flag("android_auto", true);
         s.tutorialShown = flag("tutorial_shown", false);
         s.autoShare = flag("auto_share", false);
+        s.muted = flag("mute", false);
         if (auto it = kv.find("updated_to"); it != kv.end()) s.updatedTo = it->second;
         if (auto it = kv.find("skip_version"); it != kv.end()) s.skipVersion = it->second;
         if (auto it = kv.find("language"); it != kv.end())
@@ -246,6 +263,8 @@ struct Settings {
             for (int t = 0; t < 3; ++t)
                 if (it->second == kLayoutKeys[t]) s.translateLayout = t;
         if (auto it = kv.find("translate_cards"); it != kv.end()) s.translateDark = it->second == "dark";
+        if (auto it = kv.find("airplay_advertise_audio"); it != kv.end())
+            s.advertiseAudio = it->second == "0" ? 0 : it->second == "2" ? 2 : 1;
         if (auto it = kv.find("display_name"); it != kv.end()) {
             std::string v = it->second;
             while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
@@ -272,6 +291,9 @@ struct Settings {
             << "require_pin=" << (requirePin ? 1 : 0) << "\n"
             << "topmost=" << (topmost ? 1 : 0) << "\n"
             << "tray_hint_shown=" << (trayHintShown ? 1 : 0) << "\n"
+            << "; window close button (×, Alt+F4): ask (every time), tray (minimize to the tray, keep receiving), quit\n"
+            << "close_button=" << kCloseKeys[closeButton % 3] << "\n"
+            << "close_hint_shown=" << (closeHintShown ? 1 : 0) << "\n"
             << "; experimental low-latency TCP ACKs for the mirror stream (1 on, 0 off)\n"
             << "quick_ack=" << (quickAck ? 1 : 0) << "\n"
             << "; audio latency reported to the phone in ms (-1 = default 250)\n"
@@ -296,6 +318,8 @@ struct Settings {
             << "tutorial_shown=" << (tutorialShown ? 1 : 0) << "\n"
             << "; send every new screenshot / recording to the phone (Android over adb: its gallery; else a live QR page)\n"
             << "auto_share=" << (autoShare ? 1 : 0) << "\n"
+            << "; 靜音: PC sound off for every phone (1/0); the level is kept in volume.txt\n"
+            << "mute=" << (muted ? 1 : 0) << "\n"
             << "; UI language: auto (Windows display language: zh-* -> zh-TW, ja-* -> ja, ko-* -> ko, else en), zh-TW, en, ja, ko\n"
             << "language=" << languageKey(language) << "\n"
             << "; magnifier colours: none, contrast, gray, invert, yellow (yellow text on black)\n"
@@ -305,7 +329,10 @@ struct Settings {
             << "; translations shown: auto (in place, a numbered list when over 30 % do not fit), inplace, list\n"
             << "translate_layout=" << kLayoutKeys[translateLayout % 3] << "\n"
             << "; translation boxes: lens (the picture's own colours), dark (dark boxes, easier to read)\n"
-            << "translate_cards=" << (translateDark ? "dark" : "lens") << "\n";
+            << "translate_cards=" << (translateDark ? "dark" : "lens") << "\n"
+            << "; A/B test: 1 = also offered as an AirPlay speaker (default), 0 = Screen Mirroring only\n"
+            << ";   (no audio-only AirPlay: features bit 9 off, no _raop._tcp), 2 = bit 9 on but no _raop._tcp\n"
+            << "airplay_advertise_audio=" << advertiseAudio << "\n";
         if (!displayName.empty())
             out << "; name shown to phones (empty / missing: 自在投影 in zh-TW, Zizai Cast in English)\n"
                 << "display_name=" << toUtf8(displayName) << "\n";
@@ -754,32 +781,7 @@ private:
     std::atomic<long long> cleanStopAt_{-100000};
 };
 
-// Forwards to the real player and remembers the phone volume so the next
-// connection starts where the user left it instead of at full volume.
-class RememberVolumeAudioSink final : public pm::AudioSink {
-public:
-    RememberVolumeAudioSink(pm::AudioSink& inner, fs::path file) : inner_(inner), file_(std::move(file)) {}
-    static float load(const fs::path& file, float fallback) {
-        std::ifstream in(file);
-        float db = fallback;
-        if (in >> db && db <= 0.0f && db >= -30.0f) return db;
-        return fallback;
-    }
-    void onFormat(pm::AudioCodec c, int rate, int ch, int spf) override { inner_.onFormat(c, rate, ch, spf); }
-    void onPacket(const uint8_t* d, size_t n, uint64_t t) override { inner_.onPacket(d, n, t); }
-    void onFlush() override { inner_.onFlush(); }
-    void onVolume(float db) override {
-        inner_.onVolume(db);
-        if (db >= -30.0f && db <= 0.0f) {  // mute (-144) is not carried over
-            std::ofstream out(file_, std::ios::trunc);
-            out << db;
-        }
-    }
-
-private:
-    pm::AudioSink& inner_;
-    fs::path file_;
-};
+// RememberVolumeAudioSink / SavedVolumeAudioSink: volume_memory.h
 
 // ---------------------------------------------------------------------------
 // Application state (UI thread only).
@@ -867,6 +869,15 @@ enum Command : UINT {
     CmdTrLayoutInPlace,  // 原位顯示
     CmdTrLayoutList,     // 清單顯示
     CmdTrDarkCards,      // 深色方框 ✓
+    // 按 X 時 ▸ 每次詢問 / 縮到右下角 / 結束程式 (+ Settings::closeButton 0..2)
+    CmdCloseAsk = 230,
+    CmdCloseTray,
+    CmdCloseQuit,
+    // 翻譯 ▸ 本機 AI 翻譯… / 線上翻譯（選用）… (0.7.4, app/tr_settings.cpp)
+    CmdTrLocalAi = 240,
+    CmdTrOnline,
+    // 設定 ▸ 實驗：只提供螢幕鏡像 (hidden A/B item, 0.7.6; settings.ini airplay_advertise_audio)
+    CmdAudioAdvertAB = 250,
 };
 // Translation model pairs (translate/src/models.inc) for 管理翻譯模型.
 // "ocr": the PaddleOCR text recognition models (models\ocr, 0.7.0).
@@ -1004,9 +1015,16 @@ struct App {
     // 放大鏡 / 翻譯 (0.7)
     std::unique_ptr<pm::translate::ScreenTranslator> translator;
     pm::ui::AskPanel askPanel;         // model download consent, OCR language missing, delete models
+    pm::ui::AskPanel closePanel;       // 按 X 時要怎麼做？ (close_button=ask)
     bool viewToolsOn = false;          // a picture was available at the last check (syncViewTools)
+    bool userFrozen = false;           // 凍結 (Ctrl+P / toolbar) is on: closing a translation keeps it
+    fs::path volumeFile;               // remembered phone volume (RememberVolumeAudioSink), set at start
+    RememberVolumeAudioSink* volume = nullptr;  // its remembered level (saved())
 };
 App g;
+// The remembered phone volume (dB, -30..0).
+float savedVolumeDb() { return g.volume ? g.volume->saved() : RememberVolumeAudioSink::load(g.volumeFile, -15.0f); }
+pm::ui::VolumeControl g_volumeUi;  // 音量 / 靜音: toolbar, Ctrl+M / Ctrl+↑↓, menus (volume_ui.h)
 void refreshToolbar();
 std::wstring currentTitle();
 // While the phone has paused the stream: the title says whether a frozen picture is shown.
@@ -1026,6 +1044,8 @@ constexpr UINT_PTR kPairTimer = 10;    // the QR has been up a while without a p
 constexpr UINT_PTR kLocalTimer = 11;   // 本機更新: rescan <install>\安裝檔 every 10 min
 constexpr UINT_PTR kLocalSettleTimer = 12;  // ... soon after a change / while a file is still being written
 constexpr UINT kLocalScanMs = 10 * 60 * 1000;
+constexpr UINT_PTR kShareNetTimer = 40;  // 傳到手機 running: is its LAN address still ours? (checkShareNetwork)
+constexpr UINT kShareNetCheckMs = 10 * 1000;
 constexpr long long kLocalSettleMs = 2000;  // size + time unchanged this long = fully written
 constexpr long long kAndroidStallMs = 6000;  // no video and no audio this long = phone gone
 constexpr UINT kAndroidRetryMs = 45 * 1000;
@@ -1062,6 +1082,12 @@ bool startServer(int attempts) {
     });
     pm::AirPlayServer::Options opts = g.opts;
     opts.requirePin = g.settings.requirePin;
+    opts.advertiseAudio = g.settings.advertiseAudio;
+    // The remembered volume as of now, not as of app start: a restart (PIN /
+    // quality / language / network change) must not go back to the startup level.
+    // (AirPlayServer::start() applies it to the player; RememberVolumeAudioSink
+    // ignores an unchanged level, so nothing stale is written back.)
+    opts.initialVolumeDb = savedVolumeDb();
     // 畫質: display size offered to the phone (High/Highest also turn H.265 on).
     using QP = pm::AirPlayServer::QualityPreset;
     pm::AirPlayServer::applyQualityPreset(
@@ -1077,6 +1103,19 @@ bool startServer(int attempts) {
     pm::AirPlayServer::Events ev;
     ev.onClientConnecting = [h, log](const std::string& device, const std::string& model) {
         log->write("info", "client connecting: " + device + " (" + model + ")");
+        // A new phone session starts with a fresh audio pipeline (decoder,
+        // jitter buffer, WASAPI stream) at the remembered volume: nothing from
+        // the previous session (a mute, a stuck stream) can keep it silent.
+        // Not while a phone is mirroring (takeover / keep-current) or another
+        // source owns the player.
+        const int src = g_active.load();
+        if (g.audio && (src == SrcNone || src == SrcAirPlay) && !(g.status && g.status->mirroring())) {
+            g.audio->resetSession("AirPlay client connecting", savedVolumeDb());
+            if (g.volume) {  // no phone mute from the last session; the app's 靜音 / 0 % stay silent
+                g.volume->newSession();
+                g.audio->onVolume(g.volume->playDb());
+            }
+        }
         postText(h, EvConnecting, toWide(device.empty() ? model : device));
     };
     ev.onClientDisconnected = [h, log]() {
@@ -1118,7 +1157,8 @@ void restartServer() {
     if (g.testNoNetwork) return;  // --dev --test-no-network: never listen (e.g. after a language switch)
     g.log->write("info", "restarting AirPlay server (requirePin=" + std::to_string(g.settings.requirePin) +
                              ", quality=" + Settings::qualityKey(g.settings.quality) +
-                             ", takeover=" + (g.settings.takeoverKeep ? "keep" : "new") + ")");
+                             ", takeover=" + (g.settings.takeoverKeep ? "keep" : "new") +
+                             ", airplay_advertise_audio=" + std::to_string(g.settings.advertiseAudio) + ")");
     if (g.server) g.server->stop();
     g.server.reset();
     const bool ok = startServer(10);
@@ -1354,6 +1394,7 @@ void takeSnapshot() {
     if (ok) {
         g.log->write("info", std::string("snapshot ") + (g.settings.deviceFrame ? "(framed) " : "") +
                                  toUtf8(file.wstring()));
+        g.window->flash();  // shutter: a short veil over the picture
         g.window->showToast(tr(S::ShotSaved));
         g.lastShot = file;
         offerShare(file);
@@ -1399,6 +1440,33 @@ void setPinOption(bool on) {
         }
     }
     refreshIdleOptions();
+}
+
+// 設定 ▸ 實驗：只提供螢幕鏡像 (A/B test, 0.7.6). Hidden: the row shows only with
+// Shift held while the menu opens, in --dev, or while the test is on (so it can
+// be turned back off). Fixed strings (zh-TW + English): it is not a product option.
+bool audioAdvertItemVisible() {
+    return g.dev || g.settings.advertiseAudio != 1 || GetKeyState(VK_SHIFT) < 0;
+}
+
+void toggleAudioAdvertAB() {
+    g.settings.advertiseAudio = g.settings.advertiseAudio == 1 ? 0 : 1;
+    saveSettings();
+    g.log->write(g.settings.advertiseAudio == 1 ? "info" : "warn",
+                 "[audio-advert] airplay_advertise_audio set to " + std::to_string(g.settings.advertiseAudio) +
+                     (g.settings.advertiseAudio == 1 ? " (also an AirPlay speaker, default)"
+                                                      : " (A/B test: Screen Mirroring only, no audio-only AirPlay)") +
+                     (g.sessionActive ? "; applies when this mirroring session ends" : "; restarting the AirPlay server"));
+    const bool on = g.settings.advertiseAudio != 1;
+    if (g.sessionActive) {
+        g.restartPending = true;
+        g.window->showToast(on ? L"實驗已開啟：投影結束後套用 (A/B test on after this session)"
+                               : L"實驗已關閉：投影結束後套用 (A/B test off after this session)");
+    } else {
+        restartServer();
+        g.window->showToast(on ? L"實驗已開啟：只提供螢幕鏡像 (A/B test on)"
+                               : L"實驗已關閉：恢復預設 (A/B test off)");
+    }
 }
 
 const wchar_t* qualityLabel(int q) {
@@ -1483,11 +1551,88 @@ void stopRecording(const std::wstring& toast = {}) {
     const auto size = fs::file_size(file, ec);
     g.log->write("info", "recording stopped: " + toUtf8(file.wstring()) +
                              (ec ? std::string(" (no file)") : " (" + std::to_string(size / 1024) + " KB)"));
-    g.window->showToast(toast.empty() ? fmt(S::RecSaved, {file.filename().wstring()}) : toast);
+    // Nothing arrived (the recorder kept no file): say so, not 「錄影已儲存」.
+    g.window->showToast(ec ? std::wstring(tr(S::RecNothing))
+                           : toast.empty() ? fmt(S::RecSaved, {file.filename().wstring()}) : toast);
     if (!ec && size > 0) {
         g.lastRec = file;
         if (!g.quitting) offerShare(file);
     }
+}
+
+// The picture on screen as the recording's start picture (pm::Recorder::
+// setStartPicture): a phone that has paused the stream on a still screen, or a
+// still Android screen, sends no new picture, and the recording would keep
+// nothing. Via the snapshot PNG (with the view's rotation / mirroring, which
+// the frame tap does not have: undone here) -> BT.709 limited-range NV12.
+void seedRecording(pm::Recorder* rec) {
+    const long long t0 = nowMs();
+    const fs::path tmp = fs::temp_directory_path() / (L"zizai-rec-start-" + std::to_wstring(GetCurrentProcessId()) + L".png");
+    if (!g.window->saveSnapshot(tmp.wstring())) return;
+    const HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    std::vector<uint8_t> bgra;
+    UINT sw = 0, sh = 0;
+    IWICImagingFactory* wic = nullptr;
+    IWICBitmapDecoder* dec = nullptr;
+    IWICBitmapFrameDecode* fr = nullptr;
+    IWICFormatConverter* conv = nullptr;
+    if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wic))) &&
+        SUCCEEDED(wic->CreateDecoderFromFilename(tmp.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &dec)) &&
+        SUCCEEDED(dec->GetFrame(0, &fr)) && SUCCEEDED(wic->CreateFormatConverter(&conv)) &&
+        SUCCEEDED(conv->Initialize(fr, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, nullptr, 0,
+                                   WICBitmapPaletteTypeCustom)) &&
+        SUCCEEDED(conv->GetSize(&sw, &sh)) && sw >= 2 && sh >= 2 && sw <= 16384 && sh <= 16384) {
+        bgra.resize(size_t(sw) * sh * 4);
+        if (FAILED(conv->CopyPixels(nullptr, sw * 4, static_cast<UINT>(bgra.size()), bgra.data()))) bgra.clear();
+    }
+    if (conv) conv->Release();
+    if (fr) fr->Release();
+    if (dec) dec->Release();
+    if (wic) wic->Release();
+    if (SUCCEEDED(co)) CoUninitialize();
+    std::error_code ec;
+    fs::remove(tmp, ec);
+    if (bgra.empty()) return;
+    // Snapshot = mirror(rotate(picture, r)); back to the picture's own orientation.
+    const int r = g.settings.rotation & 3;
+    const bool mir = g.settings.mirrored;
+    const int W = static_cast<int>((r & 1) ? sh : sw) & ~1, H = static_cast<int>((r & 1) ? sw : sh) & ~1;
+    if (W < 2 || H < 2) return;
+    const int rw = static_cast<int>(sw), rh = static_cast<int>(sh);  // snapshot size
+    auto at = [&](int x, int y) -> const uint8_t* {
+        int xr = x, yr = y;  // picture (x, y) in the rotated view
+        if (r == 1) xr = (rh - 1) - y, yr = x;  // 90° clockwise: W x H -> H x W
+        else if (r == 2) xr = (rw - 1) - x, yr = (rh - 1) - y;
+        else if (r == 3) xr = y, yr = (rh - 1) - x;
+        if (mir) xr = (rw - 1) - xr;
+        xr = std::clamp(xr, 0, rw - 1);
+        yr = std::clamp(yr, 0, rh - 1);
+        return &bgra[(size_t(yr) * rw + xr) * 4];
+    };
+    std::vector<uint8_t> nv12(size_t(W) * H * 3 / 2);
+    uint8_t* Y = nv12.data();
+    uint8_t* UV = Y + size_t(W) * H;
+    auto yOf = [](const uint8_t* p) { return 16 + (47 * p[2] + 157 * p[1] + 16 * p[0] + 128) / 256; };  // 709, 16..235
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) Y[size_t(y) * W + x] = static_cast<uint8_t>(yOf(at(x, y)));
+    for (int y = 0; y < H / 2; ++y)
+        for (int x = 0; x < W / 2; ++x) {
+            int b = 0, gr = 0, rd = 0;
+            for (int k = 0; k < 4; ++k) {
+                const uint8_t* p = at(2 * x + (k & 1), 2 * y + (k >> 1));
+                b += p[0], gr += p[1], rd += p[2];
+            }
+            b /= 4, gr /= 4, rd /= 4;
+            // BT.709: Cb = (B - Y') / 1.8556, Cr = (R - Y') / 1.5748, scaled to 16..240.
+            const double yl = 0.2126 * rd + 0.7152 * gr + 0.0722 * b;
+            const int cb = static_cast<int>(std::lround(128 + (b - yl) / 1.8556 * 224 / 255));
+            const int cr = static_cast<int>(std::lround(128 + (rd - yl) / 1.5748 * 224 / 255));
+            UV[size_t(y) * W + 2 * x] = static_cast<uint8_t>(std::clamp(cb, 16, 240));
+            UV[size_t(y) * W + 2 * x + 1] = static_cast<uint8_t>(std::clamp(cr, 16, 240));
+        }
+    rec->setStartPicture(nv12.data(), W, H, W);
+    g.log->write("info", "recording: start picture " + std::to_string(W) + "x" + std::to_string(H) + " from the screen (" +
+                             std::to_string(nowMs() - t0) + " ms)");
 }
 
 void startRecording() {
@@ -1516,6 +1661,7 @@ void startRecording() {
         g.audio->setPcmMonitor([rec](const int16_t* pcm, size_t frames, int ch, int rate, uint64_t whenNs) {
             rec->onPcm(pcm, frames, ch, rate, whenNs);
         });
+    seedRecording(rec);  // used only if no new picture comes (paused / still phone)
     g.window->setRecording(true);
     SetTimer(g.hwnd, kRecordTimer, 1000, nullptr);
     g.log->write("info", "recording started: " + toUtf8(file.wstring()));
@@ -1603,6 +1749,8 @@ void applyTheme() {
     g.shareChip.retheme();
     g.sharePicker.retheme();
     g.askPanel.retheme();
+    g.closePanel.retheme();
+    pm::ui::trset::retheme();
 }
 
 void setTheme(int t) {
@@ -1617,6 +1765,17 @@ void setTheme(int t) {
 // ---- 新手機連線時：接手 / 保持目前 --------------------------------------------------
 // The policy is an AirPlayServer option, read at start(): restart the server
 // now, or after the current session like the PIN / 畫質 options.
+// 按 X 時: what × / Alt+F4 does (settings.ini close_button; see onCloseRequest).
+const S kCloseActNames[3] = {S::CloseActAsk, S::CloseActTray, S::CloseActQuit};
+void setCloseButton(int c, bool toast) {
+    if (c < 0 || c > 2) return;
+    const bool changed = c != g.settings.closeButton;
+    g.settings.closeButton = c;
+    saveSettings();
+    g.log->write("info", std::string("close button: ") + Settings::kCloseKeys[c] + (changed ? "" : " (unchanged)"));
+    if (toast) g.window->showToast(fmt(S::CloseActToast, {tr(kCloseActNames[c])}));
+}
+
 void setTakeover(bool keep) {
     if (keep == g.settings.takeoverKeep) return;
     g.settings.takeoverKeep = keep;
@@ -1642,7 +1801,7 @@ constexpr pm::VideoWindow::Filter kFilters[5] = {pm::VideoWindow::Filter::None, 
                                                  pm::VideoWindow::Filter::Grayscale, pm::VideoWindow::Filter::Invert,
                                                  pm::VideoWindow::Filter::YellowOnBlack};
 constexpr S kFilterNames[5] = {S::FilterNone, S::FilterContrast, S::FilterGray, S::FilterInvert, S::FilterYellow};
-constexpr int kLiveSeconds = 5;  // 連續翻譯: every 5 s
+constexpr int kLiveSeconds = 5;  // 即時翻譯 (change-driven since 0.8: ScreenTranslator::setLive; unused)
 
 // A phone picture is on screen (AirPlay / Android through the status sink, or
 // a Miracast cast, which draws into the window itself).
@@ -1679,6 +1838,23 @@ void syncViewTools() {
     if (g.translator) g.translator->close();
     g.window->resetMagnifier();
     g.window->setFrozen(false);
+    g.userFrozen = false;
+}
+
+// A translation ended (closed, nothing found, live mode on): the picture goes
+// back to live unless the user froze it with 凍結.  ScreenTranslator only
+// unfreezes what it froze itself, which misses e.g. Ctrl+L during a region
+// selection (the selection froze it): the picture then stayed frozen while
+// the phone went on.
+void returnToLive(const char* why) {
+    if (!g.window->viewState().frozen) return;
+    if (g.userFrozen) {
+        g.log->write("info", std::string("translation ") + why + ": picture stays frozen (凍結 is on)");
+        return;
+    }
+    g.window->setFrozen(false);
+    g.log->write("info", std::string("picture back to live (translation ") + why + ")");
+    refreshPausedTitle();
 }
 
 // Menus / shortcuts / toolbar: nothing to act on without a picture.
@@ -1720,6 +1896,7 @@ void toggleFreeze() {
     if (!needPicture()) return;
     const bool on = !g.window->viewState().frozen;
     g.window->setFrozen(on);
+    g.userFrozen = on;
     g.log->write("info", on ? "picture frozen" : "picture unfrozen");
     refreshPausedTitle();
 }
@@ -1727,10 +1904,17 @@ void toggleFreeze() {
 void translateCommand(UINT cmd) {
     if (!g.translator) return;
     pm::translate::ScreenTranslator& t = *g.translator;
+    // 本機 AI 翻譯: load the model in the background now (nothing when off or
+    // not downloaded), so the first picture does not wait for it.
+    if ((cmd == CmdTranslateToggle && !t.active()) || cmd == CmdTranslateScreen || cmd == CmdTranslateRegion ||
+        (cmd == CmdTranslateLive && !t.live()))
+        pm::ui::trset::warmUpLocalAi();
     switch (cmd) {
     case CmdTranslateToggle:
         if (t.active()) {
             t.close();
+            g.log->write("info", "translate closed (Ctrl+L / toolbar)");
+            returnToLive("closed");
             break;
         }
         [[fallthrough]];
@@ -1754,8 +1938,13 @@ void translateCommand(UINT cmd) {
         t.setTarget(translateTarget());
         t.setLive(!t.live(), kLiveSeconds);
         g.log->write("info", t.live() ? "translate live on" : "translate live off");
+        if (t.live()) returnToLive("live mode");  // live follows the moving picture
         break;
-    case CmdTranslateClose: t.close(); break;
+    case CmdTranslateClose:
+        t.close();
+        g.log->write("info", "translate closed (menu)");
+        returnToLive("closed");
+        break;
     case CmdTrLayoutAuto:
     case CmdTrLayoutInPlace:
     case CmdTrLayoutList: {
@@ -1821,6 +2010,7 @@ std::wstring pairLabel(int i) {
 
 void deleteModels(std::vector<int> pairs) {
     if (g.translator) g.translator->close();
+    returnToLive("closed (models deleted)");
     pm::translate::PaddleOcr::unload();  // the OCR model files are not kept open, but free them anyway
     unsigned long long freed = 0;
     bool failed = false;
@@ -1917,6 +2107,36 @@ void translatorNotify(const std::wstring& title, const std::wstring& text, bool 
     g.askPanel.open(g.hwnd, std::move(a));
 }
 
+// A translation ended without a result: close it (the picture goes back to
+// live).  The result callback is posted by the translator's worker before it
+// clears busy(), so busy() may still be true here for the job that just
+// ended; checking it once left the picture frozen with nothing on it.  Wait
+// (a few ms, bounded) until the worker is done.  A new job cannot start while
+// busy (translateScreen / translateRegion return), and live mode keeps going.
+void closeEmptyTranslation(int tries) {
+    if (!g.translator || g.translator->live()) return;
+    if (g.translator->busy()) {
+        if (tries < 100) {
+            g.window->post([tries] {
+                Sleep(1);
+                closeEmptyTranslation(tries + 1);
+            });
+        } else {
+            g.log->write("warn", "translate ended without a result but the translator stays busy: not closed");
+        }
+        return;
+    }
+    g.translator->close();
+    returnToLive("ended without a result");
+}
+
+// 線上翻譯（選用）: the translator may go online only as the user saved it
+// (online_translate.h activeMode() also checks consent, key and back-off);
+// never in --dev --test-no-network runs. At start and after every save.
+void applyOnlineAllowed() {
+    if (g.translator) g.translator->setOnlineAllowed(!g.testNoNetwork && pm::ui::trset::onlineEnabled());
+}
+
 void createTranslator() {
     pm::translate::ScreenTranslator::Callbacks cb;
     cb.askDownload = translatorAskDownload;
@@ -1929,11 +2149,25 @@ void createTranslator() {
         g.log->write("info", buf);
         // Nothing to show (declined download, no text, OCR language missing):
         // do not leave the picture frozen with an empty overlay.
-        if (!ok && g.translator && !g.translator->live() && !g.translator->busy()) g.translator->close();
+        if (!ok) closeEmptyTranslation(0);
+        if (ok && g.translator) {
+            // 「線上」 badges on the blocks translated online (ARCHITECTURE.md §3.7.3).
+            std::vector<std::wstring> online;
+            for (const auto& it : g.translator->lastItems())
+                if (it.online) online.push_back(it.original);
+            if (!online.empty()) g.log->write("info", "translate: " + std::to_string(online.size()) + " block(s) translated online");
+            g.window->setTextOverlayOnline(std::move(online));
+        }
+        // An online failure (quota, bad key, no connection): said once per new state.
+        if (const std::wstring t = pm::ui::trset::onlineToast(); !t.empty()) {
+            g.log->write("warn", "translate: online " + toUtf8(t));
+            g.window->showToast(t, 5000);
+        }
     };
     g.translator = std::make_unique<pm::translate::ScreenTranslator>(*g.window, std::move(cb));
     g.window->setTextOverlayStyle(g.settings.translateLayout, g.settings.translateDark);
     g.translator->setTarget(translateTarget());
+    applyOnlineAllowed();
     std::wstring err;
     if (!pm::translate::Engine::available(&err)) g.log->write("warn", "translate: engine unavailable: " + toUtf8(err));
 }
@@ -2179,12 +2413,61 @@ void installUpdate() {
     }).detach();
 }
 
+// The verified installer stays open with FILE_SHARE_READ only from here until
+// it is started (runPendingInstaller): nobody can write, rename or delete it
+// meanwhile, and it is hashed again through this handle right before launch.
+HANDLE g_installerLock = INVALID_HANDLE_VALUE;
+std::string g_installerSha;
+
+void releaseInstallerLock() {
+    if (g_installerLock != INVALID_HANDLE_VALUE) CloseHandle(g_installerLock);
+    g_installerLock = INVALID_HANDLE_VALUE;
+    g_installerSha.clear();
+}
+
+// Locks `installer`, checks its SHA-256 (against `expectedSha` when given:
+// the manifest's) and its Authenticode signature (unsigned is accepted: the
+// installers are not code-signed; a signature that is there must verify).
+bool lockAndVerifyInstaller(const fs::path& installer, const std::string& expectedSha) {
+    releaseInstallerLock();
+    HANDLE h = CreateFileW(installer.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        g.log->write("error", "update: cannot lock the installer (error " + std::to_string(GetLastError()) + ")");
+        return false;
+    }
+    const std::string sha = pm::update::sha256Handle(h);
+    if (sha.empty() || (!expectedSha.empty() && sha != expectedSha)) {
+        g.log->write("error", "update: installer sha256 " + (sha.empty() ? std::string("(unreadable)") : sha) +
+                                  " does not match the manifest's " + expectedSha);
+        CloseHandle(h);
+        return false;
+    }
+    std::string detail;
+    const pm::update::Signature sig = pm::update::checkSignature(installer.wstring(), h, detail);
+    g.log->write(sig == pm::update::Signature::Invalid ? "error" : "info",
+                 "update: installer locked, sha256 " + sha + (expectedSha.empty() ? " (local copy)" : " (matches)") +
+                     ", " + detail);
+    if (sig == pm::update::Signature::Invalid) {
+        CloseHandle(h);
+        return false;
+    }
+    g_installerLock = h;
+    g_installerSha = sha;
+    return true;
+}
+
 // Saves any recording, remembers the target version (「已更新到」 toast at
 // the next start), quits; the installer starts after the message loop.
-void beginInstall(const fs::path& installer, const std::string& version) {
+void beginInstall(const fs::path& installer, const std::string& version, const std::string& expectedSha = {}) {
+    if (!lockAndVerifyInstaller(installer, expectedSha)) {
+        g.window->showToast(tr(S::UpdVerifyFail));
+        return;
+    }
     if (g.testNoInstall) {  // --dev updater test: stop before anything is installed
         g.log->write("info", "test-no-install: would install " + version + " from " + toUtf8(installer.wstring()));
         g.window->showToast(fmt(S::UpdTestReady, {toWide(version)}), 5000);
+        releaseInstallerLock();
         return;
     }
     stopRecording();
@@ -2357,7 +2640,7 @@ void onUpdateDownloaded(const UpdateResult& r) {
     }
     g.log->write("info", "update " + r.manifest.version + " verified (sha256 ok): " + toUtf8(r.file.wstring()) +
                              "; quitting to install");
-    beginInstall(r.file, r.manifest.version);
+    beginInstall(r.file, r.manifest.version, r.manifest.sha256);
 }
 
 // After the message loop: start the verified installer. Installed layout
@@ -2389,11 +2672,21 @@ void runPendingInstaller() {
         if (g.testOffscreen) args += L" --test-offscreen";  // --dev scripted update tests
         if (!args.empty()) params += L" /APPARGS=\"" + args + L"\"";
     }
-    g.log->write("info", "starting installer " + toUtf8(g.pendingInstaller.wstring()) + " " + toUtf8(params));
+    // The file has been locked since it was verified; hash it once more anyway.
+    const std::string now = pm::update::sha256Handle(g_installerLock);
+    if (g_installerLock == INVALID_HANDLE_VALUE || now.empty() || now != g_installerSha) {
+        g.log->write("error", "installer not started: changed since it was verified (" + (now.empty() ? "unreadable" : now) +
+                                  " vs " + g_installerSha + ")");
+        releaseInstallerLock();
+        return;
+    }
+    g.log->write("info", "starting installer " + toUtf8(g.pendingInstaller.wstring()) + " " + toUtf8(params) +
+                             " (sha256 re-checked)");
     const HINSTANCE rc = ShellExecuteW(nullptr, L"open", g.pendingInstaller.c_str(),
                                        params.empty() ? nullptr : params.c_str(), nullptr, SW_SHOWNORMAL);
     if (reinterpret_cast<INT_PTR>(rc) <= 32)
         g.log->write("error", "could not start the installer (" + std::to_string(reinterpret_cast<INT_PTR>(rc)) + ")");
+    releaseInstallerLock();
 }
 
 void stopSharing();  // 傳到手機 (below)
@@ -2405,6 +2698,8 @@ void quitApp() {
     g.aboutPanel.close();
     g.updatePanel.close();
     g.askPanel.close();
+    g.closePanel.close();
+    pm::ui::trset::shutdown();  // cancels a 本機 AI 翻譯 download (the partial file is kept)
     if (g.translator) g.translator->close();
     trayRemove();
     g.window->setLiveToolbar({}, nullptr);
@@ -2424,6 +2719,7 @@ void showContextMenu(int x, int y);
 void shareCommand(UINT cmd);
 
 void runCommand(UINT cmd) {
+    if (g_volumeUi.runCommand(cmd)) return;  // 音量 / 靜音 (pm::ui::VolumeCommand ids)
     switch (cmd) {
     case CmdAndroidPair: openPairPanel(); break;
     case CmdTutorial: openTutorial(nullptr); break;
@@ -2456,8 +2752,12 @@ void runCommand(UINT cmd) {
     case CmdShow: bringToFront(); break;
     case CmdAutostart: setAutostartOption(!g.autostart); break;
     case CmdPin: setPinOption(!g.settings.requirePin); break;
+    case CmdAudioAdvertAB: toggleAudioAdvertAB(); break;
     case CmdOpenShots: openScreenshotDir(); break;
-    case CmdExit: quitApp(); break;
+    case CmdExit: quitApp(); break;  // tray / menu 結束: always quits (按 X 時 is for × / Alt+F4)
+    case CmdCloseAsk:
+    case CmdCloseTray:
+    case CmdCloseQuit: setCloseButton(static_cast<int>(cmd - CmdCloseAsk), true); break;
     case CmdFullscreen:
         if (!IsWindowVisible(g.hwnd)) bringToFront();
         CallWindowProcW(g.prevProc, g.hwnd, WM_KEYDOWN, VK_F11, 0);  // the window's own toggle
@@ -2519,6 +2819,8 @@ void runCommand(UINT cmd) {
         break;
     case CmdTrModelsFolder: openModelsFolder(); break;
     case CmdTrDeleteAll: askDeleteModels(-1); break;
+    case CmdTrLocalAi: pm::ui::trset::openLocalAi(); break;
+    case CmdTrOnline: pm::ui::trset::openOnline(); break;
     default:
         if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         break;
@@ -2600,6 +2902,8 @@ constexpr wchar_t kIcoOriginal = 0xE890;    // View (顯示原文)
 constexpr wchar_t kIcoLive = 0xE8EE;        // RepeatAll (連續翻譯)
 constexpr wchar_t kIcoModels = 0xE896;      // Download (管理翻譯模型)
 constexpr wchar_t kIcoDelete = 0xE74D;      // Delete
+constexpr wchar_t kIcoLocalAi = 0xE7F8;     // DeviceLaptopNoPic (本機 AI 翻譯)
+constexpr wchar_t kIcoOnline = 0xE774;      // Globe (線上翻譯)
 
 // Long explanations (Miracast reasons) as several note rows (menus do not wrap).
 // English / 한국어 (spaces between words): word-wrapped at ~52 / ~34 characters.
@@ -2685,23 +2989,39 @@ void appendNotesRaw(std::vector<MenuItem>& v, const std::wstring& text, size_t w
     if (!line.empty()) v.push_back(MenuItem::note(line));
 }
 
-// 開機自動啟動 / PIN / Miracast / Android check items, the 畫質 and
-// 新手機連線時 radio groups (tray menu and 設定). 影音同步 is deliberately
-// not offered (see docs/app.md).
-void appendOptionItems(std::vector<MenuItem>& v) {
-    v.push_back(checkItem(CmdAutostart, tr(S::OptAutostart), kIcoPower, g.autostart));
-    v.push_back(checkItem(CmdPin, tr(S::OptPin), kIcoLock, g.settings.requirePin));
-    MenuItem mc = checkItem(CmdMiracast, tr(S::OptMiracast), kIcoCast, g.settings.miracast && !g.miracastUnsupported);
-    mc.enabled = g.miracast && !g.miracastUnsupported;
-    v.push_back(std::move(mc));
-    if (g.miracastUnsupported || (g.settings.miracast && !g.miracastReason.empty()))
-        appendNotes(v, g.miracastReason.empty() ? std::wstring(tr(S::MiracastNoPc)) : moduleText(g.miracastReason));
-    if (g.miracastUnsupported) v.push_back(MenuItem::command(CmdMiracastHelp, tr(S::MenuMiracastHelp), kIcoHelp));
-    MenuItem aa = checkItem(CmdAndroidAuto, tr(S::OptAndroidAuto), kIcoConnect, g.settings.androidAuto);
-    aa.enabled = g.androidOk;
-    v.push_back(std::move(aa));
-    v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::caption(tr(S::MenuQuality)));
+// The short form of a label for a submenu row's value column: 「高 · 建議」 ->
+// 「高」, 「自動（跟隨 Windows）」 -> 「自動」.
+std::wstring shortLabel(const wchar_t* s) {
+    std::wstring t = s;
+    for (const wchar_t* cut : {L" · ", L"（", L" ("}) {
+        const size_t at = t.find(cut);
+        if (at != std::wstring::npos && at > 0) t.resize(at);
+    }
+    return t;
+}
+
+// A submenu row that shows its current value on the right (畫質　高).
+MenuItem valueSubmenu(const wchar_t* text, wchar_t icon, std::vector<MenuItem> items, std::wstring value) {
+    MenuItem m = MenuItem::submenu(text, icon, std::move(items));
+    m.right = std::move(value);
+    return m;
+}
+
+// 按 X 時 ▸ 每次詢問 / 縮到右下角 / 結束程式 (radio).
+std::vector<MenuItem> closeItems() {
+    std::vector<MenuItem> v;
+    for (int c = 0; c < 3; ++c) {
+        MenuItem m = MenuItem::command(CmdCloseAsk + c, tr(kCloseActNames[c]));
+        m.radio = true;
+        m.checked = g.settings.closeButton == c;
+        v.push_back(std::move(m));
+    }
+    return v;
+}
+
+// 畫質 ▸ 標準 / 高 · 建議 / 最高 (radio; without HEVC only 標準, and a note why).
+std::vector<MenuItem> qualityItems() {
+    std::vector<MenuItem> v;
     const wchar_t* names[3] = {tr(S::QualityStd), tr(S::QualityHigh), tr(S::QualityMax)};
     const wchar_t* sizes[3] = {L"1920×1080", L"2560×1440", L"3840×2160"};
     for (int q = 0; q < 3; ++q) {
@@ -2712,8 +3032,12 @@ void appendOptionItems(std::vector<MenuItem>& v) {
         v.push_back(std::move(m));
     }
     if (!g.hevc) v.push_back(MenuItem::note(tr(S::QualityHevcNote)));
-    v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::caption(tr(S::MenuTakeover)));
+    return v;
+}
+
+// 新手機連線時 ▸ 接手 / 保持目前 (radio).
+std::vector<MenuItem> takeoverItems() {
+    std::vector<MenuItem> v;
     MenuItem takeNew = MenuItem::command(CmdTakeoverNew, tr(S::TakeoverNew), 0, tr(S::TakeoverNewNote));
     takeNew.radio = true;
     takeNew.checked = !g.settings.takeoverKeep;
@@ -2722,6 +3046,68 @@ void appendOptionItems(std::vector<MenuItem>& v) {
     keep.radio = true;
     keep.checked = g.settings.takeoverKeep;
     v.push_back(std::move(keep));
+    return v;
+}
+
+MenuItem languageItem();
+MenuItem themeItem();
+
+// 設定 ▸ (both menus; set-and-forget): 開機自動啟動 ✓, 按 X 時 ▸, 連線需要
+// PIN 碼 ✓, 畫質 ▸, 新手機連線時 ▸, 主題 ▸, 語言 ▸ — each submenu row shows
+// its current value. 影音同步 is deliberately not offered (see docs/app.md).
+std::vector<MenuItem> settingsItems() {
+    std::vector<MenuItem> v;
+    v.push_back(checkItem(CmdAutostart, tr(S::OptAutostart), kIcoPower, g.autostart));
+    v.push_back(valueSubmenu(tr(S::MenuCloseAction), kIcoExit, closeItems(),
+                             tr(kCloseActNames[g.settings.closeButton % 3])));
+    v.push_back(checkItem(CmdPin, tr(S::OptPin), kIcoLock, g.settings.requirePin));
+    v.push_back(MenuItem::separator());
+    const S qualityNames[3] = {S::QualityStd, S::QualityHigh, S::QualityMax};
+    v.push_back(valueSubmenu(tr(S::MenuQuality), kIcoDisplay, qualityItems(),
+                             shortLabel(tr(qualityNames[effectiveQuality() % 3]))));
+    v.push_back(valueSubmenu(tr(S::MenuTakeover), kIcoFlip, takeoverItems(),
+                             tr(g.settings.takeoverKeep ? S::TakeoverKeep : S::TakeoverNew)));
+    v.push_back(MenuItem::separator());
+    v.push_back(themeItem());
+    v.push_back(languageItem());
+    if (audioAdvertItemVisible()) {
+        v.push_back(MenuItem::separator());
+        v.push_back(checkItem(CmdAudioAdvertAB, L"實驗：只提供螢幕鏡像（不當 AirPlay 喇叭）", kIcoFlip,
+                              g.settings.advertiseAudio != 1,
+                              g.settings.advertiseAudio == 2 ? L"=2" : L""));
+    }
+    return v;
+}
+
+// Miracast that cannot work on this PC: one row 「Miracast：這台電腦不支援 ▸」;
+// the explanation and 如何啟用 Miracast open beside it on hover (never a
+// block of wrapped notes in the menu itself).
+MenuItem miracastUnavailableItem() {
+    std::vector<MenuItem> sub;
+    appendNotes(sub, g.miracastReason.empty() ? std::wstring(tr(S::MiracastNoPc)) : moduleText(g.miracastReason), 30);
+    sub.push_back(MenuItem::separator());
+    sub.push_back(MenuItem::command(CmdMiracastHelp, tr(S::MenuMiracastHelp), kIcoHelp));
+    return MenuItem::submenu(tr(S::MenuMiracastNo), kIcoCast, std::move(sub));
+}
+
+MenuItem androidPairItem();
+
+// Android ▸ 連接 Android（掃 QR）, 自動連線已配對的 Android ✓, 接受 Android
+// 投放（Miracast）✓ — or 「Miracast：這台電腦不支援 ▸」. Rows that cannot do
+// anything here are left out (no adb: only the greyed 連接 row says so).
+std::vector<MenuItem> androidItems() {
+    std::vector<MenuItem> v;
+    v.push_back(androidPairItem());
+    if (g.androidOk) v.push_back(checkItem(CmdAndroidAuto, tr(S::OptAndroidAuto), kIcoConnect, g.settings.androidAuto));
+    if (g.miracastUnsupported) {
+        v.push_back(MenuItem::separator());
+        v.push_back(miracastUnavailableItem());
+    } else if (g.miracast) {
+        v.push_back(MenuItem::separator());
+        v.push_back(checkItem(CmdMiracast, tr(S::OptMiracast), kIcoCast, g.settings.miracast));
+        if (g.settings.miracast && !g.miracastReason.empty()) appendNotes(v, moduleText(g.miracastReason), 30);
+    }
+    return v;
 }
 
 // 開始錄影 / 停止錄影 (only while a picture is shown, or to stop).
@@ -2778,20 +3164,22 @@ fs::path lastShareable() {
 
 size_t unsentCount();  // 傳到手機 (below)
 
-// 傳到手機 (N 個未傳), 把最後一張截圖／最後一段錄影傳到手機, 傳到手機…,
-// 截圖／錄影後自動傳到手機 (both menus).
-void appendShareItems(std::vector<MenuItem>& v) {
+// 傳到手機 ▸ (both menus; right: 「N 個未傳」): 傳送未傳的截圖／錄影 (only
+// with unsent captures), 把最後一張截圖／最後一段錄影傳到手機 (only when there
+// is one), 傳到手機…, 截圖／錄影後自動傳到手機 ✓.
+MenuItem shareItem() {
     const size_t unsent = unsentCount();
-    MenuItem send = MenuItem::command(CmdShareLast, tr(S::ShareChip), kIcoShare,
-                                      unsent ? fmt(S::ShareUnsentCount, {std::to_wstring(unsent)}) : std::wstring());
-    send.enabled = unsent > 0 || !lastShareable().empty();
-    v.push_back(std::move(send));
-    // 把最後一張截圖／最後一段錄影: only when there is one (0.7.2: two greyed
-    // rows in every menu before the first capture).
-    if (!lastShotFile().empty()) v.push_back(MenuItem::command(CmdShareLastShot, tr(S::MenuShareLastShot), kIcoShare));
-    if (!lastRecFile().empty()) v.push_back(MenuItem::command(CmdShareLastRec, tr(S::MenuShareLastRec), kIcoShare));
-    v.push_back(MenuItem::command(CmdSharePick, tr(S::MenuSharePick), kIcoSharePick));
-    v.push_back(checkItem(CmdShareAuto, tr(S::MenuShareAuto), kIcoShare, g.settings.autoShare));
+    std::vector<MenuItem> sub;
+    if (unsent)
+        sub.push_back(MenuItem::command(CmdShareLast, tr(S::MenuShareUnsent), kIcoShare,
+                                        fmt(S::ShareUnsentCount, {std::to_wstring(unsent)})));
+    if (!lastShotFile().empty()) sub.push_back(MenuItem::command(CmdShareLastShot, tr(S::MenuShareLastShot), kIcoShare));
+    if (!lastRecFile().empty()) sub.push_back(MenuItem::command(CmdShareLastRec, tr(S::MenuShareLastRec), kIcoShare));
+    sub.push_back(MenuItem::command(CmdSharePick, tr(S::MenuSharePick), kIcoSharePick));
+    sub.push_back(MenuItem::separator());
+    sub.push_back(checkItem(CmdShareAuto, tr(S::MenuShareAuto), kIcoShare, g.settings.autoShare));
+    return valueSubmenu(tr(S::ShareChip), kIcoShare, std::move(sub),
+                        unsent ? fmt(S::ShareUnsentCount, {std::to_wstring(unsent)}) : std::wstring());
 }
 
 // 連接 Android（掃 QR） (greyed without the bundled adb / scrcpy-server).
@@ -2813,10 +3201,37 @@ MenuItem languageItem() {
         m.checked = g.settings.language == i;
         sub.push_back(std::move(m));
     }
-    return MenuItem::submenu(tr(S::MenuLanguage), kIcoLanguage, std::move(sub));
+    return valueSubmenu(tr(S::MenuLanguage), kIcoLanguage, std::move(sub), shortLabel(tr(names[g.settings.language % 5])));
 }
 
 MenuItem aboutItem() { return MenuItem::command(CmdAbout, fmt(S::MenuAbout, {tr(S::AppName)}), kIcoInfo); }
+
+// 資料夾 ▸ 截圖 / 錄影 (both menus).
+MenuItem foldersItem() {
+    std::vector<MenuItem> sub;
+    sub.push_back(MenuItem::command(CmdOpenShots, tr(S::MenuFolderShots), kIcoFolder));
+    sub.push_back(MenuItem::command(CmdOpenRecordings, tr(S::MenuFolderRecs), kIcoVideoFolder));
+    return MenuItem::submenu(tr(S::MenuFolders), kIcoFolder, std::move(sub));
+}
+
+// 說明 ▸ 使用教學, 如何啟用 Miracast (only when Miracast has a problem), 檢查更新, 關於.
+MenuItem helpItem() {
+    std::vector<MenuItem> sub;
+    sub.push_back(MenuItem::command(CmdTutorial, tr(S::MenuTutorial), kIcoHelp));
+    if (g.miracastUnsupported || (g.settings.miracast && !g.miracastReason.empty()))
+        sub.push_back(MenuItem::command(CmdMiracastHelp, tr(S::MenuMiracastHelp), kIcoCast));
+    sub.push_back(MenuItem::separator());
+    sub.push_back(MenuItem::command(CmdCheckUpdate, tr(S::MenuCheckUpdate), kIcoSync));
+    sub.push_back(aboutItem());
+    return MenuItem::submenu(tr(S::MenuHelpSub), kIcoHelp, std::move(sub));
+}
+
+// 截圖 Ctrl+S / 開始錄影 Ctrl+R (both menus): only while there is a picture
+// to capture (停止錄影 always while recording) — no greyed rows.
+void appendCaptureItems(std::vector<MenuItem>& v) {
+    if (pictureShowing()) v.push_back(MenuItem::command(CmdSnapshot, tr(S::MenuSnapshot), kIcoCamera, L"Ctrl+S"));
+    if (recording() || pictureShowing()) v.push_back(recordItem());
+}
 
 // 「更新到 vX.Y.Z」 (+ separator) at the top of both menus when a newer
 // version is on offer.
@@ -2886,6 +3301,10 @@ std::vector<MenuItem> themeItems() {
         v.push_back(std::move(m));
     }
     return v;
+}
+MenuItem themeItem() {
+    const int t = g.settings.theme % 4;
+    return valueSubmenu(tr(S::MenuTheme), kIcoTheme, themeItems(), tr(kThemeNames[t]));
 }
 
 // 放大鏡 ▸ 放大 / 縮小 / 還原 1×, colours (radio), 凍結畫面.
@@ -2961,7 +3380,7 @@ std::vector<MenuItem> translateItems() {
                               active && g.translator->showOriginal(), L"Ctrl+O");
     orig.enabled = active;
     v.push_back(std::move(orig));
-    MenuItem live = checkItem(CmdTranslateLive, fmt(S::MenuTrLive, {std::to_wstring(kLiveSeconds)}).c_str(), kIcoLive,
+    MenuItem live = checkItem(CmdTranslateLive, tr(S::MenuTrLive), kIcoLive,
                               on && g.translator->live());
     live.enabled = on;
     v.push_back(std::move(live));
@@ -3003,6 +3422,10 @@ std::vector<MenuItem> translateItems() {
     v.push_back(checkItem(CmdTrDarkCards, tr(S::MenuTrDarkCards), 0, g.settings.translateDark));
     v.push_back(MenuItem::separator());
     v.push_back(MenuItem::submenu(tr(S::MenuTrModels), kIcoModels, modelItems()));
+    if (pm::ui::trset::available()) {  // the optional engines' settings (0.7.4)
+        v.push_back(checkItem(CmdTrLocalAi, tr(S::MenuTrLocalAi), kIcoLocalAi, pm::ui::trset::localAiOn()));
+        v.push_back(checkItem(CmdTrOnline, tr(S::MenuTrOnline), kIcoOnline, pm::ui::trset::onlineEnabled()));
+    }
     return v;
 }
 
@@ -3028,6 +3451,9 @@ void runMenu(const std::vector<MenuItem>& items, POINT pt, bool keyboard, bool t
     if (cmd) runCommand(cmd);
 }
 
+// Tray menu, frequent actions first (0.7.4: ~38 rows -> ~15): 顯示視窗,
+// 中斷連線, 音量 ▸ | 截圖, 錄影, 傳到手機 ▸, 放大鏡 ▸, 翻譯 ▸ | Android ▸,
+// 設定 ▸, 資料夾 ▸, 說明 ▸ | 結束. The right-click menu has the same groups.
 std::vector<MenuItem> trayMenuItems() {
     std::vector<MenuItem> v;
     v.push_back(MenuItem::header(tr(S::AppName), g.opts.legacyPorts || g.demoBranding ? L"v" PM_APP_VERSION_STR : tr(S::DevBuild)));
@@ -3038,24 +3464,18 @@ std::vector<MenuItem> trayMenuItems() {
     if (liveSourceNow() != SrcNone)
         v.push_back(MenuItem::command(CmdDisconnect, fmt(S::MenuDisconnectName, {liveName(true)}), kIcoDisconnect,
                                       L"Ctrl+D"));
+    v.push_back(g_volumeUi.menuItem());  // 音量：60% ▸ (靜音 ✓, 調大聲 / 調小聲, presets)
     v.push_back(MenuItem::separator());
-    v.push_back(androidPairItem());
-    v.push_back(MenuItem::command(CmdTutorial, tr(S::MenuTutorial), kIcoHelp));
-    v.push_back(MenuItem::separator());
-    v.push_back(recordItem());
-    appendShareItems(v);
+    appendCaptureItems(v);
+    v.push_back(shareItem());
     // 放大鏡 only while a picture is shown; 翻譯 always (翻成 / 管理翻譯模型).
     if (viewAvailable()) v.push_back(MenuItem::submenu(tr(S::MenuMagnifier), kIcoZoom, magnifierItems()));
     v.push_back(MenuItem::submenu(tr(S::MenuTranslateSub), kIcoTranslate, translateItems()));
     v.push_back(MenuItem::separator());
-    appendOptionItems(v);
-    v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::submenu(tr(S::MenuTheme), kIcoTheme, themeItems()));
-    v.push_back(languageItem());
-    v.push_back(MenuItem::command(CmdOpenShots, tr(S::MenuOpenShots), kIcoFolder));
-    v.push_back(MenuItem::command(CmdOpenRecordings, tr(S::MenuOpenRecs), kIcoVideoFolder));
-    v.push_back(MenuItem::command(CmdCheckUpdate, tr(S::MenuCheckUpdate), kIcoSync));
-    v.push_back(aboutItem());
+    v.push_back(MenuItem::submenu(tr(S::MenuAndroidSub), kIcoPhone, androidItems()));
+    v.push_back(MenuItem::submenu(tr(S::MenuSettings), kIcoSettings, settingsItems()));
+    v.push_back(foldersItem());
+    v.push_back(helpItem());
     v.push_back(MenuItem::separator());
     v.push_back(MenuItem::command(CmdExit, tr(S::MenuExit), kIcoExit));
     return v;
@@ -3063,12 +3483,10 @@ std::vector<MenuItem> trayMenuItems() {
 
 void showTrayMenu(int x, int y) { runMenu(trayMenuItems(), POINT{x, y}, false, true); }
 
+// Video window right-click menu: the phone's own rows (Android buttons,
+// 中斷連線) and the window rows (全螢幕, 最上層, 畫面 ▸) around the same
+// groups as the tray menu.
 std::vector<MenuItem> contextMenuItems() {
-    std::vector<MenuItem> settings;
-    appendOptionItems(settings);
-    settings.push_back(MenuItem::separator());
-    settings.push_back(languageItem());
-    settings.push_back(MenuItem::command(CmdCheckUpdate, tr(S::MenuCheckUpdate), kIcoSync));
     std::vector<MenuItem> v;
     appendUpdateItem(v);
     if (liveSourceNow() != SrcNone) {  // the phone on screen: (Android: its buttons) + 中斷連線
@@ -3083,22 +3501,18 @@ std::vector<MenuItem> contextMenuItems() {
     }
     v.push_back(checkItem(CmdFullscreen, tr(S::MenuFullscreen), kIcoFullscreen, isFullscreen(), L"F11"));
     v.push_back(checkItem(CmdTopmost, tr(S::MenuTopmost), kIcoPin, g.settings.topmost, L"Ctrl+T"));
+    v.push_back(g_volumeUi.menuItem());  // 音量 ▸
     v.push_back(MenuItem::separator());
+    appendCaptureItems(v);
+    v.push_back(shareItem());
     v.push_back(MenuItem::submenu(tr(S::MenuView), kIcoDisplay, viewItems()));
     v.push_back(MenuItem::submenu(tr(S::MenuMagnifier), kIcoZoom, magnifierItems()));
     v.push_back(MenuItem::submenu(tr(S::MenuTranslateSub), kIcoTranslate, translateItems()));
-    v.push_back(MenuItem::submenu(tr(S::MenuTheme), kIcoTheme, themeItems()));
     v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::command(CmdSnapshot, tr(S::MenuSnapshot), kIcoCamera, L"Ctrl+S"));
-    v.push_back(recordItem());
-    appendShareItems(v);
-    v.push_back(MenuItem::command(CmdOpenShots, tr(S::MenuOpenShots), kIcoFolder));
-    v.push_back(MenuItem::command(CmdOpenRecordings, tr(S::MenuOpenRecs), kIcoVideoFolder));
-    v.push_back(MenuItem::separator());
-    v.push_back(androidPairItem());
-    v.push_back(MenuItem::command(CmdTutorial, tr(S::MenuTutorial), kIcoHelp));
-    v.push_back(MenuItem::submenu(tr(S::MenuSettings), kIcoSettings, std::move(settings)));
-    v.push_back(aboutItem());
+    v.push_back(MenuItem::submenu(tr(S::MenuAndroidSub), kIcoPhone, androidItems()));
+    v.push_back(MenuItem::submenu(tr(S::MenuSettings), kIcoSettings, settingsItems()));
+    v.push_back(foldersItem());
+    v.push_back(helpItem());
     v.push_back(MenuItem::separator());
     v.push_back(MenuItem::command(CmdExit, tr(S::MenuExit), kIcoExit));
     return v;
@@ -3130,12 +3544,37 @@ void devMenuShots(int hotRow, bool submenus = false) {
     g.log->write("info", std::string("dev menu shots: ") + (a ? "tray ok" : "tray failed") + ", " +
                              (b ? "context ok" : "context failed"));
     if (!submenus) return;
-    for (const MenuItem& m : contextMenuItems())
-        if (m.kind == MenuItem::Kind::Submenu && m.text == tr(S::MenuSettings)) {
-            pm::ui::renderMenuPng(m.sub, (dir / L"menu_settings.png").wstring());
-            for (const MenuItem& s : m.sub)
-                if (s.kind == MenuItem::Kind::Submenu) pm::ui::renderMenuPng(s.sub, (dir / L"menu_language.png").wstring());
-        }
+    // Motion states on the tray menu's 顯示視窗 row: keyboard focus ring,
+    // pressed, and the hover wash halfway in (menu_focus / _pressed / _hover50.png).
+    {
+        pm::ui::MenuOptions o = tray;
+        o.selectFirst = true;
+        pm::ui::renderMenuPng(trayMenuItems(), (dir / L"menu_focus.png").wstring(), o, 1);
+        o.selectFirst = false;
+        o.shotPressed = true;
+        pm::ui::renderMenuPng(trayMenuItems(), (dir / L"menu_pressed.png").wstring(), o, 1);
+        o.shotPressed = false;
+        o.shotHover = 0.5f;
+        pm::ui::renderMenuPng(trayMenuItems(), (dir / L"menu_hover50.png").wstring(), o, 1);
+    }
+    // Every submenu of the tray menu, two levels deep: menu_sub<row>.png and
+    // menu_sub<row>_<row>.png; 設定 and its 語言 also as menu_settings.png /
+    // menu_language.png.
+    const std::vector<MenuItem> items = trayMenuItems();
+    for (size_t i = 0; i < items.size(); ++i) {
+        const MenuItem& m = items[i];
+        if (m.kind != MenuItem::Kind::Submenu) continue;
+        const std::wstring base = L"menu_sub" + std::to_wstring(i);
+        pm::ui::renderMenuPng(m.sub, (dir / (base + L".png")).wstring());
+        for (size_t j = 0; j < m.sub.size(); ++j)
+            if (m.sub[j].kind == MenuItem::Kind::Submenu)
+                pm::ui::renderMenuPng(m.sub[j].sub, (dir / (base + L"_" + std::to_wstring(j) + L".png")).wstring());
+        if (m.text != tr(S::MenuSettings)) continue;
+        pm::ui::renderMenuPng(m.sub, (dir / L"menu_settings.png").wstring());
+        for (const MenuItem& s : m.sub)
+            if (s.kind == MenuItem::Kind::Submenu && s.text == tr(S::MenuLanguage))
+                pm::ui::renderMenuPng(s.sub, (dir / L"menu_language.png").wstring());
+    }
 }
 
 // --dev 907: the 放大鏡, 翻譯 and 管理翻譯模型 submenus as they would open now
@@ -3153,11 +3592,51 @@ void devViewMenuShots() {
 void hideToTray() {
     if (isFullscreen()) CallWindowProcW(g.prevProc, g.hwnd, WM_KEYDOWN, VK_F11, 0);
     ShowWindow(g.hwnd, SW_HIDE);
-    if (!g.settings.trayHintShown) {
-        g.settings.trayHintShown = true;
+    g.log->write("info", "window hidden to the tray (receiving goes on)");
+    if (!g.settings.closeHintShown) {  // once: still running bottom-right, click to open, right-click → 結束
+        g.settings.closeHintShown = g.settings.trayHintShown = true;
         saveSettings();
         trayBalloon(fmt(S::TrayHintTitle, {tr(S::AppName)}), tr(S::TrayHintText));
     }
+}
+
+// × on the caption, Alt+F4, 關閉視窗 on the taskbar (all WM_CLOSE): 按 X 時.
+// The tray / menu 結束 always quits (quitApp). Without a tray icon there is
+// nowhere to hide: the window closes as before.
+void onCloseRequest() {
+    if (g.closePanel.isOpen()) {  // asked already: bring the question back up
+        if (!g.testOffscreen) SetForegroundWindow(g.closePanel.hwnd());
+        return;
+    }
+    if (!IsWindowVisible(g.hwnd)) return;  // hidden already (stray WM_CLOSE): keep receiving
+    if (g.settings.closeButton == 1) return hideToTray();
+    if (g.settings.closeButton == 2) {
+        g.log->write("info", "close button: quit");
+        return quitApp();
+    }
+    pm::ui::AskPanel::Info q;
+    q.glyph = kIcoExit;
+    q.title = tr(S::CloseAskTitle);
+    q.body = fmt(S::CloseAskBody, {tr(S::AppName)});
+    q.primary = tr(S::CloseAskTray);
+    q.secondary = tr(S::CloseAskQuit);
+    q.secondaryChoice = 2;
+    q.check = tr(S::CloseAskRemember);
+    q.checked = true;
+    q.done = [](int choice) {
+        if (g.quitting) return;
+        if (choice == 0) {  // Esc / ×: nothing happens
+            g.log->write("info", "close question: cancelled");
+            return;
+        }
+        const bool remember = g.closePanel.checked();
+        g.log->write("info", std::string("close question: ") + (choice == 1 ? "tray" : "quit") +
+                                 (remember ? " (remembered)" : " (this time)"));
+        if (remember) setCloseButton(choice == 1 ? 1 : 2, false);
+        if (choice == 1) hideToTray();
+        else quitApp();
+    };
+    g.closePanel.open(g.hwnd, std::move(q));
 }
 
 // ---- live toolbar (drawn by the video window over the picture) -------------
@@ -3193,6 +3672,7 @@ void refreshToolbar() {
         TI full{CmdFullscreen, fs ? kIcoBackToWindow : kIcoFullscreen, tr(fs ? S::TipExitFullscreen : S::TipFullscreen)};
         full.optional = true;
         v.push_back(full);
+        g_volumeUi.appendToolbar(v, true);  // 音量: speaker (靜音) + slider
         if (viewAvailable()) {  // 放大鏡 (1× → 2× → 4×) · 翻譯 · 凍結
             const pm::VideoWindow::ViewState vs = g.window->viewState();
             TI mag{CmdMagCycle, kIcoZoom, fmt(S::TipMagnifier, {zoomText(vs.zoom)})};
@@ -3221,7 +3701,8 @@ void refreshToolbar() {
     }
     std::string key;
     for (const TI& t : v)
-        key += std::to_string(t.id) + ":" + std::to_string(t.glyph) + (t.toggled ? "t" : "") + toUtf8(t.tooltip) + ";";
+        key += std::to_string(t.id) + ":" + std::to_string(t.glyph) + (t.toggled ? "t" : "") + toUtf8(t.tooltip) +
+               (t.slider >= 0 ? std::to_string(t.slider) : "") + ";";
     if (key == g.toolbarKey) return;
     g.toolbarKey = key;
     const HWND h = g.hwnd;
@@ -3250,6 +3731,7 @@ void onResume() {
         for (const std::string& i : g.server->advertisedInterfaces()) ifs += (ifs.empty() ? "" : ", ") + i;
         g.log->write("info", "advertised interfaces: " + (ifs.empty() ? std::string("(none yet)") : ifs));
     }
+    if (g.share.running()) SetTimer(g.hwnd, kShareNetTimer, 3000, nullptr);  // the network settles first
     if (g.status->mirroring() || g.status->holding()) {
         g.resumeFramesIn = g.window->stats().framesIn;
         SetTimer(g.hwnd, kResumeTimer, kResumeCheckMs, nullptr);
@@ -3690,7 +4172,9 @@ void onAndroidConnected(const std::wstring& rawName, bool test) {
     g.log->write("info", "android connected: \"" + toUtf8(name) + "\"" + (userAsked ? " (pairing)" : " (reconnect)"));
     if (a != SrcNone && a != SrcAndroid && (g.settings.takeoverKeep || !userAsked)) {
         // Busy: keep the current phone. A reconnect in the background never
-        // takes over; it is tried again when the window is free.
+        // takes over; it is tried again when the window is free (stop():
+        // Connecting -> Idle, else tryAndroidReconnect never runs again).
+        g.android->stop();
         if (userAsked) {
             g.pairPanel.close();
             g.window->showToast(fmt(S::AndroidBusy, {g.sourceName, name}));
@@ -3902,9 +4386,10 @@ void openPairPanel() {
     pm::ui::PairPanel::Callbacks cb;
     cb.onClose = []() {
         KillTimer(g.hwnd, kPairTimer);
-        using S = pm::AndroidSource::State;
-        const S s = g.android->state();
-        if (s == S::WaitingForPairing || s == S::Pairing) g.android->cancelPairing();
+        // Always: a pairing still queued behind a busy adb worker (state not
+        // yet WaitingForPairing) must not start later, invisibly.  Once
+        // paired, cancelPairing() leaves the connect alone.
+        g.android->cancelPairing();
     };
     cb.onPairCode = [](const std::wstring& hostPort, const std::wstring& code) {
         KillTimer(g.hwnd, kPairTimer);
@@ -4003,6 +4488,7 @@ void setLanguage(int pref) {
         g.updatePanel.relabel();
         g.sharePanel.relabel();
         g.sharePicker.relabel();
+        pm::ui::trset::relabel();
         if (g.translator && g.settings.translateTo == 0) g.translator->setTarget(translateTarget());  // 翻成 follows the UI
         if (rename) {
             g.log->write("info", "display name -> \"" + toUtf8(newName) + "\"");
@@ -4103,6 +4589,14 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
 // while the option is on, up to kLiveShareHours).
 enum ShareEvent : WPARAM { ShareAccess = 1, ShareExpired, SharePushDone };
 constexpr int kLiveShareHours = 12;
+// Every startShareQr() is a new generation; ShareAccess / ShareExpired carry
+// theirs, and those of an earlier share (posted just before 再傳一次 or a
+// network rebind) are dropped. UI thread only.
+unsigned g_shareGen = 0;
+struct ShareAccessMsg {
+    pm::share::Server::Access a;
+    unsigned gen = 0;
+};
 struct PushDone {
     fs::path file;
     pm::AndroidSource::PushResult result;
@@ -4138,7 +4632,7 @@ void copyToClipboard(const std::wstring& text) {
 }
 
 void setAutoShare(bool on);
-void startShareQr(const std::vector<fs::path>& files, bool live);
+bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds = 0, bool showPanel = true);
 
 bool liveShareOn() { return g.share.live() && !g.share.expired(); }
 
@@ -4213,13 +4707,16 @@ void addToLive(const std::vector<fs::path>& files, bool showPanel) {
     if (added > 0) g.window->showToast(tr(S::ShareLiveAdded), 2500);
 }
 
-void startShareQr(const std::vector<fs::path>& files, bool live) {
+// ttlSeconds > 0: this lifetime instead of the default (a rebind keeps the
+// time left). showPanel false: the QR panel is refreshed only if it is open.
+bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds, bool showPanel) {
     pm::share::Server::Options o;
     if (g.server) o.preferred = g.server->advertisedInterfaces();  // where phones already see us
     o.bindIp = g.shareBindTest;
     o.live = live;
     if (live) o.ttlSeconds = kLiveShareHours * 3600;
     if (g.shareTtlTest > 0) o.ttlSeconds = g.shareTtlTest;
+    if (ttlSeconds > 0) o.ttlSeconds = ttlSeconds;
     o.english = pm::i18n::en();
     o.lang = static_cast<int>(pm::i18n::lang());
     o.appName = tr(S::AppName);
@@ -4228,12 +4725,15 @@ void startShareQr(const std::vector<fs::path>& files, bool live) {
                  c.accent, c.light};
     const HWND h = g.hwnd;
     Log* log = g.log;
+    // The running share's threads call these: stop it before they are replaced.
+    g.share.stop();
+    const unsigned gen = ++g_shareGen;
     g.share.log = [log](const std::string& line) { log->write("share", line); };
-    g.share.onAccess = [h](const pm::share::Server::Access& a) {
-        auto* p = new pm::share::Server::Access(a);
+    g.share.onAccess = [h, gen](const pm::share::Server::Access& a) {
+        auto* p = new ShareAccessMsg{a, gen};
         if (!PostMessageW(h, WM_PM_SHARE, ShareAccess, reinterpret_cast<LPARAM>(p))) delete p;
     };
-    g.share.onExpired = [h]() { PostMessageW(h, WM_PM_SHARE, ShareExpired, 0); };
+    g.share.onExpired = [h, gen]() { PostMessageW(h, WM_PM_SHARE, ShareExpired, static_cast<LPARAM>(gen)); };
     std::vector<std::wstring> paths;
     for (const fs::path& f : files) paths.push_back(f.wstring());
     std::string err;
@@ -4243,10 +4743,44 @@ void startShareQr(const std::vector<fs::path>& files, bool live) {
                                 ? fmt(S::ShareFileGone, {files[0].filename().wstring()})
                                 : std::wstring(tr(S::ShareStartFail)),
                             4000);
-        return;
+        return false;
     }
     markSent(files);
-    openSharePanel();
+    if (showPanel || g.sharePanel.isOpen()) openSharePanel();
+    SetTimer(g.hwnd, kShareNetTimer, kShareNetCheckMs, nullptr);
+    return true;
+}
+
+// 傳到手機 after sleep / a network change: the server is bound to one LAN
+// address. If that address is gone (other Wi-Fi, new DHCP lease) but the PC is
+// on a LAN again, the same files are shared again (same live flag, the time
+// left) on the current address and the QR / link refreshed; the old link is
+// dead anyway. `force` (--dev test): as if the address were gone.
+void checkShareNetwork(bool force = false) {
+    if (!g.share.running()) {
+        KillTimer(g.hwnd, kShareNetTimer);
+        return;
+    }
+    if (g.share.expired() || (!g.shareBindTest.empty() && !force)) return;  // tests bind 127.0.0.1 on purpose
+    const std::string ip = g.share.ip();
+    const std::vector<pm::share::LanInterface> lan = pm::share::lanInterfaces();
+    if (!force) {
+        for (const auto& l : lan)
+            if (l.ip == ip) return;  // still here
+        if (lan.empty()) return;     // no network yet (Wi-Fi reconnecting): look again later
+    }
+    std::vector<fs::path> files;
+    for (const std::wstring& f : g.share.files()) files.push_back(f);
+    const bool live = g.share.live();
+    const int left = std::max(g.share.secondsLeft(), 60);
+    std::string now;
+    for (const auto& l : lan) now += (now.empty() ? "" : ", ") + l.name + "=" + l.ip;
+    g.log->write("info", "share: " + ip + " is no longer a LAN address (now: " + (now.empty() ? "-" : now) +
+                             "); sharing " + std::to_string(files.size()) + " file(s) again for " + std::to_string(left) + " s");
+    if (startShareQr(files, live, left, false)) {
+        g.window->showToast(tr(S::ShareLinkChanged), 6000);
+        if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::AppName), tr(S::ShareLinkChanged));
+    }
 }
 
 // The QR path for `files`: onto the live page when one runs, else a new
@@ -4361,12 +4895,15 @@ void onShareEvent(WPARAM kind, LPARAM lp) {
         return;
     }
     if (kind == ShareExpired) {
+        if (static_cast<unsigned>(lp) != g_shareGen) return;  // an earlier share's
         if (g.share.running()) g.sharePanel.setExpired();
         return;
     }
     if (kind == ShareAccess) {
-        std::unique_ptr<pm::share::Server::Access> a(reinterpret_cast<pm::share::Server::Access*>(lp));
-        if (!a || !g.sharePanel.isOpen() || a->status >= 400) return;
+        std::unique_ptr<ShareAccessMsg> m(reinterpret_cast<ShareAccessMsg*>(lp));
+        if (!m || m->gen != g_shareGen) return;  // an earlier share's (its file index means another list)
+        const pm::share::Server::Access* a = &m->a;
+        if (!g.sharePanel.isOpen() || a->status >= 400) return;
         if (g.share.live()) g.sharePanel.setLive(true, g.share.fileCount());
         const std::wstring ip = toWide(a->ip);
         if (a->file < 0) {
@@ -4536,6 +5073,16 @@ void stopSharing() {
 
 LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp);
 
+std::string endSessionWhy(LPARAM lp) {
+    std::string s;
+    if (lp & ENDSESSION_CLOSEAPP) s += "installer / Restart Manager, ";
+    if (lp & ENDSESSION_CRITICAL) s += "critical, ";
+    if (lp & ENDSESSION_LOGOFF) s += "logoff";
+    else if (!(lp & ENDSESSION_CLOSEAPP)) s += "Windows shutdown / restart";
+    while (!s.empty() && (s.back() == ' ' || s.back() == ',')) s.pop_back();
+    return s;
+}
+
 LRESULT CALLBACK appProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     const LRESULT r = appProcInner(h, msg, wp, lp);
     // Anything that may change the live toolbar (source, recording, fullscreen).
@@ -4699,6 +5246,9 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                 return 0;
             case 'F': toggleDeviceFrame(); return 0;
             case 'D': disconnectLive(); return 0;
+            case VK_UP:    // 音量 one phone step up / down, Ctrl+M 靜音 (volume_ui.h)
+            case VK_DOWN:
+            case 'M': g_volumeUi.ctrlKey(wp); return 0;
             // 放大鏡 / 翻譯 (handled here so they never reach the phone, and do nothing without a picture)
             case VK_OEM_PLUS:
             case VK_ADD: zoomBy(+1); return 0;
@@ -4770,6 +5320,11 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             scanLocalUpdates();
             return 0;
         }
+        if (wp == kShareNetTimer) {
+            SetTimer(h, kShareNetTimer, kShareNetCheckMs, nullptr);  // (after resume it fired at 3 s)
+            checkShareNetwork();  // kills it once nothing is shared
+            return 0;
+        }
         if (wp == kUpdateTimer) {
             SetTimer(h, kUpdateTimer, kUpdateIntervalMs, nullptr);  // then every 6 h
             g.updatePromptReady = true;  // offers may prompt from now on
@@ -4782,14 +5337,36 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         else if (wp == PBT_APMRESUMEAUTOMATIC || wp == PBT_APMRESUMESUSPEND) onResume();
         return TRUE;
     case WM_CLOSE:
-        if (!g.quitting && g.trayOk) {
-            hideToTray();
+        if (!g.quitting && (g.trayOk || g.testOffscreen)) {  // --test-offscreen: no tray icon, same flow
+            onCloseRequest();
             return 0;
         }
         break;
+    // Windows shutdown / restart / logoff, or an installer's Restart Manager.
+    // QUERY only asks (another app may still cancel): nothing changes yet.
+    // END with wp TRUE: the session really ends and the process may be
+    // killed as soon as this returns, so the recording is finalized and the
+    // settings saved right here. wp FALSE: cancelled, carry on.
     case WM_QUERYENDSESSION:
+        g.log->write("info", "session ending requested (" + endSessionWhy(lp) + ")" +
+                                 (recording() ? "; a recording is running" : ""));
+        if (recording()) ShutdownBlockReasonCreate(h, tr(S::RecSavingShutdown));
+        return TRUE;
+    case WM_ENDSESSION:
+        if (!wp) {
+            g.log->write("info", "session end cancelled: running on");
+            ShutdownBlockReasonDestroy(h);
+            return 0;
+        }
+        g.log->write("info", "session ending (" + endSessionWhy(lp) + "): saving the recording and settings");
         g.quitting = true;
-        break;
+        stopRecording();
+        stopSharing();
+        saveSettings();
+        ShutdownBlockReasonDestroy(h);
+        g.log->write("info", "session ending: done");
+        if (lp & ENDSESSION_CLOSEAPP) quitApp();  // Restart Manager: it waits for us to exit
+        return 0;
     case WM_DESTROY:
         trayRemove();
         break;
@@ -4806,10 +5383,75 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                 fs::create_directories(d, ec);
                 const bool a = g.askPanel.renderPng((d / L"ask.png").wstring());
                 g.log->write("info", std::string("dev ask shot: ") + (a ? "ok (" + toUtf8(g.askPanel.title()) + ")" : "- (no dialog)"));
+            } else if (wp == 936) {  // 「線上」 badge test: two made-up blocks (a card, a listed row) over the picture
+                std::vector<pm::VideoWindow::TextBox> b(2);
+                b[0] = {0.08f, 0.30f, 0.92f, 0.36f, tr(S::TrOnlineTestOkPlain), L"Connected", 1};
+                b[0].online = lp != 0;
+                b[1] = {0.10f, 0.60f, 0.30f, 0.605f, std::wstring(1, wchar_t(0xE000)) + tr(S::TrOnlineSaved), L"Saved", 1};
+                b[1].online = lp != 0;
+                g.log->write("info", "dev online badge boxes");
+                g.window->setTextOverlay(std::move(b));
+            } else if (wp == 941) {  // the open panels as if moved to DPI lp & 0xFFFF (lp & 0x10000: no WM_DPICHANGED)
+                pm::ui::trset::devDpiChanged(static_cast<int>(lp & 0xFFFF), (lp & 0x10000) != 0);
+            } else if (wp == 942) {  // self-check of the open panels: hit where drawn, window / client / target sizes
+                pm::ui::trset::devSelfCheck();
+            } else if (wp >= 937 && wp <= 940) {  // the panels on a small screen (DPI / work area tests)
+                if (wp == 937) {  // what the open panels show now: llm_view[_lp] / online_view[_lp].png
+                    const fs::path d = fs::temp_directory_path() / L"pmshots";
+                    std::error_code ec;
+                    fs::create_directories(d, ec);
+                    pm::ui::trset::devShots(d.wstring(), lp > 0 ? L"_" + std::to_wstring(lp) : L"", true);
+                } else if (wp == 938) {  // scroll the 線上翻譯 panel by lp DIPs (wheel)
+                    pm::ui::trset::devScroll(1, static_cast<float>(static_cast<int>(lp)));
+                } else if (wp == 939) {  // key lp (e.g. 9 = Tab) in the 線上翻譯 panel
+                    pm::ui::trset::devKey(1, static_cast<UINT>(lp));
+                } else {  // 940: panels opened from now on at DPI (lp & 0xFFFF) on a work area (lp >> 16) px high
+                    pm::ui::trset::devScreen(static_cast<int>(lp & 0xFFFF), static_cast<int>((lp >> 16) & 0xFFFF));
+                    g.log->write("info", "dev translate settings screen: dpi " + std::to_string(lp & 0xFFFF) + ", work area " +
+                                             std::to_string((lp >> 16) & 0xFFFF) + " px");
+                }
+            } else if (wp >= 930 && wp <= 935) {  // 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 panels (app/tr_settings.cpp)
+                if (wp == 930) {  // the open panels + their question as llm / online / trask[_lp].png
+                    const fs::path d = fs::temp_directory_path() / L"pmshots";
+                    std::error_code ec;
+                    fs::create_directories(d, ec);
+                    const int n = pm::ui::trset::devShots(d.wstring(), lp > 0 ? L"_" + std::to_wstring(lp) : L"");
+                    g.log->write("info", "dev translate settings shots: " + std::to_string(n));
+                } else if (wp == 931 || wp == 932) {  // click item lp in 本機 AI 翻譯 (931) / 線上翻譯 (932)
+                    g.log->write("info", "dev translate settings click " + std::to_string(wp) + ": " + std::to_string(lp));
+                    pm::ui::trset::devClick(wp == 931 ? 0 : 1, static_cast<int>(lp));
+                } else if (wp == 933) {  // answer their question (lp 1 primary, 2 secondary, 0 Esc)
+                    pm::ui::trset::devAnswer(static_cast<int>(lp));
+                } else if (wp == 934) {  // a made-up key in the 線上翻譯 key box (lp 1: an Azure-style one)
+                    pm::ui::trset::devSetKey(lp == 1 ? L"0123456789abcdef0123456789abcdef" : L"00000000-0000-0000-0000-000000000000:fx");
+                } else if (wp == 935) {  // 「線上」 badges: mark every shown block (lp 0: none) as translated online
+                    std::vector<std::wstring> all;
+                    if (lp && g.translator)
+                        for (const auto& it : g.translator->lastItems()) all.push_back(it.original);
+                    g.log->write("info", "dev online badges: " + std::to_string(all.size()));
+                    g.window->setTextOverlayOnline(std::move(all));
+                }
             } else if (wp == 906) {  // answer the open question dialog (lp 1 = primary button, 0 = Esc)
                 g.log->write("info", std::string("dev ask answer: ") + (lp == 1 ? "primary" : "cancel"));
                 g.askPanel.close(lp == 1 ? 1 : 0);
+            } else if (wp == 908) {  // 按 X 時要怎麼做？: the open question as closeask.png
+                const fs::path d = fs::temp_directory_path() / L"pmshots";
+                std::error_code ec;
+                fs::create_directories(d, ec);
+                const bool a = g.closePanel.renderPng((d / L"closeask.png").wstring());
+                const bool m = pm::ui::renderMenuPng(closeItems(), (d / L"menu_close.png").wstring());
+                g.log->write("info", std::string("dev close shot: ") + (a ? "ok" : "- (no question)") + (m ? ", menu ok" : ""));
+            } else if (wp == 909 && g.closePanel.isOpen()) {  // answer it like a click (lp 0 ×, 1 縮到右下角, 2 結束程式, 3 checkbox)
+                g.log->write("info", "dev close answer: " + std::to_string(lp));
+                if (lp == 0) SendMessageW(g.closePanel.hwnd(), WM_KEYDOWN, VK_ESCAPE, 0);  // the real Esc path
+                else g.closePanel.click(static_cast<int>(lp));
             } else if (wp == 907) devViewMenuShots();
+            else if (wp == 911) {  // menu screenshots: act as a PC without Wi-Fi Direct (Miracast unavailable)
+                g.miracastUnsupported = true;
+                g.miracastReason = tr(S::ModMiraNoWifi, pm::i18n::Lang::ZhTW);
+                refreshIdleHints();
+                g.log->write("info", "dev: Miracast marked unavailable (no Wi-Fi Direct)");
+            }
             else if (wp == 902) {  // the open pairing panel / About window as PNGs (pair.png, about.png)
                 const fs::path d = fs::temp_directory_path() / L"pmshots";
                 std::error_code ec;
@@ -4839,6 +5481,8 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             } else if (wp == 908) {  // 傳到手機 picker: 傳送 N 個
                 g.log->write("info", "dev picker: send " + std::to_string(g.sharePicker.checkedCount()));
                 g.sharePicker.send();
+            } else if (wp == 920) {  // 傳到手機 tests: rebind as if the LAN address had gone (M3)
+                checkShareNetwork(true);
             } else if (wp == 910) {  // 傳到手機 tests: the video window with its toast as window.png
                 const fs::path d = fs::temp_directory_path() / L"pmshots";
                 std::error_code ec;
@@ -5199,6 +5843,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     applyTheme();             // 主題: idle screen + menus
     applyView(false);         // 畫面: rotation, flip, iPhone frame
     setFilterOption(g.settings.filter, false);  // 放大鏡 colours (applied to pictures only)
+    {  // 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 panels (app/tr_settings.cpp)
+        pm::ui::trset::Host th;
+        th.owner = hwnd;
+        th.toast = [](const std::wstring& t) { g.window->showToast(t, 4000); };
+        th.log = [](const char* level, const std::string& s) { g.log->write(level, "translate settings: " + s); };
+        th.openUrl = [](const std::wstring& url) {
+            if (g.testOffscreen) g.log->write("info", "test-offscreen: not opened " + toUtf8(url));
+            else if (url.rfind(L"https://", 0) == 0) ShellExecuteW(g.hwnd, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        };
+        th.onlineChanged = [] { applyOnlineAllowed(); };
+        th.noNetwork = g.testNoNetwork;
+        th.offscreen = g.testOffscreen;
+        pm::ui::trset::init(std::move(th));
+    }
     createTranslator();       // 翻譯 (pm_translate; bergamot.dll next to the exe)
     window.setViewHandler([](const pm::VideoWindow::ViewState&) { refreshToolbar(); });  // Ctrl+wheel / drag zoom
 
@@ -5210,11 +5868,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     StatusVideoSink videoSink(window, log);
     g.status = &videoSink;
     const fs::path volumeFile = dir / L"volume.txt";
-    RememberVolumeAudioSink audioSink(audio, volumeFile);
+    g.volumeFile = volumeFile;
+    RememberVolumeAudioSink audioSink(audio, volumeFile, -15.0f, g.settings.muted);
+    g.volume = &audioSink;
+    audioSink.onSharedChange = [](float db) {  // Miracast casts follow the level and the app's 靜音
+        if (g_miracast) g_miracast->setVolume(pm::AudioPlayer::airplayDbToGain(db));
+    };
+    audio.onVolume(audioSink.playDb());  // 靜音 / 0 % from the start
+    g_volumeUi.attach(&audioSink, {[](const std::wstring& t) { g.window->showToast(t); }, []() { refreshToolbar(); },
+                                   [](bool m) {
+                                       g.settings.muted = m;
+                                       saveSettings();
+                                   },
+                                   [&log](const std::string& l) { log.write("info", l); }});
+    window.setLiveToolbarSlider([](int, float v, bool done) { g_volumeUi.slide(v, done); },
+                                [](int, int notches) { g_volumeUi.wheel(notches); });
+    if (audioSink.muted()) log.write("info", "volume: muted (settings.ini mute=1)");
+    SavedVolumeAudioSink androidVolume(audio, audioSink, [&log](const std::string& l) { log.write("info", l); });
     // Source arbitration: AirPlay and Android reach the window / player
     // only while they own it.
     GateVideoSink airplayVideo(SrcAirPlay, videoSink), androidVideo(SrcAndroid, videoSink);
-    GateAudioSink airplayAudio(SrcAirPlay, audioSink), androidAudio(SrcAndroid, audio);
+    GateAudioSink airplayAudio(SrcAirPlay, audioSink), androidAudio(SrcAndroid, androidVolume);
     g.videoSink = &airplayVideo;
     g.audioSink = &airplayAudio;
     g.androidVideo = &androidVideo;
@@ -5228,7 +5902,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     g.hevc = !(dev && noHevc) && hevcDecoderAvailable();
     if (!g.hevc) log.write("warn", "no HEVC decoder (HEVC Video Extensions missing): 畫質 limited to standard 1920x1080 H.264");
     g.opts.keyFile = toUtf8((dir / L"airplay.key").wstring());  // stable identity across restarts
-    g.opts.initialVolumeDb = RememberVolumeAudioSink::load(volumeFile, -15.0f);
+    g.opts.initialVolumeDb = audioSink.saved();
 
     applySyncMode();
     if (g.testNoNetwork) {
@@ -5286,6 +5960,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     miracast.log = [&log](const std::string& line) { log.write("miracast", line); };
     g.miracast = &miracast;
     g_miracast = &miracast;
+    miracast.setVolume(pm::AudioPlayer::airplayDbToGain(audioSink.sharedDb()));  // and onSharedChange from here on
     if (g.settings.miracast && !(dev && testFeed.source == SrcMiracast) && !g.testNoNetwork) {
         miracastApply(true);
     } else {
@@ -5365,6 +6040,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     g.recorder = nullptr;
     if (g.server) g.server->stop();
     g.server.reset();
+    g_volumeUi.detach();  // before audioSink goes
     audio.stop();
     if (single) CloseHandle(single);  // the update installer waits for this mutex to go
     runPendingInstaller();

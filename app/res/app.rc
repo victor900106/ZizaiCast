@@ -7,12 +7,12 @@ IDI_APP ICON "app.ico"
 #ifndef PM_VER_MAJOR
 #define PM_VER_MAJOR 0
 #define PM_VER_MINOR 7
-#define PM_VER_PATCH 2
+#define PM_VER_PATCH 6
 #endif
 #ifdef PM_APP_VERSION_STR
 #define PM_VER_STR PM_APP_VERSION_STR
 #else
-#define PM_VER_STR "0.7.2"
+#define PM_VER_STR "0.7.6"
 #endif
 
 VS_VERSION_INFO VERSIONINFO

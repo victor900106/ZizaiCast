@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.7.2)
+set(PM_APP_VERSION 0.7.6)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -33,8 +33,13 @@ endforeach()
 
 add_executable(PhoneMirror WIN32 main.cpp popup_menu.cpp popup_menu.h pair_panel.cpp pair_panel.h about_panel.cpp
   about_panel.h ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h updater.cpp updater.h resource.h res/app.rc res/app.manifest
+  settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h
   ${CMAKE_SOURCE_DIR}/include/pm/i18n.h ${CMAKE_SOURCE_DIR}/include/pm/i18n_strings.inc)
-target_link_libraries(PhoneMirror PRIVATE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version
+# 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
+if(PM_TRANSLATE_ENGINES)
+  target_compile_definitions(PhoneMirror PRIVATE PM_APP_TR_ENGINES)
+endif()
+target_link_libraries(PhoneMirror PRIVATE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version wintrust
   shell32 shlwapi ole32 advapi32 comctl32 mfplat mfuuid d2d1 dwrite windowscodecs dwmapi shcore)
 set_target_properties(PhoneMirror PROPERTIES OUTPUT_NAME "自在投影")
 target_compile_definitions(PhoneMirror PRIVATE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
@@ -121,3 +126,26 @@ if(PM_ONNXRUNTIME_DLL AND EXISTS "${PM_ONNXRUNTIME_DLL}")
 else()
   message(WARNING "onnxruntime.dll not found (${PM_ONNXRUNTIME_DLL}): run translate/tools/get_onnxruntime.sh; 翻譯 falls back to Windows OCR")
 endif()
+
+# 音量 / 靜音: toolbar speaker + slider, Ctrl+M / Ctrl+↑ / Ctrl+↓, menus (volume_ui.h).
+target_sources(PhoneMirror PRIVATE volume_ui.cpp volume_ui.h volume_memory.h)
+
+# pm_volume_test: remembered phone volume (volume_memory.h), app mute and the
+# slider's 0..100 % mapping; no network / device.
+add_executable(pm_volume_test tools/pm_volume_test.cpp volume_memory.h)
+target_link_libraries(pm_volume_test PRIVATE pm_media_api)
+
+# pm_update_test: 自動更新 URL policy (https only), SHA-256 from the locked
+# installer, launching it while locked, Authenticode; no network / UI.
+add_executable(pm_update_test tools/pm_update_test.cpp updater.cpp updater.h)
+target_link_libraries(pm_update_test PRIVATE winhttp bcrypt version wintrust)
+target_compile_definitions(pm_update_test PRIVATE UNICODE _UNICODE)
+
+# pm_panel_anim_test: the panels' open / close fades, hover / press and the
+# QR reveal (ui_anim.h), off the desktop; frame PNGs + PASS / FAIL.
+add_executable(pm_panel_anim_test tools/pm_panel_anim_test.cpp ui_anim.h popup_menu.cpp ask_panel.cpp pair_panel.cpp
+  about_panel.cpp update_panel.cpp)
+target_include_directories(pm_panel_anim_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(pm_panel_anim_test PRIVATE d2d1 dwrite windowscodecs dwmapi shcore comctl32 shlwapi ole32 shell32)
+target_compile_definitions(pm_panel_anim_test PRIVATE UNICODE _UNICODE NOMINMAX)
+target_compile_options(pm_panel_anim_test PRIVATE /utf-8)
