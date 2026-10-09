@@ -19,10 +19,21 @@
         version of those files).
 
     ZizaiCast-<version>-deps-source.zip      (skip with -NoDeps)
-        Upstream source archives of the vcpkg libraries whose DLLs / static
-        code ship in the installer (openssl, libplist, pthreads4w, alac,
-        ffmpeg), taken from <vcpkg>\downloads, plus each vcpkg port directory
-        (portfile.cmake + patches = the build scripts) and DEPS-README.txt.
+        upstream/ + ports/: upstream source archives of the vcpkg libraries
+        whose DLLs / static code ship in the installer (openssl, libplist,
+        pthreads4w, alac, ffmpeg; pcre2 x64-windows-static, linked into
+        bergamot.dll), taken from <vcpkg>\downloads, plus each vcpkg port
+        directory (portfile.cmake + patches = the build scripts).
+        bergamot/: the complete source of bergamot.dll (translation engine,
+        MPL-2.0 + MIT / Apache-2.0 / BSD components): `git archive` of
+        BergamotTranslatorSharp at the commit pinned in
+        translate/tools/build_bergamot.sh and of every submodule (recursive)
+        at the commit recorded in its parent, taken from -BergamotSrc (the
+        checkout build_bergamot.sh made; local edits there are NOT archived),
+        plus the build script / patch files of this project (bergamot/pm/).
+        onnxruntime/: licence, third-party notices and provenance of the
+        unmodified official onnxruntime.dll (MIT; no source needed, upstream URL).
+        DEPS-README.txt: versions, commits, SHA-256, what is not included and why.
 
   Both files are meant to be attached to the GitHub release next to the
   installer (GPL-3 s.6(d) / LGPL-2.1 s.4: equivalent access from the same place).
@@ -32,6 +43,8 @@
 .PARAMETER OutDir      output directory (default <repo>\build-release).
 .PARAMETER VcpkgRoot   vcpkg root (default $env:VCPKG_ROOT, else %USERPROFILE%\vcpkg).
 .PARAMETER NoDeps      do not build the deps-source zip.
+.PARAMETER BergamotSrc BergamotTranslatorSharp checkout with initialised submodules
+                       (default <repo>\build-translate\bts-src, made by build_bergamot.sh).
 .PARAMETER AllowFdkAac allow archiving a revision whose pm_audio still links fdk-aac
                        (fdk-aac's licence is GPL-incompatible: such a revision must not be released).
 .PARAMETER Verify      unzip the source zip to %TEMP%, fetch the Android tools, and do a
@@ -48,6 +61,7 @@ param(
     [string]$OutDir,
     [string]$VcpkgRoot,
     [switch]$NoDeps,
+    [string]$BergamotSrc,
     [switch]$AllowFdkAac,
     [switch]$Verify,
     [switch]$KeepVerifyDir
@@ -104,6 +118,10 @@ $ShippedPorts = [ordered]@{
     'alac'     = @{ Archive = 'macosforge-alac-*';           Url = 'https://github.com/macosforge/alac' }
 }
 if ($usesFfmpeg) { $ShippedPorts['ffmpeg'] = @{ Archive = 'ffmpeg-ffmpeg-n*'; Url = 'https://ffmpeg.org/ (git: https://git.ffmpeg.org/ffmpeg.git)' } }
+foreach ($k in @($ShippedPorts.Keys)) { $ShippedPorts[$k].Triplet = 'x64-windows' }
+# bergamot.dll (translate/tools/build_bergamot.sh) links PCRE2 statically (ssplit-cpp)
+$hasTranslate = [bool](Invoke-Git ls-tree --name-only $Commit -- translate/tools/build_bergamot.sh)
+if ($hasTranslate) { $ShippedPorts['pcre2'] = @{ Archive = 'PCRE2Project-pcre2-*'; Url = 'https://github.com/PCRE2Project/pcre2'; Triplet = 'x64-windows-static' } }
 
 $installed = @{}
 $statusFile = Join-Path $VcpkgRoot 'installed\vcpkg\status'
@@ -114,9 +132,10 @@ if (Test-Path $updDir) { Get-ChildItem $updDir -File | Sort-Object Name | ForEac
 $cur = @{}
 foreach ($line in ($statusText + '')) {
     if ($line -eq '') {
-        if ($cur.Package -and -not $cur.Feature -and $cur.Architecture -eq 'x64-windows') {
-            if ($cur.Status -match 'install ok installed') { $installed[$cur.Package] = $cur.Clone() }
-            elseif ($installed.ContainsKey($cur.Package) -and $cur.Status -match 'deinstall|not-installed') { $installed.Remove($cur.Package) }
+        if ($cur.Package -and -not $cur.Feature -and $cur.Architecture) {
+            $key = "$($cur.Package):$($cur.Architecture)"
+            if ($cur.Status -match 'install ok installed') { $installed[$key] = $cur.Clone() }
+            elseif ($installed.ContainsKey($key) -and $cur.Status -match 'deinstall|not-installed') { $installed.Remove($key) }
         }
         $cur = @{}; continue
     }
@@ -129,23 +148,121 @@ foreach ($p in $ShippedPorts.Keys) {
     $portVer = @($json.version, $json.'version-string', $json.'version-semver', $json.'version-date') | Where-Object { $_ } | Select-Object -First 1
     $portRev = if ($json.'port-version') { [int]$json.'port-version' } else { 0 }
     $v = $portVer; $r = $portRev
-    if ($installed.ContainsKey($p)) {
-        $v = $installed[$p].Version
-        $r = if ($installed[$p].'Port-Version') { [int]$installed[$p].'Port-Version' } else { 0 }
-        if ($v -ne $portVer -or $r -ne $portRev) { Write-Warning "$p installed $v#$r but ports/ has $portVer#$portRev" }
-    } else { Write-Warning "$p is not installed in $VcpkgRoot (using ports/$p/vcpkg.json: $portVer#$portRev)" }
-    $PortInfo[$p] = [pscustomobject]@{ Name = $p; Version = $v; PortVersion = $r; Url = $ShippedPorts[$p].Url; Archive = $ShippedPorts[$p].Archive }
+    $trip = $ShippedPorts[$p].Triplet
+    $ik = "${p}:$trip"
+    if ($installed.ContainsKey($ik)) {
+        $v = $installed[$ik].Version
+        $r = if ($installed[$ik].'Port-Version') { [int]$installed[$ik].'Port-Version' } else { 0 }
+        if ($v -ne $portVer -or $r -ne $portRev) { Write-Warning "$ik installed $v#$r but ports/ has $portVer#$portRev" }
+    } else { Write-Warning "$ik is not installed in $VcpkgRoot (using ports/$p/vcpkg.json: $portVer#$portRev)" }
+    $PortInfo[$p] = [pscustomobject]@{ Name = $p; Version = $v; PortVersion = $r; Url = $ShippedPorts[$p].Url; Archive = $ShippedPorts[$p].Archive; Triplet = $trip }
 }
 $portLines = ($PortInfo.Values | ForEach-Object {
     $spec = if ($_.Name -eq 'ffmpeg') { 'ffmpeg[core,avcodec]' } else { $_.Name }
-    "| ``$spec`` | $($_.Version) | $($_.PortVersion) | $($_.Url) |"
+    "| ``$spec`` | $($_.Triplet) | $($_.Version) | $($_.PortVersion) | $($_.Url) |"
 }) -join "`n"
-$installList = ($PortInfo.Values | ForEach-Object { if ($_.Name -eq 'ffmpeg') { '"ffmpeg[core,avcodec]"' } else { $_.Name } }) -join ' '
+$installList = ($PortInfo.Values | Where-Object { $_.Triplet -eq 'x64-windows' } | ForEach-Object { if ($_.Name -eq 'ffmpeg') { '"ffmpeg[core,avcodec]"' } else { $_.Name } }) -join ' '
+
+# ---- bergamot.dll / onnxruntime.dll provenance (translate/, 0.7.0+) ----
+$BtsCommit = $null; $OrtUrl = $null; $OrtSha = $null; $OrtVer = $null
+if ($hasTranslate) {
+    $bsh = (Invoke-Git show "${Commit}:translate/tools/build_bergamot.sh") -join "`n"
+    if ($bsh -match '(?m)^COMMIT=([0-9a-f]{40})') { $BtsCommit = $Matches[1] } else { throw 'cannot read COMMIT= from translate/tools/build_bergamot.sh' }
+    $gsh = (Invoke-Git show "${Commit}:translate/tools/get_onnxruntime.sh") -join "`n"
+    if ($gsh -match '(?m)^URL="([^"]+)"') { $OrtUrl = $Matches[1] }
+    if ($gsh -match '(?m)^SHA="([0-9a-f]{64})"') { $OrtSha = $Matches[1] }
+    if ($OrtUrl -match 'onnxruntime-([0-9.]+)-') { $OrtVer = $Matches[1] }
+    if (-not ($OrtUrl -and $OrtSha -and $OrtVer)) { throw 'cannot read URL= / SHA= from translate/tools/get_onnxruntime.sh' }
+    if (-not $BergamotSrc) { $BergamotSrc = Join-Path $Repo 'build-translate\bts-src' }
+}
 
 # ---- BUILD.md ----
 $Prefix = "ZizaiCast-$Version-source"
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("zizai-src-stage-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force $stage | Out-Null
+$depsList = 'OpenSSL, libplist, pthreads4w, ALAC, FFmpeg + vcpkg port scripts/patches'
+$translateMd = ''
+$sec = 5
+if ($hasTranslate) {
+    $depsList = 'OpenSSL, libplist, pthreads4w, ALAC, FFmpeg, PCRE2 + vcpkg port scripts/patches; the complete source of `bergamot.dll`; licence and provenance of `onnxruntime.dll`'
+    $sec = 6
+    $translateMd = @"
+## 5. Translation engine and OCR runtime (``bergamot.dll``, ``onnxruntime.dll``)
+
+Both DLLs are loaded at run time from the program folder. CMake copies them
+next to ``自在投影.exe`` when they exist at the cache paths ``PM_BERGAMOT_DLL``
+(default ``build-translate/bergamot/bin/bergamot.dll``) and
+``PM_ONNXRUNTIME_DLL`` (default ``build-translate/ort/onnxruntime.dll``).
+Without them the program still builds and runs (翻譯 then reports that the
+engine is missing / falls back to Windows OCR, with a CMake warning). Make
+them before step $sec, or re-run the build afterwards.
+
+### 5.1 ``bergamot.dll`` — built from source (MPL-2.0 + MIT / Apache-2.0 / BSD components)
+
+Needs Git Bash (Git for Windows), the same Visual Studio / CMake (``cmake`` on
+``PATH``, e.g. start ``bash`` from a Developer Command Prompt) and PCRE2 as a
+static vcpkg library:
+
+``````
+C:\vcpkg\vcpkg install pcre2 --triplet x64-windows-static
+``````
+
+**Online** — ``translate/tools/build_bergamot.sh`` clones
+BergamotTranslatorSharp at the pinned commit ``$BtsCommit`` with all its
+submodules, applies this project's build patches (Eigen / ONNX sgemm instead of
+Intel MKL or BLAS, ``translate/bergamot/lapack_stubs.cpp``) and builds:
+
+``````
+VCPKG_ROOT=C:/vcpkg bash translate/tools/build_bergamot.sh
+``````
+
+Output: ``build-translate/bergamot/bin/bergamot.dll``.
+
+**Offline, from ``ZizaiCast-$Version-deps-source.zip``** — its
+``bergamot/BergamotTranslatorSharp/`` is exactly that tree (every submodule at
+the commit recorded by its parent, unmodified; list in ``DEPS-README.txt``).
+BergamotTranslatorSharp's own CMake applies its patches from
+``cmake/patches/`` at configure time. ``build_bergamot.sh`` expects a git
+checkout, so run its patch + build steps on the extracted tree (Git Bash, at the
+root of this archive, deps zip next to it; no download from GitHub needed):
+
+``````
+mkdir -p build-translate/x
+unzip -q ../ZizaiCast-$Version-deps-source.zip -d build-translate/x
+mv build-translate/x/bergamot/BergamotTranslatorSharp build-translate/bts-src
+M=build-translate/bts-src/bergamot-translator/3rd_party/marian-dev   # Marian's CMake reads its revision from git:
+git -C `$M init -q
+git -C `$M -c user.name=build -c user.email=build@localhost commit -q --allow-empty -m "marian-dev from the deps-source zip"
+sed -n '/^# 1)/,`$p' translate/tools/build_bergamot.sh > build-translate/steps.sh
+HERE="`$PWD/translate" OUT="`$PWD/build-translate" SRC="`$PWD/build-translate/bts-src" \
+  BLD="`$PWD/build-translate/bergamot-build" VCPKG=C:/vcpkg bash -euo pipefail build-translate/steps.sh
+``````
+
+### 5.2 ``onnxruntime.dll`` — official Microsoft binary, not rebuilt (MIT)
+
+``````
+bash translate/tools/get_onnxruntime.sh
+``````
+
+downloads ``$OrtUrl``,
+checks SHA-256 ``$OrtSha`` and extracts ``onnxruntime.dll`` (ONNX Runtime
+$OrtVer, CPU; the same DLL as ``onnxruntime-win-x64-$OrtVer.zip`` of the GitHub
+release) with its ``LICENSE`` and ``ThirdPartyNotices.txt`` into
+``build-translate/ort/``. It is shipped unmodified; upstream source:
+https://github.com/microsoft/onnxruntime/tree/v$OrtVer . The C API headers it
+is used through are in ``translate/third_party/onnxruntime/``, its notices in
+``docs/licenses/onnxruntime/`` (installed to ``licenses\onnxruntime\``).
+
+### 5.3 Models (not in the installer or in these archives)
+
+The Firefox Translations models (MPL-2.0, from Mozilla's CDN) and the PaddleOCR
+text detection / recognition models (Apache-2.0, ONNX conversions of the
+RapidOCR project on ModelScope) are downloaded by the program itself, after the
+user agrees, into the user's profile. They are data, not part of the program.
+
+
+"@
+}
 $buildMd = @"
 # Building ZizaiCast $Version from source
 
@@ -155,8 +272,8 @@ This archive is the Corresponding Source of the ZizaiCast $Version installer
 
 * git commit: ``$Commit`` ($CommitDate)
 * vcpkg commit used for the release build: ``$vcpkgCommit``
-* Library sources (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg + vcpkg port
-  scripts/patches): ``ZizaiCast-$Version-deps-source.zip`` on the same release page.
+* Library sources ($depsList):
+  ``ZizaiCast-$Version-deps-source.zip`` on the same release page.
 
 ## 1. Tools (Windows 10/11 x64)
 
@@ -168,10 +285,10 @@ This archive is the Corresponding Source of the ZizaiCast $Version installer
 | Inno Setup (only for the installer) | 6.7.3 |
 | Windows PowerShell 5.1 (for ``fetch_tools.ps1``) | |
 
-## 2. Libraries (vcpkg, triplet x64-windows)
+## 2. Libraries (vcpkg; triplet x64-windows, pcre2 x64-windows-static)
 
-| Port | Version | Port-version | Upstream |
-|---|---|---|---|
+| Port | Triplet | Version | Port-version | Upstream |
+|---|---|---|---|---|
 $portLines
 
 ``````
@@ -180,6 +297,7 @@ git -C C:\vcpkg checkout $vcpkgCommit
 C:\vcpkg\bootstrap-vcpkg.bat
 C:\vcpkg\vcpkg install $installList --triplet x64-windows
 ``````
+$(if ($hasTranslate) { "`n``pcre2`` (static) is only needed for ``bergamot.dll``, see section 5.`n" })
 
 FFmpeg must stay an LGPL build: do not enable the ``gpl``, ``version3`` or
 ``nonfree`` features. ``fdk-aac`` is *not* needed by the shipped program
@@ -204,7 +322,7 @@ exports, generator ``docs/mascot/toutou/*.mjs``), the layers embedded by
 ``pm_video`` in ``video/res/toutou/``, the icon in ``app/res/app.ico``.
 Nothing has to be added to build.
 
-## 5. Configure and build
+$translateMd## $sec. Configure and build
 
 ``````
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64 ^
@@ -218,7 +336,7 @@ Individual targets: ``pm_core pm_video pm_audio pm_recorder pm_miracast
 pm_android PhoneMirror`` (the app), tests ``pm_probe pm_video_test
 pm_audio_test pm_recorder_test pm_miracast_test pm_android_test``.
 
-## 6. Installer
+## $($sec + 1). Installer
 
 ``````
 "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" /DBuildDir=..\build\bin\Release installer\zizai.iss
@@ -229,7 +347,7 @@ the notices from ``docs\licenses\``, both in this archive. Output:
 ``installer\Output\自在投影-安裝程式-$Version.exe``, Traditional Chinese +
 English.)
 
-## 7. Replacing the LGPL libraries
+## $($sec + 2). Replacing the LGPL libraries
 
 ``plist-2.0.dll`` (libplist) and ``avcodec-*.dll`` / ``avutil-*.dll``
 (FFmpeg) are ordinary DLLs next to ``自在投影.exe``; you may replace them with
@@ -288,6 +406,48 @@ $entrySet = New-Object 'System.Collections.Generic.HashSet[string]' (, [string[]
 $left = @($tracked | Where-Object { -not $entrySet.Contains($_) })
 
 # ---- deps-source zip ----
+# Copies the entries of the zip $from into the open archive $to (prefix + optional
+# path filter), skipping directory entries and names already present.
+function Copy-ZipEntries($to, [string]$from, [string]$stripPrefix = '', [string]$addPrefix = '', $seen) {
+    $src = [IO.Compression.ZipFile]::OpenRead($from)
+    $n = 0
+    try {
+        foreach ($en in $src.Entries) {
+            $name = $en.FullName
+            if ($name.EndsWith('/')) { continue }
+            if ($stripPrefix) { if (-not $name.StartsWith($stripPrefix)) { continue }; $name = $name.Substring($stripPrefix.Length) }
+            $name = $addPrefix + $name
+            if (-not $seen.Add($name)) { continue }
+            $ne = $to.CreateEntry($name, [IO.Compression.CompressionLevel]::Optimal)
+            $ne.LastWriteTime = $en.LastWriteTime
+            $i = $en.Open(); $o = $ne.Open()
+            try { $i.CopyTo($o) } finally { $o.Dispose(); $i.Dispose() }
+            $n++
+        }
+    } finally { $src.Dispose() }
+    return $n
+}
+# `git archive` of <commit> of the repository at $dir (prefix $prefix), then of every
+# submodule (mode 160000 entry of that commit) at the commit recorded there, recursively.
+# Returns "path commit files" lines. Local edits / other checked-out commits are ignored.
+function Add-GitTreeRecursive($to, [string]$dir, [string]$commit, [string]$prefix, [string]$rel, $seen, $lines) {
+    if (-not (Test-Path (Join-Path $dir '.git'))) { throw "bergamot source: $dir is not an initialised git checkout (run translate/tools/build_bergamot.sh once, or 'git submodule update --init --recursive')" }
+    & git -C $dir cat-file -e "$commit^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "bergamot source: commit $commit not present in $dir" }
+    $tmp = Join-Path $stage ("ga-" + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.zip')
+    & git -C $dir -c core.autocrlf=false archive --format=zip -0 "--prefix=$prefix" -o $tmp $commit
+    if ($LASTEXITCODE -ne 0) { throw "git archive $commit in $dir failed" }
+    $n = Copy-ZipEntries $to $tmp '' '' $seen
+    Remove-Item -Force $tmp
+    $label = if ($rel) { $rel } else { '.' }
+    $lines.Add(('  {0,-62} {1}  {2,6} files' -f $label, $commit, $n))
+    foreach ($l in @(& git -C $dir -c core.quotepath=off ls-tree -r $commit)) {
+        if ($l -match '^160000 commit ([0-9a-f]{40})\t(.+)$') {
+            $sub = $Matches[2]
+            Add-GitTreeRecursive $to (Join-Path $dir ($sub -replace '/', '\')) $Matches[1] "$prefix$sub/" ($(if ($rel) { "$rel/$sub" } else { $sub })) $seen $lines
+        }
+    }
+}
 $depZip = $null
 if (-not $NoDeps) {
     $depZip = Join-Path $OutDir "ZizaiCast-$Version-deps-source.zip"
@@ -295,13 +455,20 @@ if (-not $NoDeps) {
     $dl = Join-Path $VcpkgRoot 'downloads'
     $readme = New-Object System.Collections.Generic.List[string]
     $readme.Add("Source code of the third-party libraries shipped in ZizaiCast $Version")
-    $readme.Add("(GPL-3.0 s.6 Corresponding Source / LGPL-2.1 s.4 for libplist and FFmpeg).")
+    $readme.Add("(GPL-3.0 s.6 Corresponding Source; LGPL-2.1 s.4 for libplist and FFmpeg;")
+    $readme.Add(" MPL-2.0 s.3.2 for bergamot.dll). Build instructions: BUILD.md in")
+    $readme.Add("ZizaiCast-$Version-source.zip; licences: docs/licenses/ there and licenses\ in the program folder.")
     $readme.Add("")
-    $readme.Add("upstream/  unmodified upstream source archives, as downloaded by vcpkg")
-    $readme.Add("ports/     vcpkg port scripts (portfile.cmake, patches) = how they were configured/patched/built")
+    $readme.Add("upstream/     unmodified upstream source archives, as downloaded by vcpkg")
+    $readme.Add("ports/        vcpkg port scripts (portfile.cmake, patches) = how they were configured/patched/built")
+    if ($hasTranslate) {
+        $readme.Add("bergamot/     complete source of bergamot.dll (translation engine), see below")
+        $readme.Add("onnxruntime/  licence + notices of the unmodified official onnxruntime.dll, see below")
+    }
     $readme.Add("vcpkg commit: $vcpkgCommit   (https://github.com/microsoft/vcpkg/tree/$vcpkgCommit/ports)")
-    $readme.Add("triplet: x64-windows (DLLs, release); alac is a static library")
+    $readme.Add("triplet: x64-windows (DLLs, release); alac is a static library; pcre2 is x64-windows-static (linked into bergamot.dll)")
     $readme.Add("")
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]'
     $fs = [IO.File]::Open($depZip, 'CreateNew')
     $zip = New-Object IO.Compression.ZipArchive($fs, [IO.Compression.ZipArchiveMode]::Create)
     try {
@@ -311,23 +478,88 @@ if (-not $NoDeps) {
                    Where-Object { $_.Name -like "*$verKey*" -and $_.Name -notlike '*.part' } | Select-Object -First 1
             if (-not $arc) { throw "upstream archive for $($pi.Name) $($pi.Version) not found in $dl (pattern $($pi.Archive), run 'vcpkg install' first or use -NoDeps)" }
             [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $arc.FullName, "upstream/$($arc.Name)", [IO.Compression.CompressionLevel]::NoCompression)
+            [void]$seen.Add("upstream/$($arc.Name)")
             $portDir = Join-Path $VcpkgRoot "ports\$($pi.Name)"
             Get-ChildItem $portDir -Recurse -File | ForEach-Object {
                 $rel = $_.FullName.Substring($portDir.Length + 1) -replace '\\', '/'
                 [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, "ports/$($pi.Name)/$rel", [IO.Compression.CompressionLevel]::Optimal)
+                [void]$seen.Add("ports/$($pi.Name)/$rel")
             }
-            $readme.Add(('{0,-9} {1}#{2}  {3}' -f $pi.Name, $pi.Version, $pi.PortVersion, $pi.Url))
+            $readme.Add(('{0,-9} {1}#{2}  {3}  ({4})' -f $pi.Name, $pi.Version, $pi.PortVersion, $pi.Url, $pi.Triplet))
             $readme.Add(('          upstream/{0}  sha256 {1}' -f $arc.Name, (Get-Sha256 $arc.FullName)))
+        }
+        if ($hasTranslate) {
+            # bergamot.dll: BergamotTranslatorSharp + all submodules at the pinned commits
+            $btsLines = New-Object System.Collections.Generic.List[string]
+            Add-GitTreeRecursive $zip $BergamotSrc $BtsCommit 'bergamot/BergamotTranslatorSharp/' '' $seen $btsLines
+            # this project's build script and patch file for it (also in the source zip)
+            $pmTmp = Join-Path $stage 'pm-translate.zip'
+            & git -C $Repo archive --format=zip -o $pmTmp $Commit -- translate/tools/build_bergamot.sh translate/bergamot docs/licenses/onnxruntime
+            if ($LASTEXITCODE -ne 0) { throw 'git archive (translate build files) failed' }
+            [void](Copy-ZipEntries $zip $pmTmp 'translate/' 'bergamot/pm/translate/' $seen)
+            [void](Copy-ZipEntries $zip $pmTmp 'docs/licenses/onnxruntime/' 'onnxruntime/' $seen)
+            Remove-Item -Force $pmTmp
+            $readme.Add("")
+            $readme.Add("bergamot.dll (translation engine; MPL-2.0, components MIT / Apache-2.0 / BSD, see THIRD_PARTY_NOTICES part 2b)")
+            $readme.Add("  bergamot/BergamotTranslatorSharp/  git archive of https://github.com/Freeesia/BergamotTranslatorSharp")
+            $readme.Add("  at $BtsCommit and of every submodule (recursive) at the commit recorded")
+            $readme.Add("  by its parent - unmodified upstream source (no .git):")
+            $btsLines | ForEach-Object { $readme.Add($_) }
+            $readme.Add("  Patches: BergamotTranslatorSharp's CMake applies its own cmake/patches/ at configure time;")
+            $readme.Add("  this project's changes are in bergamot/pm/translate/ (= translate/ of the source zip):")
+            $readme.Add("  tools/build_bergamot.sh (USE_ONNX_SGEMM option in marian-dev/CMakeLists.txt, Eigen/ONNX sgemm")
+            $readme.Add("  instead of MKL/BLAS, static CRT, x86-64-v2) and bergamot/lapack_stubs.cpp (added to the DLL).")
+            $readme.Add("  PCRE2 (static, used by ssplit-cpp): upstream/ + ports/pcre2 above.")
+            $readme.Add("  How to build from this zip (offline) or from GitHub: BUILD.md section 5.1.")
+            $readme.Add("")
+            $readme.Add("onnxruntime.dll (text recognition runtime; MIT) - shipped UNMODIFIED, not rebuilt:")
+            $readme.Add("  ONNX Runtime $OrtVer, official Microsoft CPU build, taken from")
+            $readme.Add("  $OrtUrl")
+            $readme.Add("  (sha256 $OrtSha; translate/tools/get_onnxruntime.sh; the same DLL as")
+            $readme.Add("  onnxruntime-win-x64-$OrtVer.zip on https://github.com/microsoft/onnxruntime/releases/tag/v$OrtVer).")
+            $ortDll = Join-Path $Repo 'build-translate\ort\onnxruntime.dll'
+            if (Test-Path $ortDll) { $readme.Add("  onnxruntime.dll sha256 $(Get-Sha256 $ortDll)") }
+            $readme.Add("  Source: https://github.com/microsoft/onnxruntime/tree/v$OrtVer (MIT does not require it here).")
+            $readme.Add("  onnxruntime/LICENSE.txt and onnxruntime/ThirdPartyNotices.txt = the licence and notices shipped")
+            $readme.Add("  with the DLL (also installed in licenses\onnxruntime\).")
         }
         $readme.Add("")
         $readme.Add("Not included (separate programs shipped unmodified as binaries; source at upstream):")
         $readme.Add("  adb (Android SDK Platform-Tools r37.0.1): https://android.googlesource.com/platform/packages/modules/adb (tag platform-tools-37.0.1)")
         $readme.Add("  scrcpy-server v5.0: https://github.com/Genymobile/scrcpy/tree/v5.0")
+        if ($hasTranslate) {
+            $readme.Add("Not included (not distributed with the program; downloaded by it after the user agrees):")
+            $readme.Add("  Firefox Translations models (MPL-2.0): https://github.com/mozilla/translations")
+            $readme.Add("  PaddleOCR models, ONNX conversions by RapidOCR (Apache-2.0): https://github.com/PaddlePaddle/PaddleOCR,")
+            $readme.Add("  https://www.modelscope.cn/models/RapidAI/RapidOCR")
+        }
         $e = $zip.CreateEntry('DEPS-README.txt')
         $w = New-Object IO.StreamWriter($e.Open(), $Utf8NoBom)
         try { $w.Write(($readme -join "`r`n") + "`r`n") } finally { $w.Dispose() }
     } catch { $zip.Dispose(); $fs.Dispose(); Remove-Item -Force $depZip -ErrorAction SilentlyContinue; throw }
     $zip.Dispose(); $fs.Dispose()
+
+    # Guard: everything the release ships from source is in the deps zip.
+    $dz = [IO.Compression.ZipFile]::OpenRead($depZip)
+    try { $dnames = New-Object 'System.Collections.Generic.HashSet[string]' (, [string[]]@($dz.Entries | ForEach-Object { $_.FullName })) }
+    finally { $dz.Dispose() }
+    $needDeps = @('DEPS-README.txt') + @($PortInfo.Values | ForEach-Object { "ports/$($_.Name)/portfile.cmake" })
+    if ($hasTranslate) {
+        $needDeps += @('bergamot/BergamotTranslatorSharp/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator-dynamic/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/3rd_party/marian-dev/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/3rd_party/ssplit-cpp/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/3rd_party/marian-dev/src/3rd_party/intgemm/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/3rd_party/marian-dev/src/3rd_party/sentencepiece/CMakeLists.txt',
+                       'bergamot/BergamotTranslatorSharp/bergamot-translator/3rd_party/marian-dev/src/3rd_party/onnxjs/deps/eigen/CMakeLists.txt',
+                       'bergamot/pm/translate/tools/build_bergamot.sh', 'bergamot/pm/translate/bergamot/lapack_stubs.cpp',
+                       'onnxruntime/LICENSE.txt', 'onnxruntime/ThirdPartyNotices.txt')
+    }
+    $missingDeps = @($needDeps | Where-Object { -not $dnames.Contains($_) })
+    if ($missingDeps) { Remove-Item -Force $depZip; throw "deps zip incomplete, missing: $($missingDeps -join ', ')" }
+    $upCount = @($dnames | Where-Object { $_ -like 'upstream/*' }).Count
+    if ($upCount -ne $PortInfo.Count) { Remove-Item -Force $depZip; throw "deps zip: $upCount upstream archives for $($PortInfo.Count) ports" }
 }
 
 Remove-Item -Recurse -Force $stage

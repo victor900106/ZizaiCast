@@ -15,13 +15,20 @@ Every release on <https://github.com/victor900106/ZizaiCast/releases> carries,
 |---|---|
 | `zizai-setup-<version>.exe` (published name; built as `自在投影-安裝程式-<version>.exe`) | the installer (object code) |
 | `ZizaiCast-<version>-source.zip` | `git archive` of the exact commit the installer was built from (with `BUILD.md` at its root: tools, vcpkg port versions, commands) |
-| `ZizaiCast-<version>-deps-source.zip` | upstream source archives of the libraries shipped in the installer (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg) + the vcpkg port scripts/patches used to build them + `DEPS-README.txt` (versions, vcpkg commit, SHA-256) |
+| `ZizaiCast-<version>-deps-source.zip` | `upstream/` + `ports/`: upstream source archives of the vcpkg libraries shipped in the installer (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg; PCRE2, linked into `bergamot.dll`) + the vcpkg port scripts/patches used to build them; `bergamot/`: the complete source of `bergamot.dll` (BergamotTranslatorSharp and all its submodules at the pinned commits, plus this project's build script and patch file); `onnxruntime/`: licence and notices of the unmodified `onnxruntime.dll`; `DEPS-README.txt` (versions, commits, SHA-256, download URL of `onnxruntime.dll`, what is not included and why) |
 
 This is "equivalent access to the Corresponding Source in the same way through
 the same place at no further charge" (GPL-3.0 §6(d)); for libplist and FFmpeg
 it is also the "equivalent access to copy the source code from the same place"
-of LGPL-2.1 §4. The source assets are kept for as long as the installer is
-offered on that page.
+of LGPL-2.1 §4, and for `bergamot.dll` the Source Code Form of MPL-2.0 §3.2(a).
+The source assets are kept for as long as the installer is offered on that page.
+
+> **Correction (0.7.2).** The deps-source zip first attached to the v0.7.2
+> release did not contain the `bergamot.dll` sources, PCRE2 or the
+> `onnxruntime/` notices, although this file said so. It was replaced on the
+> release page by one that does (built by the current `make_source_zip.ps1`;
+> the installer and `update.json` are unchanged). Releases before 0.7.0 do not
+> ship `bergamot.dll` / `onnxruntime.dll`.
 
 Both archives are produced by [`tools/release/make_source_zip.ps1`](../../tools/release/make_source_zip.ps1):
 
@@ -31,7 +38,12 @@ powershell -ExecutionPolicy Bypass -File tools\release\make_source_zip.ps1 -Veri
 
 `-Verify` extracts the source zip to `%TEMP%`, fetches the Android helper
 binaries and performs a clean CMake configure + build of the whole tree
-(nothing has to be added: the artwork is in the archive). The script refuses
+(nothing has to be added: the artwork is in the archive). The bergamot sources
+are taken from the checkout `translate/tools/build_bergamot.sh` makes
+(`build-translate/bts-src`, or `-BergamotSrc`) with `git archive` at the pinned
+commit and, recursively, at each submodule commit recorded by its parent, so
+local edits in that checkout never end up in the zip; the script fails if a
+file the release needs is missing from the deps zip. The script refuses
 to archive a revision whose `pm_audio` still links fdk-aac
 (GPL-incompatible) or that contains any of the old mascot / icon art (see
 §2), and warns when the working tree differs from the archived commit.
@@ -89,6 +101,15 @@ blob ids) is in the archive.
   cmake --build build --config Release
   ISCC /DBuildDir=..\build\bin\Release installer\zizai.iss
   ```
+* Translation (0.7.0+), before the build above (`BUILD.md` §5 in the source zip):
+  `bergamot.dll` is **built from source** with `translate/tools/build_bergamot.sh`
+  (Git Bash; needs `vcpkg install pcre2 --triplet x64-windows-static`; online it
+  clones BergamotTranslatorSharp `e084db2` with its submodules, offline the same
+  steps run on `bergamot/BergamotTranslatorSharp/` of the deps zip).
+  `onnxruntime.dll` is **not rebuilt**: `translate/tools/get_onnxruntime.sh`
+  downloads the official ONNX Runtime 1.30.0 wheel from PyPI, checks its pinned
+  SHA-256 and extracts the DLL with its licence and notices. CMake copies both
+  next to the exe (`PM_BERGAMOT_DLL`, `PM_ONNXRUNTIME_DLL`).
 
 ## 4. Upstream sources: modified or not, and where to get them
 
@@ -104,9 +125,9 @@ blob ids) is in the archive.
 | adb / AdbWinApi / AdbWinUsbApi (Platform-Tools r37.0.1) | unmodified Google binaries (separate program) | <https://android.googlesource.com/platform/packages/modules/adb> tag `platform-tools-37.0.1`; components listed in `NOTICE.txt` (e.g. libusb: <https://android.googlesource.com/platform/external/libusb>) |
 | scrcpy-server v5.0 | unmodified release binary (separate program) | <https://github.com/Genymobile/scrcpy/tree/v5.0> |
 | MSVC runtime DLLs | unmodified; System Libraries (GPL-3.0 §1), not part of the Corresponding Source | Microsoft Visual C++ Redistributable |
-| bergamot.dll (0.7.0): BergamotTranslatorSharp @ `e084db2` with bergamot-translator, Marian, intgemm, SentencePiece, ssplit-cpp, yaml-cpp, spdlog, pathie-cpp, faiss, ONNX.js sgemm + Eigen, zlib, CLI11 (submodules at that commit) and PCRE2 10.49 (vcpkg static) | **modified build** — `translate/tools/build_bergamot.sh` patches (Eigen ONNX sgemm instead of MKL / BLAS, `translate/bergamot/lapack_stubs.cpp`, `/arch:SSE2`); MPL-2.0 parts: these patches are the only changes | source zip (`translate/`); deps zip; <https://github.com/Freeesia/BergamotTranslatorSharp/tree/e084db279f0d4314b31c7730cfc61ab03f235604> (recursive submodules) |
+| bergamot.dll (0.7.0): BergamotTranslatorSharp @ `e084db2` with bergamot-translator, Marian, intgemm, SentencePiece, ssplit-cpp, yaml-cpp, spdlog, pathie-cpp, faiss, ONNX.js sgemm + Eigen, zlib, CLI11 (submodules at that commit) and PCRE2 10.49 (vcpkg static) | **modified build** — `translate/tools/build_bergamot.sh` patches (Eigen ONNX sgemm instead of MKL / BLAS, `translate/bergamot/lapack_stubs.cpp`, `/arch:SSE2`); MPL-2.0 parts: these patches are the only changes | build script + patch file: source zip (`translate/tools/build_bergamot.sh`, `translate/bergamot/`); the complete upstream tree at the pinned commits: deps zip `bergamot/BergamotTranslatorSharp/` (commit list in `DEPS-README.txt`); PCRE2 10.49: deps zip `upstream/` + `ports/pcre2`; <https://github.com/Freeesia/BergamotTranslatorSharp/tree/e084db279f0d4314b31c7730cfc61ab03f235604> (recursive submodules) |
 | Firefox Translations models | not distributed (downloaded by the user's app from Mozilla after consent; MPL-2.0) | <https://github.com/mozilla/translations> |
-| onnxruntime.dll 1.30.0 (0.7.0) + msvcp140_1.dll | unmodified official Microsoft binary (MIT; `translate/tools/get_onnxruntime.sh`, SHA-256 pinned), loaded at run time | <https://github.com/microsoft/onnxruntime/tree/v1.30.0>; notices in `licenses/onnxruntime/` |
+| onnxruntime.dll 1.30.0 (0.7.0) + msvcp140_1.dll | unmodified official Microsoft binary (MIT; `translate/tools/get_onnxruntime.sh`, SHA-256 pinned), loaded at run time | not rebuilt, no source included (MIT does not require it); licence + `ThirdPartyNotices.txt`: `licenses/onnxruntime/` (installed) and deps zip `onnxruntime/`; download URL + SHA-256: `DEPS-README.txt`, `get_onnxruntime.sh`; upstream <https://github.com/microsoft/onnxruntime/tree/v1.30.0> |
 | PaddleOCR models (PP-OCRv6 det tiny / rec small, PP-OCRv5 Korean rec) | not distributed (downloaded by the user's app from ModelScope after consent; Apache-2.0) | <https://github.com/PaddlePaddle/PaddleOCR>, <https://www.modelscope.cn/models/RapidAI/RapidOCR> |
 | Inno Setup 6.7.3 | unmodified (build tool; its setup stub is in the installer) | <https://jrsoftware.org/isinfo.php> |
 

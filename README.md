@@ -66,6 +66,16 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <table>
 <tr>
+<td width="33%" valign="top"><img src="docs/readme/features/f-magnifier.jpg" alt="放大鏡：原本大小、放大 2 倍、黃字黑底濾鏡"><br><b>🔍 放大鏡</b><br>Ctrl+滾輪或工具列放大（最多 8 倍），右下角小地圖可拖曳；弱視濾鏡（Ctrl+K）：加強對比、黑白、反轉、黃字黑底。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate.jpg" alt="畫面翻譯原位顯示：日文菜單翻成繁體中文，譯文蓋在原文上"><br><b>🈯 畫面翻譯（原位顯示）</b><br>Ctrl+L 離線翻譯英、日、韓、簡中，譯文直接蓋在原文位置。<sub>圖中菜單為合成的測試圖。</sub></td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate-list.jpg" alt="畫面翻譯清單顯示：編號標記與譯文清單"><br><b>📋 畫面翻譯（清單顯示）</b><br>原文旁標上編號，譯文整理成清單；選單可切換自動／原位／清單、翻成哪種語言。</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/readme/features/f-send.jpg" alt="傳到手機：勾選這次的截圖和錄影"><br><b>📤 傳到手機（電腦端）</b><br>截圖、錄影後點「傳到手機」，勾選要傳的檔案一次送出。</td>
+<td valign="top"><img src="docs/readme/features/f-jako.jpg" alt="日文與韓文介面"><br><b>🇯🇵🇰🇷 日本語・한국어 介面</b><br>介面與安裝程式新增日文、韓文（設定 → 語言 / Language）。</td>
+<td valign="top"></td>
+</tr>
+<tr>
 <td width="33%" valign="top"><img src="docs/readme/features/f-iphone.jpg" alt="iPhone 鏡像"><br><b>🍎 iPhone / iPad 鏡像</b><br>AirPlay 螢幕鏡像，免裝 App，畫面＋聲音。iPhone 的音量鍵可以調電腦音量。</td>
 <td width="33%" valign="top"><img src="docs/readme/features/f-miracast.jpg" alt="Android 投放"><br><b>🤖 Android 投放</b><br>手機內建的「投放／Smart View」（Miracast）直接選自在投影。<a href="#faq">需要 Windows「無線顯示器」功能</a>。</td>
 <td width="33%" valign="top"><img src="docs/readme/features/f-control.jpg" alt="電腦操控 Android"><br><b>🖱️ 用電腦操控 Android</b><br>無線偵錯連線：左鍵點擊、拖曳滑動、滾輪捲動、右鍵返回、鍵盤打字；工具列有返回／主畫面／最近使用。</td>

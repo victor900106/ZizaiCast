@@ -66,6 +66,16 @@ Full change list on [Releases](https://github.com/victor900106/ZizaiCast/release
 
 <table>
 <tr>
+<td width="33%" valign="top"><img src="docs/readme/features/f-magnifier-en.jpg" alt="Magnifier: normal size, zoom 2x, yellow-on-black filter"><br><b>🔍 Magnifier</b><br>Ctrl+wheel or the toolbar zooms up to 8× with a draggable overview; low-vision colours (Ctrl+K): more contrast, greyscale, inverted, yellow on black.</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate-en.jpg" alt="On-screen translation in place: a Japanese menu translated into English over the original text"><br><b>🈯 Translation — in place</b><br>Ctrl+L translates English, Japanese, Korean and Simplified Chinese offline, drawn right over the original. <sub>The menu is a synthetic test picture.</sub></td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate-list-en.jpg" alt="On-screen translation as a list: numbered marks and the translations in a list"><br><b>📋 Translation — as a list</b><br>Numbered marks on the original, translations in a list; switch automatic / in place / list and the target language in the menu.</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/readme/features/f-send-en.jpg" alt="Send to phone: tick this session's screenshots and recordings"><br><b>📤 Send to phone — on the PC</b><br>After screenshots or recordings, click Send to phone and tick the files to send at once.</td>
+<td valign="top"><img src="docs/readme/features/f-jako-en.jpg" alt="Japanese and Korean UI"><br><b>🇯🇵🇰🇷 日本語 / 한국어 UI</b><br>The app and the installer now also speak Japanese and Korean (Settings → Language).</td>
+<td valign="top"></td>
+</tr>
+<tr>
 <td width="33%" valign="top"><img src="docs/readme/features/f-iphone-en.jpg" alt="iPhone mirroring"><br><b>🍎 iPhone / iPad mirroring</b><br>AirPlay screen mirroring with sound, no app on the phone. The iPhone's volume buttons set the PC volume.</td>
 <td width="33%" valign="top"><img src="docs/readme/features/f-miracast-en.jpg" alt="Android Cast"><br><b>🤖 Android Cast (Miracast)</b><br>Pick Zizai Cast from the phone's Cast / Smart View tile. <a href="#faq">Needs the Windows “Wireless Display” feature</a>.</td>
 <td width="33%" valign="top"><img src="docs/readme/features/f-control-en.jpg" alt="Control Android from the PC"><br><b>🖱️ Control Android from the PC</b><br>Over wireless debugging: click = tap, drag = swipe, wheel = scroll, right-click = back, type on your keyboard; Back / Home / Recents in the toolbar.</td>
