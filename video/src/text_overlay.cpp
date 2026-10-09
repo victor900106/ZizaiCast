@@ -174,6 +174,13 @@ void Renderer::setTextOverlay(std::vector<TextBox> boxes) {
     // the numbered list as 「標籤　值」; doubtful text with its key facts
     // highlighted and the original a tap away).
     for (TextBox& b : boxes_) {
+        // 0xE002 alone (kOverlayKeep): text kept as written - no card, the list
+        // panel is placed off it.
+        if (b.text.size() == 1 && b.text[0] == 0xE002) {
+            b.kind = 4;
+            b.text.clear();
+            continue;
+        }
         while (!b.text.empty() && (b.text[0] == 0xE000 || b.text[0] == 0xE001)) {
             b.kind |= b.text[0] == 0xE000 ? 1 : 2;
             b.text.erase(0, 1);
@@ -481,7 +488,9 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
     // Automatic: more than 30 % do not fit in place -> every block listed
     // (half an overlay is confusing; the picture stays visible with numbers).
     const int whole = static_cast<int>(n) - partial - forced;
-    bool listAll = ovMode_ == 2 || (ovMode_ == 0 && notFit * 10 > whole * 3);
+    // (Few blocks - a track list with six headings translated: whatever fits
+    // stays in place; listing all of them made a panel over the kept text.)
+    bool listAll = ovMode_ == 2 || (ovMode_ == 0 && notFit * 10 > whole * 3 && whole > 8);
     if (listAll)
         for (auto& it : ovItems_) it.cand = -1;
     // Same print size, same text size: blocks whose lines are within ~20 %
@@ -670,9 +679,29 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
                     if (it.cand >= 0 && overlaps(inflate(it.card, half, half), p, 0.f)) c += 1000;
                     else if (it.cand < 0 && overlaps(it.r, p, 0.f)) c += 1;
                 }
+                // Text kept as written (a track list's songs 27-40): readable only uncovered.
+                for (const TextBox& k : boxes_) {
+                    if (k.kind != 4) continue;
+                    const D2D1_POINT_2F q0 = contentToDip(pic, k.x0, k.y0), q1 = contentToDip(pic, k.x1, k.y1);
+                    if (overlaps(D2D1_RECT_F{std::min(q0.x, q1.x), std::min(q0.y, q1.y), std::max(q0.x, q1.x), std::max(q0.y, q1.y)}, p, 0.f)) c += 50;
+                }
                 return c - (p.bottom - p.top) * 0.001f;  // a tie: the taller one
             };
-            const auto& pick = cost(bottom.first) <= cost(top.first) ? bottom : top;
+            std::pair<D2D1_RECT_F, float> pick = cost(bottom.first) <= cost(top.first) ? bottom : top;
+            // Covering text kept as written (a track list) or cards: also try the
+            // panel at other heights - over the listed blocks themselves (their
+            // originals are in the panel anyway), clear of the badges.
+            if (cost(pick.first) >= 50) {
+                const float h = pick.first.bottom - pick.first.top;
+                float best = cost(pick.first);
+                for (float y = topY; y + h <= bottomY; y += std::max(8.f, h / 8)) {
+                    const D2D1_RECT_F c{panel.left, y, panel.right, y + h};
+                    bool onBadge = false;
+                    for (const auto& b : ovBlocked_) onBadge = onBadge || overlaps(b, c, 0.f);
+                    const float k = cost(c);
+                    if (!onBadge && k < best - 0.5f) best = k, pick.first = c;
+                }
+            }
             panel = pick.first;
             ovRowsArea_ = {panel.left, panel.top + headH, panel.right, panel.top + headH + pick.second};
         } else {
@@ -694,7 +723,7 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
         if (!moved) break;
         int nl = 0;
         for (const auto& it : ovItems_) nl += it.cand < 0;
-        if (ovMode_ == 0 && !listAll && (nl - partial - forced) * 10 > whole * 3) {
+        if (ovMode_ == 0 && !listAll && (nl - partial - forced) * 10 > whole * 3 && whole > 8) {
             listAll = true;
             for (auto& it : ovItems_) it.cand = -1;
         }

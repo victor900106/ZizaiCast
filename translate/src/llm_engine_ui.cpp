@@ -122,6 +122,7 @@ Result download(const std::function<void(const DownloadProgress&)>& progress, co
         d.secondsLeft = p.secondsLeft;
         d.connections = p.connections;
         d.verifying = p.verifying;
+        d.pending = p.pending;
         progress(d);
     };
     if (llm::download(*m, std::function<void(const dl::Progress&)>(relay), cancel, &e)) return Result::Ok;

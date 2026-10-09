@@ -77,7 +77,8 @@ std::wstring toTraditional(const std::wstring& s) {
     } kWords[] = {{L"餅干", L"餅乾"}, {L"干燥", L"乾燥"}, {L"曬干", L"曬乾"}, {L"晒干", L"曬乾"}, {L"干淨", L"乾淨"},
                   {L"制品", L"製品"}, {L"制造", L"製造"}, {L"制作", L"製作"}, {L"制成", L"製成"}, {L"面粉", L"麵粉"},
                   {L"面條", L"麵條"}, {L"面包", L"麵包"}, {L"方便面", L"方便麵"}, {L"拉面", L"拉麵"}, {L"里面", L"裡面"},
-                  {L"這里", L"這裡"}, {L"那里", L"那裡"}, {L"哪里", L"哪裡"}, {L"凈含量", L"淨含量"}, {L"于", L"於"}};
+                  {L"這里", L"這裡"}, {L"那里", L"那裡"}, {L"哪里", L"哪裡"}, {L"凈含量", L"淨含量"}, {L"于", L"於"},
+                  {L"平臺", L"平台"}};  // zh-TW usage: 平台 (a platform), 臺 elsewhere (臺北, 臺灣)
     for (const auto& w : kWords)
         for (size_t at = t.find(w.from); at != std::wstring::npos; at = t.find(w.from, at + wcslen(w.to)))
             t.replace(at, wcslen(w.from), w.to);
@@ -307,7 +308,14 @@ std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect) {
             if (p.bg >= 0 && ln.bg >= 0 && std::fabs(p.bg - ln.bg) > 0.3f) continue;  // white on black vs black on white
             const float xm = (std::max(p.x0, ln.x0) + std::min(p.x1, ln.x1)) / 2;
             const float gap = (centreY(ln, xm) - h / 2) - (centreY(p, xm) + ph / 2), hm = std::max(h, ph);
-            if (gap < -0.3f * hm || gap > 0.9f * hm) continue;  // glyph heights (PaddleOCR): wide UI line spacing still joins
+            // A paragraph wrapped mid-word with a web page's wide leading (…音の高い・
+            // 低いで表しま / す。ここで…): the line ends in a kana / kanji, not a
+            // 。、 and the next starts at the same left edge - joined up to 1.6 line
+            // heights apart (0.7.6 translated 「す。」 alone as 「就是這樣。」).
+            const bool midWord = !p.text.empty() && !ln.text.empty() && isCjk(p.text.back()) && !isHangul(p.text.back()) && !wcschr(L"。、，．！？：）」』", p.text.back()) && isCjk(ln.text.front()) &&
+                                 std::fabs(p.x0 - ln.x0) * aspect < 0.5f * std::max(h, ph) && h / ph < 1.15f && ph / h < 1.15f &&
+                                 (p.x1 - p.x0) * aspect > 12 * ph;  // a paragraph line, not a menu item
+            if (gap < -0.3f * hm || gap > (midWord ? 1.6f : 0.9f) * hm) continue;  // glyph heights (PaddleOCR): wide UI line spacing still joins
             const float ov = std::min(p.x1, ln.x1) - std::max(p.x0, ln.x0);
             const float minW = std::min(p.x1 - p.x0, ln.x1 - ln.x0);
             if (ov < 0.5f * minW) continue;

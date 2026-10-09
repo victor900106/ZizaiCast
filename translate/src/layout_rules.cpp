@@ -132,12 +132,51 @@ std::vector<OcrLine> mergeFragments(std::vector<OcrLine> ls, float aspect) {
                 // Spaced-out label characters (名 称, 熱 量, 脂 質, 製 造): one
                 // or two characters each, up to ~3 characters apart.
                 const int na = cjkLetters(A.text), nb = cjkLetters(B.text);
-                const bool spacedLabel = na > 0 && nb > 0 && nb <= 2 && (na == 1 || (spacedOut[a] && na <= 4)) && gap < 3.2f * h &&
+                bool spacedLabel = na > 0 && nb > 0 && nb <= 2 && (na == 1 || (spacedOut[a] && na <= 4)) && gap < 3.2f * h &&
                                          gap > -0.3f * h;
+                // A row of three or more single-glyph boxes (a grid of kanji
+                // tiles 日 一 国, a tab bar's icons あ ▱ 単 字) is not a spaced-out
+                // label: never joined into a pseudo-word (會年, 單字).
+                if (spacedLabel && na == 1 && nb == 1 && !spacedOut[a]) {
+                    int singles = 0;
+                    for (size_t k = 0; k < ls.size(); ++k) {
+                        const OcrLine& o = ls[k];
+                        if (o.vertical || noSpace(o.text).size() != 1) continue;
+                        const float oc = (o.y0 + o.y1) / 2, ac = (A.y0 + A.y1) / 2;
+                        if (std::fabs(oc - ac) < 0.5f * h && hOf(o) / h > 0.7f && hOf(o) / h < 1.4f) ++singles;
+                    }
+                    if (singles >= 3) spacedLabel = false;
+                    // Icons over their own labels (a tab bar: 単 over 単語, 字 over 漢字):
+                    // each glyph has a line of its own right below it.
+                    auto ownLineBelow = [&](const OcrLine& g, const OcrLine& other) {
+                        for (const auto& o : ls) {
+                            if (&o == &g || &o == &other || o.y0 < g.y1 - 0.2f * h || o.y0 - g.y1 > 1.2f * h) continue;
+                            const bool underG = std::min(o.x1, g.x1) - std::max(o.x0, g.x0) > 0;
+                            const bool underOther = std::min(o.x1, other.x1) - std::max(o.x0, other.x0) > 0;
+                            if (underG && !underOther) return true;
+                        }
+                        return false;
+                    };
+                    if (ownLineBelow(A, B) && ownLineBelow(B, A)) spacedLabel = false;
+                }
                 if (!spacedLabel) {
                     if (gap > 0.9f * h || gap < -0.8f * h) continue;
+                    // A Japanese label and its English gloss side by side (文法 Grammar,
+                    // 漢字 Kanji): two texts, not one line (「文法文」, 「康司」).
+                    auto latinOnly = [](const std::wstring& t) {
+                        bool any = false;
+                        for (wchar_t c : t) {
+                            if (iswspace(c)) continue;
+                            if (!((c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z'))) return false;
+                            any = true;
+                        }
+                        return any;
+                    };
+                    if (((na > 0 && latinOnly(B.text)) || (nb > 0 && latinOnly(A.text))) && gap > 0.25f * h) continue;
                     if (startsColumn(b, a)) continue;
                 }
+                static const bool dbgMerge = std::getenv("PM_LAYOUT_DEBUG") != nullptr;
+                if (dbgMerge) std::fprintf(stderr, "[layout] merge %ls + %ls (gap %.2f h%s)\n", A.text.c_str(), B.text.c_str(), gap / h, spacedLabel ? ", spaced" : "");
                 OcrLine m = A;
                 m.text = spacedLabel ? A.text + B.text : joinText(A.text, B.text);
                 if (A.charX.size() == A.text.size() && B.charX.size() == B.text.size() &&
@@ -209,7 +248,51 @@ float dominantAngle(const std::vector<OcrLine>& lines) {
 // picture's centre), the rows and cells found there, the blocks' boxes turned
 // back (their axis-aligned bounds in the picture).  0.7.x paired the label
 // cells of a -17 degree label with the next row's values (品原材料名…450g).
-std::vector<Block> layoutBlocks(const std::vector<OcrLine>& lines, float aspect) {
+// Icons the recogniser reads as symbol characters (Safari's bookmark button
+// as 「□」 / ⎗ next to the URL, a lock, a share arrow): not text.  Dropped:
+// symbol characters fonts mostly lack (technical symbols, dingbats, emoji,
+// private use, unassigned), and a lone symbol standing as a word of its own
+// (「www.streetfighter.com □」) - a leading bullet (● 名称, ・, ※) stays.
+namespace {
+bool rareSymbol(wchar_t c) {
+    return (c >= 0x2300 && c <= 0x23FF) || (c >= 0x2194 && c <= 0x21FF) || (c >= 0x2700 && c <= 0x27BF && c != 0x2713 && c != 0x2714) ||
+           (c >= 0x2B00 && c <= 0x2BFF) || (c >= 0xE000 && c <= 0xF8FF) || (c >= 0xD800 && c <= 0xDFFF) || c == 0xFFFD ||
+           (c >= 0x2600 && c <= 0x26FF && c != 0x2605 && c != 0x2606 && c != 0x260E);
+}
+bool symbolGlyph(wchar_t c) {
+    return rareSymbol(c) || (c >= 0x25A0 && c <= 0x25FF) || c == 0x2605 || c == 0x2606 || c == 0x260E || c == L'口';
+}
+}  // namespace
+
+std::wstring dropIconGlyphs(const std::wstring& t) {
+    std::wstring o;
+    for (wchar_t c : t)
+        if (!rareSymbol(c)) o += c;
+    // へ べ ぺ look the same in hiragana and katakana: inside a katakana word
+    // (レべル read for レベル - then 「條線」) the katakana one.
+    auto kata = [](wchar_t c) { return (c >= 0x30A1 && c <= 0x30FA) || c == 0x30FC; };
+    for (size_t i = 1; i + 1 < o.size(); ++i)
+        if ((o[i] == 0x3078 || o[i] == 0x3079 || o[i] == 0x307A) && kata(o[i - 1]) && kata(o[i + 1])) o[i] = static_cast<wchar_t>(o[i] + 0x60);
+    // A lone symbol word after text (not a leading bullet).
+    std::wstring r;
+    for (size_t i = 0; i < o.size(); ++i) {
+        const bool lone = symbolGlyph(o[i]) && i > 0 && (o[i - 1] == L' ' || o[i - 1] == 0x3000) &&
+                          (i + 1 == o.size() || o[i + 1] == L' ' || o[i + 1] == 0x3000);
+        if (!lone) r += o[i];
+    }
+    while (!r.empty() && (r.back() == L' ' || r.back() == 0x3000)) r.pop_back();
+    size_t b = 0;
+    while (b < r.size() && (r[b] == L' ' || r[b] == 0x3000)) ++b;
+    return r.substr(b);
+}
+
+std::vector<Block> layoutBlocks(const std::vector<OcrLine>& linesIn, float aspect) {
+    std::vector<OcrLine> lines;
+    for (const auto& l : linesIn) {
+        OcrLine c = l;
+        c.text = dropIconGlyphs(l.text);
+        if (!c.text.empty()) lines.push_back(std::move(c));
+    }
     const float th = dominantAngle(lines);
     if (th == 0) return layoutStraight(lines, aspect);
     const float c = std::cos(th), s = std::sin(th);
@@ -352,7 +435,27 @@ std::vector<Block> layoutStraight(const std::vector<OcrLine>& lines, float aspec
             // Spaced-out label characters: 名 称, 熱 量, 製 造 (one character, then more).
             const bool cjkA = !at.empty() && std::all_of(at.begin(), at.end(), isLetterCjk);
             const bool cjkB = !bt.empty() && std::all_of(bt.begin(), bt.end(), isLetterCjk);
-            if (cjkA && cjkB && B.lines == 1 && !B.labelLen && bestGap < 3.2f && bt.size() <= 2 &&
+            // Not glyph tiles / icons: a row of three or more single glyphs (日 一 国,
+            // a tab bar's あ 単 字), or two glyphs each over a label of its own
+            // (単 over 単語, 字 over 漢字) - never joined into a pseudo-word.
+            bool tiles = false;
+            if (at.size() == 1 && bt.size() == 1 && !spaced[a]) {
+                const float h = std::max(hOf(A), hOf(B));
+                int singles = 0;
+                for (const Block& o : bs)
+                    if (o.lines == 1 && noSpace(o.text).size() == 1 && std::fabs((o.y0 + o.y1) / 2 - (A.y0 + A.y1) / 2) < 0.5f * h &&
+                        hOf(o) > 0.7f * h && hOf(o) < 1.4f * h)
+                        ++singles;
+                auto ownBelow = [&](const Block& g, const Block& other) {
+                    for (const Block& o : bs) {
+                        if (&o == &g || &o == &other || o.y0 < g.y1 - 0.2f * h || o.y0 - g.y1 > 1.2f * h) continue;
+                        if (std::min(o.x1, g.x1) - std::max(o.x0, g.x0) > 0 && std::min(o.x1, other.x1) - std::max(o.x0, other.x0) <= 0) return true;
+                    }
+                    return false;
+                };
+                tiles = singles >= 3 || (ownBelow(A, B) && ownBelow(B, A));
+            }
+            if (!tiles && cjkA && cjkB && B.lines == 1 && !B.labelLen && bestGap < 3.2f && bt.size() <= 2 &&
                 (at.size() == 1 || (spaced[a] && at.size() <= 4))) {
                 join(a, best, false, 0);
                 spaced[a] = 1;
@@ -363,7 +466,19 @@ std::vector<Block> layoutStraight(const std::vector<OcrLine>& lines, float aspec
             const bool num = numberLike(B.text);
             if (bestGap > (num ? 30.f : 6.f)) continue;
             // Far apart only for a known field name / a label ending with a colon.
-            if (bestGap > 2.5f && !num && !isFieldLabel(A.text) && at.back() != L'：' && at.back() != L':') continue;
+            const bool colon = at.back() == L'：' || at.back() == L':';
+            // A one-character label is an icon read as a letter (Safari's ✕ as
+            // 「X」, Google Translate's G): never a row's label.
+            if (countScripts(at).letters() < 2 && !isFieldLabel(A.text)) continue;
+            if (bestGap > 2.5f && !num && !isFieldLabel(A.text) && !colon) continue;
+            // Two standalone items side by side are not 「標籤　值」: a tab bar /
+            // button row (ホーム | はじめる, 許可しない | 許可する), a roster of
+            // names (ARJUN | YASMINE).  A text value needs a known field name or
+            // a colon; English rows always do (owner 0.7.6).
+            if (!num && !isFieldLabel(A.text) && !colon) {
+                const float r = hOf(A) / std::max(1e-6f, hOf(B));
+                if (countScripts(A.text).latin > 0 || (labelLike(B) && r < 1.35f && r > 1 / 1.35f)) continue;
+            }
             join(a, best, true, num ? 2 : 1);
             changed = true;
         }

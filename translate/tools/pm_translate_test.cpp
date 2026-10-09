@@ -662,6 +662,59 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
     return fails;
 }
 
+// ---- --selftest, QE garbage / negation (qe.cpp, translator.cpp checkTranslation) ----
+int qeGarbageSelfTest(int& n) {
+    int fails = 0;
+    auto expect = [&](bool ok, const char* what, const std::wstring& got = L"") {
+        ++n;
+        if (!ok) ++fails;
+        std::printf("  %s %s%s%s\n", ok ? "ok  " : "FAIL", what, got.empty() ? "" : "  -> ", u8(got).c_str());
+    };
+    auto has = [](const std::vector<std::string>& v, const char* f) { return std::find(v.begin(), v.end(), f) != v.end(); };
+    auto chk = [](const wchar_t* s, const wchar_t* t, Lang l = Lang::Ja) { return checkTranslation(s, t, l, Lang::ZhHant); };
+    std::printf("checks (qe garbage / negation):\n");
+    // Kana spelled out in sound characters (owner 0.7.7 screenshots).
+    for (const auto& [s, t] : {std::pair{L"エッセイ", L"艾莎"}, {L"カンジ", L"康司"}, {L"かこさい", L"加古塞伊"}, {L"・あさり", L"・亞薩里"},
+                               {L"ラーメン", L"拉曼"}, {L"メンマタンタンメン 800", L"曼瑪坦·塔曼 800"}, {L"・ほたて", L"・霍特"}})
+        expect(has(chk(s, t), "translit"), "kana -> sound characters fails", t);
+    for (const auto& [s, t] : {std::pair{L"ラーメン", L"拉麵"}, {L"サラダ", L"沙拉"}, {L"モヒート ゼロ ¥480", L"莫吉托零度 ¥480"},
+                               {L"・いくら", L"・多少"}, {L"キャンセル", L"取消"}, {L"ストロベリー", L"草莓"}, {L"漢字", L"漢字"}})
+        expect(!has(chk(s, t), "translit"), "a real translation / loanword passes", t);
+    expect(!has(chk(L"マリア様", L"瑪麗亞大人"), "translit"), "kanji in the source: not kana-only");
+    // Stray Latin / currency (「使用 sy 的 s€」 for ふりがな).
+    expect(has(chk(L"ふりがなを使う", L"使用 sy 的 s€"), "stray-latin"), "stray Latin and € fail");
+    expect(!has(chk(L"価格 380円", L"價格 ¥380"), "stray-latin"), "¥ for 円 passes");
+    // ASCII words changed on the way.
+    expect(has(chk(L"PITCH ACCENT", L"PATCH ACCENT", Lang::En), "latin-changed"), "PITCH -> PATCH fails");
+    expect(has(chk(L"プレゼン.odp - LibreOffice Impress", L"簡報.odp - LiberOffice 印象"), "latin-changed"), "LibreOffice -> LiberOffice fails");
+    expect(!has(chk(L"PITCH ACCENT", L"音高重音", Lang::En), "latin-changed"), "a translated word passes");
+    expect(!has(chk(L"Open the app", L"打開 apps", Lang::En), "latin-changed"), "a plural is not a change");
+    expect(!has(chk(L"JLPT N5", L"JLPT N5 級", Lang::En), "latin-changed"), "kept as written passes");
+    expect(!has(chk(L"Tamaño de Porción", L"Tamaño de Porcion", Lang::En), "latin-changed") &&
+               !has(chk(L"Epson Perfection™ V800", L"Epson PerfectionTM V800", Lang::En), "latin-changed"),
+           "an accent dropped / ™ spelled out is not a change");
+    // Loops.
+    expect(has(chk(L"タンタンメン", L"玉米密塔坦萬特萬特坦萬特萬特坦萬特萬特坦"), "repeat"), "a five-character loop fails");
+    expect(!has(chk(L"はい、はい", L"是的，是的"), "repeat"), "a phrase said twice is not a loop");
+    // Negation: prohibitions and the instruction of a negated sentence.
+    for (const wchar_t* s : {L"無断転載禁止", L"無断使用を禁じます", L"許可なく使用できません", L"無断複製を禁じます"}) {
+        expect(has(chk(s, L"所有教學材料均可未經許可使用。"), "neg-missing"), "無断 / 許可なく: 「可未經許可使用」 fails", s);
+        expect(chk(s, L"未經許可不得使用。").empty() || chk(s, L"禁止未經許可轉載。").empty() || chk(s, L"禁止擅自複製。").empty(),
+               "無断 / 許可なく: 不得 / 禁止 passes", s);
+    }
+    expect(has(chk(L"値段表示のない露店で買わない", L"在沒有標價的攤位購買"), "neg-missing"), "のない…買わない: the instruction lost fails");
+    expect(chk(L"値段表示のない露店で買わない", L"不要在沒有標價的攤販購買").empty(), "のない…買わない: 不要 + 沒有 passes");
+    expect(has(chk(L"会員カードをお持ちでない方", L"持有會員卡的人"), "neg-missing"), "〜ない方 lost fails");
+    expect(chk(L"会員カードをお持ちでない方", L"沒有會員卡的人").empty(), "〜ない方: 沒有 passes");
+    expect(has(chk(L"写真撮影はご遠慮ください", L"請拍照"), "neg-missing"), "ご遠慮 lost fails");
+    expect(chk(L"写真撮影はご遠慮ください", L"請勿拍照").empty(), "ご遠慮: 請勿 passes");
+    expect(has(chk(L"返品不可", L"可退貨"), "neg-missing") && chk(L"返品不可", L"不可退貨").empty(), "不可 kept / lost");
+    expect(has(chk(L"割引対象外", L"折扣對象"), "neg-missing") && chk(L"割引対象外", L"不適用折扣").empty(), "対象外 kept / lost");
+    expect(has(chk(L"保存料を使用しない", L"使用防腐劑"), "neg-missing") && chk(L"保存料を使用しない", L"不使用防腐劑").empty(), "〜しない kept / lost");
+    expect(chk(L"必ず確認しなければなりません", L"必須確認").empty(), "〜なければならない (must) needs no negation word");
+    return fails;
+}
+
 // ---- --selftest: the rules of P0 (layout rows, checks, templates, escalation, cache) ----
 int runSelfTest(bool download) {
     int fails = 0, n = 0;
@@ -671,6 +724,7 @@ int runSelfTest(bool download) {
         std::printf("  %s %s%s%s\n", ok ? "ok  " : "FAIL", what, got.empty() ? "" : "  -> ", u8(got).c_str());
     };
     auto has = [](const std::vector<std::string>& v, const char* f) { return std::find(v.begin(), v.end(), f) != v.end(); };
+    fails += qeGarbageSelfTest(n);
     std::printf("checks (qe):\n");
     {
         const auto f = checkTranslation(L"直射日光、高温多湿を避けて常温で保存してください", L"存放於遠離陽光直射、高溫且潮濕的環境中", Lang::Ja, Lang::ZhHant);
@@ -689,6 +743,16 @@ int runSelfTest(bool download) {
         expect(has(checkTranslation(L"Do not microwave.", L"Microwave it.", Lang::En, Lang::ZhHant), "neg-missing") ||
                    has(checkTranslation(L"Do not microwave.", L"微波加熱。", Lang::En, Lang::ZhHant), "neg-missing"),
                "en -> zh: not lost");
+        // 無断 / 許可なく / 禁じます: the prohibition must stay (owner 0.7.7: a site's
+        // terms read 「…均可未經許可使用」).
+        for (const wchar_t* s : {L"無断転載禁止", L"無断使用禁止", L"無断複製を禁じます", L"許可なく使用できません", L"無断で使用することはできません",
+                                 L"無断使用を禁じます"}) {
+            expect(has(checkTranslation(s, L"所有教學材料均可未經許可使用。", Lang::Ja, Lang::ZhHant), "neg-missing"),
+                   "無断 + 禁: 「可未經許可使用」 is a flipped prohibition", s);
+            expect(checkTranslation(s, L"未經許可不得使用。", Lang::Ja, Lang::ZhHant).empty() ||
+                       checkTranslation(s, L"禁止未經許可轉載。", Lang::Ja, Lang::ZhHant).empty(),
+                   "無断 + 禁: 不得 / 禁止 kept", s);
+        }
         const std::wstring v = verifiedFacts(L"찌개류는 1인분 주문 불가", Lang::Ko, Lang::ZhHant);
         expect(v.find(L"不可") != std::wstring::npos && v.find(L"1人份") != std::wstring::npos, "verified facts: 불가 = 不可, 1인분 = 1人份", v);
     }
@@ -1018,7 +1082,11 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
 // picture fed at 30 fps like a phone that sends frames all the time):
 // still / scroll / still ... / a playing-video corner.  Prints per phase the
 // CPU used (cores), pictures looked at, runs, and settle -> overlay times.
-int runLive(const std::wstring& png, Lang tgt) {
+// cold (--live-cold PNG): 即時翻譯 turned on as the first translation action of a
+// fresh ScreenTranslator, no 翻譯整個畫面 before (0.7.6 did nothing then): the
+// first run must happen, or the download consent be asked when models are
+// missing (answered no: nothing is downloaded; PM_MODELS_DIR = an empty folder).
+int runLive(const std::wstring& png, Lang tgt, bool cold) {
     SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
     std::vector<uint8_t> full;
     int fw = 0, fh = 0;
@@ -1036,7 +1104,12 @@ int runLive(const std::wstring& png, Lang tgt) {
         std::mutex lm;
         std::vector<double> doneAt;
         ScreenTranslator::Callbacks cb;
-        cb.askDownload = [](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        std::atomic<int> asked{0};
+        cb.askDownload = [&](Lang, Lang, double mb, std::function<void(bool)> answer) {
+            std::printf("  [consent] download %.0f MB? no\n", mb);
+            ++asked;
+            answer(false);
+        };
         cb.notify = [](const std::wstring&, const std::wstring& text, bool) { std::printf("  [notify] %s\n", u8(text).c_str()); };
         cb.finished = [&](bool, const ScreenTranslator::Timing&) {
             std::lock_guard lk(lm);
@@ -1084,6 +1157,22 @@ int runLive(const std::wstring& png, Lang tgt) {
                         name, wall, (cpu() - c0) / wall, s1.grabs - s0.grabs, s1.hidden - s0.hidden, s1.runs - s0.runs, done - d0);
         };
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        if (cold) {
+            win.post([&] { tr.setLive(true); });  // the only action
+            const double c0 = nowMs();
+            while (done < 1 && asked < 1 && nowMs() - c0 < 60000) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            const bool ok = done >= 1 || asked >= 1;
+            std::printf("LIVE-COLD %s: %d run(s), consent asked %d time(s), live %s, after %.0f ms\n", ok ? "OK" : "FAIL", done.load(),
+                        asked.load(), tr.live() ? "on" : "off", nowMs() - c0);
+            if (!ok) ++fails;
+            feeding = false;
+            feeder.join();
+            win.post([&] { tr.close(); });
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            CoUninitialize();
+            win.post([&] { win.close(); });
+            return;
+        }
         phase("feeder only (live off)", 3000, nullptr);
         win.post([&] {
             tr.setLive(true);
@@ -1385,7 +1474,8 @@ int wmain(int argc, wchar_t** argv) {
         std::thread([] { *static_cast<volatile int*>(nullptr) = 1; }).join();
         return 1;
     }
-    if (mode == L"--live") return files.empty() ? 2 : runLive(files[0], tgt);
+    if (mode == L"--live") return files.empty() ? 2 : runLive(files[0], tgt, false);
+    if (mode == L"--live-cold") return files.empty() ? 2 : runLive(files[0], tgt, true);
     if (mode == L"--text" || mode == L"--raw") {
         if (files.empty()) return 2;
         if (src == Lang::Unknown) src = Lang::Ja;

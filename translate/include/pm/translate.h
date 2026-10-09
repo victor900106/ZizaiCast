@@ -197,6 +197,7 @@ public:
         double firstMs = 0;  // dense pictures: the first chunk on screen (0: shown whole at totalMs)
         int lines = 0, blocks = 0, translated = 0;
         Lang source = Lang::Unknown;  // dominant language of the blocks
+        bool live = false;            // a 即時翻譯 re-run (the picture changed and settled)
     };
     struct Callbacks {
         // Ask whether to download `megabytes` of models for src -> tgt; call

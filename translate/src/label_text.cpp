@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdio>
 #include <regex>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,9 @@ const wchar_t* glossary(const std::wstring& text, Lang tgt) {
         {L"아니요", L"否", L"No"},       {L"閉じる", L"關閉", L"Close"},   {L"닫기", L"關閉", L"Close"},
         {L"Menu", L"選單", nullptr},     {L"確認", L"確認", L"Confirm"},   {L"확인", L"確認", L"OK"},
         {L"메뉴", L"菜單", L"Menu"},     {L"メニュー", L"菜單", L"Menu"},  {L"お品書き", L"菜單", L"Menu"},
+        // Music headings (TRACKLIST -> 「履帶清單」, a tank's tracks; owner, a GTA 6 tracklist).
+        {L"TRACKLIST", L"曲目", nullptr}, {L"Tracklist", L"曲目", nullptr}, {L"TRACK LIST", L"曲目", nullptr},
+        {L"Track List", L"曲目", nullptr}, {L"SETLIST", L"演出曲目", nullptr}, {L"Setlist", L"演出曲目", nullptr},
         // Signs: one-word warnings the models read as verbs / names (CAUTION -> 「提高」).
         {L"CAUTION", L"注意", nullptr},  {L"WARNING", L"警告", nullptr},   {L"DANGER", L"危險", nullptr},
         {L"Wet Floor", L"小心地滑", nullptr}, {L"EXIT", L"出口", nullptr},  {L"Exit", L"結束", nullptr},  {L"PUSH", L"推", nullptr},
@@ -427,8 +431,8 @@ struct Entity {
 std::vector<Entity> protectedTokens(const std::wstring& s, Lang src, Lang tgt) {
     std::vector<Entity> out;
     static const std::wregex re(
-        L"(https?://[^\\s　]+|www\\.[^\\s　]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|[@＠][A-Za-z0-9_.]{2,}|[#＃][^\\s　#＃、。,]{1,40}|"
-        L"\\b(?=[A-Za-z0-9_-]*[0-9_])(?=[A-Za-z0-9_-]*[A-Za-z])(?:[A-Za-z][A-Za-z0-9_-]+|[0-9][A-Za-z0-9-]*_[A-Za-z0-9_-]*)\\b|\\b[A-Z][A-Z0-9&]{1,5}\\b)");
+        L"([A-Za-z]?[0-9]{1,4}\\s*[〜～~]\\s*[A-Za-z]?[0-9]{1,4}|https?://[^\\s　]+|www\\.[^\\s　]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|[@＠][A-Za-z0-9_.]{2,}|[#＃][^\\s　#＃、。,]{1,40}|"
+        L"\\b(?=[A-Za-z0-9_-]*[0-9_])(?=[A-Za-z0-9_-]*[A-Za-z])(?:[A-Za-z][A-Za-z0-9_-]+|[0-9][A-Za-z0-9-]*_[A-Za-z0-9_-]*)\\b|\\b[A-Z][A-Za-z]*(?:-[A-Za-z]+)+\\b|\\b[A-Z][A-Z0-9&]{1,5}\\b)");
     int capsWords = 0;
     {
         static const std::wregex caps(L"\\b[A-Z]{2,}\\b");
@@ -438,11 +442,22 @@ std::vector<Entity> protectedTokens(const std::wstring& s, Lang src, Lang tgt) {
         const std::wstring t = it->str();
         const bool acronym = t.size() <= 6 && std::all_of(t.begin(), t.end(), [](wchar_t c) { return (c >= L'A' && c <= L'Z') || iswdigit(c) || c == L'&'; });
         if (acronym && src != Lang::Ja && src != Lang::Ko) continue;  // English text: the engine knows its acronyms
+        // A hyphenated Latin name in Japanese / Korean text (J-nihongo, a site / brand:
+        // 「J-尼洪戈」 in 0.7.6); English text keeps its hyphenated words (Gluten-free).
+        const bool hyphenName = t.find(L'-') != std::wstring::npos && !std::any_of(t.begin(), t.end(), [](wchar_t c) { return iswdigit(c) || c == L'_'; });
+        if (hyphenName && src != Lang::Ja && src != Lang::Ko) continue;
         if (acronym && capsWords >= 2) continue;  // an all-caps English phrase (MADE IN KOREA), not an acronym
         // A nutrient and its amount (Na1171mg, B12 2.4µg): 鈉1171毫克 - the units are localised.
         static const std::wregex amount(L"[0-9](mg|g|kg|mcg|ug|ml|mL|l|L|kcal|Kcal|kJ|cm|mm|km|m)$");
         if (std::regex_search(t, amount)) continue;
         std::wstring r = t;
+        // A range (N5〜N1, 3〜5): 「N5～N1」 - the pivot read 〜 as "to" / "versus" (N5 對 N1).
+        if (t.find_first_of(L"〜～~") != std::wstring::npos) {
+            if (src != Lang::Ja && src != Lang::Ko) continue;
+            r.clear();
+            for (wchar_t c : t)
+                if (!iswspace(c)) r += (c == L'〜' || c == L'~') ? L'～' : c;
+        }
         if (tgt == Lang::ZhHant) {  // zh-TW names of transit / everyday acronyms
             static const std::pair<const wchar_t*, const wchar_t*> kZh[] = {{L"MRT", L"捷運"}, {L"ATM", L"ATM"}, {L"JR", L"JR"}, {L"PC", L"電腦"}};
             for (const auto& [a, z] : kZh)
@@ -638,6 +653,46 @@ bool needsEngine(const std::wstring& v, Lang tgt) {
     return n.kana + n.hangul > 0 || n.latin > 6;
 }
 
+// All-capitals English (no lower-case letter, two capital words or one of 4+
+// letters) in sentence case: WAKE UP TIME -> Wake up time.  Kept: known
+// acronyms, words with digits / _ / &, placeholders (ZQA).
+std::wstring sentenceCase(const std::wstring& s) {
+    int upper = 0, lower = 0;
+    for (wchar_t c : s) upper += c >= L'A' && c <= L'Z', lower += c >= L'a' && c <= L'z';
+    if (lower > 0 || upper < 4) return s;
+    // One word in capitals is more often a name (ARJUN, SAGAT) than a label: as written.
+    int words = 0;
+    for (size_t i = 0; i < s.size(); ++i) words += iswalpha(s[i]) && (i == 0 || !iswalpha(s[i - 1]));
+    if (words < 2) return s;
+    static const wchar_t* const kKeep[] = {L"AM", L"PM", L"BMI", L"MRT", L"ID", L"USB", L"TV", L"PC", L"OK", L"ATM", L"GPS", L"DVD", L"CD",
+                                           L"LED", L"LCD", L"USA", L"UK", L"EU", L"UN", L"NFC", L"SIM", L"PIN", L"QR", L"URL", L"FAQ", L"VIP",
+                                           L"DIY", L"BBQ", L"HDMI", L"WIFI", L"AI", L"APP", L"API", L"CPU", L"GPU", L"RAM", L"SSD", L"HD",
+                                           L"UV", L"DV", L"RDA", L"FDA", L"JR", L"JLPT", L"N1", L"N2", L"N3", L"N4", L"N5", L"NG", L"SNS",
+                                           L"IC", L"ETC", L"WC", L"ATM", L"DNA", L"MSG", L"BPA", L"HIV", L"COVID", L"SOS", L"NO", L"VS"};
+    std::wstring o;
+    bool first = true;
+    for (size_t i = 0; i < s.size();) {
+        if (!iswalpha(s[i])) {
+            o += s[i++];
+            continue;
+        }
+        size_t e = i;
+        while (e < s.size() && (iswalnum(s[e]) || s[e] == L'_' || s[e] == L'&' || s[e] == L'\'')) ++e;
+        std::wstring w = s.substr(i, e - i);
+        bool keep = w.rfind(L"ZQ", 0) == 0 || std::any_of(w.begin(), w.end(), [](wchar_t c) { return iswdigit(c) || c == L'_' || c == L'&'; });
+        for (const wchar_t* k : kKeep) keep = keep || w == k;
+        if (w == L"NO") keep = false;  // NO SMOKING -> No smoking
+        if (!keep) {
+            for (size_t k = 0; k < w.size(); ++k) w[k] = static_cast<wchar_t>(k == 0 && first ? w[k] : towlower(w[k]));
+            if (w == L"i") w = L"I";
+        }
+        o += w;
+        first = false;
+        i = e;
+    }
+    return o;
+}
+
 // Literal text for the target: Japanese kanji in Traditional forms (zh-Hant), else as written.
 std::wstring literal(const std::wstring& v, Lang src, Lang tgt) {
     if (tgt != Lang::ZhHant && tgt != Lang::En) return v;
@@ -686,6 +741,26 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
     out.assign(in.size(), {});
     if (info) info->assign(in.size(), {});
     const bool fixes = tgt == Lang::ZhHant || tgt == Lang::En;
+    // The same text with other numbers, more than once on the picture (全48教材の
+    // 一覧, 全59教材の一覧 …): the numbers go through placeholders so that every
+    // one gets the same translation, the digits as written (0.7.6: 「全部 48 種
+    // 教學材料清單」 next to 「六種教學材料全部列表」).
+    auto numberMask = [](const std::wstring& t) {
+        std::wstring m;
+        for (size_t i = 0; i < t.size(); ++i) {
+            if (iswdigit(t[i])) {
+                while (i + 1 < t.size() && (iswdigit(t[i + 1]) || ((t[i + 1] == L',' || t[i + 1] == L'.') && i + 2 < t.size() && iswdigit(t[i + 2])))) ++i;
+                m += L'#';
+            } else if (!iswspace(t[i])) {
+                m += t[i];
+            }
+        }
+        return m;
+    };
+    std::unordered_map<std::wstring, int> maskCount;
+    if (fixes && (src == Lang::Ja || src == Lang::Ko))
+        for (const auto& t : in)
+            if (std::any_of(t.begin(), t.end(), [](wchar_t c) { return iswdigit(c); })) ++maskCount[numberMask(t)];
     // Pieces sent to the engine (deduplicated); each input is assembled from
     // literal text and engine results.
     std::vector<std::wstring> engineIn;
@@ -708,15 +783,26 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
     static const wchar_t* const kPh[] = {L"ZQA", L"ZQB", L"ZQC", L"ZQD", L"ZQE", L"ZQF"};
     // One value / sentence: glossary, phrase, literal (numbers, addresses,
     // Japanese kanji), or the engine with names protected.
-    auto addText = [&](std::vector<Part>& parts, std::wstring t) {
+    std::wstring trail;  // addTextCore's trailing arrow (pushed by addText)
+    auto addTextCore = [&](std::vector<Part>& parts, std::wstring t) {
         // Leading bullets / marks stay as they are (※, ●, ・).
         std::wstring lead;
-        while (!t.empty() && (wcschr(L"※●・◆■□★☆*＊○◎", t[0]) || isSpace(t[0]))) {
+        while (!t.empty() && (wcschr(L"※●・◆■□★☆*＊○◎↑", t[0]) || isSpace(t[0]))) {
             if (!isSpace(t[0])) lead += t[0];
             t.erase(0, 1);
         }
         if (t.empty()) return;
         if (!lead.empty()) parts.push_back({lead + (tgt == Lang::En ? L" " : L"")});
+        // A link's trailing arrow (すべて見る →, 全92文型の一覧→, Learn more ›): kept after the text.
+        trail.clear();
+        while (!t.empty() && (wcschr(L"→➔➜›»>＞", t.back()) || isSpace(t.back()))) {
+            if (!isSpace(t.back())) trail.insert(trail.begin(), t.back());
+            t.pop_back();
+        }
+        if (t.empty()) {
+            if (!trail.empty()) parts.push_back({trail});
+            return;
+        }
         // A display name with its handle (ぽんこつ @multi_wotakun, OCR read as one
         // line): a name, kept as written - never an invented transliteration.
         {
@@ -724,6 +810,42 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             if (std::regex_match(t, nameHandle)) {
                 parts.push_back({t});
                 return;
+            }
+        }
+        if (src == Lang::Ja && fixes) {
+            // A grammar pattern's name (〜たり、〜たり, 〜どころか, 〜なり〜なり（選択）):
+            // kept as written - the pivot made 「或者，或」, 「遠在」, 「~比雷」 of
+            // them; only a kanji note is converted (（選択） -> （選擇）).
+            static const std::wregex pattern(L"^[〜～~][ぁ-んァ-ヶー、〜～~ ]{1,16}([（(][^）)]{1,8}[）)])?$");
+            if (std::regex_match(t, pattern)) {
+                std::wstring o = t;
+                for (wchar_t& c : o)
+                    if (c == L'~' || c == L'〜') c = L'～';
+                parts.push_back({tgt == Lang::ZhHant ? literal(o, src, tgt) : o});
+                return;
+            }
+            // Counts of a list (a learning site: 全70文型の一覧, 全183問, 全1,230語):
+            // one form for every number, the digits as written.
+            if (tgt == Lang::ZhHant) {
+                static const std::pair<const wchar_t*, const wchar_t*> kCounter[] = {
+                    {L"文型", L"種句型"}, {L"教材", L"份教材"}, {L"字", L"字"}, {L"語", L"個單字"}, {L"単語", L"個單字"},
+                    {L"問", L"題"}, {L"件", L"件"}, {L"曲", L"首歌曲"}, {L"品", L"項商品"}, {L"種類", L"種"}, {L"冊", L"冊"},
+                    {L"漢字", L"個漢字"}, {L"記事", L"篇文章"}, {L"本", L"部"}};
+                static const std::wregex list(L"^全\\s*([0-9][0-9,]*)\\s*([^0-9\\sの]{1,3})\\s*(の一覧)?\\s*([→➔＞>]?)$");
+                std::wsmatch m;
+                if (std::regex_match(t, m, list))
+                    for (const auto& [ja, zh] : kCounter)
+                        if (m[2].str() == ja) {
+                            std::wstring o = m[3].matched ? L"全部 " + m[1].str() + L" " + zh + L"一覽" : L"共 " + m[1].str() + L" " + zh;
+                            if (m[4].length()) o += L" " + m[4].str();
+                            parts.push_back({o});
+                            return;
+                        }
+                static const std::wregex challenge(L"^([0-9]+)\\s*問から挑戦\\s*([→➔]?)$");
+                if (std::regex_match(t, m, challenge)) {
+                    parts.push_back({L"從 " + m[1].str() + L" 題開始挑戰" + (m[2].length() ? L" " + m[2].str() : L"")});
+                    return;
+                }
             }
         }
         if (const wchar_t* g = glossary(t, tgt)) {
@@ -779,7 +901,17 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
         Part part;
         std::wstring prot = t;
         if (fixes) {
-            const auto ents = findEntities(t, src, tgt);
+            auto ents = findEntities(t, src, tgt);
+            if (const auto mc = maskCount.find(numberMask(t)); mc != maskCount.end() && mc->second >= 2) {
+                static const std::wregex num(L"[0-9]+([,.][0-9]+)*");
+                for (std::wsregex_iterator it(t.begin(), t.end(), num), e; it != e; ++it) {
+                    const size_t pos = static_cast<size_t>(it->position()), len = it->str().size();
+                    bool overlap = false;
+                    for (const auto& o : ents) overlap |= pos < o.pos + o.len && o.pos < pos + len;
+                    if (!overlap) ents.push_back({pos, len, it->str()});
+                }
+                std::sort(ents.begin(), ents.end(), [](const Entity& a, const Entity& b) { return a.pos < b.pos; });
+            }
             if (!ents.empty() && ents.size() <= std::size(kPh)) {
                 prot.clear();
                 size_t at = 0, k = 0;
@@ -834,9 +966,19 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             parts.push_back({known.text});
             return;
         }
+        // English in capitals (WAKE UP TIME, DAILY MEALS): the engine reads
+        // capitals as names / acronyms (「時間的清醒」) - sentence case first;
+        // acronyms (BMI, AM, MRT), words with digits and placeholders stay.
+        static const bool noCaps = std::getenv("PM_TR_NO_CAPS") != nullptr;  // tests: measure the effect
+        if (src == Lang::En && fixes && !noCaps) prot = sentenceCase(prot);
         part.eng = ask(prot);
         part.plain = t;
         parts.push_back(std::move(part));
+    };
+    auto addText = [&](std::vector<Part>& parts, const std::wstring& t) {
+        addTextCore(parts, t);
+        if (!trail.empty() && !parts.empty() && parts.back().lit != trail) parts.push_back({L" " + trail});
+        trail.clear();
     };
     // A table row's value: kept (numbers, kanji) or translated.
     // ---- List mode (原材料 lists: 牛肉、マッシュルーム、…、野菜・果実(玉葱、パイン)) ----
@@ -1149,8 +1291,12 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
                         // the pivot loses its structure (台湾行くって… -> 「我將前往臺灣」).
                         static const std::wregex casual(L"(って|じゃん|コレ|ヤバ|マジ|ww|草$|かも|よね|だね|けど)");
                         const bool casualJa = src == Lang::Ja && chars >= 8 && std::regex_search(p.plain, casual);
+                        // A short tagline with a verb (中級への力を確かめる, 高度な表現を見極める,
+                        // 上級文法を使い分ける): the pivot drops or bends the verb.
+                        static const std::wregex tagline(L"[をにへで][^、。！？]{0,8}[るすうくぐむぶつ]$");
+                        const bool taglineJa = src == Lang::Ja && chars >= 5 && chars <= 22 && std::regex_search(p.plain, tagline);
                         const int prio = h.uncertain ? 3 : (translitRun(h.text) >= 3 || itemKana) ? 2
-                                       : ((ec.llmShortItems && chars <= 10) || casualJa) ? 1 : 0;
+                                       : ((ec.llmShortItems && chars <= 10) || casualJa || taglineJa) ? 1 : 0;
                         if (prio) {
                             Escalator::Pending pd;
                             pd.src = src, pd.tgt = tgt, pd.plain = p.plain, pd.best = h.text, pd.prio = prio;

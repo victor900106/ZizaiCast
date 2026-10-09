@@ -240,4 +240,7 @@ namespace pm::translate {
 // original).
 constexpr wchar_t kOverlayRow = 0xE000;
 constexpr wchar_t kOverlayUncertain = 0xE001;
+// A box with only this mark: text kept as written (a track list, readings) -
+// no card, but the list panel stays off it.
+constexpr wchar_t kOverlayKeep = 0xE002;
 }  // namespace pm::translate

@@ -65,6 +65,28 @@ bool translatedOk(const std::wstring& src, const std::wstring& tx, Lang from, La
     if (tgt == Lang::ZhHant && from == Lang::En && src.find(L' ') == std::wstring::npos && t.han >= 2 &&
         translitRun(tx) * 10 >= t.han * 7)
         return false;
+    // An English proper name (one capitalised word: YASMINE, Ingrid - a game
+    // character, a brand) is kept as written: spelled out in Chinese sounds
+    // (雅辛, 英格里德) it is invented, not translated (owner 0.7.6).  The test:
+    // the answer is mostly name-sound characters.
+    if (tgt == Lang::ZhHant && from == Lang::En && t.han >= 2 && t.han <= 6 && (t.latin == 0 || src.find(L'-') != std::wstring::npos)) {
+        // (J-nihongo: a hyphenated name starting with a capital counts too.)
+        const bool hyphen = src.find(L'-') != std::wstring::npos && src.find(L' ') == std::wstring::npos && iswupper(src[0]);
+        bool cap = s.latin >= 2 && s.latin == s.letters();
+        int words = 0;
+        for (size_t i = 0; i < src.size(); ++i)
+            if (iswalpha(src[i]) && (i == 0 || !iswalpha(src[i - 1]))) {
+                ++words;
+                cap = cap && (iswupper(src[i]) || hyphen);
+            }
+        static const std::wstring kName =
+            L"阿埃艾安奧巴拜班邦比彼波伯布查達戴丹德迪蒂多杜爾法菲弗福伽蓋岡戈格古哈漢赫霍吉基加賈傑卡凱坎科克庫拉萊蘭勞雷里利林"
+            L"隆魯羅洛馬邁曼梅蒙米密莫姆納奈南尼諾帕佩皮普奇喬切薩塞桑瑟沙舍斯蘇索塔泰坦特提托圖瓦韋維溫沃西希謝辛雅亞楊伊因尤約扎"
+            L"贊澤茲祖佐士美瑞莉娜麗絲琳珊娃妮婭莎蕾薇歷英麥黛琪潔裡娟婷詹露蒂芙明俊洪戈";
+        int nm = 0;
+        for (wchar_t c : tx) nm += kName.find(c) != std::wstring::npos;
+        if (cap && words <= 2 && nm == t.han) return false;  // every character a name sound (伊瓦拉基縣 keeps its 縣)
+    }
     return true;
 }
 
@@ -116,6 +138,57 @@ void sampleColors(const std::vector<uint8_t>& px, int cw, int ch, int cx0, int c
     }
     bg = static_cast<uint32_t>((b[2] << 16) | (b[1] << 8) | b[0]);
     fg = static_cast<uint32_t>((f[2] << 16) | (f[1] << 8) | f[0]);
+}
+
+// One line of a credits / track list: 「ARTIST - TITLE」 in capitals or
+// Title Case (BANGLES - WALK LIKE AN EGYPTIAN, Diana Ross - I'm Coming Out).
+// Band names and song titles are names: the engine made 手鐲 of Bangles,
+// 誘惑 of The Temptations, 綠色 of Al Green (owner, a GTA 6 tracklist).
+// 2: a spaced separator and words on both sides; 1: OASIS-CIGARETTES / BELINDA CARLISLE- (only
+// inside a list found from 2s: Tram-Train, XD-7, MAIZURU 1- alone are not credits).
+int creditLine(const std::wstring& raw) {
+    std::wstring t = raw;
+    while (!t.empty() && iswspace(t.back())) t.pop_back();
+    while (!t.empty() && iswspace(t.front())) t.erase(0, 1);
+    if (t.size() < 4 || t.size() > 80) return 0;
+    for (wchar_t c : t)
+        if (c >= 0x2E80) return 0;  // Latin lines only
+    auto dash = [](wchar_t c) { return c == L'-' || c == 0x2013 || c == 0x2014; };
+    // The separator: a dash with a space beside it (B-52'S - LOVE SHACK), else the first dash (OASIS-CIGARETTES).
+    size_t sep = std::wstring::npos;
+    bool spaced = false;
+    for (size_t i = 0; i < t.size(); ++i)
+        if (dash(t[i]) && ((i > 0 && iswspace(t[i - 1])) || (i + 1 < t.size() && iswspace(t[i + 1])))) { sep = i; spaced = true; break; }
+    if (sep == std::wstring::npos)
+        for (size_t i = 1; i < t.size(); ++i)
+            if (dash(t[i])) { sep = i; break; }
+    if (sep == std::wstring::npos || sep == 0) return 0;
+    const std::wstring left = t.substr(0, sep), right = t.substr(sep + 1);
+    // Names, not steps: 「Step 1 - Open Settings」, 「3 - Pour the water」.
+    static const std::wregex steps(L"^\\s*((step|chapter|part|section|day|level|no\\.?|q|a)\\b.*|[0-9.\\s]*)$", std::regex::icase);
+    if (std::regex_match(left, steps)) return 0;
+    // A side is a name when it has no small letters (ALL CAPS) or most of its words start with a capital.
+    auto named = [](const std::wstring& side, bool mayBeEmpty) {
+        int words = 0, caps = 0, letters = 0, lower = 0;
+        bool inWord = false;
+        for (wchar_t c : side) {
+            if (iswalpha(c)) {
+                ++letters;
+                if (iswlower(c)) ++lower;
+                if (!inWord) { ++words; if (iswupper(c)) ++caps; inWord = true; }
+            } else if (iswspace(c) || c == L'(' || c == L'/') inWord = false;
+        }
+        if (letters == 0) return mayBeEmpty;
+        if (lower == 0) return true;
+        return words <= 8 && caps * 10 >= words * 7;
+    };
+    int leftWords = 0;
+    for (size_t i = 0; i < left.size(); ++i)
+        if (!iswspace(left[i]) && (i == 0 || iswspace(left[i - 1]))) ++leftWords;
+    if (leftWords > 5 || !named(left, false) || !named(right, true)) return 0;
+    int rightLetters = 0;
+    for (wchar_t c : right) rightLetters += iswalpha(c) ? 1 : 0;
+    return spaced && rightLetters >= 2 ? 2 : 1;
 }
 
 bool katakanaOnly(const std::wstring& t) {
@@ -197,6 +270,15 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
         for (size_t i = 0; i < blocks.size(); ++i)
             if (blocks[i].y1 < 0.05f && countScripts(blocks[i].text).letters() <= 5 && std::regex_search(blocks[i].text, radio)) statusBar[i] = 1;
     }
+    // A credits / track list (three or more 「ARTIST - TITLE」 lines): names, kept as written.
+    std::vector<char> credit(blocks.size(), 0);
+    {
+        int n = 0;
+        for (size_t i = 0; i < blocks.size(); ++i)
+            if (blocks[i].lines == 1)
+                if (const int k = creditLine(blocks[i].text)) { credit[i] = 1; n += k == 2; }
+        if (n < 3) std::fill(credit.begin(), credit.end(), 0);
+    }
     // A display name next to its @handle (ぽんこつ over @multi_wotakun): kept as
     // written - the pivot invents a transliteration (魔科特).
     std::vector<char> displayName(blocks.size(), 0);
@@ -211,13 +293,127 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
             if (h.y0 >= a.y1 - 0.3f * lh && h.y0 - a.y1 < 1.2f * lh && std::fabs(h.x0 - a.x0) * aspect < 2 * lh) displayName[i] = 1;
         }
     }
+    // A dictionary card (headword / reading / English gloss: 売り切れ over
+    // うりきれ over sold out): the kana line right under a larger headword is
+    // its READING - never translated (the pivot read うりきれ as 「尿道」); the
+    // English gloss under it is learning content, kept as written.
+    std::vector<char> reading(blocks.size(), 0), gloss(blocks.size(), 0);
+    auto under = [&](const Block& top, const Block& b) {
+        const float h = std::max(b.y1 - b.y0, 0.004f);
+        const float ov = std::min(top.x1, b.x1) - std::max(top.x0, b.x0);
+        return b.y0 >= top.y1 - 0.25f * h && b.y0 - top.y1 < 1.5f * h && ov > 0.5f * std::min(top.x1 - top.x0, b.x1 - b.x0);
+    };
+    for (size_t i = 0; i < blocks.size(); ++i) {
+        const Block& r = blocks[i];
+        const ScriptCount nr = countScripts(r.text);
+        // Furigana: hiragana only, no punctuation (してください。 / ・チーズ are text).
+        bool hira = r.lines == 1 && nr.kana >= 2 && nr.kana == nr.letters() && nr.kana <= 12;
+        for (wchar_t c : r.text) hira = hira && ((c >= 0x3041 && c <= 0x309F) || c == 0x30FC || iswspace(c));
+        if (!hira) continue;
+        for (size_t k = 0; k < blocks.size(); ++k) {
+            const Block& w = blocks[k];
+            const ScriptCount nw = countScripts(w.text);
+            if (k == i || nw.latin > 0 || (nw.han == 0 && nw.kana < 2)) continue;
+            // (one line: its box, as the reading's - the glyph band lineH is smaller)
+            const float hl = w.lines == 1 || w.lineH <= 0 ? (w.y1 - w.y0) / std::max(1, w.lines) : w.lineH;
+            if (hl < 1.4f * (r.y1 - r.y0)) continue;  // furigana: a much smaller type
+            // Ruby inside a sentence line: tight above its first line, within its
+            // span (いま over 今 in 今の給料じゃ…).
+            if (nw.han > 0 && r.y1 <= w.y0 + 0.3f * hl && w.y0 - r.y1 < 0.5f * hl && r.x0 >= w.x0 - 0.2f * hl / aspect &&
+                r.x1 <= w.x1 + 0.2f * hl / aspect)
+                reading[i] = 1;
+            if (w.lines != 1 || nw.letters() > 10) continue;
+            // Under the headword (a dictionary card), or above a word with kanji
+            // (furigana: へいばんがた over 平板型, くだもの over 果物が), aligned on it:
+            // left edges or centres (not a tab bar's label over the page behind it).
+            const float hw = w.y1 - w.y0;
+            const bool aligned = std::fabs(r.x0 - w.x0) * aspect < 0.6f * hw ||
+                                 std::fabs((r.x0 + r.x1) - (w.x0 + w.x1)) * 0.5f * aspect < 0.6f * hw;
+            if (aligned && (under(w, r) || (nw.han > 0 && under(r, w)))) reading[i] = 1;
+        }
+    }
+    for (size_t i = 0; i < blocks.size(); ++i) {
+        const Block& g = blocks[i];
+        const ScriptCount ng = countScripts(g.text);
+        if (g.lines > 2 || ng.latin == 0 || ng.latin != ng.letters() || ng.latin > 40) continue;
+        for (size_t k = 0; k < blocks.size(); ++k)
+            if (reading[k] && under(blocks[k], g)) gloss[i] = 1;
+        // An English sentence right under a Japanese / Korean sentence (an example
+        // and its translation on a learning page): learning content, kept as
+        // written (owner 0.7.7).  Short English (a sign's NO SMOKING, a dish
+        // name) is still translated.
+        int words = 1;
+        for (wchar_t c : g.text) words += c == L' ';
+        // An example sentence: ends with . ? ! (or a quote), has lower case, and
+        // the line above is a sentence too - a bilingual sign's English
+        // (Bicycle riding is prohibited, MADE IN KOREA) is translated.
+        std::wstring gt = g.text;
+        while (!gt.empty() && iswspace(gt.back())) gt.pop_back();
+        bool lowerCase = false;
+        for (wchar_t c : gt) lowerCase |= c >= L'a' && c <= L'z';
+        const bool exampleEn = !gt.empty() && lowerCase && wcschr(L".?!\"'”’)", gt.back()) != nullptr;
+        if ((cjk == Lang::Ja || cjk == Lang::Ko) && words >= 4 && exampleEn)
+            for (size_t k = 0; k < blocks.size(); ++k) {
+                const Block& w = blocks[k];
+                const ScriptCount nw = countScripts(w.text);
+                if (k == i || nw.kana + nw.hangul < 3 || nw.letters() < 8 || nw.latin * 2 > nw.letters()) continue;
+                std::wstring wt = w.text;
+                while (!wt.empty() && iswspace(wt.back())) wt.pop_back();
+                if (wt.empty() || !wcschr(L"。！？」』.!?", wt.back())) continue;
+                const float h = std::max(w.lineH > 0 ? w.lineH : (w.y1 - w.y0) / std::max(1, w.lines), 0.004f);
+                if (g.y0 >= w.y1 - 0.3f * h && g.y0 - w.y1 < 1.8f * h && std::fabs(g.x0 - w.x0) * aspect < 1.5f * h) gloss[i] = 1;
+            }
+        // One English word in small type over / beside a larger Japanese / Korean
+        // label (Grammar over 文法, 読解 Reading): the label's gloss - kept.
+        if ((cjk == Lang::Ja || cjk == Lang::Ko) && g.lines == 1 && g.text.find(L' ') == std::wstring::npos && ng.latin <= 14 &&
+            iswupper(g.text[0]))  // Grammar, Kanji (not gourmet, (Beer))
+            for (size_t k = 0; k < blocks.size(); ++k) {
+                const Block& w = blocks[k];
+                const ScriptCount nw = countScripts(w.text);
+                if (k == i || w.lines != 1 || nw.han + nw.kana + nw.hangul < 2 || nw.letters() > 8 || nw.latin > 0) continue;
+                if ((w.y1 - w.y0) < 2.0f * (g.y1 - g.y0)) continue;  // a much smaller type (a bilingual sign's English is translated)
+                const float h = w.y1 - w.y0;
+                const bool above = g.y1 <= w.y0 + 0.2f * h && w.y0 - g.y1 < 0.8f * h && std::fabs(g.x0 - w.x0) * aspect < 1.5f * h;
+                const bool beside = std::fabs((g.y0 + g.y1) / 2 - (w.y0 + w.y1) / 2) < 0.5f * h && g.x0 > w.x1 && (g.x0 - w.x1) * aspect < 1.5f * h;
+                if (above || beside) gloss[i] = 1;
+            }
+    }
+    // A screen (a phone's status bar, crisp text: the recogniser is sure of
+    // most lines) is not a photographed package: its short labels away from
+    // the main text (ログイン, TOPへ, 12画, a tab) are UI text, translated.
+    bool screenLike = std::any_of(statusBar.begin(), statusBar.end(), [](char c) { return c != 0; });
+    {
+        std::vector<float> conf;
+        for (const auto& b : blocks) conf.push_back(b.conf);
+        if (conf.size() >= 5 && !trustText) {  // (--gt boxes carry no confidence)
+            std::nth_element(conf.begin(), conf.begin() + conf.size() / 2, conf.end());
+            screenLike = screenLike || conf[conf.size() / 2] >= 0.95f;
+        }
+    }
     for (size_t i = 0; i < blocks.size(); ++i) {
         Block& b = blocks[i];
         const ScriptCount n = countScripts(b.text);
-        const bool isolated = photoLike && root(static_cast<int>(i)) != mainGroup;
+        const bool isolated = photoLike && !screenLike && root(static_cast<int>(i)) != mainGroup;
+        if (reading[i] || gloss[i]) {
+            skip(i, reading[i] ? "reading" : "gloss");
+            continue;
+        }
         if (statusBar[i]) {
             skip(i, "status bar");
             continue;
+        }
+        if (credit[i]) {
+            skip(i, "name list");
+            continue;
+        }
+        // A URL / domain alone (the browser's address bar: www.streetfighter.com,
+        // j-nihongo.com): nothing to translate.
+        {
+            static const std::wregex url(L"^\\s*(\\S{1,2}\\s+)?(https?://)?([A-Za-z0-9][A-Za-z0-9-]*\\.)+[A-Za-z]{2,}(/\\S*)?\\s*$");
+            if (std::regex_match(b.text, url) && b.text.find(L'.') != std::wstring::npos) {
+                skip(i, "address");
+                continue;
+            }
         }
         if (displayName[i]) {
             skip(i, "display name");
@@ -232,7 +428,20 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
         int hira = 0;
         for (wchar_t c : b.text) hira += c >= 0x3041 && c <= 0x309F;
         const bool sentenceLike = hira >= 2 || (n.hangul >= 2 && b.text.find(L' ') != std::wstring::npos);
-        if (isolated && !row && !glossary(b.text, tgt) && !(sentenceLike && b.conf >= 0.8f)) {
+        // A menu / tab bar / button row (ファイル(F) 編集(E) 表示(V), ホーム はじめる 文法):
+        // three or more short items on one baseline are UI text, not packaging
+        // around a label - since 0.7.7 they are separate items, not rows.
+        int onRow = 0;
+        if (b.lines == 1)
+            for (const Block& o : blocks) {
+                const float h = std::max(b.y1 - b.y0, 0.004f), oh = o.y1 - o.y0;
+                const int ol = countScripts(o.text).letters();
+                if (o.lines == 1 && ol >= 2 && ol <= 12 && std::fabs((o.y0 + o.y1) / 2 - (b.y0 + b.y1) / 2) < 0.4f * h &&
+                    oh > 0.7f * h && oh < 1.4f * h)
+                    ++onRow;
+            }
+        const bool uiRow = onRow >= 3 && b.conf >= 0.8f && n.letters() <= 12;
+        if (isolated && !row && !uiRow && !glossary(b.text, tgt) && !(sentenceLike && b.conf >= 0.8f)) {
             if (n.letters() <= 10) {  // 福奇, share happi, a logo
                 skip(i, "isolated short");
                 continue;
@@ -262,7 +471,7 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
             skip(i, "symbols");
             continue;
         }
-        if (!row && n.digits >= n.letters() && n.letters() <= 3) {  // 468g(39g×12개), 2180 kJ, 12:30 PM (a row keeps its value)
+        if (!row && n.digits >= n.letters() && n.letters() <= 3 && n.han < 2) {  // 468g(39g×12개), 2180 kJ, 12:30 PM (a row keeps its value)
             skip(i, "number");
             continue;
         }
@@ -586,7 +795,11 @@ struct ScreenTranslator::Impl {
     }
     void finish(bool ok, const Timing& t, uint64_t g, bool liveRun) {
         if (current(g) && !liveRun) win.setOverlayBusy(L"");
-        if (cb.finished) win.post([f = cb.finished, ok, t] { f(ok, t); });
+        if (cb.finished) {
+            Timing tt = t;
+            tt.live = liveRun;
+            win.post([f = cb.finished, ok, tt] { f(ok, tt); });
+        }
     }
 
     // Downloads model files with a progress card; false (and a message) on failure.
@@ -855,6 +1068,13 @@ struct ScreenTranslator::Impl {
         }
         }
         }
+            // Text deliberately kept as written (a name / track list, readings, an
+            // English gloss): the overlay keeps its list panel off it (kOverlayKeep).
+            for (size_t i = 0; i < blocks.size() && i < why.size(); ++i)
+                if (why[i] == "name list" || why[i] == "reading" || why[i] == "gloss" || why[i] == "display name") {
+                    const Block& b = blocks[i];
+                    boxes.push_back({b.x0, b.y0, b.x1, b.y1, std::wstring(1, kOverlayKeep), b.text, b.lines});
+                }
             return true;
         };
         if (!pass()) {
@@ -1000,7 +1220,7 @@ bool ScreenTranslator::showOriginal() const {
 }
 
 void ScreenTranslator::setLive(bool on, int seconds) {
-    bool unfreeze = false;
+    bool unfreeze = false, first = false;
     {
         std::lock_guard lk(impl_->m);
         impl_->live = on;
@@ -1009,8 +1229,15 @@ void ScreenTranslator::setLive(bool on, int seconds) {
             impl_->frozeByUs = false;
             unfreeze = true;
         }
+        // Turned on with nothing translated yet (the first translation after
+        // the app started): the live loop only watches an active translation,
+        // and its re-runs never ask to download - so 0.7.6 did nothing until
+        // 翻譯整個畫面 had run once.  The first run is a full one: the same
+        // set-up (the download consent, the models) as 翻譯整個畫面.
+        first = on && !impl_->active && !impl_->busy;
     }
     if (unfreeze) impl_->win.setFrozen(false);
+    if (first) translateScreen();  // (live: the picture is not frozen)
     impl_->cv.notify_all();
     impl_->changed();
 }

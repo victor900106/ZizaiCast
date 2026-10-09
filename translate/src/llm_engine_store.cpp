@@ -436,11 +436,37 @@ Need needFor(const ModelInfo& m) {
     n.model = !modelInstalled(m);
     return n;
 }
-dl::Item rtItem() { return {kArchive.host, kArchive.path, llmDir() + L"\\" + fromUtf8(kArchive.name), kArchive.size, kArchive.sha256}; }
-dl::Item gpuItem() {
-    return {kGpuArchive.host, kGpuArchive.path, llmDir() + L"\\" + fromUtf8(kGpuArchive.name), kGpuArchive.size, kGpuArchive.sha256};
+// The owner's mirror of the GitHub release zips (GitHub Pages, same bytes,
+// same pins): tried first, GitHub (throttled per connection) after it.  Until
+// the files are published there the mirror answers 404 and the original is
+// used at once.
+constexpr char kMirrorHost[] = "victor900106.github.io";
+constexpr char kMirrorDir[] = "/ZizaiCast/addons/";
+
+dl::Item zipItem(const RuntimeArchive& a, const char* label) {
+    dl::Item it;
+    it.host = a.host;
+    it.path = a.path;
+    it.dest = llmDir() + L"\\" + fromUtf8(a.name);
+    it.size = a.size;
+    it.sha256 = a.sha256;
+    it.mirrors.push_back({kMirrorHost, std::string(kMirrorDir) + a.name});
+    it.label = label;
+    it.priority = 1;  // small, slow host: first, with most connections
+    return it;
 }
-dl::Item modelItem(const ModelInfo& m) { return {m.host, m.path, modelPath(m), m.size, m.sha256}; }
+dl::Item rtItem() { return zipItem(kArchive, "runtime"); }
+dl::Item gpuItem() { return zipItem(kGpuArchive, "gpu"); }
+dl::Item modelItem(const ModelInfo& m) {
+    dl::Item it;
+    it.host = m.host;
+    it.path = m.path;
+    it.dest = modelPath(m);
+    it.size = m.size;
+    it.sha256 = m.sha256;
+    it.label = "model";
+    return it;
+}
 
 uint64_t partialBytes(const ModelInfo& m) {
     const Need n = needFor(m);

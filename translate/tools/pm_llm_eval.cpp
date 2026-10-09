@@ -135,7 +135,8 @@ int wmain(int argc, wchar_t** argv) {
     std::wstring in, out, idleFile;
     std::string tgtS = "zh-Hant";
     bool useCtx = false, doDownload = false, doStatus = false;
-    std::wstring dlHost, dlPath, dlDest, dlSha, msTest;
+    std::wstring dlHost, dlPath, dlDest, dlSha, msTest, dlTail;
+    bool dlOld = false;
     uint64_t dlSize = 0;
     int dlStart = 2, dlMax = 8;
     double dlCancelMs = 0;
@@ -184,6 +185,8 @@ int wmain(int argc, wchar_t** argv) {
             if (i + 1 < argc && argv[i + 1][0] != L'-') dlSha = next();
             if (dlSha == L"-") dlSha.clear();
         } else if (a == L"--ms-test") msTest = next();
+        else if (a == L"--dl-tail") dlTail = next();
+        else if (a == L"--dl-old") dlOld = true;
         else if (a == L"--dl-conns") {
             dlStart = std::stoi(next());
             dlMax = std::stoi(next());
@@ -219,6 +222,49 @@ int wmain(int argc, wchar_t** argv) {
                   << (cancelAt > 0 && !ok ? ", cancel latency " + std::to_string(t1 - cancelAt) + " ms" : "") << ", installed "
                   << (what == "ocrgpu" ? ModelStore::ocrGpuInstalled() : ModelStore::installed(what)) << "\n";
         return ok ? 0 : 1;
+    }
+    if (!dlTail.empty()) {  // --dl-tail DIR [--dl-old]: the GitHub runtime zip (mirror first) + 30 MB of the HF model together
+        dl::Item rt;
+        rt.host = "github.com";
+        rt.path = "/ggml-org/llama.cpp/releases/download/b11514/llama-b11514-bin-win-cpu-x64.zip";
+        rt.dest = dlTail + L"\\runtime.zip";
+        rt.size = 19484487;
+        rt.sha256 = "5a1d6ba1b414ab0234b12e29d911b3b8fe63051b4455215e184cf74870eac596";
+        rt.label = "runtime";
+        dl::Item md;
+        md.host = "huggingface.co";
+        md.path = "/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf";
+        md.dest = dlTail + L"\\model.bin";
+        md.size = 30000000;
+        md.label = "model";
+        dl::Options op;
+        if (dlOld) {  // the 0.7.6 policy: no priority, 2 connections a file growing to 8, no mirror
+            op.prioConnections = op.startConnections;
+            op.maxTotalConnections = 16;
+        } else {
+            rt.priority = 1;
+            rt.mirrors.push_back({"victor900106.github.io", "/ZizaiCast/addons/llama-b11514-bin-win-cpu-x64.zip"});
+        }
+        std::atomic<bool> cancel{false};
+        const double t0 = nowMs();
+        double modelDone = -1, lastShown = 0;
+        auto r = dl::fetchAll({rt, md}, [&](const dl::Progress& p) {
+            bool m = false;
+            for (const auto& x : p.pending) m = m || x == "model";
+            if (!m && modelDone < 0) modelDone = nowMs() - t0;
+            if (nowMs() - lastShown < 3000) return;
+            lastShown = nowMs();
+            std::string pend;
+            for (const auto& x : p.pending) pend += x + " ";
+            std::cout << "  " << static_cast<int>(p.fraction() * 100) << "% " << p.bytesPerSec / 1048576.0 << " MB/s, "
+                      << p.connections << " conns, pending " << pend << "\n";
+        }, &cancel, op);
+        const dl::Stats st = dl::lastStats();
+        std::cout << "runtime " << static_cast<int>(r[0].status) << " " << toUtf8(r[0].detail) << " (url " << r[0].url << ") all bytes at " << st.itemSeconds[0]
+                  << " s, " << st.connectionsPerItem[0] << " conns; model part at " << st.itemSeconds[1] << " s, "
+                  << st.connectionsPerItem[1] << " conns; total " << st.seconds << " s; tail after the model "
+                  << st.itemSeconds[0] - st.itemSeconds[1] << " s\n";
+        return 0;
     }
     if (!dlHost.empty()) {  // --dl-test: the shared downloader on one file (speed, connections, cancel latency)
         dl::Item it{toUtf8(dlHost), toUtf8(dlPath), dlDest, dlSize, toUtf8(dlSha)};

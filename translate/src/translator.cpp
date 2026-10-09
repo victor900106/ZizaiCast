@@ -238,17 +238,18 @@ std::wstring verifiedFacts(const std::wstring& src, Lang lang, Lang tgt) {
 namespace {
 
 // A decoder loop: one to four characters four times or more in a row
-// (NO ADMISSION … -> 「無免免免免」, Notice -> 「請，請，請，…」), not in the source.
+// (NO ADMISSION … -> 「無免免免免」, Notice -> 「請，請，請，…」), or five to
+// eight three times (「萬特萬特坦萬特萬特坦萬特萬特坦」), not in the source.
 bool repetitionLoop(const std::wstring& t, const std::wstring& src) {
-    for (size_t len = 1; len <= 4; ++len)
-        for (size_t i = 0; i + len * 4 <= t.size(); ++i) {
+    for (size_t len = 1; len <= 8; ++len)
+        for (size_t times = len <= 4 ? 4 : 3, i = 0; i + len * times <= t.size(); ++i) {
             bool rep = true;
-            for (size_t k = 1; k < 4 && rep; ++k) rep = t.compare(i + k * len, len, t, i, len) == 0;
+            for (size_t k = 1; k < times && rep; ++k) rep = t.compare(i + k * len, len, t, i, len) == 0;
             if (!rep) continue;
             const std::wstring piece = t.substr(i, len);
             bool letter = false;
             for (wchar_t c : piece) letter |= iswalpha(c) || isCjk(c);
-            if (letter && src.find(piece + piece + piece) == std::wstring::npos) return true;
+            if (letter && src.find(len <= 4 ? piece + piece + piece : piece + piece) == std::wstring::npos) return true;
         }
     return false;
 }
@@ -338,6 +339,94 @@ bool unitAfter(const std::wstring& t, size_t e, const UnitName& u, const std::ws
                                                                                 : false;
 }
 
+// Characters Chinese spells foreign sounds with: translitRun's set and the
+// usual name endings (莎 娜 莉 …, 康 司 of 「康司」 for カンジ).
+const std::wstring& phoneticChars() {
+    static const std::wstring k =
+        L"阿埃艾安奧巴拜班邦比彼波伯布查達戴丹德迪蒂多杜爾法菲弗福伽蓋岡戈格古哈漢赫霍吉基加賈傑卡凱坎科克庫拉萊蘭勞雷里利林"
+        L"隆魯羅洛馬邁曼梅蒙米密莫姆納奈南尼諾帕佩皮普奇喬切薩塞桑瑟沙舍斯蘇索塔泰坦特提托圖瓦韋維溫沃西希謝辛雅亞楊伊因尤約扎"
+        L"贊澤茲祖佐莎娜莉麗絲琳妮婭蕾薇瑪康司蜜露";
+    return k;
+}
+
+// Kana only (うりきれ, エッセイ, あさり, ラーメン; digits, marks, spaces aside)
+// "translated" into mostly sound characters (艾莎, 亞薩里, 拉曼, 加古塞伊, 康司):
+// the pivot spelled out a word it did not know.  Usual loanwords (沙拉, 莫吉托,
+// 卡路里) and the glossary's terms for the source do not count.
+bool phoneticGarbage(const std::wstring& src, const std::wstring& tx, Lang lang, Lang tgt) {
+    if (lang != Lang::Ja || tgt != Lang::ZhHant) return false;
+    const ScriptCount ns = countScripts(src);
+    if (ns.kana < 2 || ns.letters() != ns.kana) return false;
+    std::wstring t = tx;
+    auto blank = [&t](const std::wstring& w) {
+        if (w.size() < 2) return;
+        for (size_t p = t.find(w); p != std::wstring::npos; p = t.find(w, p + 1)) t.replace(p, w.size(), w.size(), L'＿');
+    };
+    static const wchar_t* const kLoan[] = {
+        L"沙拉", L"莫吉托", L"卡路里", L"唐吉訶德", L"卡布奇諾", L"提拉米蘇", L"布朗尼", L"瑪格麗特", L"馬卡龍", L"披薩", L"伏特加",
+        L"蘭姆", L"雞尾酒", L"肯德基", L"星巴克", L"索尼", L"尼康", L"亞馬遜", L"迪士尼", L"皮卡丘", L"阿拉伯", L"雷達", L"馬拉松",
+        L"卡拉", L"奧林匹克", L"義大利", L"西班牙", L"加拿大", L"墨西哥", L"巴西", L"巴黎", L"羅馬", L"夏威夷", L"新加坡", L"馬來西亞",
+        L"菲律賓", L"印尼", L"俄羅斯", L"澳洲", L"泰國", L"德國", L"法國", L"荷蘭", L"比利時", L"瑞士", L"倫敦", L"紐約", L"瑪莉歐",
+        L"可樂", L"咖啡", L"拿鐵", L"摩卡", L"巧克力", L"吐司", L"培根", L"漢堡", L"三明治", L"瑪芬", L"布丁", L"優格", L"坦克",
+        L"沙發", L"吉他", L"巴士", L"卡片", L"維他命", L"奧運", L"伊斯蘭", L"基督", L"阿姨", L"安全", L"特別", L"基本", L"利用"};
+    for (const wchar_t* w : kLoan) blank(w);
+    for (const auto& h : dataGlossaryHits(src, lang, tgt)) blank(h.zh);
+    if (const std::wstring* g = dataGlossary(src, lang, tgt)) blank(*g);
+    int han = 0, ph = 0;
+    for (wchar_t c : t)
+        if (c >= 0x4E00 && c <= 0x9FFF) ++han, ph += phoneticChars().find(c) != std::wstring::npos;
+    for (wchar_t c : t) han += c == L'＿';  // a loanword: counted, not as sounds
+    return han >= 2 && ph * 10 > han * 6;
+}
+
+// An ASCII word of the source changed on the way (PITCH ACCENT -> 「PATCH
+// ACCENT」, LibreOffice -> LiberOffice): a word of the translation that is not
+// in the source but one or two letters away from one of its words.
+bool latinChanged(const std::wstring& src, const std::wstring& tx) {
+    auto words = [](const std::wstring& s) {
+        std::vector<std::wstring> w;
+        std::wstring cur;
+        for (wchar_t c : s + L' ') {
+            // Accents folded (Porción = Porcion), ™ / ® are not letters.
+            static const std::wstring acc = L"ÀÁÂÃÄÅàáâãäåÈÉÊËèéêëÌÍÎÏìíîïÒÓÔÕÖòóôõöÙÚÛÜùúûüÑñÇç", base = L"aaaaaaaaaaaaeeeeeeeeiiiiiiiioooooooooouuuuuuuunncc";
+            if (const size_t a = acc.find(c); a != std::wstring::npos) c = base[a];
+            if ((c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z')) cur += static_cast<wchar_t>(towlower(c));
+            else {
+                if (cur.size() >= 3) w.push_back(cur);
+                cur.clear();
+            }
+        }
+        return w;
+    };
+    const auto sw = words(src), tw = words(tx);
+    if (sw.empty()) return false;
+    auto dist = [](const std::wstring& a, const std::wstring& b) {
+        std::vector<size_t> d(b.size() + 1);
+        for (size_t j = 0; j <= b.size(); ++j) d[j] = j;
+        for (size_t i = 1; i <= a.size(); ++i) {
+            size_t prev = d[0];
+            d[0] = i;
+            for (size_t j = 1; j <= b.size(); ++j) {
+                const size_t cur = d[j];
+                d[j] = std::min({d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] == b[j - 1] ? 0 : 1)});
+                prev = cur;
+            }
+        }
+        return d[b.size()];
+    };
+    for (const auto& w : tw) {
+        if (std::find(sw.begin(), sw.end(), w) != sw.end()) continue;
+        for (const auto& v : sw) {
+            const size_t n = std::max(w.size(), v.size());
+            if (w.size() + 2 < v.size() || v.size() + 2 < w.size()) continue;
+            // Letters added at the end (apps, opened, Perfection™ -> PerfectionTM) are not a change.
+            if (w.rfind(v, 0) == 0 || v.rfind(w, 0) == 0) continue;
+            if (dist(w, v) <= (n >= 7 ? 2u : 1u)) return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 bool unitsKept(const std::wstring& src, const std::wstring& tx) {
@@ -377,6 +466,21 @@ std::vector<std::string> checkTranslation(const std::wstring& src, const std::ws
     if (!numbersKept(src, tx)) f.push_back("num-missing");
     else if (!unitsKept(src, tx)) f.push_back("unit-missing");
     if (repetitionLoop(tx, src)) f.push_back("repeat");
+    // Stray Latin letters or currency signs the source does not have (「使用 sy 的
+    // s€」 for ふりがな): the pivot's garbage - escalate.
+    if ((lang == Lang::Ja || lang == Lang::Ko) && tgt != Lang::En) {
+        auto latin = [](wchar_t c) { return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= 0xFF21 && c <= 0xFF3A) || (c >= 0xFF41 && c <= 0xFF5A); };
+        const bool srcLatin = std::any_of(src.begin(), src.end(), latin);
+        const bool txLatin = std::any_of(tx.begin(), tx.end(), latin);
+        bool sign = false;
+        for (wchar_t c : tx)
+            if (wcschr(L"€$£¥￥₩", c) && src.find(c) == std::wstring::npos &&
+                !((c == L'¥' || c == L'￥') && src.find(L'円') != std::wstring::npos) && !(c == L'₩' && src.find(L'원') != std::wstring::npos))
+                sign = true;
+        if ((!srcLatin && txLatin) || sign) f.push_back("stray-latin");
+    }
+    if (tgt != Lang::En && latinChanged(src, tx)) f.push_back("latin-changed");
+    if (phoneticGarbage(src, tx, lang, tgt)) f.push_back("translit");
     if (bracketCount(src) > bracketCount(tx) && hasLetters(src)) {
         // A bracketed note with words (タイ製造) lost; bare numbers in brackets do not count.
         static const std::wregex note(L"[（(][^）)]*[\\u3040-\\u30ff\\u4e00-\\u9fff\\uac00-\\ud7afA-Za-z][^）)]*[）)]");

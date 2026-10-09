@@ -94,6 +94,9 @@ struct DownloadProgress {
     double secondsLeft = -1;      // -1: not known yet
     int connections = 0;
     bool verifying = false;       // the final SHA-256 check (show 「驗證中…」)
+    // Still downloading: "runtime" (llama.cpp), "gpu" (the Vulkan backend),
+    // "model".  Near the end, e.g. 「下載中 98%（執行元件）…」.
+    std::vector<std::string> pending;
 };
 Result download(const std::function<void(const DownloadProgress&)>& progress, const std::atomic<bool>* cancel,
                 std::wstring* detail = nullptr, const std::string& model = "");
