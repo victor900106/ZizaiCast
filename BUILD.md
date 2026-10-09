@@ -1,13 +1,13 @@
-# Building ZizaiCast 0.7.2 from source
+# Building ZizaiCast 0.7.6 from source
 
-This archive is the Corresponding Source of the ZizaiCast 0.7.2 installer
+This archive is the Corresponding Source of the ZizaiCast 0.7.6 installer
 (GPL-3.0, see `LICENSE`, `docs/licenses/SOURCE.md` and
 `docs/licenses/THIRD_PARTY_NOTICES.txt`).
 
-* git commit: `0d29f4c626acfba0d64a73351022a2da2ef7edd9` (2026-10-09T03:22:13+08:00)
+* git commit: `b0721b4a40c679d57f3f2cd3860934eb21559dc1` (2026-10-09T22:53:18+08:00)
 * vcpkg commit used for the release build: `f451d04d496aa089e294a1a2d799a269788d47ba`
 * Library sources (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg, PCRE2 + vcpkg port scripts/patches; the complete source of `bergamot.dll`; licence and provenance of `onnxruntime.dll`):
-  `ZizaiCast-0.7.2-deps-source.zip` on the same release page.
+  `ZizaiCast-0.7.6-deps-source.zip` on the same release page.
 
 ## 1. Tools (Windows 10/11 x64)
 
@@ -94,7 +94,7 @@ VCPKG_ROOT=C:/vcpkg bash translate/tools/build_bergamot.sh
 
 Output: `build-translate/bergamot/bin/bergamot.dll`.
 
-**Offline, from `ZizaiCast-0.7.2-deps-source.zip`** — its
+**Offline, from `ZizaiCast-0.7.6-deps-source.zip`** — its
 `bergamot/BergamotTranslatorSharp/` is exactly that tree (every submodule at
 the commit recorded by its parent, unmodified; list in `DEPS-README.txt`).
 BergamotTranslatorSharp's own CMake applies its patches from
@@ -104,7 +104,7 @@ root of this archive, deps zip next to it; no download from GitHub needed):
 
 ```
 mkdir -p build-translate/x
-unzip -q ../ZizaiCast-0.7.2-deps-source.zip -d build-translate/x
+unzip -q ../ZizaiCast-0.7.6-deps-source.zip -d build-translate/x
 mv build-translate/x/bergamot/BergamotTranslatorSharp build-translate/bts-src
 M=build-translate/bts-src/bergamot-translator/3rd_party/marian-dev   # Marian's CMake reads its revision from git:
 git -C $M init -q
@@ -135,6 +135,13 @@ The Firefox Translations models (MPL-2.0, from Mozilla's CDN) and the PaddleOCR
 text detection / recognition models (Apache-2.0, ONNX conversions of the
 RapidOCR project on ModelScope) are downloaded by the program itself, after the
 user agrees, into the user's profile. They are data, not part of the program.
+The same holds for the optional add-ons of 0.7.4+: the llama.cpp runtime b11514
+(MIT, from its GitHub release) with the Qwen GGUF models (Apache-2.0, from
+Hugging Face) for local AI translation, and the DirectML build of ONNX Runtime
+with `DirectML.dll` (from Microsoft's NuGet feed) for text recognition on the
+GPU. Pinned names, sizes and SHA-256: `translate/src/llm_engine_models.inc`,
+`translate/src/ocr_gpu.inc`; notices: `docs/licenses/THIRD_PARTY_NOTICES.txt`
+part 2d.
 
 ## 6. Configure and build
 
@@ -158,7 +165,7 @@ pm_audio_test pm_recorder_test pm_miracast_test pm_android_test`.
 
 (`installer\zizai.iss` packages the user guides from `docs\tutorial\` and
 the notices from `docs\licenses\`, both in this archive. Output:
-`installer\Output\自在投影-安裝程式-0.7.2.exe`, Traditional Chinese +
+`installer\Output\自在投影-安裝程式-0.7.6.exe`, Traditional Chinese +
 English.)
 
 ## 8. Replacing the LGPL libraries

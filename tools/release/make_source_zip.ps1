@@ -13,6 +13,8 @@
         (docs/tutorial), except:
           - generated test media: video/testdata/*.png|*.log|*.h264|*.h265|*.mp4|*.bin
           - _ref/, build*/, installer/Output/ (untracked anyway)
+          - test material rebuilt from the owner's private screenshots
+            (translate/testdata/eval/owner072.ref.json, make_owner_072.py)
         Guard: the archive is refused if any of the OLD mascot / icon art
         (removed in 64c29cc, copyright unknown, never to be distributed)
         reappears - by file name or by git blob id (every historical
@@ -259,6 +261,13 @@ The Firefox Translations models (MPL-2.0, from Mozilla's CDN) and the PaddleOCR
 text detection / recognition models (Apache-2.0, ONNX conversions of the
 RapidOCR project on ModelScope) are downloaded by the program itself, after the
 user agrees, into the user's profile. They are data, not part of the program.
+The same holds for the optional add-ons of 0.7.4+: the llama.cpp runtime b11514
+(MIT, from its GitHub release) with the Qwen GGUF models (Apache-2.0, from
+Hugging Face) for local AI translation, and the DirectML build of ONNX Runtime
+with ``DirectML.dll`` (from Microsoft's NuGet feed) for text recognition on the
+GPU. Pinned names, sizes and SHA-256: ``translate/src/llm_engine_models.inc``,
+``translate/src/ocr_gpu.inc``; notices: ``docs/licenses/THIRD_PARTY_NOTICES.txt``
+part 2d.
 
 
 "@
@@ -370,7 +379,10 @@ $excludes = @(
     ':(exclude,glob)video/testdata/*.bin',
     ':(exclude,glob)_ref/**',
     ':(exclude,glob)build*/**',
-    ':(exclude,glob)installer/Output/**'
+    ':(exclude,glob)installer/Output/**',
+    # test material rebuilt from the owner's private screenshots (not published)
+    ':(exclude)translate/testdata/eval/owner072.ref.json',
+    ':(exclude)translate/testdata/make_owner_072.py'
 )
 & git -C $Repo archive --format=zip -9 "--prefix=$Prefix/" "--add-file=$buildMdPath" -o $srcZip $Commit -- . @excludes
 if ($LASTEXITCODE -ne 0) { throw "git archive failed ($LASTEXITCODE)" }
@@ -532,6 +544,12 @@ if (-not $NoDeps) {
             $readme.Add("  Firefox Translations models (MPL-2.0): https://github.com/mozilla/translations")
             $readme.Add("  PaddleOCR models, ONNX conversions by RapidOCR (Apache-2.0): https://github.com/PaddlePaddle/PaddleOCR,")
             $readme.Add("  https://www.modelscope.cn/models/RapidAI/RapidOCR")
+            $readme.Add("  llama.cpp runtime b11514 for local AI translation (llama.dll, ggml*.dll, ggml-vulkan.dll; MIT;")
+            $readme.Add("  libomp.dll Apache-2.0 WITH LLVM-exception): https://github.com/ggml-org/llama.cpp/releases/tag/b11514")
+            $readme.Add("  Qwen3.5 / Qwen3 GGUF models (Apache-2.0): https://huggingface.co/Qwen (files: translate/src/llm_engine_models.inc)")
+            $readme.Add("  OCR on the GPU: onnxruntime.dll 1.24.4 DirectML build (MIT) and DirectML.dll 1.15.4 (Microsoft DirectML")
+            $readme.Add("  licence), from Microsoft's NuGet packages Microsoft.ML.OnnxRuntime.DirectML / Microsoft.AI.DirectML")
+            $readme.Add("  (translate/src/ocr_gpu.inc)")
         }
         $e = $zip.CreateEntry('DEPS-README.txt')
         $w = New-Object IO.StreamWriter($e.Open(), $Utf8NoBom)
