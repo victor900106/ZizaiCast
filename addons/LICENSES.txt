@@ -1,0 +1,49 @@
+Mirror of third-party release files for 自在投影 / Zizai Cast (0.7.7 and later)
+=============================================================================
+
+Upload these files unchanged to the gh-pages branch at
+  addons/llama-b11514-bin-win-cpu-x64.zip
+  addons/llama-b11514-bin-win-vulkan-x64.zip
+so they are served at https://victor900106.github.io/ZizaiCast/addons/<file name>.
+The app tries that URL first and falls back to the original GitHub release
+(https://github.com/ggml-org/llama.cpp/releases/tag/b11514) when it is
+missing; either way the SHA-256 below is checked before a file is used.
+
+  5a1d6ba1b414ab0234b12e29d911b3b8fe63051b4455215e184cf74870eac596  llama-b11514-bin-win-cpu-x64.zip     (19,484,487 bytes)
+  e1eaddcde761b1f839b9c6d5924b97f2698fba22068ca3b63f129c3caf55b88f  llama-b11514-bin-win-vulkan-x64.zip  (33,446,009 bytes)
+
+These are the official, unmodified builds of llama.cpp release b11514
+(commit de7fa0a3c6a2e1b4cd9f22eb8d6bf5b12dbdb63b) by the ggml authors, as
+listed on the release page.  Source: https://github.com/ggml-org/llama.cpp/tree/b11514
+
+Licences of the contents
+------------------------
+* llama.cpp / ggml (llama.dll, ggml*.dll, ggml-vulkan.dll and the tools in
+  the zips): MIT licence, text below.
+* libomp.dll (LLVM OpenMP runtime, in the CPU zip): Apache License 2.0 with
+  LLVM Exceptions; its full text is in the zip as LICENSE-LLVM-OpenMP.
+* The OCR GPU add-on (DirectML.dll, onnxruntime.dll) is not mirrored: the app
+  fetches it from api.nuget.org, which is fast; nothing to upload for it.
+
+---------------------------------------------------------------- llama.cpp
+MIT License
+
+Copyright (c) 2023-2026 The ggml authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
