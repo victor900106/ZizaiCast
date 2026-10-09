@@ -13,7 +13,7 @@
 #define AppName "自在投影"
 ; /DAppVersion=x.y.z overrides it (fake newer installers for updater tests).
 #ifndef AppVersion
-  #define AppVersion "0.7.6"
+  #define AppVersion "0.7.7"
 #endif
 #define AppExe "自在投影.exe"
 #ifndef BuildDir
