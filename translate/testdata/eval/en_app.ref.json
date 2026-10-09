@@ -1,0 +1,15 @@
+{"name": "en_app", "lang": "en", "kind": "app", "units": [
+ {"id": "u1", "src": "9:41", "ref": "9:41", "must": [], "keys": [], "optional": true},
+ {"id": "u2", "src": "Settings", "ref": "設定", "must": [["設定", "設置"]], "keys": [], "optional": false},
+ {"id": "u3", "src": "You have unsaved changes. Discard them?", "ref": "您有尚未儲存的變更。要捨棄嗎？", "must": [["未儲存", "尚未儲存", "沒有儲存", "未保存", "尚未保存", "未存檔"], ["變更", "更動", "修改"], ["捨棄", "放棄", "丟棄", "不儲存"]], "keys": [], "optional": false},
+ {"id": "u4", "src": "This can't be undone.", "ref": "此操作無法復原。", "must": [["無法", "不能", "不可"], ["復原", "還原", "恢復", "撤銷", "撤回", "回復", "取消"]], "keys": [{"type": "neg", "src": "can't", "any": ["無法", "不能", "不可", "沒辦法", "不會"]}], "optional": false},
+ {"id": "u5", "src": "Discard", "ref": "捨棄", "must": [["捨棄", "放棄", "丟棄"]], "keys": [], "optional": false},
+ {"id": "u6", "src": "Push notifications Get alerts for new messages and updates", "ref": "推播通知 接收新訊息與更新的提醒", "must": [["推播", "通知"], ["提醒", "通知", "警示", "提示"]], "keys": [], "optional": false},
+ {"id": "u7", "src": "Email digest A weekly summary every Monday", "ref": "電子郵件摘要 每週一寄送每週摘要", "must": [["摘要", "彙整", "整理"], ["電子郵件", "郵件", "Email", "email", "信件"]], "keys": [{"type": "date", "src": "Monday", "any": ["週一", "星期一", "禮拜一", "周一", "每週一"]}], "optional": false},
+ {"id": "u8", "src": "Dark mode", "ref": "深色模式", "must": [["深色", "暗色", "夜間", "黑暗", "暗黑"]], "keys": [], "optional": false},
+ {"id": "u9", "src": "Turn off notifications?", "ref": "要關閉通知嗎？", "must": [["關閉", "關掉", "停用"], ["通知"]], "keys": [], "optional": false},
+ {"id": "u10", "src": "You won't receive alerts.", "ref": "您將不會收到提醒。", "must": [["提醒", "通知", "警示", "提示"], ["收到", "收"]], "keys": [{"type": "neg", "src": "won't", "any": ["不", "勿", "別", "禁止", "避免", "不要", "不可", "無法", "未", "沒有", "不得", "嚴禁", "切勿", "收不到"]}], "optional": false},
+ {"id": "u11", "src": "Cancel", "ref": "取消", "must": [["取消"]], "keys": [], "optional": false},
+ {"id": "u12", "src": "Turn off", "ref": "關閉", "must": [["關閉", "關掉", "停用"]], "keys": [], "optional": false},
+ {"id": "u13", "src": "No internet connection", "ref": "沒有網路連線", "must": [["網路", "網際網路", "連線", "網絡"], ["沒有", "無", "未連線", "未連接", "斷線", "未"]], "keys": [{"type": "neg", "src": "No", "any": ["沒有", "無", "未", "斷線", "沒"]}], "optional": false}
+]}

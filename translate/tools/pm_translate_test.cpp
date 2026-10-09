@@ -17,6 +17,19 @@
 //       off-screen VideoWindow fed with each PNG; ScreenTranslator
 //       translateScreen (window shots <name>_tr.png, <name>_original.png),
 //       then translateRegion with a posted drag (<name>_region.png); times
+//   pm_translate_test --eval OUT.jsonl PNG [PNG...] [--target T] [--gt]
+//       the app's path (OCR or --gt lines -> blocks -> pickBlocks ->
+//       translateTexts -> translatedOk), one JSON line per picture: lines,
+//       blocks, why a block was left out, its translation and the engine's
+//       alone; scored by translate/testdata/eval_metrics.py
+//   pm_translate_test --live PNG [--target T]
+//       即時翻譯 on a synthetic 30 fps stream over PNG (still / scroll / video
+//       corner): CPU, pictures looked at, runs, settle -> overlay times
+//   pm_translate_test --selftest [--download]
+//       the P0 rules without pictures: table rows (layoutBlocks), checks
+//       (negation / numbers / brackets), templates, verified facts, the
+//       memory cache; with the ja -> zh-Hant models also translateTextsEx
+//       (rows 「標籤　值」, a negation through the pivot, cache hits)
 //   pm_translate_test --text FILE [--lang ja] [--target T]   (or --raw FILE)
 //       each UTF-8 line of FILE translated like the blocks of a picture
 //       (glossary, table cells, names kept); --raw: the engine alone
@@ -34,9 +47,13 @@
 //                 %LOCALAPPDATA%\PhoneMirror\models.
 #include <windows.h>
 #include <wincodec.h>
+#include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
 #include <wrl/client.h>
 
 #include <atomic>
+#include <exception>
+#include <csignal>
 #include <chrono>
 #include <cstdio>
 #include <algorithm>
@@ -257,7 +274,24 @@ bool doOcr(const std::vector<uint8_t>& px, int w, int h, Lang src, OcrResult& r,
     return ok;
 }
 
+bool ensureOcrGpu(bool download) {
+    if (g_windowsOcr || !PaddleOcr::gpuWanted() || ModelStore::ocrGpuInstalled()) return true;
+    const uint64_t miss = ModelStore::ocrGpuMissingBytes();
+    if (!download) {
+        std::printf("OCR GPU add-on missing (%.1f MB): run with --download (CPU meanwhile)\n", miss / 1e6);
+        return true;
+    }
+    std::printf("downloading the OCR GPU add-on, %.1f MB, into %ls ...\n", miss / 1e6, ModelStore::ocrGpuDir().c_str());
+    std::wstring err;
+    const double t0 = nowMs();
+    const bool ok = ModelStore::downloadOcrGpu(nullptr, nullptr, &err);
+    std::printf("OCR GPU add-on download %s in %.1f s%s%s\n", ok ? "OK (SHA-256 verified)" : "FAILED", (nowMs() - t0) / 1000,
+                ok ? "" : ": ", u8(err).c_str());
+    return true;  // the CPU runtime otherwise
+}
+
 bool ensureOcrModels(bool download) {
+    ensureOcrGpu(download);
     if (g_windowsOcr || PaddleOcr::modelsInstalled() || !PaddleOcr::runtimeAvailable()) return true;
     const uint64_t miss = ModelStore::missingBytes({"ocr"});
     if (!download) {
@@ -364,7 +398,20 @@ int runText(const std::wstring& file, Lang src, Lang tgt, bool raw) {
     std::vector<std::wstring> out;
     std::wstring err;
     double t0 = nowMs();
-    const bool ok = raw ? engine.translate(src, tgt, in, out, &err) : translateTexts(engine, src, tgt, in, out, &err);
+    // "label<TAB>value": a table row (Block::labelLen), as layoutBlocks makes it.
+    std::vector<size_t> labels(in.size(), 0);
+    for (size_t i = 0; i < in.size(); ++i)
+        if (const size_t t = in[i].find(L'\t'); t != std::wstring::npos) in[i][t] = L' ', labels[i] = t;
+    Escalator esc(engine);
+    std::vector<TextInfo> info;
+    if (std::getenv("PM_TEXT_WARM")) {  // tests: once before timing (models and parallel translators loaded)
+        engine.translate(src, tgt, in, out, &err);
+        t0 = nowMs();
+    }
+    const bool ok = raw ? engine.translate(src, tgt, in, out, &err)
+                        : translateTextsEx(engine, &esc, src, tgt, in, labels, out, &info, &err);
+    for (size_t i = 0; i < info.size() && i < out.size(); ++i)
+        if (info[i].uncertain && !info[i].verified.empty()) out[i] += L"\n     ⚠ " + info[i].verified;
     std::printf("%zu lines %ls -> %ls in %.0f ms (model load %.0f ms)%s\n", in.size(), langTag(src), langTag(tgt), nowMs() - t0,
                 engine.lastLoadMs(), ok ? "" : " FAILED");
     if (!ok) std::printf("  %s\n", u8(err).c_str());
@@ -451,9 +498,292 @@ int runPipeline(const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool 
     return fails;
 }
 
+// ---- --eval OUT.jsonl PNG...: the app's own path, as data for translate/testdata/eval_metrics.py ----
+std::string jstr(const std::wstring& s) {
+    std::string o = "\"";
+    for (char c : u8(s)) {
+        if (c == '"' || c == '\\') o += '\\', o += c;
+        else if (c == '\n') o += "\\n";
+        else if (c == '\r' || c == '\t') o += ' ';
+        else o += c;
+    }
+    return o + "\"";
+}
+std::string jbox(float x0, float y0, float x1, float y1) {
+    char b[96];
+    std::snprintf(b, sizeof b, "[%.4f,%.4f,%.4f,%.4f]", x0, y0, x1, y1);
+    return b;
+}
+
+// OCR (or --gt) -> groupLines -> pickBlocks -> translateTexts -> translatedOk,
+// as ScreenTranslator does, one JSON line per picture: the lines, every block
+// with why it was left out or its translation (tx; raw: the engine alone on
+// the block, for telling engine errors from the label fixes).
+int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool download) {
+    FILE* out = nullptr;
+    if (_wfopen_s(&out, outFile.c_str(), L"wb") || !out) {
+        std::printf("cannot write %ls\n", outFile.c_str());
+        return 1;
+    }
+    Engine engine;
+    Escalator esc(engine);
+    {
+        // PM_EVAL_ALT=1: the local LLM on every ja / ko engine piece too
+        // (block "alt"), the routing data of translate/testdata/route_eval.py.
+        EscalationConfig c = esc.config();
+        c.collectAlt = std::getenv("PM_EVAL_ALT") != nullptr;
+        c.llmShortItems = std::getenv("PM_EVAL_SHORT") != nullptr;  // route_eval policy U+T+S10
+        esc.setConfig(c);
+    }
+    int fails = 0;
+    for (const auto& png : pngs) {
+        std::vector<uint8_t> px;
+        int w = 0, h = 0;
+        if (!readPng(png, px, w, h)) {
+            std::printf("cannot read %ls\n", png.c_str());
+            ++fails;
+            continue;
+        }
+        OcrResult r;
+        std::wstring err;
+        esc.resetBudget();
+        const double t0 = nowMs();
+        if (g_useGt) {
+            r.lines = loadGt(png);
+        } else if (!doOcr(px, w, h, src, r, err)) {
+            std::printf("%ls: OCR failed: %s\n", baseName(png).c_str(), u8(err).c_str());
+            ++fails;
+            continue;
+        }
+        const double ocrMs = nowMs() - t0;
+        auto blocks = (std::getenv("PM_EVAL_072") ? groupLines : layoutBlocks)(r.lines, static_cast<float>(w) / h);
+        std::vector<std::string> why;
+        const auto byLang = pickBlocks(blocks, src, tgt, static_cast<float>(w) / h, g_useGt, &why);
+        std::vector<std::wstring> tx(blocks.size()), raw(blocks.size());
+        std::vector<int> ok(blocks.size(), 0);
+        std::vector<TextInfo> infos(blocks.size());
+        const double t1 = nowMs();
+        double loadMs = 0, rawMs = 0;
+        // As ScreenTranslator: the result shown at once (pass 1), the LLM on
+        // the queued pieces within the picture's budget, then the improved
+        // result (pass 2, from the cache).
+        bool modelsOk = true;
+        auto pass = [&](bool first) {
+        for (const auto& [l, idx] : byLang) {
+            if (!ensureModels(l, tgt, download)) {
+                modelsOk = false;
+                return;
+            }
+            std::vector<std::wstring> in, o, ro;
+            std::vector<size_t> labels;
+            std::vector<TextInfo> info;
+            for (size_t i : idx) in.push_back(blocks[i].text), labels.push_back(blocks[i].labelLen);
+            const bool old = std::getenv("PM_EVAL_072") != nullptr;  // 0.7.2's path (baseline)
+            if (old ? !translateTexts(engine, l, tgt, in, o, &err)
+                    : !translateTextsEx(engine, &esc, l, tgt, in, labels, o, &info, &err)) {
+                std::printf("%ls: translation failed: %s\n", baseName(png).c_str(), u8(err).c_str());
+                ++fails;
+                continue;
+            }
+            loadMs += engine.lastLoadMs();
+            if (first) {  // the engine alone (metrics' "raw"; not part of the times)
+                const double r0 = nowMs();
+                engine.translate(l, tgt, in, ro, &err);
+                rawMs += nowMs() - r0;
+            }
+            for (size_t k = 0; k < idx.size() && k < o.size(); ++k) {
+                tx[idx[k]] = o[k];
+                if (k < info.size()) {
+                    infos[idx[k]] = info[k];
+                    if (info[k].uncertain && !info[k].verified.empty()) tx[idx[k]] += L"\n⚠ " + info[k].verified;
+                }
+                if (first && k < ro.size()) raw[idx[k]] = ro[k];
+                const bool isRow = blocks[idx[k]].labelLen > 0 || (k < info.size() && info[k].row);
+                ok[idx[k]] = translatedOk(blocks[idx[k]].text, o[k], l, tgt) || (!old && isRow && !o[k].empty()) ? 1 : 0;
+            }
+        }
+        };
+        pass(true);
+        if (!modelsOk) return fails + 1;
+        // GT lines: no OCR ran; PM_EVAL_OCR_MS charges a typical OCR time to the budget.
+        const double ocrCharged = g_useGt && std::getenv("PM_EVAL_OCR_MS") ? atof(std::getenv("PM_EVAL_OCR_MS")) : 0;
+        const double firstMs = nowMs() - t0 - rawMs - loadMs + ocrCharged;
+        std::vector<Escalator::RouteTrace> route;
+        const size_t queued = esc.pendingCount();
+        if (queued && !esc.config().collectAlt) {
+            const double start = t0 + rawMs + loadMs - ocrCharged;  // the picture's clock without the test-only work
+            if (esc.runPending(start + esc.config().targetMs, &route) > 0) pass(false);
+        }
+        const double totalMs = nowMs() - t0 - rawMs - loadMs + ocrCharged;
+        esc.warmUp(true);  // as ScreenTranslator after showing the picture (not timed)
+        const double trMs = nowMs() - t1 - loadMs - rawMs;
+        std::string j = "{\"image\":" + jstr(baseName(png)) + ",\"gt\":" + (g_useGt ? "true" : "false") +
+                        ",\"ocr_ms\":" + std::to_string(static_cast<int>(ocrMs)) + ",\"tr_ms\":" + std::to_string(static_cast<int>(trMs)) +
+                        ",\"first_ms\":" + std::to_string(static_cast<int>(firstMs)) +
+                        ",\"det_ms\":" + std::to_string(static_cast<int>(r.detMs)) + ",\"rec_ms\":" +
+                        std::to_string(static_cast<int>(r.recMs)) + ",\"ko_lines\":" + std::to_string(r.koLines) +
+                        ",\"pic\":\"" + std::to_string(w) + "x" + std::to_string(h) + "\"" +
+                        ",\"total_ms\":" + std::to_string(static_cast<int>(totalMs)) + ",\"route\":[";
+        for (size_t i = 0; i < route.size(); ++i)
+            j += (i ? "," : "") + std::string("{\"t\":") + jstr(route[i].plain) + ",\"out\":" + jstr(route[i].out) +
+                 ",\"prio\":" + std::to_string(route[i].prio) + ",\"ms\":" + std::to_string(static_cast<int>(route[i].ms)) +
+                 ",\"pred\":" + std::to_string(static_cast<int>(route[i].predictedMs)) + ",\"res\":" + jstr(fromUtf8(route[i].result)) + "}";
+        j += "],\"lines\":[";
+        for (size_t i = 0; i < r.lines.size(); ++i) {
+            const auto& l = r.lines[i];
+            j += (i ? "," : "") + std::string("{\"t\":") + jstr(l.text) + ",\"b\":" + jbox(l.x0, l.y0, l.x1, l.y1) + "}";
+        }
+        j += "],\"blocks\":[";
+        int picked = 0, shown = 0;
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            const Block& b = blocks[i];
+            picked += why[i].empty();
+            shown += ok[i];
+            j += (i ? "," : "") + std::string("{\"t\":") + jstr(b.text) + ",\"b\":" + jbox(b.x0, b.y0, b.x1, b.y1) +
+                 ",\"lang\":" + jstr(langTag(b.lang)) + ",\"skip\":" + jstr(fromUtf8(why[i])) + ",\"tx\":" + jstr(tx[i]) +
+                 ",\"raw\":" + jstr(raw[i]) + ",\"ok\":" + (ok[i] ? "true" : "false") + ",\"label\":" +
+                 std::to_string(b.labelLen) + ",\"step\":" + std::to_string(infos[i].step) +
+                 ",\"uncertain\":" + (infos[i].uncertain ? "true" : "false") + ",\"alt\":" + jstr(infos[i].alt) +
+                 ",\"alt_ms\":" + std::to_string(static_cast<int>(infos[i].altMs)) + ",\"eng\":" + jstr(fromUtf8(infos[i].engines)) +
+                 ",\"alt_flags\":" + jstr(fromUtf8(infos[i].altFlags)) +
+                 ",\"flags\":\"";
+            for (const auto& f : infos[i].flags) j += f + " ";
+            j += "\"}";
+        }
+        j += "]}\n";
+        fwrite(j.data(), 1, j.size(), out);
+        int accepted = 0;
+        for (const auto& rt : route) accepted += rt.result == "accepted";
+        std::printf("== %ls: %zu lines, %zu blocks, %d picked, %d shown, OCR %.0f ms, translate %.0f ms, first %.0f ms, total %.0f ms, "
+                    "LLM %zu queued %d accepted\n",
+                    baseName(png).c_str(), r.lines.size(), blocks.size(), picked, shown, ocrMs, trMs, firstMs, totalMs, queued, accepted);
+    }
+    fclose(out);
+    return fails;
+}
+
+// ---- --selftest: the rules of P0 (layout rows, checks, templates, escalation, cache) ----
+int runSelfTest(bool download) {
+    int fails = 0, n = 0;
+    auto expect = [&](bool ok, const char* what, const std::wstring& got = L"") {
+        ++n;
+        if (!ok) ++fails;
+        std::printf("  %s %s%s%s\n", ok ? "ok  " : "FAIL", what, got.empty() ? "" : "  -> ", u8(got).c_str());
+    };
+    auto has = [](const std::vector<std::string>& v, const char* f) { return std::find(v.begin(), v.end(), f) != v.end(); };
+    std::printf("checks (qe):\n");
+    {
+        const auto f = checkTranslation(L"直射日光、高温多湿を避けて常温で保存してください", L"存放於遠離陽光直射、高溫且潮濕的環境中", Lang::Ja, Lang::ZhHant);
+        expect(has(f, "neg-scope"), "list negation scope lost (避けて -> 存放於…環境)");
+        expect(checkTranslation(L"直射日光、高温多湿を避けて常温で保存してください", L"請避免陽光直射、高溫潮濕，於常溫保存。", Lang::Ja, Lang::ZhHant).empty(),
+               "template translation passes");
+        expect(has(checkTranslation(L"찌개류는 1인분 주문 불가", L"將魷魚分別訂購一份", Lang::Ko, Lang::ZhHant), "neg-missing"),
+               "분별 / 分別 is not a negation (불가 lost)");
+        expect(checkTranslation(L"찌개류는 1인분 주문 불가", L"鍋類不接受1人份點餐", Lang::Ko, Lang::ZhHant).empty(), "불가 kept");
+        expect(has(checkTranslation(L"찌개류는 1인분 주문 불가", L"可單獨訂購一份無空氣的米飯", Lang::Ko, Lang::ZhHant), "neg-missing"),
+               "a prohibition is not kept by 無 (absence)");
+        expect(has(checkTranslation(L"脂質 1.5g", L"脂肪 1.58", Lang::Ja, Lang::ZhHant), "num-missing"), "number changed (1.5 -> 1.58)");
+        expect(checkTranslation(L"2枚入り", L"兩片裝", Lang::Ja, Lang::ZhHant).empty(), "2 written as 兩");
+        expect(has(checkTranslation(L"チョコレートコーチング（タイ製造）", L"泰國巧克力塗層", Lang::Ja, Lang::ZhHant), "paren-lost"),
+               "bracketed note lost (タイ製造)");
+        expect(has(checkTranslation(L"Do not microwave.", L"Microwave it.", Lang::En, Lang::ZhHant), "neg-missing") ||
+                   has(checkTranslation(L"Do not microwave.", L"微波加熱。", Lang::En, Lang::ZhHant), "neg-missing"),
+               "en -> zh: not lost");
+        const std::wstring v = verifiedFacts(L"찌개류는 1인분 주문 불가", Lang::Ko, Lang::ZhHant);
+        expect(v.find(L"不可") != std::wstring::npos && v.find(L"1人份") != std::wstring::npos, "verified facts: 불가 = 不可, 1인분 = 1人份", v);
+    }
+    std::printf("rules (templates, kanji, quantities):\n");
+    {
+        std::wstring t;
+        expect(applyTemplate(L"直射日光、高温多湿を避けて常温で保存してください", Lang::Ja, Lang::ZhHant, t) && t.find(L"避免") != std::wstring::npos &&
+                   t.find(L"常溫") != std::wstring::npos,
+               "保存方法 template", t);
+        expect(!applyTemplate(L"直射日光、謎の物質を避けて常温で保存してください", Lang::Ja, Lang::ZhHant, t), "unknown slot item: no template");
+        expect(convertJapaneseKanji(L"焼菓子") == L"烘焙點心" && convertJapaneseKanji(L"脂質") == L"脂肪", "kanji words",
+               convertJapaneseKanji(L"焼菓子"));
+        expect(quantityPhrase(L"1袋（2枚）あたり", Lang::Ja, Lang::ZhHant, t) && t == L"每1袋（2片）", "per serving header", t);
+        expect(looksLikeAddress(L"〒601-8446 京都市南区西九条") && !looksLikeAddress(L"1-800-555-0142"), "addresses");
+    }
+    std::printf("layout (rows):\n");
+    {
+        auto line = [](const wchar_t* t, float x0, float x1, float y0) {
+            OcrLine l;
+            l.text = t;
+            l.x0 = x0, l.x1 = x1, l.y0 = y0, l.y1 = y0 + 0.03f;
+            l.lineH = 0.025f;
+            l.conf = 0.95f;
+            l.script = detectScript(l.text);
+            return l;
+        };
+        // 「名 称　焼菓子」 / 「内容量　8袋（16枚）」 / 賞味期限 over 26.12.09
+        std::vector<OcrLine> ls{line(L"名", 0.05f, 0.08f, 0.10f), line(L"称", 0.13f, 0.16f, 0.10f), line(L"焼菓子", 0.30f, 0.42f, 0.10f),
+                                line(L"内容量", 0.05f, 0.16f, 0.16f), line(L"8袋（16枚）", 0.30f, 0.50f, 0.16f)};
+        const auto bs = layoutBlocks(ls, 1.f);
+        std::wstring all;
+        bool name = false, qty = false;
+        for (const auto& b : bs) {
+            all += b.text + L" | ";
+            name |= b.text.substr(0, b.labelLen) == L"名称" && b.text.find(L"焼菓子") != std::wstring::npos;
+            qty |= b.text.substr(0, b.labelLen) == L"内容量" && b.kind == 2;
+        }
+        expect(name, "spaced-out label 名 称 + value", all);
+        expect(qty, "label + quantity row", all);
+    }
+    std::printf("cache (memory only):\n");
+    {
+        Engine e;
+        Escalator esc(e);
+        TrHypothesis h;
+        h.text = L"脂肪";
+        esc.remember(Lang::Ja, Lang::ZhHant, L"脂質", h);
+        TrHypothesis u = h;
+        u.uncertain = true;
+        esc.remember(Lang::Ja, Lang::ZhHant, L"不明", u);
+        TrHypothesis g;
+        expect(esc.cached(Lang::Ja, Lang::ZhHant, L"脂質", g) && g.text == L"脂肪", "checked result kept");
+        expect(!esc.cached(Lang::Ja, Lang::En, L"脂質", g), "keyed by target");
+        expect(!esc.cached(Lang::Ja, Lang::ZhHant, L"不明", g), "doubtful result not kept");
+        EscalationConfig c = esc.config();
+        c.online = !c.online;
+        esc.setConfig(c);
+        expect(esc.cacheSize() == 0, "cleared when the engines allowed change");
+    }
+    // With the models: rows, a negation through the pivot, the cache.
+    if (Engine::available() && ensureModels(Lang::Ja, Lang::ZhHant, download)) {
+        std::printf("engine (ja -> zh-Hant):\n");
+        Engine e;
+        Escalator esc(e);
+        const std::vector<std::wstring> in{L"内容量 8袋（16枚）", L"脂質 1.5g", L"直射日光、高温多湿な場所を避けて常温で保存してください。",
+                                           L"フタを開けてお湯を注ぎ、3分待ってください。"};
+        const std::vector<size_t> labels{3, 2, 0, 0};
+        std::vector<std::wstring> out, out2;
+        std::vector<TextInfo> info;
+        std::wstring err;
+        const double t0 = nowMs();
+        const bool ok = translateTextsEx(e, &esc, Lang::Ja, Lang::ZhHant, in, labels, out, &info, &err);
+        const double t1 = nowMs();
+        expect(ok && out.size() == 4, "translated", err);
+        if (ok && out.size() == 4) {
+            expect(out[0] == L"內容量\x3000" L"8袋（16枚）", "row 「標籤　值」", out[0]);
+            expect(out[1].find(L"脂肪") == 0 && out[1].find(L"1.5g") != std::wstring::npos, "nutrition row", out[1]);
+            expect(checkTranslation(in[2], out[2], Lang::Ja, Lang::ZhHant).empty() || (info[2].uncertain && !info[2].verified.empty()),
+                   "negation kept, or marked with the checked facts", out[2]);
+            const size_t cached = esc.cacheSize();
+            translateTextsEx(e, &esc, Lang::Ja, Lang::ZhHant, in, labels, out2, nullptr, &err);
+            expect(cached > 0 && out2 == out, "second run from the cache, same text", out[3]);
+            std::printf("     first %.0f ms, cached %.0f ms\n", t1 - t0, nowMs() - t1);
+        }
+    } else {
+        std::printf("engine: skipped (bergamot.dll / ja -> zh-Hant models missing)\n");
+    }
+    std::printf("SELFTEST %d/%d passed\n", n - fails, n);
+    return fails;
+}
+
 // ---- --overlay ----
 int g_winW = 540, g_winH = 960;  // --window WxH (DIPs)
 int g_layoutMode = 0;            // --layout auto|inplace|list
+float g_zoom = 1;                // --zoom Z: magnified before 翻譯畫面
 bool g_dark = false;             // --dark: 深色方框
 
 int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs, Lang tgt, bool download) {
@@ -538,6 +868,7 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
                 win.submitBgraFrame(px.data(), w, h, w * 4, 0);
                 std::this_thread::sleep_for(std::chrono::milliseconds(40));
             }
+            if (g_zoom > 1) onUi([&] { win.setZoom(g_zoom); });  // --zoom: the magnified part is translated first
             onUi([&] { tr.translateScreen(); });
             if (!waitDone(++runs, 120000)) {
                 std::printf("  FAIL: no result within 120 s\n");
@@ -546,10 +877,11 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
             }
             {
                 std::lock_guard lk(lm);
-                std::printf("  %s: grab %.0f ms, OCR %.0f ms, translate %.0f ms (incl. model load), total %.0f ms; %d lines, "
-                            "%d blocks, %d translated, source %ls\n",
-                            lastOk ? "OK" : "FAILED", last.grabMs, last.ocrMs, last.translateMs, last.totalMs, last.lines,
-                            last.blocks, last.translated, langTag(last.source));
+                std::printf("  %s: grab %.0f ms, OCR %.0f ms, translate %.0f ms (incl. model load), first shown %.0f ms, total %.0f ms; "
+                            "%d lines, %d blocks, %d translated, source %ls\n",
+                            lastOk ? "OK" : "FAILED", last.grabMs, last.ocrMs, last.translateMs,
+                            last.firstMs > 0 ? last.firstMs : last.totalMs, last.totalMs, last.lines, last.blocks, last.translated,
+                            langTag(last.source));
                 if (!lastOk) ++fails;
             }
             for (const auto& it : tr.lastItems())
@@ -655,14 +987,17 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
                     tr.setLive(true, 2);
                     tr.translateScreen();
                 });
+                // 即時翻譯 is change-driven: one run, then nothing while the
+                // picture does not change (--live measures the rest).
                 const int before = runs;
                 const double t0 = nowMs();
-                runs += 2;
-                const bool two = waitDone(runs, 15000);
+                const bool one = waitDone(runs + 1, 15000);
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+                const bool idle = done.load() - before == 1 && tr.liveStats().runs == 0;
                 const bool frozen = win.viewState().frozen;
-                std::printf("  live mode: %s (%d runs in %.1f s, picture %s)\n", two && !frozen ? "OK" : "FAIL",
+                std::printf("  live mode: %s (%d runs in %.1f s on a still picture, picture %s)\n", one && idle && !frozen ? "OK" : "FAIL",
                             done.load() - before, (nowMs() - t0) / 1000, frozen ? "FROZEN" : "not frozen");
-                if (!two || frozen) ++fails;
+                if (!one || !idle || frozen) ++fails;
                 onUi([&] { tr.close(); });
                 runs = done.load();
             }
@@ -679,9 +1014,312 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
     return fails;
 }
 
+// ---- --live PNG: 即時翻譯 on a synthetic stream (a viewport over a tall
+// picture fed at 30 fps like a phone that sends frames all the time):
+// still / scroll / still ... / a playing-video corner.  Prints per phase the
+// CPU used (cores), pictures looked at, runs, and settle -> overlay times.
+int runLive(const std::wstring& png, Lang tgt) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    std::vector<uint8_t> full;
+    int fw = 0, fh = 0;
+    if (!readPng(png, full, fw, fh)) {
+        std::printf("cannot read %ls\n", png.c_str());
+        return 1;
+    }
+    const int vh = std::min(fh, fw * 16 / 10);  // the viewport (a phone screen)
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int fails = 0;
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        std::atomic<int> done{0};
+        std::mutex lm;
+        std::vector<double> doneAt;
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring& text, bool) { std::printf("  [notify] %s\n", u8(text).c_str()); };
+        cb.finished = [&](bool, const ScreenTranslator::Timing&) {
+            std::lock_guard lk(lm);
+            doneAt.push_back(nowMs());
+            done++;
+        };
+        ScreenTranslator tr(win, cb);
+        tr.setTarget(tgt);
+        std::atomic<int> offset{0};
+        std::atomic<bool> noise{false}, feeding{true};
+        std::thread feeder([&] {
+            std::vector<uint8_t> frame(static_cast<size_t>(fw) * vh * 4);
+            uint32_t seed = 1;
+            while (feeding) {
+                const int off = std::clamp(offset.load(), 0, fh - vh);
+                std::memcpy(frame.data(), full.data() + static_cast<size_t>(off) * fw * 4, frame.size());
+                if (noise)  // a playing video in the top right corner
+                    for (int y = 0; y < vh / 4; ++y)
+                        for (int x = fw / 2; x < fw; ++x) {
+                            seed = seed * 1664525u + 1013904223u;
+                            uint8_t* p = &frame[(static_cast<size_t>(y) * fw + x) * 4];
+                            p[0] = p[1] = p[2] = static_cast<uint8_t>(seed >> 24);
+                        }
+                win.submitBgraFrame(frame.data(), fw, vh, fw * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+        });
+        auto cpu = [] {
+            FILETIME c, e, k, u;
+            GetProcessTimes(GetCurrentProcess(), &c, &e, &k, &u);
+            auto v = [](FILETIME f) { return (static_cast<unsigned long long>(f.dwHighDateTime) << 32 | f.dwLowDateTime) / 1e4; };
+            return v(k) + v(u);
+        };
+        auto phase = [&](const char* name, double ms, std::function<void(double)> step) {
+            const auto s0 = tr.liveStats();
+            const int d0 = done;
+            const double c0 = cpu(), t0 = nowMs();
+            while (nowMs() - t0 < ms) {
+                if (step) step(nowMs() - t0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+            const auto s1 = tr.liveStats();
+            const double wall = nowMs() - t0;
+            std::printf("  %-28s %5.0f ms: CPU %.2f cores (feeder + window included), looked %lld, hidden %lld, runs started %lld, finished %d\n",
+                        name, wall, (cpu() - c0) / wall, s1.grabs - s0.grabs, s1.hidden - s0.hidden, s1.runs - s0.runs, done - d0);
+        };
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        phase("feeder only (live off)", 3000, nullptr);
+        win.post([&] {
+            tr.setLive(true);
+            tr.translateScreen();
+        });
+        const double tStart = nowMs();
+        while (done < 1 && nowMs() - tStart < 60000) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        std::printf("  first translation: %.0f ms\n", nowMs() - tStart);
+        phase("still (baseline)", 3000, nullptr);
+        std::vector<double> settle;
+        for (int k = 0; k < 3; ++k) {
+            const int from = offset, dir = k % 2 ? -1 : 1, dist = std::min(vh / 4, (fh - vh) / 2);
+            phase("scroll 1 s", 1000, [&](double el) { offset = from + dir * static_cast<int>(el / 1000 * dist); });
+            const auto st = tr.liveStats();
+            const int d0 = done;
+            phase("still after the scroll", 4000, nullptr);
+            const auto st2 = tr.liveStats();
+            std::lock_guard lk(lm);
+            if (done > d0 && st2.runs > st.runs) settle.push_back(doneAt.back() - (st2.lastSettleMs + 300));
+            else ++fails;
+        }
+        noise = true;
+        phase("video playing (corner)", 6000, nullptr);
+        noise = false;
+        phase("video stopped", 4000, nullptr);
+        std::sort(settle.begin(), settle.end());
+        std::printf("  settle (300 ms still) -> overlay complete: ");
+        for (double s : settle) std::printf("%.0f ms ", s);
+        std::printf("\n");
+        feeding = false;
+        feeder.join();
+        win.post([&] { tr.close(); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    std::printf("%d failure(s)\n", fails);
+    return fails;
+}
+
+// ---- --stress N PNG...: the app's patterns, back to back (crash hunt) ----
+// N rounds on an off-screen window: a random picture, a random target
+// language (the language pairs and the parallel translators switch), then
+// translateScreen and, at random, close() at once / after 0-1.5 s (cancel
+// mid-run), a region run, or 即時翻譯 on while frames keep coming.
+int runStress(int rounds, const std::vector<std::wstring>& pngs) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    std::vector<std::vector<uint8_t>> pics(pngs.size());
+    std::vector<int> pw(pngs.size()), ph(pngs.size());
+    for (size_t i = 0; i < pngs.size(); ++i)
+        if (!readPng(pngs[i], pics[i], pw[i], ph[i])) {
+            std::printf("cannot read %ls\n", pngs[i].c_str());
+            return 1;
+        }
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int finished = 0, closedEarly = 0, regions = 0, lives = 0;
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        std::atomic<int> done{0};
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring&, bool) {};
+        cb.finished = [&](bool, const ScreenTranslator::Timing&) { done++; };
+        auto tr = std::make_unique<ScreenTranslator>(win, cb);
+        auto onUi = [&](std::function<void()> fn) {
+            HANDLE ev = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+            win.post([&] {
+                fn();
+                SetEvent(ev);
+            });
+            WaitForSingleObject(ev, 10000);
+            CloseHandle(ev);
+        };
+        uint32_t seed = 12345;
+        auto rnd = [&](uint32_t n) {
+            seed = seed * 1664525u + 1013904223u;
+            return (seed >> 8) % n;
+        };
+        const Lang targets[] = {Lang::ZhHant, Lang::ZhHant, Lang::ZhHant, Lang::En};
+        const double t0 = nowMs();
+        for (int r = 0; r < rounds; ++r) {
+            const size_t k = rnd(static_cast<uint32_t>(pics.size()));
+            for (int f = 0; f < 3; ++f) {
+                win.submitBgraFrame(pics[k].data(), pw[k], ph[k], pw[k] * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+            const Lang tgt = targets[rnd(4)];
+            const int action = static_cast<int>(rnd(10));
+            const int before = done;
+            onUi([&] {
+                tr->setTarget(tgt);
+                tr->translateScreen();
+            });
+            if (action < 3) {  // closed mid-run
+                std::this_thread::sleep_for(std::chrono::milliseconds(rnd(1500)));
+                onUi([&] { tr->close(); });
+                ++closedEarly;
+            } else if (action < 5) {  // region run right after
+                std::this_thread::sleep_for(std::chrono::milliseconds(rnd(800)));
+                onUi([&] { tr->close(); });
+                HWND hw = win.hwnd();
+                onUi([&] { tr->translateRegion(); });
+                RECT cr;
+                GetClientRect(hw, &cr);
+                PostMessageW(hw, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(cr.right / 10, cr.bottom / 4));
+                PostMessageW(hw, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(cr.right * 9 / 10, cr.bottom * 3 / 4));
+                PostMessageW(hw, WM_LBUTTONUP, 0, MAKELPARAM(cr.right * 9 / 10, cr.bottom * 3 / 4));
+                std::this_thread::sleep_for(std::chrono::milliseconds(rnd(2000)));
+                onUi([&] { tr->close(); });
+                ++regions;
+            } else if (action < 7) {  // 即時翻譯 with changing frames, then off
+                onUi([&] { tr->setLive(true); });
+                for (int f = 0; f < 30; ++f) {
+                    const size_t j = f < 15 ? k : rnd(static_cast<uint32_t>(pics.size()));
+                    win.submitBgraFrame(pics[j].data(), pw[j], ph[j], pw[j] * 4, 0);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                onUi([&] { tr->close(); });
+                ++lives;
+            } else {  // waits for the result
+                const double w0 = nowMs();
+                while (done == before && nowMs() - w0 < 60000) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                onUi([&] { tr->close(); });
+                ++finished;
+            }
+            if (rnd(25) == 0) {  // the translator itself destroyed and made again (app restart of the feature)
+                onUi([&] { tr.reset(); });
+                tr = std::make_unique<ScreenTranslator>(win, cb);
+            }
+            if ((r + 1) % 10 == 0)
+                std::printf("  round %d: %.0f s, %d finished, %d closed early, %d region, %d live\n", r + 1, (nowMs() - t0) / 1000,
+                            finished, closedEarly, regions, lives);
+            std::fflush(stdout);
+        }
+        onUi([&] { tr.reset(); });
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    std::printf("STRESS %d rounds done: %d finished, %d closed early, %d region, %d live\n", rounds, finished, closedEarly, regions, lives);
+    return 0;
+}
+
+// ---- Crash reports (tests): a minidump in %TEMP%\pm_dumps and the stack on stderr ----
+// Unhandled SEH exceptions, std::terminate, abort, pure virtual calls and CRT
+// invalid parameters all end here (a silent exit was seen once in an eval run).
+LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
+    static std::atomic<bool> once{false};
+    if (once.exchange(true)) return EXCEPTION_EXECUTE_HANDLER;
+    wchar_t tmp[MAX_PATH];
+    GetTempPathW(MAX_PATH, tmp);
+    const std::wstring dir = std::wstring(tmp) + L"pm_dumps";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    wchar_t name[MAX_PATH];
+    swprintf_s(name, L"%s\\pm_translate_test_%04d%02d%02d_%02d%02d%02d_%lu.dmp", dir.c_str(), st.wYear, st.wMonth, st.wDay, st.wHour,
+               st.wMinute, st.wSecond, GetCurrentProcessId());
+    const DWORD code = ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionCode : 0;
+    const void* addr = ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionAddress : nullptr;
+    std::fprintf(stderr, "\n*** CRASH: exception 0x%08lX at %p, thread %lu; dump %ls\n", code, addr, GetCurrentThreadId(), name);
+    HANDLE f = CreateFileW(name, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f != INVALID_HANDLE_VALUE) {
+        MINIDUMP_EXCEPTION_INFORMATION mei{GetCurrentThreadId(), ep, FALSE};
+        MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), f,
+                          static_cast<MINIDUMP_TYPE>(MiniDumpWithFullMemory | MiniDumpWithThreadInfo | MiniDumpWithHandleData),
+                          ep ? &mei : nullptr, nullptr, nullptr);
+        CloseHandle(f);
+    }
+    // The faulting thread's stack, symbolised (the PDBs are next to the exe).
+    if (ep && ep->ContextRecord) {
+        HANDLE proc = GetCurrentProcess();
+        SymSetOptions(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS);
+        SymInitialize(proc, nullptr, TRUE);
+        CONTEXT ctx = *ep->ContextRecord;
+        STACKFRAME64 sf{};
+        sf.AddrPC.Offset = ctx.Rip, sf.AddrPC.Mode = AddrModeFlat;
+        sf.AddrFrame.Offset = ctx.Rbp, sf.AddrFrame.Mode = AddrModeFlat;
+        sf.AddrStack.Offset = ctx.Rsp, sf.AddrStack.Mode = AddrModeFlat;
+        for (int k = 0; k < 40 && StackWalk64(IMAGE_FILE_MACHINE_AMD64, proc, GetCurrentThread(), &sf, &ctx, nullptr,
+                                              SymFunctionTableAccess64, SymGetModuleBase64, nullptr);
+             ++k) {
+            char buf[sizeof(SYMBOL_INFO) + 512] = {};
+            auto* sym = reinterpret_cast<SYMBOL_INFO*>(buf);
+            sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+            sym->MaxNameLen = 500;
+            DWORD64 disp = 0;
+            IMAGEHLP_LINE64 line{sizeof(IMAGEHLP_LINE64)};
+            DWORD ld = 0;
+            char mod[MAX_PATH] = "?";
+            if (DWORD64 base = SymGetModuleBase64(proc, sf.AddrPC.Offset))
+                GetModuleFileNameA(reinterpret_cast<HMODULE>(base), mod, MAX_PATH);
+            const bool hasSym = SymFromAddr(proc, sf.AddrPC.Offset, &disp, sym);
+            const bool hasLine = SymGetLineFromAddr64(proc, sf.AddrPC.Offset, &ld, &line);
+            std::fprintf(stderr, "  #%02d %s!%s +0x%llx %s:%lu\n", k, std::strrchr(mod, '\\') ? std::strrchr(mod, '\\') + 1 : mod,
+                         hasSym ? sym->Name : "?", static_cast<unsigned long long>(disp), hasLine ? line.FileName : "",
+                         hasLine ? line.LineNumber : 0);
+        }
+    }
+    std::fflush(stderr);
+    std::fflush(stdout);
+    TerminateProcess(GetCurrentProcess(), 0xC0DE0000 | (code & 0xFFFF));
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+void installCrashReports() {
+    SetUnhandledExceptionFilter(crashFilter);
+    auto raise = [] { RaiseException(0xE0000001, EXCEPTION_NONCONTINUABLE, 0, nullptr); };
+    static void (*raiseFn)() = raise;
+    std::set_terminate([] {
+        std::fprintf(stderr, "\n*** std::terminate\n");
+        raiseFn();
+    });
+    _set_purecall_handler([] {
+        std::fprintf(stderr, "\n*** pure virtual call\n");
+        raiseFn();
+    });
+    _set_invalid_parameter_handler([](const wchar_t*, const wchar_t*, const wchar_t*, unsigned, uintptr_t) {
+        std::fprintf(stderr, "\n*** CRT invalid parameter\n");
+        raiseFn();
+    });
+    signal(SIGABRT, [](int) {
+        std::fprintf(stderr, "\n*** abort()\n");
+        raiseFn();
+    });
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+}
+
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
+    installCrashReports();
     SetConsoleOutputCP(CP_UTF8);
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -698,12 +1336,13 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--gt") g_useGt = true;
         else if (a == L"--engine" && v) g_windowsOcr = !_wcsicmp(argv[++i], L"windows");
         else if (a == L"--en") pm::i18n::setLang(pm::i18n::Lang::En);
-        else if (a == L"--overlay" && v) mode = a, outDir = argv[++i];
+        else if ((a == L"--overlay" || a == L"--eval") && v) mode = a, outDir = argv[++i];
         else if (a == L"--window" && v) swscanf_s(argv[++i], L"%dx%d", &g_winW, &g_winH);
         else if (a == L"--layout" && v) {
             const std::wstring m = argv[++i];
             g_layoutMode = m == L"inplace" ? 1 : m == L"list" ? 2 : 0;
         } else if (a == L"--dark") g_dark = true;
+        else if (a == L"--zoom" && v) g_zoom = static_cast<float>(_wtof(argv[++i]));
         else if (a.rfind(L"--", 0) == 0) mode = a;
         else files.push_back(a);
     }
@@ -715,17 +1354,45 @@ int wmain(int argc, wchar_t** argv) {
         err.clear();
         std::printf("onnxruntime.dll: %s %s\n", PaddleOcr::runtimeAvailable(&err) ? "OK" : "MISSING", u8(err).c_str());
         std::printf("PaddleOCR models: %s\n", PaddleOcr::modelsInstalled() ? "installed" : "missing");
+        std::printf("OCR GPU (DirectML): wanted %s, add-on %s (%.1f MB missing), running on the GPU: %s\n",
+                    PaddleOcr::gpuWanted() ? "yes" : "no", ModelStore::ocrGpuInstalled() ? "installed" : "missing",
+                    ModelStore::ocrGpuMissingBytes() / 1e6, PaddleOcr::gpuActive() ? "yes" : "no");
         std::printf("models dir: %ls\n", ModelStore::root().c_str());
         return 0;
     }
     if (mode == L"--sentences") return runSentences(tgt, download);
+    if (mode == L"--selftest") return runSelfTest(download);
+    if (mode == L"--init-race") {  // engines made side by side (each loads its translators): Bergamot / marian init races
+        std::vector<std::wstring> in;
+        for (int i = 0; i < 30; ++i) in.push_back(L"直射日光、高温多湿を避けて常温で保存してください。開封後はお早めにお召し上がりください。" + std::to_wstring(i));
+        for (int round = 0; round < 5; ++round) {
+            std::vector<std::thread> th;
+            for (int k = 0; k < 4; ++k)
+                th.emplace_back([&] {
+                    Engine e;
+                    std::vector<std::wstring> out;
+                    std::wstring err;
+                    e.translate(Lang::Ja, Lang::ZhHant, in, out, &err);
+                });
+            for (auto& x : th) x.join();
+            std::printf("init race round %d ok\n", round + 1);
+            std::fflush(stdout);
+        }
+        return 0;
+    }
+    if (mode == L"--stress") return files.size() < 2 ? 2 : runStress(_wtoi(files[0].c_str()), std::vector<std::wstring>(files.begin() + 1, files.end()));
+    if (mode == L"--crash-test") {  // checks the crash report (a null write on a worker thread)
+        std::thread([] { *static_cast<volatile int*>(nullptr) = 1; }).join();
+        return 1;
+    }
+    if (mode == L"--live") return files.empty() ? 2 : runLive(files[0], tgt);
     if (mode == L"--text" || mode == L"--raw") {
         if (files.empty()) return 2;
         if (src == Lang::Unknown) src = Lang::Ja;
         if (!ensureModels(src, tgt, download)) return 1;
         return runText(files[0], src, tgt, mode == L"--raw");
     }
-    if (mode == L"--ocr" || mode == L"--pipeline") {
+    if (mode == L"--ocr" || mode == L"--pipeline" || mode == L"--eval") {
         // OCR needs an MTA thread.
         int rc = 0;
         std::thread([&] {
@@ -735,7 +1402,8 @@ int wmain(int argc, wchar_t** argv) {
                 CoUninitialize();
                 return;
             }
-            rc = runPipeline(files, src, tgt, mode == L"--pipeline", download);
+            rc = mode == L"--eval" ? runEval(outDir, files, src, tgt, download)
+                                   : runPipeline(files, src, tgt, mode == L"--pipeline", download);
             if (g_total.lines)
                 std::printf("TOTAL OCR: %zu/%zu lines exact, character error rate %.2f %% (%zu/%zu)\n", g_total.exact,
                             g_total.lines, g_total.chars ? 100.0 * g_total.errs / g_total.chars : 0.0, g_total.errs, g_total.chars);

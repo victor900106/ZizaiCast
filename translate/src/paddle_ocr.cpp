@@ -11,6 +11,7 @@
 // No OpenCV: the few image operations (resize, perspective crop, contour
 // rectangle) are done here.  See docs/translate.md *OCR*.
 #include <windows.h>
+#include <dxgi.h>
 
 #include <algorithm>
 #include <chrono>
@@ -70,22 +71,79 @@ struct Runtime {
     OrtEnv* env = nullptr;
     std::wstring error;
     bool tried = false;
+    bool gpu = false;        // the DirectML runtime (models\ocr-gpu) is loaded
+    bool gpuBroken = false;  // it failed once: the CPU runtime for the rest of the session
 };
+
+// The discrete GPU for DirectML: NVIDIA / AMD / Intel, >= 3 GB of its own
+// video memory, not software (the LLM's Vulkan add-on uses the same rule).
+// Its DXGI adapter index (DirectML's device_id), -1 = none.  Once per process.
+int discreteAdapter() {
+    static const int idx = [] {
+        HMODULE dx = LoadLibraryExW(L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if (!dx) return -1;
+        using Create = HRESULT(WINAPI*)(REFIID, void**);
+        auto create = reinterpret_cast<Create>(GetProcAddress(dx, "CreateDXGIFactory1"));
+        IDXGIFactory1* f = nullptr;
+        int found = -1;
+        if (create && SUCCEEDED(create(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&f))) && f) {
+            IDXGIAdapter1* a = nullptr;
+            for (UINT i = 0; f->EnumAdapters1(i, &a) != DXGI_ERROR_NOT_FOUND; ++i) {
+                DXGI_ADAPTER_DESC1 d{};
+                if (found < 0 && SUCCEEDED(a->GetDesc1(&d)) && !(d.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) &&
+                    (d.VendorId == 0x10DE || d.VendorId == 0x1002 || d.VendorId == 0x8086) && d.DedicatedVideoMemory >= (3ull << 30))
+                    found = static_cast<int>(i);
+                a->Release();
+            }
+            f->Release();
+        }
+        return found;
+    }();
+    return idx;
+}
+
+std::wstring envW(const wchar_t* name) {
+    wchar_t b[MAX_PATH];
+    const DWORD n = GetEnvironmentVariableW(name, b, MAX_PATH);
+    return n > 0 && n < MAX_PATH ? std::wstring(b, n) : std::wstring();
+}
 Runtime& rt() {
     static Runtime r;
     return r;
 }
 std::mutex g_rtM;
 
+bool loadRuntimeOnce(Runtime& r);
 bool loadRuntime(std::wstring* err) {
     std::lock_guard lk(g_rtM);
     Runtime& r = rt();
+    bool ok = loadRuntimeOnce(r);
+    if (!ok && r.gpu && !r.gpuBroken) {  // the GPU add-on does not load: the CPU runtime
+        r.gpuBroken = true;
+        r.tried = false;
+        r.dll = nullptr;
+        ok = loadRuntimeOnce(r);
+    }
+    if (!ok && err) *err = r.error;
+    return ok;
+}
+bool loadRuntimeOnce(Runtime& r) {
     if (!r.tried) {
         r.tried = true;
         wchar_t env[MAX_PATH];
         std::wstring path;
-        if (DWORD n = GetEnvironmentVariableW(L"PM_ONNXRUNTIME_DLL", env, MAX_PATH); n > 0 && n < MAX_PATH) path = env;
-        else path = exeDir() + L"\\onnxruntime.dll";
+        r.gpu = false;
+        if (DWORD n = GetEnvironmentVariableW(L"PM_ONNXRUNTIME_DLL", env, MAX_PATH); n > 0 && n < MAX_PATH) {
+            path = env;
+            r.gpu = envW(L"PM_OCR_GPU") == L"on";  // tests: the given dll is the DirectML build
+        } else if (!r.gpuBroken && PaddleOcr::gpuWanted() && ModelStore::ocrGpuInstalled()) {
+            // The GPU add-on: its own onnxruntime (the DirectML build, 1.24) and
+            // DirectML.dll from the same folder.
+            path = ModelStore::ocrGpuDir() + L"\\onnxruntime.dll";
+            r.gpu = true;
+        } else {
+            path = exeDir() + L"\\onnxruntime.dll";
+        }
         // Full path + altered search path: never the (different) System32 copy;
         // its own imports (msvcp140_1 …) come from the same folder.
         r.dll = LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -94,7 +152,11 @@ bool loadRuntime(std::wstring* err) {
         } else {
             using GetBase = const OrtApiBase*(ORT_API_CALL*)();
             auto base = reinterpret_cast<GetBase>(GetProcAddress(r.dll, "OrtGetApiBase"));
-            r.api = base ? base()->GetApi(ORT_API_VERSION) : nullptr;
+            const bool v124 = base && std::string(base()->GetVersionString()).rfind("1.24", 0) == 0;
+            r.api = base && !v124 ? base()->GetApi(ORT_API_VERSION) : nullptr;
+            // The DirectML build of onnxruntime stops at 1.24: only functions of
+            // API 24 are used (checked: the OCR runs on it, CER unchanged).
+            if (!r.api && base && (r.gpu || std::getenv("PM_OCR_DML"))) r.api = base()->GetApi(24);
             if (!r.api) r.error = L"onnxruntime.dll: API version " + std::to_wstring(ORT_API_VERSION) + L" not supported";
             else if (OrtStatus* st = r.api->CreateEnv(ORT_LOGGING_LEVEL_ERROR, "pm_translate", &r.env)) {
                 r.error = L"onnxruntime: " + fromUtf8(r.api->GetErrorMessage(st));
@@ -103,7 +165,6 @@ bool loadRuntime(std::wstring* err) {
             }
         }
     }
-    if (!r.api && err) *err = r.error;
     return r.api != nullptr;
 }
 
@@ -122,6 +183,7 @@ struct Session {
     OrtSession* s = nullptr;
     std::string in, out;
     std::vector<std::wstring> chars;  // recognisers: [0] blank, dictionary, last = space
+    std::string name;                 // model file (tests)
     ~Session() {
         if (s) rt().api->ReleaseSession(s);
     }
@@ -138,7 +200,28 @@ std::unique_ptr<Session> openSession(const char* file, bool rec) {
     a.SetIntraOpNumThreads(so, threads);
     a.SetInterOpNumThreads(so, 1);
     a.SetSessionGraphOptimizationLevel(so, ORT_ENABLE_ALL);
+    // GPU through DirectML: the add-on's runtime (PaddleOcr::gpuWanted), or
+    // tests: PM_OCR_DML=1 (device 0) / =2N (device N) with the DirectML build
+    // of onnxruntime.dll + DirectML.dll next to the exe.  A failure throws:
+    // recognize() then goes back to the CPU runtime.
+    const char* d = std::getenv("PM_OCR_DML");
+    if (rt().gpu || (d && *d != '0')) {
+        a.DisableMemPattern(so);
+        a.SetSessionExecutionMode(so, ORT_SEQUENTIAL);
+        std::string dev = std::to_string(std::max(0, discreteAdapter()));
+        if (d && *d != '0') dev = d[0] == '1' ? "0" : d + 1;
+        const char* keys[] = {"device_id"};
+        const char* vals[] = {dev.c_str()};
+        if (OrtStatus* st = a.SessionOptionsAppendExecutionProvider(so, "DML", keys, vals, 1)) {
+            const std::wstring m = L"DirectML: " + fromUtf8(a.GetErrorMessage(st));
+            a.ReleaseStatus(st);
+            a.ReleaseSessionOptions(so);
+            if (rt().gpu) throw OrtError{m};
+            std::fprintf(stderr, "[ocr] %ls\n", m.c_str());
+        }
+    }
     auto sess = std::make_unique<Session>();
+    sess->name = file;
     OrtStatus* st = a.CreateSession(rt().env, path.c_str(), so, &sess->s);
     a.ReleaseSessionOptions(so);
     check(st);
@@ -513,6 +596,7 @@ Crop makeCrop(const uint8_t* bgra, int w, int h, const Quad& q) {
 struct RecOut {
     std::wstring text;
     float conf = 0;
+    std::vector<float> pos;  // per character of text: its centre along the crop (0..1), from the CTC time step
 };
 
 // Recognition sessions run side by side (each with its own intra-op
@@ -534,6 +618,9 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
     int bw = 0;
     for (size_t k = 0; k < n; ++k) bw = std::max(bw, crops[order[b + k]].w);
     bw = std::max(bw, 64);
+    // Fewer distinct shapes (a GPU compiles one graph per shape): widths in steps of 128.
+    static const bool bucket = std::getenv("PM_OCR_DML") || std::getenv("PM_OCR_BUCKET");
+    if (bucket) bw = (bw + 127) / 128 * 128;
     const size_t plane = static_cast<size_t>(kRecH) * bw;
     std::vector<float> in(n * 3 * plane, 0.f);
     for (size_t k = 0; k < n; ++k) {
@@ -545,7 +632,10 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
     }
     const int64_t shape[4] = {static_cast<int64_t>(n), 3, kRecH, bw};
     std::vector<int64_t> os;
+    const double tb = nowMs();
     const std::vector<float> p = run(rec, in, shape, os);
+    static const bool prof = std::getenv("PM_OCR_PROF") != nullptr && std::getenv("PM_OCR_PROF")[0] == '2';
+    if (prof) std::fprintf(stderr, "[rec] %s n %zu w %d: %.0f ms\n", rec.name.c_str(), n, bw, nowMs() - tb);
     if (os.size() != 3) throw OrtError{L"unexpected recognition output"};
     const size_t T = static_cast<size_t>(os[1]), C = static_cast<size_t>(os[2]);
     for (size_t k = 0; k < n; ++k) {
@@ -556,11 +646,15 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
         size_t last = 0;
         double sum = 0;
         int emitted = 0;
+        // The crop's own time steps (the rest of the batch width is padding).
+        const double own = std::max(1.0, static_cast<double>(T) * c.w / bw);
+        std::vector<float> pos;
         for (size_t t = 0; t < steps; ++t) {
             const float* row = &p[(k * T + t) * C];
             const size_t am = static_cast<size_t>(std::max_element(row, row + C) - row);
             if (am != 0 && am != last && am < rec.chars.size()) {
                 r.text += rec.chars[am];
+                pos.resize(r.text.size(), static_cast<float>(std::min(1.0, (t + 0.5) / own)));
                 sum += row[am];
                 ++emitted;
             }
@@ -568,10 +662,16 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
         }
         // Spaces: collapse runs, trim.
         std::wstring t;
-        for (wchar_t ch : r.text)
-            if (!(ch == L' ' && (t.empty() || t.back() == L' '))) t += ch;
-        while (!t.empty() && t.back() == L' ') t.pop_back();
+        std::vector<float> tp;
+        for (size_t i = 0; i < r.text.size(); ++i) {
+            const wchar_t ch = r.text[i];
+            if (ch == L' ' && (t.empty() || t.back() == L' ')) continue;
+            t += ch;
+            tp.push_back(i < pos.size() ? pos[i] : 1.f);
+        }
+        while (!t.empty() && t.back() == L' ') t.pop_back(), tp.pop_back();
         r.text = t;
+        r.pos = std::move(tp);
         r.conf = emitted ? static_cast<float>(sum / emitted) : 0.f;
     }
 }
@@ -670,6 +770,22 @@ std::wstring fixJapanese(std::wstring s, bool japanese) {
 
 bool PaddleOcr::runtimeAvailable(std::wstring* err) { return loadRuntime(err); }
 
+bool PaddleOcr::gpuWanted() {
+    const std::wstring e = envW(L"PM_OCR_GPU");
+    if (e == L"off") return false;
+    if (discreteAdapter() < 0) return false;
+    if (e == L"on") return true;
+    // 「使用顯示卡加速」: the local LLM's setting (one switch for both).
+    wchar_t v[16] = {};
+    GetPrivateProfileStringW(L"llm", L"gpu", L"", v, 16, (ModelStore::root() + L"\\llm\\settings.ini").c_str());
+    return std::wstring(v) != L"0";
+}
+
+bool PaddleOcr::gpuActive() {
+    std::lock_guard lk(g_rtM);
+    return rt().api && rt().gpu;
+}
+
 bool PaddleOcr::modelsInstalled() { return ModelStore::installed("ocr"); }
 
 void PaddleOcr::unload() {
@@ -687,7 +803,7 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
         return false;
     }
     if (!loadRuntime(err)) return false;
-    std::lock_guard lk(g_modelsM);
+    std::unique_lock lk(g_modelsM);
     try {
         if (!g_models.det) g_models.det = openSession(kDetModel, false);
         if (!g_models.rec) g_models.rec = openSession(kRecModel, true);
@@ -700,10 +816,78 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
         for (const Quad& q : quads) crops.push_back(makeCrop(bgra, width, height, q));
         std::vector<size_t> all(crops.size());
         std::iota(all.begin(), all.end(), 0);
-        std::vector<RecOut> rec = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, all);
+        const double tCrops = nowMs();
+        // A Korean picture (the main recogniser has no hangul: on 0.7.x every
+        // Korean line was read twice, 18 s for a Wikipedia page): one batch of
+        // the Korean recogniser on mid-width lines first; mostly hangul ->
+        // Korean first, the main recogniser only for the lines it did not read.
+        const bool haveKo = !ModelStore::ocrFile(kKoModel).empty();
+        std::vector<RecOut> rec(crops.size()), kor;
+        std::vector<char> korDone(crops.size(), 0);
+        auto hangulOk = [](const RecOut& r) {
+            int hangul = 0, letters = 0;
+            for (wchar_t c : r.text) hangul += isHangulChar(c), letters += !iswspace(c) && !iswdigit(c) && !iswpunct(c);
+            return hangul > 0 && hangul * 10 >= letters * 3;
+        };
+        bool koreanFirst = false;
+        static const bool noProbe = std::getenv("PM_OCR_KO_PROBE") && std::getenv("PM_OCR_KO_PROBE")[0] == '0';  // tests: the 0.7.x order
+        if (haveKo && !noProbe && crops.size() >= 6) {
+            std::vector<size_t> byW(crops.size());
+            std::iota(byW.begin(), byW.end(), 0);
+            std::sort(byW.begin(), byW.end(), [&](size_t x, size_t y) { return crops[x].w < crops[y].w; });
+            std::vector<size_t> probe;
+            for (size_t k = byW.size() / 4; k < byW.size() && probe.size() < 8; ++k)
+                if (crops[byW[k]].aspect >= 1.5f && !crops[byW[k]].vertical) probe.push_back(byW[k]);
+            kor = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, probe);
+            int hits = 0;
+            for (size_t i : probe) {
+                korDone[i] = 1;
+                hits += hangulOk(kor[i]) && kor[i].conf >= 0.8f;
+            }
+            koreanFirst = hits * 2 >= static_cast<int>(probe.size()) && hits >= 3;
+        }
+        if (kor.empty()) kor.assign(crops.size(), {});
+        int koLines = 0;
+        double tKo1 = 0;
+        size_t nMore = 0;
+        std::vector<size_t> ko;
+        if (koreanFirst) {
+            std::vector<size_t> rest;
+            for (size_t i = 0; i < crops.size(); ++i)
+                if (!korDone[i]) rest.push_back(i);
+            const auto k2 = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, rest);
+            for (size_t i : rest) kor[i] = k2[i];
+            // The main recogniser: lines without (confident) hangul - numbers,
+            // Latin, kanji / kana - and the decision of 0.7.x for each.
+            std::vector<size_t> mainIdx;
+            for (size_t i = 0; i < crops.size(); ++i) {
+                if (hangulOk(kor[i]) && kor[i].conf >= 0.6f) {
+                    rec[i] = kor[i];
+                    ++koLines;
+                } else {
+                    mainIdx.push_back(i);
+                }
+            }
+            tKo1 = nowMs();
+            const auto m = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, mainIdx);
+            for (size_t i : mainIdx) {
+                rec[i] = m[i];
+                bool mainHan = false;
+                for (wchar_t c : m[i].text) mainHan |= isHanChar(c);
+                const RecOut& r = kor[i];
+                if (hangulOk(r) && (r.conf >= std::max(0.6f, m[i].conf - 0.05f) || nonSpace(m[i].text) * 2 < nonSpace(r.text) ||
+                                    (r.conf >= 0.8f && (nonSpace(r.text) > nonSpace(m[i].text) || mainHan)))) {
+                    rec[i] = kor[i];
+                    ++koLines;
+                }
+            }
+            nMore = mainIdx.size();
+        }
+        const double tMain = nowMs();
+        if (!koreanFirst) {
+        rec = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, all);
         // Korean: lines the main recogniser could not read (no hangul in its
         // dictionary: empty, unsure, or far too few characters for the width).
-        std::vector<size_t> ko;
         for (size_t i = 0; i < crops.size(); ++i) {
             const RecOut& r = rec[i];
             int kana = 0;
@@ -712,7 +896,6 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
             if (kana >= 2 && r.conf >= 0.8f) continue;
             if (r.conf < 0.8f || n == 0 || (crops[i].aspect > 1.6f && n < 0.5f * crops[i].aspect)) ko.push_back(i);
         }
-        int koLines = 0;
         auto tryKorean = [&](const std::vector<size_t>& idx, bool digitsOnly /* second pass: short lines of a Korean picture */) {
             if (idx.empty() || !ModelStore::ocrFile(kKoModel).size()) return;
             const std::vector<RecOut> k = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, idx);
@@ -733,6 +916,7 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
             }
         };
         tryKorean(ko, false);
+        tKo1 = nowMs();
         if (koLines >= 2) {
             // A Korean picture: prices / numbers lose their 원 / 개 with the main recogniser.
             std::vector<size_t> more;
@@ -741,12 +925,28 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
                 bool kana = false;
                 int han = 0;
                 for (wchar_t c : rec[i].text) han += isHanChar(c), kana |= isKanaChar(c);
-                if (!kana && han <= 2) more.push_back(i);  // 켬 read as 君
+                // Short lines only (a price, 켬 read as 君): wide Latin / number
+                // lines took 1.6 s again for nothing (eval_web ko_sign_04).
+                bool digit = false;
+                for (wchar_t c : rec[i].text) digit |= iswdigit(c) != 0;
+                if (!kana && han <= 2 && (digit || han > 0 || nonSpace(rec[i].text) <= 3) && nonSpace(rec[i].text) <= 12 && crops[i].aspect <= 10)
+                    more.push_back(i);
             }
+            tKo1 = nowMs(), nMore = more.size();
             tryKorean(more, true);
+        }
         }
         out.recMs = nowMs() - tr;
         out.koLines = koLines;
+        static const bool prof = std::getenv("PM_OCR_PROF") != nullptr;  // tests: where the time goes
+        if (prof) {
+            size_t px = 0, pxKo = 0;
+            for (const Crop& c : crops) px += c.w;
+            for (size_t i : ko) pxKo += crops[i].w;
+            if (koreanFirst) std::fprintf(stderr, "[ocr] Korean first: %d lines Korean, %zu read by the main recogniser\n", koLines, nMore);
+            std::fprintf(stderr, "[ocr] %dx%d det %.0f ms, %zu crops (%zu px wide in all) %.0f ms, main rec %.0f ms, korean %zu crops (%zu px) %.0f ms, more %zu crops %.0f ms\n",
+                         width, height, out.detMs, crops.size(), px, tCrops - tr, tMain - tCrops, ko.size(), pxKo, tKo1 - tMain, nMore, nowMs() - tKo1);
+        }
         // Lines in reading order: top to bottom, left to right within a row.
         int kanaAll = 0;
         for (const RecOut& r : rec)
@@ -776,6 +976,11 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
                 l.lineH = q.h() * 0.72f / height;
             }
             l.script = detectScript(l.text);
+            // Character positions (cells inside one detected line), when the
+            // text was not changed by fixJapanese.
+            if (!l.vertical && l.text == r.text && r.pos.size() == l.text.size())
+                for (float f : r.pos)
+                    l.charX.push_back((q.p[0].x + f * (q.p[1].x - q.p[0].x) + q.p[3].x + f * (q.p[2].x - q.p[3].x)) / 2 / width);
             lines.push_back(std::move(l));
         }
         std::sort(lines.begin(), lines.end(), [](const OcrLine& a, const OcrLine& b) { return a.y0 + a.y1 < b.y0 + b.y1; });
@@ -798,6 +1003,25 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
         if (err) *err = e.msg;
     } catch (const std::exception& e) {
         if (err) *err = L"OCR error: " + fromUtf8(e.what());
+    }
+    // The GPU failed (driver, device lost, out of video memory): the CPU
+    // runtime from now on, and this picture again.
+    bool retry = false;
+    {
+        std::lock_guard rl(g_rtM);
+        Runtime& r = rt();
+        if (r.gpu && !r.gpuBroken) {
+            std::fprintf(stderr, "[ocr] GPU failed (%ls): CPU from now on\n", err ? err->c_str() : L"");
+            g_models = {};
+            if (r.env) r.api->ReleaseEnv(r.env);
+            r = Runtime{};
+            r.gpuBroken = true;
+            retry = true;
+        }
+    }
+    if (retry) {
+        lk.unlock();
+        return recognize(bgra, width, height, out, err);
     }
     return false;
 }

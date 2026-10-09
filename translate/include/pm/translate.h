@@ -44,6 +44,9 @@ struct OcrLine {
     bool vertical = false;        // a top-to-bottom column (Japanese vertical writing)
     float bg = -1;                // mean brightness 0..1 around the text (-1: unknown); light text on
                                   // a dark box (a label's black banner) is never merged with dark text
+    std::vector<float> charX;     // centre x (0..1 of the picture) of each character of text (PaddleOCR,
+                                  // from the CTC time steps; empty: unknown) - cells inside one line
+    int rowLabel = -1;            // layoutBlocks: the field-label line to its left on its row (-1: none)
 };
 enum class OcrBackend { None, Paddle, Windows };
 struct OcrResult {
@@ -70,6 +73,14 @@ public:
     static bool recognize(const uint8_t* bgra, int width, int height, OcrResult& out, std::wstring* err = nullptr);
     // Frees the models (e.g. after they were deleted).
     static void unload();
+    // GPU (DirectML) for the OCR: a discrete NVIDIA / AMD / Intel GPU with
+    // >= 3 GB of its own video memory (never an integrated one: measured
+    // slower than the CPU), and 「使用顯示卡加速」 on (models\llm\settings.ini
+    // [llm] gpu, shared with the local LLM).  PM_OCR_GPU=off / on overrides.
+    static bool gpuWanted();
+    // The OCR runs on the GPU now (the add-on loaded and DirectML accepted).
+    // Any failure falls back to the CPU runtime for the rest of the session.
+    static bool gpuActive();
 };
 
 class Ocr {
@@ -101,11 +112,22 @@ struct Block {
     int lines = 0;
     float conf = 1;              // lowest recogniser confidence of its lines
     float lineH = 0;             // largest glyph height of its lines (0..1 of the picture height)
+    // A table row (layoutBlocks): label = the first labelLen characters of
+    // text (a field name: 内容量, 熱量, Input), the rest its value; kind 1 =
+    // key-value row, 2 = nutrition / quantity row (the value a number).
+    size_t labelLen = 0;
+    int kind = 0;
 };
 // Consecutive lines of one paragraph (similar height, small gap, overlapping
 // horizontally, previous line not ending a sentence) become one block.
 // aspect = picture width / height.
 std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect);
+// Lines -> blocks with the table structure (layout_rules.cpp): lines cut
+// into cells at wide character gaps (charX), detector fragments of one line
+// joined, groupLines, then the cells of a row joined: spaced-out labels
+// (名 称 -> 名称), a label and its value (内容量 + 8袋（16枚）, 熱量 + 42kcal,
+// 賞味期限 above 26.12.09) -> one block with labelLen / kind.
+std::vector<Block> layoutBlocks(const std::vector<OcrLine>& lines, float aspect);
 
 // ---- Models (Firefox Translations, MPL-2.0) ----
 class ModelStore {
@@ -129,6 +151,14 @@ public:
     // OCR models: pair "ocr" (PaddleOCR, models\ocr\).  Path of an installed
     // (verified) file of it, "" if missing.
     static std::wstring ocrFile(const char* name);
+    // OCR GPU add-on (DirectML build of onnxruntime + DirectML.dll, about
+    // 15.4 MB from Microsoft's NuGet feed: byte ranges of the packages,
+    // SHA-256 pinned, resumable) in models\ocr-gpu\.  Only for a PC where
+    // PaddleOcr::gpuWanted(); the OCR runs on the CPU without it.
+    static std::wstring ocrGpuDir();
+    static bool ocrGpuInstalled();
+    static uint64_t ocrGpuMissingBytes();
+    static bool downloadOcrGpu(const std::function<void(double)>& progress, const std::atomic<bool>* cancel, std::wstring* err);
 };
 
 // ---- Translation engine (Bergamot, bergamot.dll next to the executable) ----
@@ -164,6 +194,7 @@ class ScreenTranslator {
 public:
     struct Timing {
         double grabMs = 0, ocrMs = 0, translateMs = 0, totalMs = 0;
+        double firstMs = 0;  // dense pictures: the first chunk on screen (0: shown whole at totalMs)
         int lines = 0, blocks = 0, translated = 0;
         Lang source = Lang::Unknown;  // dominant language of the blocks
     };
@@ -192,16 +223,33 @@ public:
     void setTarget(Lang tgt);  // ZhHant, En, Ja or Ko (default: the UI language, defaultTarget())
     Lang target() const;
     void setSource(Lang src);  // Unknown (default): automatic
+    // Online translation (pm/online_translate.h): used only in the mode the
+    // user set there (activeMode(): Off unless turned on with consent and a
+    // key).  setOnlineAllowed(false) vetoes it for this translator (default true).
+    void setOnlineAllowed(bool on);
     Lang source() const;
     void translateScreen();
     void translateRegion();
     // Show the picture's own text (translations hidden, their areas outlined).
     void setShowOriginal(bool on);
     bool showOriginal() const;
-    // Live mode: re-translate the live (unfrozen) picture every `seconds`
-    // (2..60) until close(); off by default.
+    // 即時翻譯 (live mode) until close(); off by default.  Change-driven: the
+    // picture is looked at only when a new one was decoded (a 64-column luma
+    // thumbnail, at most 5 times a second, once a second while it keeps
+    // moving); when it changed, the stale overlay is hidden; once it has been
+    // still for 300 ms it is translated again (unchanged lines come from the
+    // memory caches), at most once per 2 s.  A still picture costs nothing; a
+    // playing video never settles, so it is not translated.  A frozen
+    // picture (凍結) does not change.  seconds: unused (0.7.x: the period).
     void setLive(bool on, int seconds = 5);
     bool live() const;
+    struct LiveStats {
+        long long grabs = 0;      // pictures looked at
+        long long runs = 0;       // translations started by a change
+        long long hidden = 0;     // stale overlays hidden
+        double lastSettleMs = 0;  // steady-clock ms (std::chrono::steady_clock) of the last change before a run
+    };
+    LiveStats liveStats() const;
     // Overlay on screen (or a run in progress).
     bool active() const;
     bool busy() const;
@@ -213,6 +261,11 @@ public:
         std::wstring original, translated;
         Lang lang;
         float x0, y0, x1, y1;
+        bool row = false;        // a table row (「標籤　值」, listed)
+        bool uncertain = false;  // still failed a check after every escalation step (translated ends with 「⚠ 」 + verified)
+        std::wstring verified;   // uncertain: the checked key facts (negation, numbers) in the target language
+        int step = 0;            // escalation step used (pm/translator.h: 1 Bergamot … 6 verified facts)
+        bool online = false;     // (part of) it came from online translation: show 「線上」 (ARCHITECTURE.md §3.7.3)
     };
     std::vector<Item> lastItems() const;
 

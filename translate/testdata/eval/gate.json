@@ -1,0 +1,5 @@
+{
+ "_doc": "Regression limits for eval_metrics.py --gate (ARCHITECTURE.md 7.3). Measured at P0 (2026-10-09): gt omit 0.4%, wrong 19, key_err 2; ocr omit 0.7%, wrong 23, key_err 2. Negation flips must stay 0. 0.7.2 baseline (ocr): omit 16.4%, wrong 40, key_err 74, key_neg 3.",
+ "gt": {"key_neg": 0, "omit_rate": 0.01, "key_err": 3, "wrong": 22},
+ "ocr": {"key_neg": 0, "omit_rate": 0.015, "key_err": 4, "wrong": 27}
+}

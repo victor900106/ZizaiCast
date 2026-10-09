@@ -11,8 +11,11 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "pm/translate.h"
+#include "downloader.h"
 #include "text_util.h"
 
 namespace pm::translate {
@@ -231,72 +234,70 @@ uint64_t ModelStore::missingBytes(const std::vector<std::string>& pairs) {
 
 bool ModelStore::download(const std::vector<std::string>& pairs, const std::function<void(double)>& progress,
                           const std::atomic<bool>* cancel, std::wstring* err) {
+    // Every missing file at once (downloader.h: parallel Range connections,
+    // resumable .part, SHA-256, cancel within ~0.1 s).
     std::vector<const ModelFile*> todo;
-    uint64_t total = 0, done = 0;
+    std::vector<dl::Item> items;
+    auto itemFor = [](const ModelFile& f, const std::string& loc) {
+        const bool ocr = std::string(f.pair) == kOcrPair;
+        dl::Item it;
+        it.host = toUtf8(ocr ? kOcrHost : kHost);
+        it.path = ocr ? loc : kPath + loc;
+        it.dest = pairDir(f.pair) + L"\\" + fromUtf8(f.name);
+        it.size = f.size;
+        it.sha256 = f.sha256;
+        return it;
+    };
     for (const auto& f : kFiles)
         if (std::find(pairs.begin(), pairs.end(), f.pair) != pairs.end() && !fileOk(f)) {
+            makeDirs(pairDir(f.pair));
             todo.push_back(&f);
-            total += f.size;
+            items.push_back(itemFor(f, f.location));
         }
-    for (const ModelFile* f : todo) {
-        const std::wstring dir = pairDir(f->pair);
-        makeDirs(dir);
-        const std::wstring final = dir + L"\\" + fromUtf8(f->name), part = final + L".part";
-        auto fetch = [&](const std::string& loc, std::wstring* e, DWORD* status) {
-            HANDLE h = CreateFileW(part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-            if (h == INVALID_HANDLE_VALUE) {
-                if (e) *e = L"cannot write " + part;
-                return false;
-            }
-            Sha256 sha;
-            uint64_t got = 0;
-            const bool ocr = std::string(f->pair) == kOcrPair;
-            const bool ok = httpGet(ocr ? kOcrHost : kHost, fromUtf8(ocr ? loc : kPath + loc), [&](const char* p, size_t n) {
-                DWORD w = 0;
-                if (!WriteFile(h, p, static_cast<DWORD>(n), &w, nullptr) || w != n) return false;
-                sha.add(p, n);
-                got += n;
-                if (progress && total) progress(static_cast<double>(done + std::min<uint64_t>(got, f->size)) / total);
-                return !(cancel && cancel->load()) && got <= f->size;
-            }, status, e);
-            CloseHandle(h);
-            if (!ok) {
-                DeleteFileW(part.c_str());
-                return false;
-            }
-            if (got != f->size || sha.hex() != f->sha256) {
-                DeleteFileW(part.c_str());
-                if (e) *e = L"SHA-256";  // caller maps to TrVerifyFailed
-                return false;
-            }
-            return true;
-        };
-        std::wstring e;
-        DWORD status = 0;
-        bool ok = fetch(f->location, &e, &status);
-        if (!ok && (status == 404 || status == 403) && !(cancel && cancel->load()) && std::string(f->pair) != kOcrPair) {
-            // Republished: same file (same hash), new location.
-            const std::string loc = relocate(*f);
-            if (!loc.empty() && loc != f->location) {
-                e.clear();
-                ok = fetch(loc, &e, &status);
+    if (todo.empty()) return true;
+    dl::Options o;
+    o.userAgent = L"ZizaiCast/0.7 (model downloader)";
+    auto relay = [&](const dl::Progress& p) {
+        if (progress) progress(p.fraction());
+    };
+    std::vector<dl::Result> res = dl::fetchAll(items, relay, cancel, o);
+    if (cancel && cancel->load()) {
+        if (err) *err = L"cancelled";
+        return false;
+    }
+    // Republished Bergamot files (404 / 403): same file (same hash), new location.
+    std::vector<size_t> again;
+    std::vector<dl::Item> moved;
+    for (size_t i = 0; i < todo.size(); ++i)
+        if (res[i].status == dl::Status::Network && (res[i].http == 404 || res[i].http == 403) &&
+            std::string(todo[i]->pair) != kOcrPair) {
+            const std::string loc = relocate(*todo[i]);
+            if (!loc.empty() && loc != todo[i]->location) {
+                again.push_back(i);
+                moved.push_back(itemFor(*todo[i], loc));
             }
         }
-        if (!ok) {
-            if (err) *err = (cancel && cancel->load()) ? L"cancelled" : e;
+    if (!moved.empty()) {
+        const std::vector<dl::Result> r2 = dl::fetchAll(moved, relay, cancel, o);
+        for (size_t k = 0; k < again.size(); ++k) res[again[k]] = r2[k];
+        if (cancel && cancel->load()) {
+            if (err) *err = L"cancelled";
             return false;
         }
-        DeleteFileW(final.c_str());
-        if (!MoveFileExW(part.c_str(), final.c_str(), MOVEFILE_REPLACE_EXISTING)) {
-            if (err) *err = L"cannot move " + part;
-            return false;
+    }
+    bool ok = true;
+    for (size_t i = 0; i < todo.size(); ++i) {
+        if (res[i].status != dl::Status::Ok) {
+            // "SHA-256": the caller maps it to TrVerifyFailed.
+            if (ok && err) *err = res[i].status == dl::Status::Verify ? L"SHA-256" : res[i].detail;
+            ok = false;
+            continue;
         }
         // Marker: verified (installed() then only checks sizes, no re-hash).
-        std::ofstream(final + L".sha256ok") << f->sha256 << "\n";
-        done += f->size;
-        if (progress && total) progress(static_cast<double>(done) / total);
+        std::ofstream(items[i].dest + L".sha256ok") << todo[i]->sha256 << "\n";
     }
-    return true;
+    if (progress) progress(1.0);
+    return ok;
 }
 
 std::wstring ModelStore::ocrFile(const char* name) {
@@ -331,6 +332,211 @@ std::wstring ModelStore::configPath(const std::string& pair) {
     in.close();
     if (cur != yml) std::ofstream(path, std::ios::binary) << yml;
     return path;
+}
+
+// ---- OCR GPU add-on (ocr_gpu.inc) ----
+
+namespace {
+
+struct GpuFile {
+    const char* name;
+    const char* path;   // on api.nuget.org
+    const char* entry;  // zip entry in the package
+    uint64_t offset, length;
+    const char* rangeSha;
+    uint32_t crc, csize;
+    uint64_t size;
+    const char* sha;
+    uint16_t time, date;
+};
+constexpr GpuFile kGpuFiles[] = {
+#define PM_OCR_GPU_FILE(name, path, entry, off, len, rsha, crc, cs, sz, sha, t, d) {name, path, entry, off, len, rsha, crc, cs, sz, sha, t, d},
+#include "ocr_gpu.inc"
+#undef PM_OCR_GPU_FILE
+};
+constexpr wchar_t kNugetHost[] = L"api.nuget.org";
+
+bool gpuFileOk(const GpuFile& f) {
+    uint64_t sz = 0;
+    const std::wstring p = ModelStore::ocrGpuDir() + L"\\" + fromUtf8(f.name);
+    return fileSize(p, sz) && sz == f.size && GetFileAttributesW((p + L".sha256ok").c_str()) != INVALID_FILE_ATTRIBUTES;
+}
+
+std::string sha256Of(const std::wstring& path) {
+    Sha256 sha;
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return {};
+    std::vector<char> b(1 << 20);
+    DWORD n = 0;
+    while (ReadFile(h, b.data(), static_cast<DWORD>(b.size()), &n, nullptr) && n) sha.add(b.data(), n);
+    CloseHandle(h);
+    return sha.hex();
+}
+
+// The zip entry's bytes [offset, offset + length) of https://api.nuget.org<path>,
+// as a downloader item (resumable, verified against rangeSha).
+dl::Item gpuItem(const GpuFile& f) {
+    dl::Item it;
+    it.host = toUtf8(kNugetHost);
+    it.path = f.path;
+    it.dest = ModelStore::ocrGpuDir() + L"\\" + fromUtf8(f.name) + L".entry";
+    it.size = f.length;
+    it.sha256 = f.rangeSha;
+    it.offset = f.offset;
+    return it;
+}
+
+void put16(std::string& s, uint32_t v) {
+    s += static_cast<char>(v & 255);
+    s += static_cast<char>((v >> 8) & 255);
+}
+void put32(std::string& s, uint32_t v) {
+    put16(s, v & 0xFFFF);
+    put16(s, v >> 16);
+}
+
+// The fetched zip entry as a one-file zip (its own name, a central
+// directory), unpacked by Windows' tar.exe into dir.
+bool unpackEntry(const GpuFile& f, const std::wstring& part, const std::wstring& dir, std::wstring* err) {
+    std::ifstream in(part, std::ios::binary);
+    std::string blob((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+    if (blob.size() != f.length || blob.size() < 30 || blob.compare(0, 4, std::string("PK\x03\x04", 4)) != 0) {
+        if (err) *err = L"SHA-256";
+        return false;
+    }
+    const size_t nl = static_cast<uint8_t>(blob[26]) | (static_cast<size_t>(static_cast<uint8_t>(blob[27])) << 8);
+    const size_t el = static_cast<uint8_t>(blob[28]) | (static_cast<size_t>(static_cast<uint8_t>(blob[29])) << 8);
+    const std::string name = f.name;
+    std::string zip("PK\x03\x04", 4);
+    put16(zip, 20);
+    put16(zip, 0);
+    put16(zip, 8);
+    put16(zip, f.time);
+    put16(zip, f.date);
+    put32(zip, f.crc);
+    put32(zip, f.csize);
+    put32(zip, static_cast<uint32_t>(f.size));
+    put16(zip, static_cast<uint32_t>(name.size()));
+    put16(zip, 0);
+    zip += name;
+    zip.append(blob, 30 + nl + el, std::string::npos);
+    const uint32_t cdAt = static_cast<uint32_t>(zip.size());
+    std::string cd("PK\x01\x02", 4);
+    put16(cd, 20);
+    put16(cd, 20);
+    put16(cd, 0);
+    put16(cd, 8);
+    put16(cd, f.time);
+    put16(cd, f.date);
+    put32(cd, f.crc);
+    put32(cd, f.csize);
+    put32(cd, static_cast<uint32_t>(f.size));
+    put16(cd, static_cast<uint32_t>(name.size()));
+    for (int k = 0; k < 4; ++k) put16(cd, 0);  // extra, comment, disk, internal attributes
+    put32(cd, 0);                              // external attributes
+    put32(cd, 0);                              // local header offset
+    cd += name;
+    zip += cd;
+    zip.append("PK\x05\x06", 4);
+    put16(zip, 0);
+    put16(zip, 0);
+    put16(zip, 1);
+    put16(zip, 1);
+    put32(zip, static_cast<uint32_t>(cd.size()));
+    put32(zip, cdAt);
+    put16(zip, 0);
+    const std::wstring zipPath = dir + L"\\" + fromUtf8(f.name) + L".zip";
+    std::ofstream(zipPath, std::ios::binary) << zip;
+    wchar_t sys[MAX_PATH];
+    const UINT sn = GetSystemDirectoryW(sys, MAX_PATH);
+    const std::wstring tar = std::wstring(sys, sn) + L"\\tar.exe";
+    std::wstring cmd = L"\"" + tar + L"\" -xf \"" + zipPath + L"\" -C \"" + dir + L"\"";
+    STARTUPINFOW si{sizeof(si)};
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    PROCESS_INFORMATION pi{};
+    std::vector<wchar_t> line(cmd.begin(), cmd.end());
+    line.push_back(0);
+    DWORD exitCode = 1;
+    if (CreateProcessW(tar.c_str(), line.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS, nullptr,
+                       dir.c_str(), &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, 120000);
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    }
+    DeleteFileW(zipPath.c_str());
+    if (exitCode != 0) {
+        if (err) *err = L"tar.exe could not unpack " + fromUtf8(f.name) + L" (Windows 10 1803 or later is needed)";
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+std::wstring ModelStore::ocrGpuDir() { return root() + L"\\ocr-gpu"; }
+
+bool ModelStore::ocrGpuInstalled() {
+    for (const auto& f : kGpuFiles)
+        if (!gpuFileOk(f)) return false;
+    return true;
+}
+
+uint64_t ModelStore::ocrGpuMissingBytes() {
+    uint64_t n = 0;
+    for (const auto& f : kGpuFiles)
+        if (!gpuFileOk(f)) {
+            const dl::Item it = gpuItem(f);
+            uint64_t have = 0;
+            if (fileSize(it.dest, have) && have == f.length) continue;  // fetched, not unpacked yet
+            n += f.length - std::min<uint64_t>(dl::partialBytes(it), f.length);
+        }
+    return n;
+}
+
+bool ModelStore::downloadOcrGpu(const std::function<void(double)>& progress, const std::atomic<bool>* cancel, std::wstring* err) {
+    const std::wstring dir = ocrGpuDir();
+    makeDirs(dir);
+    std::vector<const GpuFile*> todo;
+    std::vector<dl::Item> items;
+    for (const auto& f : kGpuFiles)
+        if (!gpuFileOk(f)) {
+            todo.push_back(&f);
+            items.push_back(gpuItem(f));
+        }
+    if (todo.empty()) return true;
+    dl::Options o;
+    o.userAgent = L"ZizaiCast/0.7 (model downloader)";
+    const std::vector<dl::Result> res = dl::fetchAll(items, [&](const dl::Progress& p) {
+        if (progress) progress(p.fraction());
+    }, cancel, o);
+    if (cancel && cancel->load()) {
+        if (err) *err = L"cancelled";
+        return false;
+    }
+    for (size_t i = 0; i < todo.size(); ++i) {
+        const GpuFile& f = *todo[i];
+        if (res[i].status != dl::Status::Ok) {
+            if (err) *err = res[i].status == dl::Status::Verify ? L"SHA-256" : res[i].detail;
+            return false;
+        }
+        const std::wstring final = dir + L"\\" + fromUtf8(f.name), entry = items[i].dest;
+        DeleteFileW(final.c_str());
+        if (!unpackEntry(f, entry, dir, err)) return false;
+        uint64_t sz = 0;
+        if (!fileSize(final, sz) || sz != f.size || sha256Of(final) != f.sha) {
+            DeleteFileW(final.c_str());
+            DeleteFileW(entry.c_str());
+            if (err) *err = L"SHA-256";
+            return false;
+        }
+        std::ofstream(final + L".sha256ok") << f.sha << "\n";
+        DeleteFileW(entry.c_str());
+    }
+    if (progress) progress(1.0);
+    return true;
 }
 
 }  // namespace pm::translate

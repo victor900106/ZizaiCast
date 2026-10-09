@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <regex>
 
 #include "pm/i18n.h"
 
@@ -204,6 +205,14 @@ bool separateItem(const OcrLine& p, const OcrLine& ln) {
     const ScriptCount a = countScripts(p.text), b = countScripts(ln.text);
     // Prices, quantities, numbers (8,000원, 850円, 29 g).
     if (a.digits >= a.letters() || b.digits >= b.letters()) return true;
+    // Table labels stacked in a column (内容量 / 保存方法, 熱量 / たんぱく質):
+    // field names, or two short label-like lines.
+    if (isFieldLabel(p.text) || isFieldLabel(ln.text)) return true;
+    if (a.latin == 0 && b.latin == 0 && a.letters() <= 5 && b.letters() <= 5 && a.other == 0 && b.other == 0) return true;
+    // An address / phone line is a row of its own (製造者: 株式会社… 〒601-8446 … / お客様相談室 0120-…).
+    static const std::wregex phone(L"[0-9]{2,4}-[0-9]{2,4}-[0-9]{2,4}");
+    if (looksLikeAddress(p.text) || looksLikeAddress(ln.text) || std::regex_search(p.text, phone) || std::regex_search(ln.text, phone))
+        return true;
     // A field label "配料：…", "保存方法：…" (a colon within the first few characters).
     const size_t colon = ln.text.find_first_of(L"：:");
     if (colon != std::wstring::npos && colon > 0 && colon <= 8 && isCjk(ln.text.front())) return true;
@@ -232,7 +241,8 @@ bool endsSentence(const std::wstring& t) {
     // Japanese polite sentence endings without a 。 (banners, signs: …仕上げました).
     // Korean: a full stop after hangul, the polite endings (…합니다, …주세요).
     if (c == L'.' && t.size() >= 2 && t[t.size() - 2] >= 0xAC00 && t[t.size() - 2] <= 0xD7AF) return true;
-    for (const wchar_t* e : {L"ました", L"ます", L"ません", L"です", L"でした", L"ください", L"니다", L"세요", L"어요", L"아요"})
+    for (const wchar_t* e : {L"ました", L"ます", L"ません", L"です", L"でした", L"ください", L"니다", L"세요", L"어요", L"아요",
+                             L"불가", L"금지"})  // Korean notices: …주문 불가, 촬영 금지
         if (t.size() >= wcslen(e) && t.compare(t.size() - wcslen(e), std::wstring::npos, e) == 0) return true;
     return false;
 }
@@ -305,6 +315,7 @@ std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect) {
             const float dl = std::fabs(p.x0 - ln.x0) * aspect, dc = std::fabs((p.x0 + p.x1) - (ln.x0 + ln.x1)) * 0.5f * aspect;
             if (dl > 1.6f * hm && dc > 1.6f * hm) continue;
             if (endsSentence(p.text) && !(p.script == Lang::En && ln.script == Lang::En)) continue;
+            if (p.rowLabel >= 0 && ln.rowLabel >= 0 && p.rowLabel != ln.rowLabel) continue;  // two rows of a label table
             if (separateItem(p, ln)) continue;
             if (!wrapped(p, ln)) continue;  // a separate UI line (label, price, status)
             // Same line spacing as the block so far (a table row below a wrapped cell).
@@ -315,7 +326,9 @@ std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect) {
         }
         if (target >= 0) {
             Block& b = out[open[target].block];
-            const bool space = !b.text.empty() && !isCjk(b.text.back()) && !ln.text.empty() && !isCjk(ln.text.front());
+            // Korean wraps at the spaces between words: one comes back between hangul lines.
+            const bool hangulWrap = !b.text.empty() && !ln.text.empty() && isHangul(b.text.back()) && isHangul(ln.text.front());
+            const bool space = hangulWrap || (!b.text.empty() && !isCjk(b.text.back()) && !ln.text.empty() && !isCjk(ln.text.front()));
             if (space) b.text += L' ';
             b.text += ln.text;
             b.x0 = std::min(b.x0, ln.x0);

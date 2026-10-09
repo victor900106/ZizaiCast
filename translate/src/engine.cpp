@@ -2,8 +2,12 @@
 // MPL-2.0 bergamot-translator + marian, no BLAS) loaded at run time.
 #include <windows.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <map>
+#include <mutex>
+#include <thread>
 
 #include "pm/translate.h"
 #include "text_util.h"
@@ -60,6 +64,43 @@ Dll& dll() {
     return d;
 }
 
+// Bergamot's translator_initialize / translator_free are not thread-safe:
+// marian and its spdlog loggers are process globals ("logger with name
+// already exists" thrown when two translators are made at once - a C++
+// exception out of the DLL: std::terminate, the app gone without a word;
+// found by pm_translate_test --init-race).  Every init / free goes through
+// this lock, one at a time; translate() calls on different translators run
+// side by side (each has its own model and graph).
+std::mutex& initLock() {
+    static std::mutex m;
+    return m;
+}
+// The DLL's C functions may still throw (a C++ exception through the C API):
+// caught here, the call counts as failed.
+void* safeInit(const char** cfg, int n) {
+    std::lock_guard lk(initLock());
+    try {
+        return dll().init(cfg, n);
+    } catch (...) {
+        return nullptr;
+    }
+}
+void safeFree(void* t) {
+    if (!t || !dll().freeTranslator) return;
+    std::lock_guard lk(initLock());
+    try {
+        dll().freeTranslator(t);
+    } catch (...) {
+    }
+}
+char** safeTranslate(void* t, const char** texts, size_t n) {
+    try {
+        return dll().translate(t, texts, n, false);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 double nowMs() {
     using namespace std::chrono;
     return duration<double, std::milli>(steady_clock::now().time_since_epoch()).count();
@@ -70,9 +111,42 @@ double nowMs() {
 struct Engine::Impl {
     // Loaded translators by model chain ("ja-en+en-zhHant"), most recent last.
     std::vector<std::pair<std::string, void*>> loaded;
+    // More translators of the current chain for dense pictures (Bergamot's
+    // BlockingService is one thread per translator): the texts are split
+    // between them and translated side by side.
+    // Kept for the chains in `loaded` (at most two), freed with them.
+    std::map<std::string, std::vector<void*>> helpersOf;
     ~Impl() {
         for (auto& [k, t] : loaded)
-            if (t && dll().freeTranslator) dll().freeTranslator(t);
+            safeFree(t);
+        for (auto& [k, v] : helpersOf) dropHelpers(k);
+    }
+    void dropHelpers(const std::string& key) {
+        auto it = helpersOf.find(key);
+        if (it == helpersOf.end()) return;
+        for (void* t : it->second)
+            safeFree(t);
+        it->second.clear();
+    }
+    // n more translators of the chain (loaded once, kept while the chain is).
+    std::vector<void*> more(const std::vector<std::string>& pairs, size_t n, double& loadMs) {
+        std::string key;
+        for (const auto& p : pairs) key += (key.empty() ? "" : "+") + p;
+        std::vector<void*>& helpers = helpersOf[key];
+        std::vector<std::string> cfg;
+        for (const auto& p : pairs) cfg.push_back(toUtf8(ModelStore::configPath(p)));
+        std::vector<const char*> argv;
+        for (const auto& c : cfg) argv.push_back(c.c_str());
+        const double t0 = nowMs();
+        if (helpers.size() < n) {  // loaded side by side
+            std::vector<void*> got(n - helpers.size(), nullptr);
+            // One at a time (see initLock): ~0.3 s each.
+            for (size_t k = 0; k < got.size(); ++k) got[k] = safeInit(argv.data(), static_cast<int>(argv.size()));
+            for (void* t : got)
+                if (t) helpers.push_back(t);
+        }
+        loadMs += nowMs() - t0;
+        return std::vector<void*>(helpers.begin(), helpers.begin() + std::min(n, helpers.size()));
     }
     void* get(const std::vector<std::string>& pairs, double& loadMs, std::wstring* err) {
         std::string key;
@@ -96,7 +170,7 @@ struct Engine::Impl {
         std::vector<const char*> argv;
         for (const auto& c : cfg) argv.push_back(c.c_str());
         const double t0 = nowMs();
-        void* t = dll().init(argv.data(), static_cast<int>(argv.size()));  // 1 model, or 2 = pivot
+        void* t = safeInit(argv.data(), static_cast<int>(argv.size()));  // 1 model, or 2 = pivot
         loadMs = nowMs() - t0;
         if (!t) {
             if (err) *err = L"cannot load the translation model " + fromUtf8(key);
@@ -104,7 +178,9 @@ struct Engine::Impl {
         }
         // At most two chains in memory (~50-100 MB each).
         while (loaded.size() >= 2) {
-            dll().freeTranslator(loaded.front().second);
+            safeFree(loaded.front().second);
+            dropHelpers(loaded.front().first);
+            helpersOf.erase(loaded.front().first);
             loaded.erase(loaded.begin());
         }
         loaded.emplace_back(key, t);
@@ -145,16 +221,64 @@ bool Engine::translate(Lang src, Lang tgt, const std::vector<std::wstring>& in, 
     if (!t) return false;
     std::vector<std::string> u8;
     u8.reserve(in.size());
-    for (const auto& s : in) u8.push_back(toUtf8(s));
+    size_t chars = 0;
+    for (const auto& s : in) u8.push_back(toUtf8(s)), chars += s.size();
     std::vector<const char*> argv;
     for (const auto& s : u8) argv.push_back(s.c_str());
-    char** res = dll().translate(t, argv.data(), argv.size(), false);
-    if (!res) {
+    // Dense pictures (many texts): split between parallel translators,
+    // balanced by length (measured: a Wikipedia page 8.6 s with one).
+    static const size_t kWorkers = [] {
+        if (const char* e = std::getenv("PM_TR_WORKERS"); e && atoi(e) > 0) return static_cast<size_t>(std::min(8, atoi(e)));
+        return static_cast<size_t>(std::clamp(std::thread::hardware_concurrency() / 6, 1u, 3u));
+    }();
+    std::vector<const char*> tx(in.size(), nullptr);
+    std::vector<char**> results;
+    std::vector<void*> ts{t};
+    if (kWorkers > 1 && in.size() >= 12 && chars >= 400) {
+        const auto extra = impl_->more(pairs, kWorkers - 1, loadMs_);
+        ts.insert(ts.end(), extra.begin(), extra.end());
+    }
+    std::vector<std::vector<size_t>> part(ts.size());
+    {
+        std::vector<size_t> order(in.size()), load(ts.size(), 0);
+        for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return in[a].size() > in[b].size(); });
+        for (size_t i : order) {  // longest first, to the least loaded translator
+            const size_t w = static_cast<size_t>(std::min_element(load.begin(), load.end()) - load.begin());
+            part[w].push_back(i);
+            load[w] += in[i].size() + 8;
+        }
+    }
+    results.assign(ts.size(), nullptr);
+    {
+        std::vector<std::thread> th;
+        auto run = [&](size_t w) {
+            std::vector<const char*> a;
+            for (size_t i : part[w]) a.push_back(argv[i]);
+            results[w] = a.empty() ? nullptr : safeTranslate(ts[w], a.data(), a.size());
+        };
+        for (size_t w = 1; w < ts.size(); ++w)
+            if (!part[w].empty()) th.emplace_back(run, w);
+        run(0);
+        for (auto& x : th) x.join();
+    }
+    bool failed = false;
+    for (size_t w = 0; w < ts.size(); ++w) {
+        if (part[w].empty()) continue;
+        if (!results[w]) {
+            failed = true;
+            continue;
+        }
+        for (size_t k = 0; k < part[w].size(); ++k) tx[part[w][k]] = results[w][k];
+    }
+    if (failed) {
+        for (char** r : results)
+            if (r) dll().freeTranslations(r);
         if (err) *err = L"translation failed";
         return false;
     }
     for (size_t i = 0; i < in.size(); ++i) {
-        std::wstring s = res[i] ? fromUtf8(res[i]) : std::wstring();
+        std::wstring s = tx[i] ? fromUtf8(tx[i]) : std::wstring();
         if (tgt == Lang::ZhHant) s = fullWidthPunctuation(toTraditional(s));
         if (tgt == Lang::Ja) {  // 日本語: ？！（）： next to kana / kanji, 、 rather than ，
             s = fullWidthPunctuation(s);
@@ -163,7 +287,8 @@ bool Engine::translate(Lang src, Lang tgt, const std::vector<std::wstring>& in, 
         }
         out.push_back(std::move(s));
     }
-    dll().freeTranslations(res);
+    for (char** r : results)
+        if (r) dll().freeTranslations(r);
     return true;
 }
 
