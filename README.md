@@ -72,7 +72,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-send.jpg" alt="傳到手機：勾選這次的截圖和錄影"><br><b>📤 傳到手機（電腦端）</b><br>截圖、錄影後點「傳到手機」，勾選要傳的檔案一次送出。</td>
-<td valign="top"><img src="docs/readme/features/f-jako.jpg" alt="日文與韓文介面"><br><b>🇯🇵🇰🇷 日本語・한국어 介面</b><br>介面與安裝程式新增日文、韓文（設定 → 語言 / Language）。</td>
+<td valign="top"><img src="docs/readme/features/f-jako.jpg" alt="日文與韓文介面"><br><b>🌏 日本語・한국어 介面</b><br>介面與安裝程式新增日文、韓文（設定 → 語言 / Language）。</td>
 <td valign="top"></td>
 </tr>
 <tr>

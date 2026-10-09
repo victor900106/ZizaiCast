@@ -72,7 +72,7 @@ Full change list on [Releases](https://github.com/victor900106/ZizaiCast/release
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-send-en.jpg" alt="Send to phone: tick this session's screenshots and recordings"><br><b>📤 Send to phone — on the PC</b><br>After screenshots or recordings, click Send to phone and tick the files to send at once.</td>
-<td valign="top"><img src="docs/readme/features/f-jako-en.jpg" alt="Japanese and Korean UI"><br><b>🇯🇵🇰🇷 日本語 / 한국어 UI</b><br>The app and the installer now also speak Japanese and Korean (Settings → Language).</td>
+<td valign="top"><img src="docs/readme/features/f-jako-en.jpg" alt="Japanese and Korean UI"><br><b>🌏 日本語 / 한국어 UI</b><br>The app and the installer now also speak Japanese and Korean (Settings → Language).</td>
 <td valign="top"></td>
 </tr>
 <tr>
