@@ -97,9 +97,24 @@ a still picture).
 **Memory.** Media buffers are pooled (≤ 40, recycled when the encoder released
 them); steady state at 1440p ≈ 10-15 buffers × 5.5 MB.
 
-**Crash safety.** A plain MP4 (moov written at `Finalize`): a crash or kill
-during recording leaves an unplayable file. Fragmented MP4 would avoid that
-but is less compatible; not done.
+**Crash safety.** Fragmented MP4 (`MFTranscodeContainerType_FMPEG4`): the
+moov comes first, then a moof + mdat about every 0.3 s. After a crash, a kill
+or a power cut the file plays up to the last fragment (Windows Media Player /
+Photos / ffmpeg; the length shows as unknown and the player may not seek).
+`Finalize()` writes the duration and an mfra index, so a finished file plays
+and seeks like a plain MP4 (checked with `--readback`: duration, seek, every
+frame decoded; `verify_recording.py` unchanged). If this Windows has no
+fragmented sink the recorder falls back to a plain MP4 (log: "fragmented MP4
+not available"); a plain MP4 cut short has no moov and does not play.
+Crash test: start `pm_recorder_test --seconds 30`, kill it after ~8 s, then
+`pm_recorder_test --readback t.mp4`.
+
+Known quirk: Media Foundation on this Windows build (10.0.26300) ignores the
+moov duration of fragmented MP4s written by an app with a Windows 10
+manifest (the sink stamps its OS version in a `uuid` box) and reports the
+start of the last fragment instead, so Media Player / Photos may show a
+length up to ~0.3 s short. Every frame still decodes and plays (`--readback`
+of the app's files), and ffprobe / other players read the right duration.
 
 ## Build / test
 

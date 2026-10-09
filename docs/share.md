@@ -102,7 +102,8 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
 * **URL**: `http://<ip>:<port>/<token>/`, token = 32 characters [A-Za-z0-9]
   (BCryptGenRandom, no modulo bias, ~190 bits), compared in constant time.
   Routes: `/<token>/` page, `/<token>/v/<i>` inline, `/<token>/d/<i>`
-  attachment, `/<token>` → 301 to `/<token>/`. Everything else is a plain
+  attachment, `/<token>/zip[?from=F]` all files (index ≥ F) as one ZIP
+  (below), `/<token>` → 301 to `/<token>/`. Everything else is a plain
   404 (no listing, files are only addressable by index, `..` means nothing).
   GET and HEAD only (405 otherwise).
 * **LAN only**: a peer outside the bound interface's subnet is closed at
@@ -125,6 +126,22 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
   `/<token>/app.js` (same origin, no inline script, no eval); the page's
   texts are a `<script type="application/json">` data block whose JSON never
   contains a raw `<`.
+* **ZIP** (0.7.3, `GET /<token>/zip[?from=F]`, for 「全部下載」): the files
+  with index ≥ F, in index order, as one classic ZIP, **stored** (no
+  compression: pictures / MP4s do not shrink, and the phone gets bytes at
+  once), streamed straight from the files. Each file's CRC-32 is computed
+  on first use and cached (keyed by size + last-write time), so the
+  response carries a `Content-Length` (Safari shows progress) and needs no
+  data descriptors; names are UTF-8 (flag bit 11; a repeated name becomes
+  `name (2).png`), times are the files' local last-write times.
+  `Content-Type: application/zip`, `Content-Disposition: attachment;
+  filename="ZizaiCast_YYYYMMDD_HHMMSS.zip"`. A file that is gone is left out;
+  files that would push the archive past 4 GB are left out (no ZIP64; they
+  keep their own 下載 button, logged `zip: left out file i`); a file that
+  vanishes mid-stream cuts the connection (a failed download, never wrong
+  bytes). HEAD gives the length without the CRC pass. `from` past the end /
+  any other query → 404. `onAccess` fires per file as it streams (the panel
+  shows 「手機正在下載：name」). Log: `… GET zip from 0 200 (3 file(s), N bytes)`.
 * **Live share** (`Options::live`, 自動傳到手機): may start with no file;
   `addFile(path)` adds one while serving (same path → same index; up to
   `kMaxLiveFiles` 500; `addFile` works on a normal share too). Files are
@@ -169,11 +186,47 @@ card gradient, accent; light themes get a light page). Header 「從電腦傳來
   1 點「下載影片」再點「下載」, 2 打開「檔案」App →「下載項目」→ 點影片,
   3 「分享」→「儲存影片」; Android: the Download folder / album.
 
+**全部下載（ZIP，N 個）** (0.7.3; sticky at the top, a plain `<a href="zip"
+download>` rendered by the server, so it works without the script) and
+under it one sentence on getting the files into Photos — iPhone: 「存進「照片」：
+點上面的按鈕 →「下載」，打開「檔案」App →「下載項目」，點 ZIP 解開成資料夾，進資料夾點
+「選取」→「全選」→「分享」→「儲存…」（例如「儲存 3 張影像」）。只要一張的話，長按圖片 →
+「加入照片」最快。」; Android: 「下載完成後，在「檔案」App 的 Download 點這個 ZIP →
+「解壓縮」，圖片和影片就會出現在相簿。…」; other browsers: both, under small
+headings.
+
+*Why a ZIP (0.7.1's 全部儲存 never showed on a real phone):* the Web Share
+API (`navigator.share` / `canShare`) exists only in a **secure context**
+(https, or http on localhost). The page is `http://<LAN IP>:<port>/…`, so
+iPhone Safari (and Android Chrome) have no `navigator.share` there and the
+script kept the 全部儲存 bar hidden — the owner's iPhone showed only the
+per-file buttons. The 0.7.1 live test stubbed `navigator.share` on
+`127.0.0.1` (a secure context) and so could not see it. Options weighed:
+* ZIP (chosen): one tap, works in every browser over http; iOS saves it to
+  Files → 下載項目, tapping it unzips, then one multi-select share → 「儲存 N
+  張影像」 puts all in Photos. Android: Files → Extract → the gallery.
+* Several downloads from one tap: iOS Safari asks per file and blocks
+  scripted downloads after the first; Chrome asks for "multiple downloads".
+  Not reliable.
+* A self-signed https server (would make Web Share work): Safari shows a
+  full-page 「此連線不是私人連線」 warning that must be clicked through
+  (「顯示詳細資訊」→「瀏覽此網站」→ confirm) for each new address; trusting it
+  properly means installing a root certificate profile on the phone
+  (Settings → 已下載描述檔 → 憑證信任設定) whose private key sits on the PC —
+  scary and a real security risk. A public certificate for a LAN name would
+  need the private key shipped in the app (revoked) or our own DNS/ACME
+  service. Rejected.
+* 「長按 → 加入照片」 per picture stays (the cards already show every picture
+  large with that tip): the quickest way for one picture.
+
 **Script (app.js, progressive — without it the page works as before):**
 
-* **全部儲存（N）** (sticky at the top) and a per-file **儲存** where the
-  browser can share files (`navigator.canShare({files})`: iOS 15+ Safari,
-  Android Chrome): `navigator.share({files:[…]})` with every unsaved file →
+* Keeps the ZIP button's count current; on a live page, after a tap on it,
+  new files make it 「下載新的 N 個（ZIP）」 → `zip?from=K` (K = one past the
+  newest file the tapped ZIP had); with nothing new it offers all again.
+* **全部儲存（N）** (replaces the ZIP button) and a per-file **儲存** where the
+  browser can share files (`navigator.canShare({files})`: a secure context
+  only — https / localhost, never the LAN page): `navigator.share({files:[…]})` with every unsaved file →
   iOS's sheet offers 「儲存 N 張影像」 / 「儲存影片」 and puts them all in Photos at
   once. The share must start inside the tap (iOS refuses it after an
   `await`), so files are fetched ahead into memory, one at a time (≤ 200 MB
@@ -232,8 +285,20 @@ from that thread; the app posts it to the UI thread.
 
 ## Tests
 
-`build-app-share\bin\Release\pm_share_test.exe` — **128 checks, all passing
-(2026-10-08)**, everything on 127.0.0.1. New in 0.7.1: script tags only
+`build-app-share\bin\Release\pm_share_test.exe` — **146 checks, all passing
+(2026-10-09)**, everything on 127.0.0.1. New in 0.7.3 (ZIP): the page shows
+「全部下載（ZIP，3 個）」 without the script (全部儲存 hidden), the iPhone /
+Android hint sentences; `zip` → 200 application/zip, attachment
+`ZizaiCast_….zip`, Content-Length = body; the archive read back by an
+independent parser (end record → central directory → local headers): 3
+entries in index order, UTF-8 names, a repeated name → `… (2).png`, bytes
+identical, CRC-32 right (bitwise CRC, not the server's table), stored, no
+data descriptor; a second download identical (cached CRCs); `zip?from=1`;
+HEAD; `from` past the end / garbage → 404; token required; onAccess per
+file; a deleted file left out. Also checked by hand: Windows `tar.exe`
+(libarchive) and PowerShell `Expand-Archive` list / extract it. (The
+「stop() during a 64 MB download」 check failed once in 4 runs with a 30 s
+send timeout — an old timing race in that test, not the ZIP code.) New in 0.7.1: script tags only
 `app.js` + the JSON block, CSP `script-src 'self'`, JSON has no raw `<`,
 `app.js` / `list` need the token; live share: starts empty, `list?n=0` held
 until `addFile` (answered ~0 ms after it), same path → same index, newest
@@ -303,8 +368,18 @@ Several captures / 自動傳到手機, off-screen (`share/tools/app_share_batch_
   「(2 waiting)」, four pushes in capture order (fake adb log: 3 ×
   Pictures/ZizaiCast, 1 × Movies/ZizaiCast), all 「in the gallery」; the
   window shot shows 「已傳到手機相簿」; video `drop 0 skip 0` throughout.
-* **live** (`share/tools/live_page_test.mjs`, headless Chrome, iPhone UA,
-  `navigator.share` stubbed): option on → live panel + empty page; app 截圖 →
+* **live** (`share/tools/live_page_test.mjs`, headless Chrome, iPhone UA;
+  0.7.3: two tabs). **http tab** (`http://zizai.test:<port>/…`, mapped to
+  127.0.0.1 by `--host-resolver-rules`, `--disable-features=HttpsUpgrades`:
+  a real non-secure origin like the phone's LAN address, nothing stubbed):
+  `isSecureContext` false and `navigator.share` undefined; with 3 files
+  「全部下載（ZIP，3 個）」 and the Files → Photos sentence are visible, 全部儲存
+  is not; a real tap downloads `ZizaiCast_….zip` (Browser.setDownloadBehavior
+  into a temp dir), unzipped in node: 3 files = the server's (names in
+  order, sizes, bytes, CRC-32, UTF-8 flag); after one more 截圖 the button
+  reads 「下載新的 1 個（ZIP）」 → `zip?from=3` with just that file. Verified
+  2026-10-09, all 29 checks. **share tab** (`127.0.0.1`, `navigator.share`
+  stubbed): option on → live panel + empty page; app 截圖 →
   the open page shows the card by itself; another 截圖 + a recording → 3
   cards, recording on top, 「全部儲存（3）」; a real mouse tap → `share()` once,
   inside the user activation, with 3 Files whose names / sizes / types equal
@@ -324,6 +399,11 @@ DevCommand 903, command ids 160–164 (CmdShareLast, …LastShot, …LastRec,
 
 ## Needs the owner's phones
 
+* **0.7.3, iPhone** (http page, no Web Share): scan the QR → 「全部下載（ZIP，N
+  個）」 at the top → 下載 → 檔案 App → 下載項目 → tap the ZIP (unzips to a
+  folder) → 選取 → 全選 → 分享 → 「儲存 N 張影像」 → all in Photos. Check the
+  Files wording on the owner's iOS version and a ZIP with a recording
+  (「儲存 N 個項目」).
 * **0.7.1, iPhone**: turn on 截圖／錄影後自動傳到手機 with the iPhone mirroring
   over AirPlay, scan the QR, keep Safari open; take screenshots / a
   recording → they appear on the page by themselves; 全部儲存 → the share

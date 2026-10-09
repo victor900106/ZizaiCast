@@ -62,7 +62,21 @@ toolbar), 192 翻譯整個畫面, 193 框選翻譯, 194 顯示原文, 195 連續
 200 刪除全部, 201–208 delete one model pair (201 = 文字辨識 OCR); 905 draws the open question dialog
 (consent / OCR language / delete) into `ask.png`, 906 answers it (`lParam` 1 =
 primary button, 0 = Esc), 907 draws the 放大鏡 / 翻譯 / 管理翻譯模型 submenus into
-`menu_magnifier.png` / `menu_translate.png` / `menu_models.png`. With
+`menu_magnifier.png` / `menu_translate.png` / `menu_models.png`. 0.7.4: 240
+本機 AI 翻譯…, 241 線上翻譯（選用）…; 930 draws those panels and their question
+dialog into `llm[_N].png` / `online[_N].png` / `trask[_N].png` (`lParam` N > 0
+adds the suffix), 931 / 932 click item `lParam` of the 本機 AI / 線上 panel (ids in
+`app/tr_settings.cpp`), 933 answers the question (1 primary, 2 secondary, 0
+Esc), 934 types a made-up key, 935 marks every shown block (`lParam` 0: none)
+as translated online, 936 shows two made-up blocks with 「線上」 badges; 940
+opens later panels at DPI `lParam & 0xFFFF` on a work area `lParam >> 16` px
+high, 937 draws what they show now (`llm_view` / `online_view`), 938 scrolls
+the 線上 panel by `lParam` DIPs, 939 sends it key `lParam` (9 = Tab;
+`launch/_work/trui/run_small.ps1`: 768 px at 100–200 %). With
+`--test-no-network` the model download and 測試連線 are fakes (nothing is
+fetched or sent; `PM_TEST_LLM_FAKE=ok|network|verify|disk|unpack`,
+`PM_TEST_LLM_FAKE_MS`); `launch/_work/trui/run_panels.ps1` drives a run with
+`PM_MODELS_DIR` / `PM_ONLINE_CONFIG` in a temp folder. With
 `--test-offscreen` (no tray icon) balloons are only logged (`tray balloon (no
 tray icon): …`), `--background` keeps the window hidden, and the dialog of a
 hidden window is placed off the desktop too.
@@ -76,12 +90,22 @@ brings the running window to the front (registered message
 * Tray icon (投投, `app/res/app.ico`). Double-click / click = show window.
   Tray menu: header 「自在投影」 (app icon, version), [更新到 vX.Y.Z (bold, ↑) +
   separator, while an update is on offer], 顯示視窗, [中斷連線（name）
-  Ctrl+D while a phone is live or an iPhone is connecting],
-  連接 Android（掃 QR）, 使用教學, 開始錄影 / 停止錄影, 開機自動啟動 ✓, 連線需要
-  PIN 碼 ✓, 接受 Android 投放（Miracast） ✓ [+ reason notes], 自動連線已配對的
-  Android ✓, 畫質 標準 / 高 · 建議 / 最高 (radio), 新手機連線時 接手 / 保持目前
-  (radio), 主題 ▸, 語言 / Language ▸, 開啟截圖資料夾, 開啟錄影資料夾, 檢查更新,
-  關於自在投影, 結束.
+  Ctrl+D while a phone is live or an iPhone is connecting], 音量 ▸ |
+  [截圖 Ctrl+S, 開始錄影 Ctrl+R — only while a picture is shown; 停止錄影 while
+  recording], 傳到手機 ▸, [放大鏡 ▸ with a picture], 翻譯 ▸ | Android ▸, 設定 ▸,
+  資料夾 ▸, 說明 ▸ | 結束 (0.7.4: ~38 rows down to 13–17; rows that would do
+  nothing now are left out instead of greyed). Shared submenus (both menus):
+  - 傳到手機 ▸ (right: 「N 個未傳」): [傳送未傳的截圖／錄影], [把最後一張截圖 /
+    最後一段錄影傳到手機, when there is one], 傳到手機…, 截圖／錄影後自動傳到手機 ✓.
+  - Android ▸ 連接 Android（掃 QR） (greyed without adb), [自動連線已配對的
+    Android ✓, with adb], 接受 Android 投放（Miracast）✓ [+ reason notes] — or, on
+    a PC that cannot receive Miracast, one row 「Miracast：這台電腦不支援 ▸」 whose
+    submenu holds the reason and 如何啟用 Miracast.
+  - 設定 ▸ 開機自動啟動 ✓, 按 X 時 ▸, 連線需要 PIN 碼 ✓ | 畫質 ▸ (標準 / 高 · 建議 /
+    最高), 新手機連線時 ▸ (接手 / 保持目前) | 主題 ▸, 語言 / Language ▸ — each
+    submenu row shows its current value on the right (畫質　高).
+  - 資料夾 ▸ 截圖 / 錄影; 說明 ▸ 使用教學, [如何啟用 Miracast, when Miracast has a
+    problem], 檢查更新, 關於自在投影.
 * Closing the window hides it to the tray (balloon "自在投影仍在背景執行"
   the first time). 結束 in a menu really quits. If the tray is unavailable,
   closing quits.
@@ -89,17 +113,14 @@ brings the running window to the front (registered message
   a right click on the toolbar): [更新到 vX.Y.Z + separator, on offer],
   [while a phone is live: caption 「name（source）」,
   for Android 返回 (右鍵) / 主畫面 (中鍵) / 最近使用, then 中斷連線 (Ctrl+D)],
-  全螢幕 (F11), 視窗置頂 (Ctrl+T), 畫面 ▸, 放大鏡 ▸, 翻譯 ▸ (0.7.0, see below), 主題 ▸,
-  截圖 (Ctrl+S), 開始錄影 / 停止錄影 (Ctrl+R), 把最後一張截圖傳到手機,
-  把最後一段錄影傳到手機, 傳到手機…, 開啟截圖資料夾, 開啟錄影資料夾,
-  連接 Android（掃 QR）, 使用教學, 設定 ▸ (開機自動啟動, 連線需要 PIN 碼, 接受
-  Android 投放（Miracast）, 自動連線已配對的 Android, 畫質, 新手機連線時,
-  語言 / Language ▸, 檢查更新), 關於自在投影, 結束.
+  全螢幕 (F11), 視窗置頂 (Ctrl+T), 音量 ▸ | [截圖 (Ctrl+S), 開始錄影 / 停止錄影
+  (Ctrl+R)], 傳到手機 ▸, 畫面 ▸, 放大鏡 ▸, 翻譯 ▸ (0.7.0, see below) | Android ▸,
+  設定 ▸, 資料夾 ▸, 說明 ▸ | 結束 — the same groups and submenus as the tray menu.
 * Keyboard (window focused, no menu open): F11, Ctrl+D 中斷連線, Ctrl+T,
   Ctrl+S, Ctrl+R 錄影, Ctrl+→ / Ctrl+← rotate, Ctrl+H 左右翻轉, Ctrl+0 還原,
   Ctrl+F iPhone 外框; 0.7.0: Ctrl+= / Ctrl+- zoom, Ctrl+Shift+0 1×, Ctrl+K
   colours, Ctrl+P freeze, Ctrl+L translate / close, Ctrl+Shift+L 框選翻譯,
-  Ctrl+O 顯示原文. These Ctrl shortcuts are handled by the subclass before
+  Ctrl+O 顯示原文; Ctrl+↑ / Ctrl+↓ 音量, Ctrl+M 靜音 (see 音量 / 靜音). These Ctrl shortcuts are handled by the subclass before
   the video window, so they never reach an Android phone. **Esc** while an
   Android phone is live and the window is not fullscreen stays forwarded to the
   phone (scrcpy keycode ESCAPE — most apps treat it as back; a PC user expects
@@ -237,6 +258,55 @@ opened, and Shift+right click is undiscoverable.
   (rotate / reset / frame toggle) the window is fitted to the exact aspect,
   keeping its long side (shrunk to fit the work area). Not while fullscreen /
   maximized.
+
+## 音量 / 靜音 (PC volume slider and mute)
+
+Before, the only volume control was the phone's buttons. Code:
+`app/volume_ui.{h,cpp}` (`pm::ui::VolumeControl`, global `g_volumeUi`) over
+`app/volume_memory.h` (`RememberVolumeAudioSink`, `pm::vol`); main.cpp only
+forwards (toolbar, keys, menus, `runCommand`, settings).
+
+* **One level** for every source: the PC playback level, AirPlay dB -30..0,
+  remembered in `volume.txt` (debounced writer). The phone's volume buttons
+  (AirPlay `SET_PARAMETER volume`) and the app's slider / keys / menu move the
+  same value, so the slider follows the phone and the next connection, Android
+  stream or Miracast cast starts there. The app cannot move the iPhone's own
+  slider: after a PC change the next phone button press continues from the
+  phone's level (and a reconnecting iPhone reports its level again).
+* **Scale** (`pm::vol`): percent = (dB + 30) / 30 × 100, linear in dB — the
+  iPhone's own scale (16 button steps of 1.875 dB = 6.25 %; equal steps sound
+  equally loud). 50 % = -15 dB (the default). **0 % is silent**: -30 dB is
+  played as -144 (not 10^(-30/20) ≈ 3 %), like the phone's bottom step.
+  Otherwise gain = 10^(dB/20) (`AudioPlayer::airplayDbToGain`).
+* **靜音** is a separate flag (settings.ini `mute=1`): AirPlay, Android and
+  Miracast play silent, `volume.txt` is untouched; unmute restores the level.
+  Phone volume steps while muted move the level (toast 「音量 60%（靜音中）」)
+  but stay muted; a level set in the app (slider, Ctrl+↑/↓, wheel, presets)
+  unmutes. A phone mute (-144, the iPhone at its bottom) silences only that
+  AirPlay session (`phoneMuted`; slider shows 0 %, toast 「手機已靜音」),
+  dropped by the next phone level, `newSession()` (an iPhone connecting, an
+  Android stream) or the app's unmute.
+* **Toolbar** (all live sources, own group after 全螢幕): speaker button
+  (`CmdVolMute` 260; glyph Volume1/2/3 by level, Mute when muted or at 0 %,
+  accent ring while muted; tooltip 靜音（Ctrl+M） / 取消靜音（Ctrl+M）) and a
+  compact slider (`ToolbarItem::slider`, ~72 DIP, greyed while muted; tooltip
+  「音量 60%（Ctrl+↑ / Ctrl+↓）」). Drag / click on it sets whole percents
+  (`VideoWindow::setLiveToolbarSlider`), the wheel over the slider or the
+  speaker steps one phone step. Narrow windows: the slider is left out only
+  after every optional button, the speaker (also optional) only after it.
+* **Keys**: Ctrl+↑ / Ctrl+↓ one phone step up / down (snapped to the phone's
+  grid), Ctrl+M 靜音 on / off — free before (Ctrl+← / → rotate; arrows without
+  Ctrl pan while magnified; Ctrl+Up/Down/M are never forwarded to an Android
+  phone). Every change shows a toast 「音量 60%」 / 「已靜音」; phone changes
+  too, except in the first 3 s of a connection (its initial report).
+* **Menus**: 「音量：60%」 / 「音量：靜音」 ▸ in the tray menu (after 中斷連線)
+  and the right-click menu (after 視窗置頂): 靜音 ✓ (Ctrl+M), 調大聲 (Ctrl+↑),
+  調小聲 (Ctrl+↓), 100 % / 75 % / 50 % / 25 % (radio; on the phone's grid),
+  note 「手機的音量鍵也會調整這裡」.
+* **DevCommand ids**: 260 靜音 toggle, 261 up, 262 down, 270–273 = 100 / 75 /
+  50 / 25 %. Log: `volume: 60% (-12.00 dB) by …`, `volume: phone set …`.
+* Tests: `pm_volume_test` (scale, steps, mute / unmute / phone mute, no
+  device or network).
 
 ## 錄影 (recording)
 
@@ -639,6 +709,10 @@ loop like `TrackPopupMenu(TPM_RETURNCMD)`; `main.cpp` passes the id to
   text formats and the window class are created at startup
   (`pm::ui::warmUp()`); first open measured ~10–14 ms (logged once:
   `menu opened in … ms`).
+* Motion (0.7.4): each level fades in over 90 ms; a row's highlight eases in
+  over 100 ms and out over 150 ms; a held mouse button shows a stronger
+  pressed highlight; keyboard navigation draws an accent focus ring. All of it
+  is off when Windows' Animation effects are off (SPI_GETCLIENTAREAANIMATION).
 * Placement: top-left at the point, flipped left / up when it would leave the
   monitor's work area, then clamped (so a tray menu sits above the taskbar).
   Submenus open beside the parent row (right, else left), first item level
@@ -647,8 +721,8 @@ loop like `TrackPopupMenu(TPM_RETURNCMD)`; `main.cpp` passes the id to
   whole pixels. Checked at 100 % and 175 %.
 * Input: the root window takes the mouse capture; a click outside any menu
   closes it (the click is eaten, like native menus). Items fire on button
-  up (left or right). Hovering a submenu row opens it after 250 ms (another
-  row closes it after 250 ms); clicking opens it at once. Keyboard: Up / Down
+  up (left or right). Hovering a submenu row opens it after 200 ms (another
+  row closes it after 200 ms); clicking opens it at once. Keyboard: Up / Down
   (wrap, skip separators and disabled items), Home / End, Right / Enter
   opens a submenu with its first item focused, Left / Esc closes one level,
   Esc at the root / Alt / F10 / Win closes all, Enter / Space runs the item.
@@ -712,7 +786,8 @@ the core.
   written once set; see 自動更新; scripts that edit settings.ini must write
   UTF-8 without a BOM), `updated_to` (only between starting an
   update and the next start), `skip_version` (略過這個版本; only written once set). Unknown/missing keys take defaults; the
-  file is rewritten when a setting changes. Phone volume stays in `volume.txt`.
+  file is rewritten when a setting changes. Phone volume stays in `volume.txt`;
+  `mute` (靜音, default 0) only silences it (see 音量 / 靜音).
 * pm_audio's diagnostic lines go to `phonemirror.log` (`AudioPlayerConfig::log`, level `audio`).
 * Autostart = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value
   `自在投影` = `"<exe>" --background`. The registry is the source of truth
@@ -883,6 +958,30 @@ filter stays (settings.ini `filter=`).
   the zoom.
 * **Tray menu**: 放大鏡 ▸ while a picture is shown, 翻譯 ▸ always (翻成 / models);
   a translate command from the tray shows the window first.
+* **Translation settings** (0.7.4, `app/tr_settings.*` on the declarative
+  `app/settings_panel.*`: switch, options, buttons, links, progress, EDIT
+  boxes; scrolls when taller than the screen, footer buttons pinned): 翻譯 ▸
+  after 管理翻譯模型 ▸, 「本機 AI 翻譯…」 (`pm/llm_translate.h`: 啟用, model
+  建議（較準確） = Qwen3.5-2B / 較小、較快 = 0.8B, 使用顯示卡加速 greyed with
+  the reason without a discrete GPU >= 3 GB, 目前使用：…, 下載（約 …） /
+  繼續下載 after a consent dialog with `describeDownload()` (not translated)
+  under the localised text, download on a worker thread with 下載中 N%（a/b
+  MB） + 取消, 移除 after a red confirm, one message per `Result`, 記憶體不足…)
+  and 「線上翻譯（選用）…」 ✓ while on (`pm/online_translate.h`,
+  launch/_work/tr_arch/ONLINE_UI_SPEC.md: 啟用, DeepL / Microsoft Azure
+  Translator, 只在離線翻譯沒把握時 (Escalate) / 每一段都先用線上 (All), masked
+  key box (`keyHint` only, never read back), Azure 資源區域, 測試連線
+  (`testKey` / `testStoredKey`, plan + used / limit or a sample), back-off
+  line + 重試 (`blockedStatus` / `resetBackoff`), privacy note with 服務條款 /
+  隱私權說明 / 如何取得金鑰 (steps + free plan), 儲存 asks the consent of the
+  chosen provider first (`needsConsent` → `setConsent`), `StoreError`
+  messages, 移除金鑰並全部關閉 = `forgetAll`). `setOnlineAllowed` follows the
+  saved switch at start and after every save (never with
+  `--test-no-network`). After a translation: blocks with
+  `ScreenTranslator::Item::online` get a 「線上」 badge (card corner, list
+  row; `VideoWindow::setTextOverlayOnline`), and a new `online::lastStatus()`
+  failure is a toast once. Turning screen translation on calls
+  `local_llm::warmUp()`.
 * **Toolbar** (new group after 全螢幕, only with a picture): 放大鏡 (U+E71E,
   click 1× → 2× → 4× → 1×, toggled while zoomed, tooltip with the zoom),
   翻譯 (U+E8C1, translate / close, toggled while a translation is up), 凍結

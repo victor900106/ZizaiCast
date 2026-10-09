@@ -97,6 +97,43 @@ assets/public/toutou/，程式內嵌的圖層在 video/res/toutou/，圖示為 a
      授權　　：Apache License 2.0 — 附錄 A
      著作權　：Copyright (c) 2011 Apple Inc. All rights reserved.
 
+1.9  詞彙表資料（translate/src/glossary_data.inc，畫面翻譯，0.7.4）
+     畫面翻譯用的日文／韓文／英文 → 繁體中文（台灣用語）詞彙對照，用於菜單、
+     車站、標示和介面用語；以表格形式編譯進 自在投影.exe。來源：
+       a) Wikidata（https://www.wikidata.org）的項目標籤與別名，
+          2026-10-09 取得（標記為 wikidata:Q…）。
+          授權　：CC0 1.0（公眾領域貢獻；仍標示出處）
+       b) 在地化用語：簡短的介面用詞（msgid → zh_TW msgstr），只保留下列
+          多個專案一致的翻譯（標記為 l10n:…）：
+          GNOME zh_TW 翻譯（l10n.gnome.org，34 個模組，如 gtk、glib、
+            nautilus、gnome-control-center、evince）
+            授權：依各模組 — GPL-2.0-or-later、GPL-3.0-or-later 或
+            LGPL-2.x-or-later
+          KDE zh_TW 翻譯（l10n-kf6，24 個模組，如 kxmlgui、kio、dolphin、
+            okular、kate）
+            授權：GPL-2.0-or-later／LGPL-2.x-or-later（kdeconnect-kde：
+            GPL-2.0-only OR GPL-3.0-only）
+          LibreOffice zh-TW 翻譯（https://github.com/LibreOffice/translations）
+            授權：Mozilla Public License 2.0 — 附錄 G
+          Mozilla Firefox zh-TW 在地化（https://github.com/mozilla-l10n/firefox-l10n）
+            授權：Mozilla Public License 2.0 — 附錄 G
+          著作權：GNOME、KDE、LibreOffice、Mozilla 各在地化專案的譯者與貢獻者。
+       c) OpenCC（https://github.com/BYVoid/OpenCC，Apache-2.0）：只在建置時
+          把部分標籤轉成台灣繁體用字；不含任何 OpenCC 程式碼或字典。
+       d) 本專案自行編寫的清單（GPL-3.0，與本程式相同）。
+     GPL／LGPL 部分依其「或更新版本」選項（KDE Connect 依其 GPL-3.0 選項）、
+     MPL-2.0 部分依其第 3.3 條（未標示「Incompatible With Secondary
+     Licenses」）使用，因此整份表格隨本程式以 GPL-3.0 散布。其原始碼形式就是
+     這個檔案本身，收在原始碼壓縮檔中（由 translate/tools/make_glossary_inc.py
+     產生）。授權全文：附錄 F（GPL-3.0）、附錄 B（LGPL-2.1）、附錄 G（MPL-2.0）。
+
+1.10 llama.cpp／ggml C 標頭檔（translate/src/llm_api/，0.7.4）
+     版本　　：標籤 b11514（commit de7fa0a3c6a2e1b4cd9f22eb8d6bf5b12dbdb63b），
+               未經修改；用來呼叫 llama.dll（2d.1），llama.dll 不在安裝程式內。
+     來源　　：https://github.com/ggml-org/llama.cpp
+     授權　　：MIT — 附錄 H.1（translate/src/llm_api/LICENSE）
+     著作權　：Copyright (c) 2023-2026 The ggml authors
+
 
 ------------------------------------------------------------------------------
 第二部分　與 自在投影.exe 一起安裝的 DLL（資料夾 程式\）
@@ -245,6 +282,50 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
      授權　　：Apache License 2.0 — 附錄 A
      著作權　：Copyright (c) PaddlePaddle Authors
 
+------------------------------------------------------------------------------
+第二之四部分　程式另外下載的選用元件（不在安裝程式內，0.7.4）
+------------------------------------------------------------------------------
+以下元件不由本專案散布，也不在安裝程式內：只有在使用者要使用該功能時
+（翻譯設定），程式才從各自的發布者下載，逐一檢查大小與 SHA-256
+（translate/src/llm_engine_models.inc、translate/src/ocr_gpu.inc），存放在
+%LOCALAPPDATA%\PhoneMirror\models，可在該處或程式的模型管理中刪除。
+
+2d.1 llama.cpp 執行環境（本機 AI 翻譯）— llama.dll、ggml*.dll
+     版本　　：release b11514（commit de7fa0a3c6a2e1b4cd9f22eb8d6bf5b12dbdb63b），
+               官方 Windows 版 llama-b11514-bin-win-cpu-x64.zip，選用的顯示卡
+               加速 ggml-vulkan.dll 取自 llama-b11514-bin-win-vulkan-x64.zip，
+               未經修改，來自 https://github.com/ggml-org/llama.cpp/releases/tag/b11514
+     授權　　：MIT — 附錄 H.1
+     著作權　：Copyright (c) 2023-2026 The ggml authors
+     另含　　：libomp.dll（LLVM OpenMP 執行環境），Apache-2.0 WITH
+               LLVM-exception；授權檔 LICENSE-LLVM-OpenMP 一併解壓在旁。
+     原始碼　：https://github.com/ggml-org/llama.cpp/tree/b11514
+
+2d.2 Qwen 語言模型（本機 AI 翻譯），GGUF 檔
+     Qwen3.5-2B（Q4_K_M，huggingface.co/unsloth/Qwen3.5-2B-GGUF）、
+     Qwen3-1.7B（Q4_K_M，huggingface.co/ggml-org/Qwen3-1.7B-GGUF）、
+     Qwen3.5-0.8B（Q4_0，huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF），
+     皆固定在各儲存庫的指定 commit。
+     來源　　：https://huggingface.co/Qwen  https://github.com/QwenLM
+     授權　　：Apache License 2.0 — 附錄 A
+     著作權　：Copyright (c) Alibaba Cloud（Qwen 團隊）
+
+2d.3 用顯示卡做文字辨識（DirectML 附加元件）
+     onnxruntime.dll 1.24.4 DirectML 版（NuGet 套件
+       Microsoft.ML.OnnxRuntime.DirectML 1.24.4）— MIT，Copyright (c)
+       Microsoft Corporation（授權與聲明同 2c.1）。
+     DirectML.dll 1.15.4（NuGet 套件 Microsoft.AI.DirectML 1.15.4）—
+       Microsoft DirectML 授權條款
+       （https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4/License），
+       Copyright (c) Microsoft Corporation。由使用者的程式直接從 Microsoft 的
+       套件來源（api.nuget.org）下載，本專案不再散布，也不屬於對應原始碼。
+       （Windows 10 1903 以後的版本本身也內建 DirectML.dll。）
+
+2d.4 線上翻譯（選用，預設關閉）
+     只有在使用者開啟後，才用使用者自己的金鑰把辨識出的文字送到 DeepL API
+     或 Microsoft Azure AI Translator。不含這些服務的任何程式碼；適用使用者與
+     服務提供者之間的條款。
+
 
 ------------------------------------------------------------------------------
 第三部分　獨立程式（資料夾 程式\android-tools\）
@@ -315,10 +396,17 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
   （MPL-2.0 §3.3，各元件均未標示「Incompatible With Secondary Licenses」）；
   其餘為 MIT／BSD／zlib／Apache-2.0。刻意不連結與 GPL 不相容的 Intel MKL。
 * FFmpeg 必須維持 LGPL 組態（不得啟用 gpl／version3／nonfree 功能）。
+* 詞彙表資料（1.9）：CC0（Wikidata）、GPL-2.0+／GPL-3.0+／LGPL-2.x+（GNOME、
+  KDE；kdeconnect 為 GPL-2.0-only OR GPL-3.0-only，依 GPL-3.0 使用）與 MPL-2.0
+  （LibreOffice、Mozilla；第 3.3 條）皆與 GPL-3.0 相容。
+* 第二之四部分的附加元件不隨本程式散布：llama.cpp（MIT）、LLVM OpenMP
+  （Apache-2.0 WITH LLVM-exception）、Qwen 模型（Apache-2.0）、ONNX Runtime
+  （MIT）本身也與 GPL-3.0 相容；DirectML.dll（Microsoft 授權）由使用者從
+  Microsoft 下載，只在使用者安裝該附加元件後經由 ONNX Runtime 載入。
 
 
 ==============================================================================
-附錄 A — Apache License 2.0（OpenSSL、pthreads4w、ALAC、adb、scrcpy-server、PaddleOCR 模型適用）
+附錄 A — Apache License 2.0（OpenSSL、pthreads4w、ALAC、adb、scrcpy-server、PaddleOCR 模型、Qwen 模型適用）
 ==============================================================================
 
 

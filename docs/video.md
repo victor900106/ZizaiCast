@@ -41,6 +41,7 @@ win.runMessageLoop();                      // until the window is closed
 | `showPin(pin)` | Any thread. Centred PIN card over whatever is showing; `L""` hides it (both fade 160 ms). |
 | `showToast(text)` / `showToast(text, holdMs)` | Any thread. Bottom-centre pill, fully visible ~2.5 s (or `holdMs`) then fades; a new toast replaces the old one. Too long for one line: wraps (after the first 「。」 if there is one) into a rounded card. |
 | `setLiveToolbar(items, onClick)` | Any thread. `ToolbarItem { id, glyph, tooltip, toggled, danger, groupStart }`: the live toolbar (see *Live toolbar*); `onClick(id)` **on the UI thread**. `{}` removes it. |
+| `setLiveToolbarSlider(onSlide, onWheel)` | Handlers for `ToolbarItem::slider` items (drag: `onSlide(id, value, done)`, wheel: `onWheel(id, notches)`), **on the UI thread**. |
 | `saveSnapshot(path)` | Call from the UI thread (any thread works). The worker renders the current picture through the same NV12→RGB shader into an offscreen texture of the visible size (no letterbox; current rotation / mirror applied), the caller encodes a 24-bit PNG with WIC. ~50 ms for 1170x2532 (mostly PNG encoding). While waiting it only services cross-thread *sent* messages (no input re-entrancy). False if no picture was ever shown. |
 | `saveSnapshotFramed(path)` | Same, inside the device frame (bezel, rounded screen corners, Dynamic Island, side buttons) on a transparent background: 32-bit PNG with straight alpha, e.g. 2696x1334 for a 2532x1170 picture. Works whether or not `setDeviceFrame` is on. |
 | `saveWindowShot(path)` | Test / docs hook: draws the window now (status screen with the mascot, overlays or picture, exactly as shown) and saves the client area as a 24-bit PNG from the back buffer (copied right before `Present`), so it works off-screen or covered. False if minimized / device lost. |
@@ -297,6 +298,16 @@ Android picture cannot open: that click is 返回).
   side × 0.122 + 8); moved below the REC badge when they would overlap.
   Card colour 95 %, 1 px accent hairline at 38 %, soft shadow; icons are
   Segoe Fluent Icons (Windows 11) or Segoe MDL2 Assets at 0.42 × button size.
+* **Slider items** (`ToolbarItem::slider` ≥ 0, the app's volume): 72/36 of a
+  button wide; track inset 0.22 × height at each end
+  (`Renderer::kToolSliderInset`, the same mapping for input), filled in the
+  accent up to the knob (grey while `toggled` = muted). A press on it captures
+  the mouse and drags: the knob follows at once (UI-side copy of the items)
+  and `setLiveToolbarSlider`'s `onSlide(id, value 0..1, done)` runs on the UI
+  thread; the toolbar stays up during the drag, a lost capture ends it. The
+  wheel over the slider or the button just before it calls `onWheel(id,
+  notches)`. Narrow windows: a slider is left out only after every optional
+  button, and an optional button right before it (its speaker) only after it.
 * **States.** Hover: accent disc (26 %). `danger` (中斷連線): icon `#FF6B6B`,
   hover = solid red disc with a white icon. `toggled` (recording): red disc
   24 % (36 % hovered), red icon and a pulsing red dot at the top-right.
