@@ -2,7 +2,8 @@
 # playback.
 #
 # AAC (ct=8 ELD, ct=4 LC) uses FFmpeg's native "aac" decoder, LGPL-only build:
-#   vcpkg install "ffmpeg[core,avcodec]:x64-windows"
+#   vcpkg install "ffmpeg[core,avcodec]:x64-windows" --overlay-ports=tools/vcpkg-overlay
+# (the overlay port builds only the native aac decoder/parser + avutil)
 # (no gpl/nonfree features; the player logs avcodec_license() once). Shipped
 # DLLs: avcodec-*.dll + avutil-*.dll. fdk-aac (GPL-incompatible license) is NOT
 # linked into pm_audio; only the unshipped pm_audio_test uses its *encoder*

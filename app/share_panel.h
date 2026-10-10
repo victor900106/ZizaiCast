@@ -81,9 +81,18 @@ private:
 
 class ShareChip {
 public:
+    // One clickable part of the chip: glyph (Segoe Fluent Icons) + label.
+    struct Action {
+        wchar_t glyph = 0;
+        std::wstring label;
+        std::function<void()> onClick;
+    };
     // Shows (or refreshes) the chip over the bottom of `owner`'s client area
     // for `ms`; onClick runs on a click (the chip hides first).
     void show(HWND owner, std::function<void()> onClick, int ms = 8000);
+    // 0.7.8: several actions side by side (截圖已儲存 → 開啟資料夾 · 傳到手機),
+    // then the ×.
+    void show(HWND owner, std::vector<Action> actions, int ms = 8000);
     void hide();
     bool visible() const { return hwnd_ != nullptr; }
     void reposition();  // owner moved / resized
@@ -94,12 +103,14 @@ public:
 
 private:
     void paint();
-    void draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, float w, float h, bool hotMain, bool hotClose);
+    void draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, float w, float h, int hot);
     float widthDip() const;
+    float actionW(size_t i) const;  // DIPs of action i
+    int hitAt(int xPx) const;       // 1..n an action, n + 1 the ×
     HWND hwnd_ = nullptr, owner_ = nullptr;
-    std::function<void()> onClick_;
+    std::vector<Action> actions_;
     UINT dpi_ = 96;
-    int hot_ = 0;  // 0 none, 1 main, 2 ×
+    int hot_ = 0;  // 0 none, 1..n an action, n + 1 ×
     bool tracking_ = false;
     int ms_ = 8000;
     struct Impl;

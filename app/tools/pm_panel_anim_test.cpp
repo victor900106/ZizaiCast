@@ -37,7 +37,11 @@ void pump(int ms) {
     const auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
     while (std::chrono::steady_clock::now() < end) {
         MSG m;
-        while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
+        // Stop at `end` even if the queue never empties: an opening panel
+        // repaints on every 16 ms fade tick, and when a paint takes longer
+        // than that (HwndRenderTarget EndDraw waits for vblank) an unbounded
+        // drain ran the whole fade before the strip's first shot.
+        while (std::chrono::steady_clock::now() < end && PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
             TranslateMessage(&m);
             DispatchMessageW(&m);
         }
@@ -168,6 +172,12 @@ int wmain(int argc, wchar_t** argv) {
         if (!a0) a0 = a ? a : 1;
         a1 = a;
     }, {0, 40, 80, 120, 160, 240});
+    // The fade's clock starts at the first paint (PanelFade::painted), which
+    // can itself take 100-200 ms, so 240 ms after open() it may still run:
+    // wait for its end (<= 1.5 s), then take the "end" alpha.
+    for (int i = 0; i < 750 && (GetWindowLongPtrW(askH, GWL_EXSTYLE) & WS_EX_LAYERED); ++i) pump(2);
+    shot(askH, dir + L"\\ask_open_end.png", &a1);
+    std::printf("  ask_open end alpha %d\n", a1);
     RECT ar{};
     GetWindowRect(askH, &ar);
     expect(!MonitorFromRect(&ar, MONITOR_DEFAULTTONULL), "AskPanel is off every monitor");

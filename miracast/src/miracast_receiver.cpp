@@ -69,7 +69,7 @@ const wchar_t* kReasonFeature =
     L"請先安裝 Windows 選用功能「無線顯示器」：設定 → 系統 → 選用功能 → 檢視功能 → 搜尋「無線顯示器」→ 安裝（需要網路，約 1 分鐘）。";
 const wchar_t* kReasonReboot = L"Windows 選用功能「無線顯示器」已安裝，請重新開機後再使用 Android 投影。";
 const wchar_t* kReasonHardware =
-    L"這台電腦目前無法接收 Android 投影（Miracast）：請確認 Wi-Fi 已開啟；若沒有 Wi-Fi 網卡、或網卡/顯示卡驅動程式不支援 Wi-Fi Direct，請改用 USB 連線。";
+    L"這台電腦目前無法接收 Android 投影（Miracast）：請確認 Wi-Fi 已開啟；若沒有 Wi-Fi 網卡、或網卡/顯示卡驅動程式不支援 Wi-Fi Direct，請改用「Android 用電腦操控」（無線偵錯）。";
 const wchar_t* kReasonPolicy = L"Android 投影（Miracast 接收）已被系統管理原則停用。";
 const wchar_t* kReasonBusy =
     L"Miracast 接收暫時無法使用：可能是 Windows「連線」應用程式或其他投影接收程式正在使用，或 Wi-Fi 已關閉。";

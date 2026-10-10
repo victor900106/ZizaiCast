@@ -135,16 +135,43 @@ std::string httpDate(std::time_t t) {
     return buf;
 }
 
+// A blocking send() to a phone that stopped reading (socket buffers full)
+// sits there until SO_SNDTIMEO (30 s), and Windows does not wake it for
+// shutdown() from stop(): stop() / quitting hung for 30 s. So the socket is
+// non-blocking while sending here, waiting in 100 ms steps that look at
+// `stop`; no progress for kSendTimeoutMs still gives up as before.
 bool sendAll(SOCKET s, const char* p, size_t n, const std::atomic<bool>& stop) {
+    u_long nb = 1;
+    ioctlsocket(s, FIONBIO, &nb);
+    auto lastProgress = std::chrono::steady_clock::now();
+    bool ok = true;
     while (n > 0) {
-        if (stop) return false;
+        if (stop) {
+            ok = false;
+            break;
+        }
         const int chunk = int(std::min<size_t>(n, 1 << 20));
         const int k = send(s, p, chunk, 0);
-        if (k <= 0) return false;
-        p += k;
-        n -= size_t(k);
+        if (k > 0) {
+            p += k;
+            n -= size_t(k);
+            lastProgress = std::chrono::steady_clock::now();
+            continue;
+        }
+        if (k == 0 || WSAGetLastError() != WSAEWOULDBLOCK ||
+            std::chrono::steady_clock::now() - lastProgress > std::chrono::milliseconds(kSendTimeoutMs)) {
+            ok = false;
+            break;
+        }
+        fd_set wr;
+        FD_ZERO(&wr);
+        FD_SET(s, &wr);
+        timeval tv{0, 100 * 1000};
+        select(0, nullptr, &wr, nullptr, &tv);
     }
-    return true;
+    nb = 0;
+    ioctlsocket(s, FIONBIO, &nb);  // recv() in serve() stays blocking (SO_RCVTIMEO)
+    return ok;
 }
 
 const char* reason(int status) {

@@ -31,7 +31,8 @@ struct Host {
 bool available();
 void init(Host host);
 // Cancels a running download (waits a moment for it), closes the panels.
-void shutdown();
+// last: the end of wWinMain - also joins every worker still running.
+void shutdown(bool last = false);
 
 void openLocalAi();
 void openOnline();

@@ -41,11 +41,45 @@ add_library(pm_video STATIC
   src/mf_decoder.h
   src/mf_decoder.cpp
   src/renderer.h
+  src/renderer_internal.h
   src/renderer.cpp
-  src/text_overlay.cpp
+  src/renderer_device.cpp
+  src/renderer_picture.cpp
+  src/renderer_ui_state.cpp
+  src/renderer_toolbar.cpp
+  src/renderer_d2d.cpp
+  src/renderer_mascot.cpp
+  src/renderer_idle.cpp
+  src/renderer_frame.cpp
+  src/renderer_device_frame.cpp
+  src/renderer_freeze.cpp
+  src/renderer_magnifier.cpp
+  src/renderer_tap.cpp
+  src/text_overlay_util.h
+  src/text_overlay_layout.cpp
+  src/text_overlay_draw.cpp
+  src/live_scroll_tracker.h
+  src/live_scroll_tracker.cpp
+  src/live_overlay.cpp
   src/ui_art.h
   src/ui_art.cpp
+  src/video_window_internal.h
+  src/video_window_impl.h
   src/video_window.cpp
+  src/video_window_ui_api.cpp
+  src/video_window_view_api.cpp
+  src/vw_device.cpp
+  src/vw_decode.cpp
+  src/vw_worker.cpp
+  src/vw_watchdog.cpp
+  src/vw_monitor.cpp
+  src/vw_idle_ui.cpp
+  src/vw_toolbar.cpp
+  src/vw_input.cpp
+  src/vw_magnifier.cpp
+  src/vw_overlay_select.cpp
+  src/vw_wndproc.cpp
+  src/video_log.cpp
   ${PM_TOUTOU_HEADERS}
   res/toutou/toutou_layout.h
 )
@@ -64,4 +98,13 @@ target_link_libraries(pm_video_test PRIVATE pm_video)
 if(MSVC)
   target_compile_options(pm_video_test PRIVATE /W4 /utf-8)
   target_compile_definitions(pm_video_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+endif()
+
+# 即時翻譯 scroll tracking: offline test on scrolled screenshots (launch/_work/eval_web/png).
+add_executable(pm_scroll_test tools/pm_scroll_test.cpp src/live_scroll_tracker.cpp)
+target_link_libraries(pm_scroll_test PRIVATE windowscodecs ole32)
+target_compile_features(pm_scroll_test PRIVATE cxx_std_20)
+if(MSVC)
+  target_compile_options(pm_scroll_test PRIVATE /W4 /utf-8)
+  target_compile_definitions(pm_scroll_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()

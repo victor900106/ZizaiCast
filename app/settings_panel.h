@@ -40,6 +40,7 @@ public:
             Edit,      // one-line edit box (id), sub = cue banner
             Rule,      // hairline separator
             Space,     // a little room
+            KeyRow,    // label on the left, `sub` as a key cap on the right (快速鍵一覽, 0.7.8)
         };
         Kind kind = Kind::Text;
         int id = 0;

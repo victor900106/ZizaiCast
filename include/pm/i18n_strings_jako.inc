@@ -12,6 +12,8 @@ PM_JAKO(FilePrefix, L"ZizaiCast",
         L"ZizaiCast")
 PM_JAKO(TrayTip, L"{0} — iPhone / Android 画面ミラーリング",
         L"{0} — iPhone / Android 화면 미러링")
+PM_JAKO(TrayTipRec, L"{0} — 録画中",
+        L"{0} — 녹화 중")
 PM_JAKO(DevBuild, L"テスト版",
         L"개발 빌드")
 PM_JAKO(Version, L"バージョン {0}",
@@ -98,8 +100,8 @@ PM_JAKO(MenuDeviceFrame, L"iPhone の枠",
         L"iPhone 프레임")
 PM_JAKO(OptAutostart, L"Windows の起動時に開始",
         L"Windows 시작 시 실행")
-PM_JAKO(OptPin, L"接続に PIN を要求",
-        L"연결 시 PIN 요구")
+PM_JAKO(OptPin, L"新しいスマホは PIN で接続",
+        L"새 휴대폰은 PIN으로 연결")
 PM_JAKO(OptMiracast, L"Android のキャストを受け入れる（Miracast）",
         L"Android 화면 전송 허용(Miracast)")
 PM_JAKO(MiracastNoPc, L"この PC は Miracast を受信できません",
@@ -110,24 +112,24 @@ PM_JAKO(OptAndroidAuto, L"ペア設定済みの Android に自動接続",
         L"페어링된 Android 자동 연결")
 PM_JAKO(MenuQuality, L"画質",
         L"화질")
-PM_JAKO(QualityStd, L"標準",
-        L"표준")
-PM_JAKO(QualityHigh, L"高 · おすすめ",
-        L"높음 · 권장")
-PM_JAKO(QualityMax, L"最高",
-        L"최고")
+PM_JAKO(QualityStd, L"標準（なめらか）",
+        L"표준(부드러움)")
+PM_JAKO(QualityHigh, L"高（おすすめ）",
+        L"높음(권장)")
+PM_JAKO(QualityMax, L"最高（通信量が多め）",
+        L"최고(네트워크 많이 사용)")
 PM_JAKO(QualityHevcNote, L"高・最高には HEVC ビデオ拡張機能が必要",
         L"높음/최고는 HEVC 비디오 확장 필요")
-PM_JAKO(MenuTakeover, L"新しいスマホが接続したとき",
-        L"새 휴대폰 연결 시")
-PM_JAKO(TakeoverNew, L"切り替える",
-        L"전환")
-PM_JAKO(TakeoverNewNote, L"新しいスマホを表示",
-        L"새 휴대폰 화면 표시")
-PM_JAKO(TakeoverKeep, L"今のまま",
-        L"현재 유지")
-PM_JAKO(TakeoverKeepNote, L"先に接続したスマホを継続",
-        L"먼저 연결된 휴대폰 유지")
+PM_JAKO(MenuTakeover, L"2 台目のスマホが接続したとき",
+        L"두 번째 휴대폰이 연결되면")
+PM_JAKO(TakeoverNew, L"新しいスマホに切り替える",
+        L"새 휴대폰으로 전환")
+PM_JAKO(TakeoverNewNote, L"後から来たスマホを表示",
+        L"나중에 연결된 휴대폰 표시")
+PM_JAKO(TakeoverKeep, L"今のスマホのまま",
+        L"지금 휴대폰 유지")
+PM_JAKO(TakeoverKeepNote, L"新しいスマホは表示しない",
+        L"새 휴대폰은 표시 안 함")
 PM_JAKO(MenuLanguage, L"言語 / Language",
         L"언어 / Language")
 PM_JAKO(LangAuto, L"自動（Windows に合わせる）",
@@ -256,8 +258,8 @@ PM_JAKO(QualityMaxLabel, L"最高（3840×2160）",
         L"최고(3840×2160)")
 PM_JAKO(NeedHevc, L"HEVC ビデオ拡張機能が必要です（Microsoft Store）",
         L"HEVC 비디오 확장 필요(Microsoft Store)")
-PM_JAKO(QualityDeferred, L"画質の設定はミラーリング終了後に適用されます",
-        L"화질 설정은 미러링이 끝나면 적용됩니다")
+PM_JAKO(QualityDeferred, L"新しい画質はミラーリング終了後に適用されます",
+        L"새 화질은 미러링이 끝나면 적용됩니다")
 PM_JAKO(QualityToast, L"画質：{0}",
         L"화질: {0}")
 PM_JAKO(AvSyncOn, L"映像と音声の同期：オン（映像が少し遅れ、音声と口の動きが合います）",
@@ -308,10 +310,10 @@ PM_JAKO(ThemeMilkTea, L"ミルクティー",
         L"밀크티")
 PM_JAKO(ThemeToast, L"テーマ：{0}",
         L"테마: {0}")
-PM_JAKO(TakeoverKeepToast, L"新しいスマホが接続したとき：今のまま",
-        L"새 휴대폰 연결 시: 현재 유지")
-PM_JAKO(TakeoverNewToast, L"新しいスマホが接続したとき：切り替える",
-        L"새 휴대폰 연결 시: 전환")
+PM_JAKO(TakeoverKeepToast, L"2 台目のスマホが接続したとき：今のスマホのまま",
+        L"두 번째 휴대폰이 연결되면: 지금 휴대폰 유지")
+PM_JAKO(TakeoverNewToast, L"2 台目のスマホが接続したとき：新しいスマホに切り替える",
+        L"두 번째 휴대폰이 연결되면: 새 휴대폰으로 전환")
 PM_JAKO(AppliesAfter, L"{0}（ミラーリング終了後に適用）",
         L"{0}(미러링 종료 후 적용)")
 PM_JAKO(LangToast, L"言語：{0}",
@@ -322,8 +324,8 @@ PM_JAKO(UpdDisabled, L"アップデートの確認はオフです（settings.ini
         L"업데이트 확인이 꺼져 있습니다(settings.ini의 update_url이 비어 있음)")
 PM_JAKO(UpdChecking, L"アップデートを確認しています…",
         L"업데이트 확인 중…")
-PM_JAKO(UpdAvailable, L"バージョン {0} が利用できます。ツールバーまたはメニューの「アップデート」をクリックしてください。",
-        L"새 버전 v{0}이(가) 있습니다. 도구 모음이나 메뉴에서 ‘업데이트’를 클릭하세요.")
+PM_JAKO(UpdAvailable, L"バージョン {0} が利用できます。ツールバーまたはメニューの「v{0} にアップデート」をクリックしてください。",
+        L"새 버전 v{0}이(가) 있습니다. 도구 모음이나 메뉴에서 ‘v{0}(으)로 업데이트’를 클릭하세요.")
 PM_JAKO(UpdBalloonTitle, L"{0} {1} が利用できます",
         L"{0} {1} 버전이 나왔습니다")
 PM_JAKO(UpdBalloonText, L"メニューで「v{0} にアップデート」を選ぶと、ワンクリックでアップデートできます。",
@@ -382,22 +384,22 @@ PM_JAKO(UpdDlgLater, L"後で通知",
         L"나중에 알림")
 PM_JAKO(UpdDlgSkip, L"このバージョンをスキップ",
         L"이 버전 건너뛰기")
-PM_JAKO(TrayHintTitle, L"{0} はバックグラウンドで実行中です",
-        L"{0}이(가) 계속 실행 중입니다")
-PM_JAKO(TrayHintText, L"通知領域に最小化しました。受信は続いており、スマホが接続するとウィンドウが自動で表示されます。アイコンをクリックすると開き、終了するにはアイコンを右クリック → 終了。",
-        L"알림 영역으로 최소화되었으며 계속 수신 중입니다. 휴대폰이 연결되면 창이 자동으로 나타납니다. 아이콘을 클릭하면 창이 열리고, 종료하려면 아이콘을 오른쪽 클릭 → 종료를 선택하세요.")
+PM_JAKO(TrayHintTitle, L"{0} はバックグラウンドで待機中です",
+        L"{0}이(가) 백그라운드에서 대기 중입니다")
+PM_JAKO(TrayHintText, L"スマホが接続するとウィンドウが自動で表示されます。アイコンはタスクバーの右側にあり、見えないときは「^」を開いてタスクバーへドラッグすると常に表示されます。",
+        L"휴대폰이 연결되면 창이 자동으로 나타납니다. 아이콘은 작업 표시줄 오른쪽에 있으며, 보이지 않으면 \"^\"를 눌러 작업 표시줄로 끌어다 놓으세요.")
 PM_JAKO(LostIphone, L"接続が切れました。iPhone でもう一度「画面ミラーリング」を選んでください。",
         L"연결이 끊겼습니다. iPhone에서 화면 미러링을 다시 선택하세요.")
 PM_JAKO(LostAndroid, L"Android との接続が切れました。ワイヤレス デバッグがオンのままか確認してください。",
         L"Android 연결이 끊겼습니다. 무선 디버깅이 아직 켜져 있는지 확인하세요.")
 PM_JAKO(LostRec, L"接続が切れました。録画を保存しました：{0}",
         L"연결이 끊겼습니다. 녹화 저장됨: {0}")
-PM_JAKO(RefusedIphone, L"「{0}」をミラーリング中のため、「{1}」を拒否しました（新しいスマホ：今のまま）",
-        L"“{0}”이(가) 미러링 중이므로 “{1}”을(를) 거부했습니다(새 휴대폰: 현재 유지)")
-PM_JAKO(RefusedMiracast, L"「{0}」をミラーリング中のため、「{1}」からのキャストを拒否しました（新しいスマホ：今のまま）",
-        L"“{0}”이(가) 미러링 중이므로 “{1}”의 화면 전송을 거부했습니다(새 휴대폰: 현재 유지)")
-PM_JAKO(AndroidBusy, L"「{0}」をミラーリング中です。「{1}」はペア設定済みで、後で接続できます（新しいスマホ：今のまま）",
-        L"“{0}”이(가) 미러링 중입니다. “{1}”은(는) 페어링되어 나중에 연결할 수 있습니다(새 휴대폰: 현재 유지)")
+PM_JAKO(RefusedIphone, L"「{0}」をミラーリング中のため、「{1}」を拒否しました（2 台目のスマホ：今のスマホのまま）",
+        L"“{0}”이(가) 미러링 중이므로 “{1}”을(를) 거부했습니다(두 번째 휴대폰: 지금 휴대폰 유지)")
+PM_JAKO(RefusedMiracast, L"「{0}」をミラーリング中のため、「{1}」からのキャストを拒否しました（2 台目のスマホ：今のスマホのまま）",
+        L"“{0}”이(가) 미러링 중이므로 “{1}”의 화면 전송을 거부했습니다(두 번째 휴대폰: 지금 휴대폰 유지)")
+PM_JAKO(AndroidBusy, L"「{0}」をミラーリング中です。「{1}」はペア設定済みで、後で接続できます（2 台目のスマホ：今のスマホのまま）",
+        L"“{0}”이(가) 미러링 중입니다. “{1}”은(는) 페어링되어 나중에 연결할 수 있습니다(두 번째 휴대폰: 지금 휴대폰 유지)")
 PM_JAKO(TookOver, L"「{0}」に切り替えました",
         L"“{0}”(으)로 전환됨")
 PM_JAKO(RecSavedSuffix, L"{0}（録画を保存しました）",
@@ -422,10 +424,20 @@ PM_JAKO(MiracastOn, L"Android のキャスト（Miracast）：オン",
         L"Android 화면 전송(Miracast): 켜짐")
 PM_JAKO(MiracastOff, L"Android のキャスト（Miracast）：オフ",
         L"Android 화면 전송(Miracast): 꺼짐")
+PM_JAKO(MiraNotCompleted, L"{0} からのキャストが完了しませんでした。スマホからもう一度キャストしてください",
+        L"{0}의 화면 전송 연결이 완료되지 않았습니다. 휴대폰에서 다시 전송하세요")
 PM_JAKO(AndroidStartFail, L"Android のミラーリングを開始できませんでした",
         L"Android 미러링을 시작할 수 없습니다")
+PM_JAKO(AndroidStartFailWhy, L"Android のミラーリングが始まりませんでした（{0}）。スマホのロックを解除し、ワイヤレス デバッグがオンのままか確認して、もう一度お試しください",
+        L"Android 미러링이 시작되지 않았습니다({0}). 휴대폰 잠금을 해제하고 무선 디버깅이 켜져 있는지 확인한 후 다시 시도하세요")
+PM_JAKO(AndroidStartFailHint, L"Android のミラーリングが始まりませんでした。スマホのロックを解除し、ワイヤレス デバッグがオンのままか確認して、もう一度お試しください",
+        L"Android 미러링이 시작되지 않았습니다. 휴대폰 잠금을 해제하고 무선 디버깅이 켜져 있는지 확인한 후 다시 시도하세요")
 PM_JAKO(NoLivePhone, L"接続中のスマホはありません",
         L"연결된 휴대폰이 없습니다")
+PM_JAKO(ConnectSlow, L"「{0}」に接続中です。Esc でキャンセルできます",
+        L"“{0}”에 연결 중입니다. Esc로 취소할 수 있습니다")
+PM_JAKO(ConnectTimeout, L"「{0}」が 30 秒以内に接続できなかったため、キャンセルしました。スマホからもう一度お試しください",
+        L"“{0}”이(가) 30초 안에 연결되지 않아 취소했습니다. 휴대폰에서 다시 시도하세요")
 PM_JAKO(DisconnectedName, L"接続が切れました：{0}",
         L"연결 끊김: {0}")
 PM_JAKO(AndroidGone, L"Android との接続が切れました（ワイヤレス デバッグがオフになったか、スマホが Wi‑Fi から離れました）。スマホでワイヤレス デバッグをもう一度オンにして、同じ Wi‑Fi に接続してください",
@@ -518,14 +530,16 @@ PM_JAKO(D3DFail, L"表示ウィンドウを作成できませんでした（Dire
         L"표시 창을 만들 수 없습니다(Direct3D 11을 시작하지 못했습니다).")
 PM_JAKO(AirPlayStartFail, L"AirPlay サービスを開始できませんでした。\n\nポート 7000 がほかのプログラム（UxPlay、AirServer など）に使われているか、ファイアウォールでブロックされている可能性があります。詳細：%LOCALAPPDATA%\\PhoneMirror\\phonemirror.log",
         L"AirPlay 서비스를 시작할 수 없습니다.\n\n다른 프로그램(예: UxPlay, AirServer)이 포트 7000을 사용 중이거나 방화벽이 차단했을 수 있습니다. 자세한 내용: %LOCALAPPDATA%\\PhoneMirror\\phonemirror.log")
+PM_JAKO(AirPlayOtherPorts, L"AirPlay の通常のポートがほかのプログラムに使われているため、別のポートを使います（iPhone はそのまま接続できます）",
+        L"AirPlay 기본 포트를 다른 프로그램이 사용 중이라 다른 포트를 사용합니다(iPhone은 그대로 연결할 수 있습니다)")
 PM_JAKO(ModMiraOldWindows, L"Android のキャスト（Miracast）を受信するには、Windows 10 2004（20H1）以降が必要です。",
         L"Android 화면 전송(Miracast)을 받으려면 Windows 10 2004(20H1) 이상이 필요합니다.")
 PM_JAKO(ModMiraNeedFeature, L"先に Windows のオプション機能「ワイヤレス ディスプレイ」をインストールしてください：設定 → システム → オプション機能 → 機能を表示 → 「ワイヤレス ディスプレイ」を検索 → インストール（インターネット接続が必要、約 1 分）。",
         L"먼저 Windows 선택적 기능 ‘무선 디스플레이’를 설치하세요: 설정 → 시스템 → 선택적 기능 → 기능 보기 → ‘무선 디스플레이’ 검색 → 설치(인터넷 필요, 약 1분).")
 PM_JAKO(ModMiraReboot, L"Windows の機能「ワイヤレス ディスプレイ」をインストールしました。Android のキャストを使うには PC を再起動してください。",
         L"Windows 기능 ‘무선 디스플레이’가 설치되었습니다. Android 화면 전송을 사용하려면 PC를 다시 시작하세요.")
-PM_JAKO(ModMiraNoWifi, L"この PC は現在 Android のキャスト（Miracast）を受信できません：Wi-Fi がオンになっているか確認してください。Wi-Fi アダプターがない場合や、Wi-Fi／グラフィックス ドライバーが Wi-Fi Direct に対応していない場合は、別の方法で接続してください。",
-        L"지금은 이 PC에서 Android 화면 전송(Miracast)을 받을 수 없습니다. Wi-Fi가 켜져 있는지 확인하세요. Wi-Fi 어댑터가 없거나 Wi-Fi/그래픽 드라이버가 Wi-Fi Direct를 지원하지 않으면 다른 연결 방법을 사용하세요.")
+PM_JAKO(ModMiraNoWifi, L"この PC は現在 Android のキャスト（Miracast）を受信できません：Wi-Fi がオンになっているか確認してください。Wi-Fi アダプターがない場合や、Wi-Fi／グラフィックス ドライバーが Wi-Fi Direct に対応していない場合は、代わりに「Android（PC で操作）」（ワイヤレス デバッグ）を使ってください。",
+        L"지금은 이 PC에서 Android 화면 전송(Miracast)을 받을 수 없습니다. Wi-Fi가 켜져 있는지 확인하세요. Wi-Fi 어댑터가 없거나 Wi-Fi/그래픽 드라이버가 Wi-Fi Direct를 지원하지 않으면 대신 ‘Android PC로 조작’(무선 디버깅)을 사용하세요.")
 PM_JAKO(ModMiraPolicy, L"Android のキャスト（Miracast の受信）はシステム ポリシーで無効になっています。",
         L"Android 화면 전송(Miracast 수신)이 시스템 정책에 의해 사용 중지되었습니다.")
 PM_JAKO(ModMiraBusy, L"Miracast の受信は現在使用できません：Windows の「接続」アプリやほかの受信アプリが使用中か、Wi-Fi がオフになっている可能性があります。",
@@ -906,8 +920,8 @@ PM_JAKO(DlgOk, L"OK",
         L"확인")
 PM_JAKO(TipMagnifier, L"拡大鏡：{0}（クリック：1× → 2× → 4×、Ctrl+ホイールで細かく調整）",
         L"돋보기: {0}(클릭: 1× → 2× → 4×, Ctrl+휠로 세밀하게 조정)")
-PM_JAKO(TipTranslate, L"画面を翻訳（Ctrl+L）",
-        L"화면 번역(Ctrl+L)")
+PM_JAKO(TipTranslate, L"画面全体を翻訳（Ctrl+L）",
+        L"화면 전체 번역(Ctrl+L)")
 PM_JAKO(TipTranslateClose, L"翻訳を閉じる（Ctrl+L）",
         L"번역 닫기(Ctrl+L)")
 PM_JAKO(TipFreeze, L"画面を静止（Ctrl+P）",
@@ -972,24 +986,24 @@ PM_JAKO(MenuCloseAction, L"ウィンドウを閉じるとき",
         L"창을 닫을 때")
 PM_JAKO(CloseActAsk, L"毎回確認する",
         L"매번 묻기")
-PM_JAKO(CloseActTray, L"通知領域に最小化",
-        L"알림 영역으로 최소화")
+PM_JAKO(CloseActTray, L"バックグラウンドで待機",
+        L"백그라운드에서 대기")
 PM_JAKO(CloseActQuit, L"終了する",
         L"종료")
 PM_JAKO(CloseActToast, L"ウィンドウを閉じるとき：{0}",
         L"창을 닫을 때: {0}")
-PM_JAKO(CloseAskTitle, L"Zizai Cast を終了しますか？それとも右下に最小化しますか？",
-        L"Zizai Cast를 종료할까요, 아니면 오른쪽 아래로 최소화할까요?")
-PM_JAKO(CloseAskBody, L"右下に最小化すると、{0} はバックグラウンドで iPhone と Android のミラーリングを受信し続け、スマホが接続するとウィンドウが自動で表示されます。\nこの選択は、あとで右クリック メニューの「設定 ▸ ウィンドウを閉じるとき」で変更できます。",
-        L"오른쪽 아래로 최소화하면 {0}이(가) 백그라운드에서 iPhone과 Android 미러링을 계속 수신하고, 휴대폰이 연결되면 창이 자동으로 나타납니다.\n이 선택은 나중에 오른쪽 클릭 메뉴의 \"설정 ▸ 창을 닫을 때\"에서 바꿀 수 있습니다.")
-PM_JAKO(CloseAskTray, L"通知領域に最小化（受信を続ける）",
-        L"알림 영역으로 최소화(계속 수신)")
+PM_JAKO(CloseAskTitle, L"終了しますか？それともバックグラウンドで待機しますか？",
+        L"종료할까요, 아니면 백그라운드에서 대기할까요?")
+PM_JAKO(CloseAskBody, L"バックグラウンドで待機中も、{0} は iPhone と Android のミラーリングを受信し続け、スマホが接続するとウィンドウが自動で表示されます。自分で開くときは、タスクバー右端の {0} のアイコンをクリックします。見当たらないときは「^」をクリックし、アイコンをタスクバーへドラッグすると、いつも表示されるようになります。\nこの選択は、あとで右クリック メニューの「設定 ▸ ウィンドウを閉じるとき」で変更できます。",
+        L"백그라운드에서 대기하는 동안에도 {0}이(가) iPhone과 Android 미러링을 계속 수신하고, 휴대폰이 연결되면 창이 자동으로 나타납니다. 직접 열려면 작업 표시줄 오른쪽 끝의 {0} 아이콘을 클릭하세요. 아이콘이 보이지 않으면 \"^\"를 클릭한 뒤 아이콘을 작업 표시줄로 끌어다 놓으면 항상 표시됩니다.\n이 선택은 나중에 오른쪽 클릭 메뉴의 \"설정 ▸ 창을 닫을 때\"에서 바꿀 수 있습니다.")
+PM_JAKO(CloseAskTray, L"バックグラウンドで待機（受信を続ける）",
+        L"백그라운드에서 대기(계속 수신)")
 PM_JAKO(CloseAskQuit, L"アプリを終了",
         L"앱 종료")
 PM_JAKO(CloseAskRemember, L"この選択を記憶する",
         L"이 선택 기억하기")
-PM_JAKO(MenuAndroidSub, L"Android",
-        L"Android")
+PM_JAKO(MenuAndroidSub, L"スマホを接続",
+        L"휴대폰 연결")
 PM_JAKO(MenuFolders, L"フォルダー",
         L"폴더")
 PM_JAKO(MenuHelpSub, L"ヘルプ",
@@ -1144,10 +1158,10 @@ PM_JAKO(TrOnlinePrivacy, L"オンにすると、画面から認識した文字�
         L"켜면 화면에서 인식한 글자(와 그 앞뒤 글자)가 HTTPS로 {0}에 전송되어 번역됩니다. 화면 이미지는 전송되지 않습니다. 글자는 이 PC 밖으로 나가며 해당 서비스의 약관에 따라 처리되고, 사용 한도나 요금에 포함될 수 있습니다. 키는 Windows 암호화로 이 PC에 저장되며 로그에 기록되지 않습니다.")
 PM_JAKO(TrOnlineConsentTitle, L"オンライン翻訳をオンにする",
         L"온라인 번역 켜기")
-PM_JAKO(TrOnlineConsentBody, L"オンにすると、オフライン翻訳に自信がない文字が {0} に送信され、より正確な訳が得られます。「翻訳 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
-        L"켜면 오프라인 번역이 불확실한 글자가 {0}에 전송되어 더 정확한 번역을 받습니다. 「번역 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
-PM_JAKO(TrOnlineConsentBodyAll, L"オンにすると、画面から認識したすべての文が先に {0} に送信され、翻訳されます。「翻訳 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
-        L"켜면 화면에서 인식한 모든 문장이 먼저 {0}에 전송되어 번역됩니다. 「번역 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
+PM_JAKO(TrOnlineConsentBody, L"オンにすると、オフライン翻訳に自信がない文字が {0} に送信され、より正確な訳が得られます。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
+        L"켜면 오프라인 번역이 불확실한 글자가 {0}에 전송되어 더 정확한 번역을 받습니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
+PM_JAKO(TrOnlineConsentBodyAll, L"オンにすると、画面から認識したすべての文が先に {0} に送信され、翻訳されます。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
+        L"켜면 화면에서 인식한 모든 문장이 먼저 {0}에 전송되어 번역됩니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
 PM_JAKO(TrOnlineConsentSends, L"送信する内容",
         L"전송 내용")
 PM_JAKO(TrOnlineConsentSendsVal, L"認識した文字のみ（画像は送信しません）",
@@ -1218,8 +1232,8 @@ PM_JAKO(TrOnlineStoreProvider, L"先に翻訳サービスを選んでくださ�
         L"먼저 번역 서비스를 선택하세요")
 PM_JAKO(TrOnlineQuotaToast, L"オンライン翻訳の利用枠を使い切ったため、オフライン翻訳に切り替えました",
         L"온라인 번역 사용량을 모두 써서 오프라인 번역으로 전환했습니다")
-PM_JAKO(TrOnlineBadKeyToast, L"オンライン翻訳のキーが無効なため、オフライン翻訳に切り替えました。「翻訳 ▸ オンライン翻訳」で確認してください",
-        L"온라인 번역 키가 유효하지 않아 오프라인 번역으로 전환했습니다. 「번역 ▸ 온라인 번역」에서 확인하세요")
+PM_JAKO(TrOnlineBadKeyToast, L"オンライン翻訳のキーが無効なため、オフライン翻訳に切り替えました。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」で確認してください",
+        L"온라인 번역 키가 유효하지 않아 오프라인 번역으로 전환했습니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 확인하세요")
 PM_JAKO(TrOnlineFailToast, L"オンライン翻訳を一時的に利用できないため、オフライン翻訳に切り替えました（{0}）",
         L"온라인 번역을 일시적으로 사용할 수 없어 오프라인 번역으로 전환했습니다({0})")
 PM_JAKO(TrOnlineFreeDeepL, L"DeepL には無料の API プランがあります。翻訳できる文字数は DeepL のその時点のプランによります（DeepL のサイトで確認してください）。",
@@ -1260,3 +1274,123 @@ PM_JAKO(TrModelSharedBy, L"（{0}でも使用）",
         L" ({0}에서도 사용)")
 PM_JAKO(TrDeleteSharedAsk, L"{0}の翻訳にもこのファイルが必要です。削除すると{0}も翻訳できなくなります。それでも削除しますか？",
         L"{0} 번역에도 이 파일이 필요합니다. 삭제하면 {0}도 번역할 수 없습니다. 그래도 삭제할까요?")
+// --- 0.7.8 UX (main) ---
+PM_JAKO(OptAutostartNote, L"Windows の起動後、バックグラウンドでスマホを待ちます",
+        L"Windows가 시작되면 백그라운드에서 휴대폰을 기다립니다")
+PM_JAKO(OptPinNote, L"新しい iPhone は初回だけ、画面に出る 4 桁の数字を入力します",
+        L"새 iPhone은 처음 연결할 때 화면에 나온 4자리 숫자를 입력합니다")
+PM_JAKO(QualityNote, L"高画質ほど Wi‑Fi の負担が増えます。カクつくときは「標準」に",
+        L"화질이 높을수록 Wi‑Fi 부담이 커집니다. 끊기면 '표준'을 고르세요")
+PM_JAKO(MenuTrTargetRow, L"翻訳先",
+        L"번역할 언어")
+PM_JAKO(MenuTrLayoutRow, L"表示方法",
+        L"표시 방법")
+PM_JAKO(MenuTrAdvanced, L"翻訳の詳細設定",
+        L"고급 번역 설정")
+PM_JAKO(MenuTrAdvancedNote, L"ふだんは変更不要です（オフライン翻訳だけで使えます）",
+        L"평소에는 바꾸지 않아도 됩니다(오프라인 번역만으로 사용 가능)")
+PM_JAKO(MenuTrNeedTranslate, L"先に「画面全体を翻訳」を押してください",
+        L"먼저 '화면 전체 번역'을 누르세요")
+PM_JAKO(MenuShortcuts, L"キーボード ショートカット一覧",
+        L"단축키 목록")
+PM_JAKO(KeysNote, L"F1 キーでいつでもこの一覧を開けます。",
+        L"F1 키를 누르면 언제든 이 목록이 열립니다.")
+PM_JAKO(KeysGroupConnect, L"接続と録画",
+        L"연결 및 녹화")
+PM_JAKO(KeysRecord, L"録画の開始／停止",
+        L"녹화 시작/중지")
+PM_JAKO(KeysZoomWheel, L"拡大率の微調整",
+        L"배율 미세 조정")
+PM_JAKO(KeyCtrlWheel, L"Ctrl+ホイール",
+        L"Ctrl+휠")
+PM_JAKO(KeysGroupAndroid, L"Android スマホ（マウス）",
+        L"Android 휴대폰(마우스)")
+PM_JAKO(KeysMenu, L"メニューを開く",
+        L"전체 메뉴 열기")
+PM_JAKO(MenuNeedPhone, L"スマホ接続後に使えます",
+        L"휴대폰 연결 후 사용 가능")
+PM_JAKO(ChipOpenFolder, L"フォルダーを開く",
+        L"폴더 열기")
+// --- 0.7.8 UX (p7/p9) ---
+PM_JAKO(MenuRightClick, L"右クリックの動作",
+        L"오른쪽 클릭 동작")
+PM_JAKO(RightClickBack, L"戻る（既定）",
+        L"뒤로 (기본값)")
+PM_JAKO(RightClickMenu, L"メニューを開く",
+        L"메뉴 열기")
+PM_JAKO(RightClickNote, L"Android のスマホ画面でのみ有効。Shift＋右クリックは常にメニューを開きます",
+        L"Android 휴대폰 화면에만 적용됩니다. Shift+오른쪽 클릭은 항상 메뉴를 엽니다")
+PM_JAKO(RightClickHint, L"右クリック＝「戻る」。メニューは Shift＋右クリック（{0} ▸ {1}で変更）",
+        L"오른쪽 클릭 = 「뒤로」. 메뉴: Shift+오른쪽 클릭 ({0} ▸ {1}에서 변경)")
+PM_JAKO(RightClickBackToast, L"右クリック：スマホの「戻る」（Shift＋右クリックでメニュー）",
+        L"오른쪽 클릭: 휴대폰의 「뒤로」 (Shift+오른쪽 클릭은 메뉴)")
+PM_JAKO(RightClickMenuToast, L"右クリック：メニューを開く（戻るにはツールバーの「戻る」）",
+        L"오른쪽 클릭: 메뉴 열기 (뒤로 가려면 도구 모음의 「뒤로」)")
+PM_JAKO(ConnectedAndroidMenu, L"接続しました：{0}。上部にツールバーがあります。右クリックでメニュー",
+        L"연결됨: {0}. 위쪽에 도구 모음이 있습니다. 오른쪽 클릭으로 메뉴 열기")
+PM_JAKO(ApplyNow, L"今すぐ再接続して適用",
+        L"지금 다시 연결해 적용")
+PM_JAKO(ApplyPendingNote, L"一部の変更はミラーリング終了後に適用されます",
+        L"일부 변경 사항은 미러링이 끝나면 적용됩니다")
+PM_JAKO(ApplyNowIphone, L"新しい設定を適用しました。iPhone で「画面ミラーリング」→「{0}」をもう一度選んでください",
+        L"새 설정을 적용했습니다. iPhone에서 「화면 미러링」 → 「{0}」을(를) 다시 선택하세요")
+PM_JAKO(ApplyNowCast, L"新しい設定を適用しました。スマホからもう一度「{0}」にキャストしてください",
+        L"새 설정을 적용했습니다. 휴대폰에서 「{0}」(으)로 다시 화면을 전송하세요")
+PM_JAKO(ApplyNowDone, L"新しい設定はすでに適用されています",
+        L"새 설정이 이미 적용되었습니다")
+
+// --- 0.7.8 UX (p1/p5) ---
+PM_JAKO(ToolLabelShot, L"スクショ",
+        L"캡처")
+PM_JAKO(ToolLabelRec, L"録画",
+        L"녹화")
+PM_JAKO(ToolLabelTranslate, L"翻訳",
+        L"번역")
+PM_JAKO(ToolLabelZoom, L"拡大",
+        L"확대")
+PM_JAKO(ToolbarIntro, L"よく使う機能はこのツールバーにあります（スクショ・録画・翻訳・拡大）。画面の上でマウスを動かすと表示され、ポインターを乗せている間は消えません。",
+        L"자주 쓰는 기능은 이 도구 모음에 있어요(캡처·녹화·번역·확대). 화면 위에서 마우스를 움직이면 나타나고, 포인터를 올려 두는 동안에는 사라지지 않아요.")
+PM_JAKO(IdleChooseTitle, L"お使いのスマホを選んでください",
+        L"사용하는 휴대폰을 선택하세요")
+PM_JAKO(CardIphoneTitle, L"iPhone / iPad",
+        L"iPhone / iPad")
+PM_JAKO(CardIphoneBody, L"コントロールセンター → 画面ミラーリング → 「{0}」を選ぶ",
+        L"제어 센터 → 화면 미러링 → ‘{0}’ 선택")
+PM_JAKO(CardCastTitle, L"Android（見るだけ）",
+        L"Android 화면 보기만")
+PM_JAKO(CardCastBody, L"クイック設定 → キャスト / Smart View → 「{0}」を選ぶ",
+        L"빠른 설정 → 화면 전송 / Smart View → ‘{0}’ 선택")
+PM_JAKO(CardAdbTitle, L"Android（PC で操作）",
+        L"Android PC로 조작")
+PM_JAKO(CardAdbBody, L"QR コードを一度読み取れば、マウスとキーボードでスマホを操作できます",
+        L"QR 코드를 한 번 스캔하면 마우스와 키보드로 휴대폰을 조작할 수 있어요")
+PM_JAKO(CardSteps, L"手順を見る",
+        L"단계 보기")
+PM_JAKO(CardShowQr, L"QR コードを表示",
+        L"QR 코드 표시")
+PM_JAKO(CardCastOff, L"設定でオフになっています",
+        L"설정에서 꺼져 있어요")
+PM_JAKO(CardCastReboot, L"「ワイヤレス ディスプレイ」は追加済みです。PC を再起動すると使えます",
+        L"‘무선 디스플레이’가 설치됐어요. PC를 다시 시작하면 쓸 수 있어요")
+PM_JAKO(CardCastFeature, L"先に Windows の「ワイヤレス ディスプレイ」機能を追加してください（約 1 分）",
+        L"먼저 Windows의 ‘무선 디스플레이’ 기능을 추가하세요(약 1분)")
+PM_JAKO(CardCastOldWindows, L"Windows 10 バージョン 2004 以降が必要です",
+        L"Windows 10 버전 2004 이상이 필요해요")
+PM_JAKO(CardCastPolicy, L"組織のポリシーで無効になっています",
+        L"조직 정책으로 꺼져 있어요")
+PM_JAKO(CardCastNoWifi, L"Wi-Fi をオンにし、Wi-Fi Direct 対応のアダプターが必要です",
+        L"Wi-Fi를 켜야 하고 Wi-Fi Direct를 지원하는 어댑터가 필요해요")
+PM_JAKO(CardCastOther, L"この PC は現在キャストを受信できません",
+        L"이 PC는 지금 화면 전송을 받을 수 없어요")
+PM_JAKO(CardCastAlt, L"代わりに「Android（PC で操作）」を使えます",
+        L"대신 ‘Android PC로 조작’을 쓸 수 있어요")
+PM_JAKO(CardAdbMissing, L"接続ツールが見つかりません。再インストールすると直ります",
+        L"연결 도구가 없어요. 다시 설치하면 해결돼요")
+PM_JAKO(CardTurnOn, L"オンにする",
+        L"켜기")
+PM_JAKO(CardHowInstall, L"追加方法",
+        L"추가 방법")
+PM_JAKO(CardWhy, L"理由を見る",
+        L"이유 보기")
+PM_JAKO(CardReinstall, L"インストーラーを入手",
+        L"설치 파일 받기")

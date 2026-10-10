@@ -135,14 +135,32 @@ inline const wchar_t* localeName() { return localeName(lang()); }
 // update window).  A WORD JOINER (U+2060: no width, nothing drawn) between
 // syllables of a word; other languages unchanged.  Only for text drawn or
 // measured as a whole (it shifts character indexes).
+// 0.7.9: in every language a hyphenated word (Right-click, Wi-Fi) is kept
+// whole too: a joiner after a hyphen between two letters (no \u300cRight- / click\u300d),
+// key combinations stay on one line (\u300cShift\uff0b / \u53f3\u9375\u300d), and \u65e5\u672c\u8a9e katakana
+// words are not split (\u300c\u53f3\u30af / \u30ea\u30c3\u30af\u300d).
 inline std::wstring keepWords(const std::wstring& s) {
-    if (lang() != Lang::Ko) return s;
+    const bool ko = lang() == Lang::Ko, ja = lang() == Lang::Ja;
     auto hangul = [](wchar_t c) { return c >= 0xAC00 && c <= 0xD7A3; };
+    auto kata = [](wchar_t c) { return c >= 0x30A1 && c <= 0x30FC && c != 0x30FB; };  // not the middle dot
+    auto letter = [](wchar_t c) { return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9'); };
+    auto plus = [](wchar_t c) { return c == L'+' || c == L'\uff0b'; };
+    auto solid = [](wchar_t c) { return c != L' ' && c != L'\u3000' && c != L'\n' && c != L'\t'; };
+    // The key after a \u300c+\u300d runs up to a space or punctuation (\u300cShift\uff0b\u53f3\u30af\u30ea\u30c3\u30af\uff08\u300d).
+    auto keyEnd = [&](wchar_t c) { return !solid(c) || std::wstring_view(L"()\uff08\uff09\u3001\u3002,.\u300c\u300d\uff1a:").find(c) != std::wstring_view::npos; };
     std::wstring o;
     o.reserve(s.size() + s.size() / 2);
+    bool inKey = false;
     for (size_t i = 0; i < s.size(); ++i) {
         o += s[i];
-        if (i + 1 < s.size() && hangul(s[i]) && hangul(s[i + 1])) o += L'\u2060';
+        if (i + 1 >= s.size()) break;
+        const wchar_t a = s[i], b = s[i + 1];
+        if (plus(a) && i > 0 && solid(s[i - 1]) && solid(b)) inKey = true;
+        else if (inKey && keyEnd(b)) inKey = false;
+        if ((ko && hangul(a) && hangul(b)) || (ja && kata(a) && kata(b)) ||
+            (a == L'-' && i > 0 && letter(s[i - 1]) && letter(b)) || (inKey && !keyEnd(b)) ||
+            (plus(b) && solid(a) && i + 2 < s.size() && solid(s[i + 2])))
+            o += L'\u2060';
     }
     return o;
 }

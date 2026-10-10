@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "../updater.h"
+#include "../update/updater.h"
 
 namespace fs = std::filesystem;
 using namespace pm::update;

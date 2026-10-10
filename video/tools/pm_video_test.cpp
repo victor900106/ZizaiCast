@@ -1004,6 +1004,21 @@ int runFreezeStream(pm::VideoWindow& win, At at, Feed feed, TapCapture& cap, con
     const bool grabbed = win.grabPicture(g, gw, gh);
     chk.expect(grabbed && gw > 0 && gh > 0, "grabPicture of a frozen decoded picture",
                std::to_string(gw) + "x" + std::to_string(gh));
+    {  // two callers at once (a screenshot while the translator grabs): both answered, none waits out the 3 s
+        std::atomic<int> okN{0};
+        auto grab = [&] {
+            std::vector<uint8_t> px;
+            int w = 0, h = 0;
+            if (win.grabPicture(px, w, h) && w > 0 && h > 0) ++okN;
+        };
+        const auto t0 = std::chrono::steady_clock::now();
+        std::thread g1(grab), g2(grab);
+        g1.join();
+        g2.join();
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        std::snprintf(buf, sizeof(buf), "%d of 2 in %.0f ms", okN.load(), ms);
+        chk.expect(okN.load() == 2 && ms < 1500, "two grabPicture calls at once: both answered", buf);
+    }
     // Device lost while frozen (plain, then from inside the decoder
     // callback): the same picture stays frozen, not the newest decoded one.
     const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
@@ -1134,6 +1149,10 @@ void runAnimBench(pm::VideoWindow& win) {
     win.submitBgraFrame(pattern.data(), PW, PH, PS, static_cast<uint64_t>(utcNs()));
     sleep(3500);  // fade-in done, toolbar (shown by no movement) stays hidden
     measure("live, static screen, toolbar hidden", 5000);
+    win.showToast(L"測試提示：停留時不重畫", 7000);
+    sleep(500);  // its slide-in is over; it fades out after 7 s
+    measure("live, static screen, toast held (0.7.9: still)", 4000);
+    sleep(3500);  // faded out
     measure("live, static screen, toolbar shown", 5000, true, centre);
     win.setRecording(true);
     toolbar(true);
@@ -1153,6 +1172,11 @@ void runAnimBench(pm::VideoWindow& win) {
     toolbar(false);
     sleep(2500);
     measure("live, video 30 fps, toolbar hidden", 5000);
+    onUi([&] { ShowWindow(h, SW_SHOWMINNOACTIVE); });
+    sleep(500);
+    measure("live, video 30 fps, minimised (0.7.9: no upload)", 5000);
+    onUi([&] { ShowWindow(h, SW_SHOWNOACTIVATE); });
+    sleep(500);
     stopFeed = true;
     feeder.join();
     win.onReset();

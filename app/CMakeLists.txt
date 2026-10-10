@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.7.7)
+set(PM_APP_VERSION 0.7.9)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -31,16 +31,70 @@ foreach(m miracast android share translate)
   endif()
 endforeach()
 
-add_executable(PhoneMirror WIN32 main.cpp popup_menu.cpp popup_menu.h pair_panel.cpp pair_panel.h about_panel.cpp
-  about_panel.h ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h updater.cpp updater.h resource.h res/app.rc res/app.manifest
-  settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h
-  ${CMAKE_SOURCE_DIR}/include/pm/i18n.h ${CMAKE_SOURCE_DIR}/include/pm/i18n_strings.inc)
+# ---- 拆檔 0.7.9: app 依資料夾分成靜態函式庫 (docs: launch/_work/audit/SPLIT_PLAN.md §4) ----
+# 共用設定：所有 app 子函式庫都要繼承（漏掉 PM_SOURCE_DIR 會靜默改變行為）。
+add_library(pm_app_config INTERFACE)
+target_compile_definitions(pm_app_config INTERFACE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
+  PM_UPDATE_URL_STR="${PM_UPDATE_URL}" PM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+  PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH})
+target_include_directories(pm_app_config INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(pm_app_config INTERFACE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share
+  pm_translate)
+
+# 既有面板與選單繪製（不依賴 main.cpp 拆出的任何函式）。
+add_library(pm_app_ui STATIC popup_menu.cpp popup_menu.h pair_panel.cpp pair_panel.h about_panel.cpp about_panel.h
+  ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h
+  settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h volume_ui.cpp volume_ui.h volume_memory.h ui_anim.h)
+target_link_libraries(pm_app_ui PUBLIC pm_app_config)
 # 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
 if(PM_TRANSLATE_ENGINES)
-  target_compile_definitions(PhoneMirror PRIVATE PM_APP_TR_ENGINES)
+  target_compile_definitions(pm_app_ui PRIVATE PM_APP_TR_ENGINES)
 endif()
-target_link_libraries(PhoneMirror PRIVATE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version wintrust
+
+# 第 0 層：共用型別、狀態、原語。
+add_library(pm_app_base STATIC core/base/app_common.h core/base/app_consts.h core/base/base.h core/base/log.h
+  core/base/settings.h core/base/source_gate.h core/base/app_state.h
+  core/base/util.cpp core/base/autostart.cpp core/base/source_gate.cpp core/base/app_state.cpp core/base/shell.cpp
+  core/base/paths.cpp core/base/state_query.cpp core/base/titles.cpp core/base/live_toolbar.cpp)
+target_link_libraries(pm_app_base PUBLIC pm_app_ui)
+
+add_library(pm_app_help STATIC help/help.h help/shortcuts.cpp help/tutorial.cpp help/about.cpp)
+add_library(pm_app_share STATIC share/share.h share/share_internal.h share/share_files.cpp share/share_qr.cpp
+  share/share_push.cpp share/share_actions.cpp)
+add_library(pm_app_translate STATIC translate/translate.h translate/magnifier.cpp translate/translate_actions.cpp
+  translate/models.cpp translate/translator_host.cpp)
+add_library(pm_app_capture STATIC capture/capture.h capture/screenshot.cpp capture/recording.cpp)
+add_library(pm_app_connect STATIC connect/connect.h connect/connect_internal.h connect/airplay.cpp
+  connect/airplay_events.cpp connect/sources.cpp connect/idle_hints.cpp connect/miracast.cpp connect/android.cpp
+  connect/session.cpp)
+add_library(pm_app_view STATIC view/view.h view/window_fit.cpp view/options.cpp view/picture.cpp view/close_flow.cpp
+  view/language.cpp)
+add_library(pm_app_update STATIC update/update.h update/update_check.cpp update/update_install.cpp
+  update/local_updates.cpp update/updater.cpp update/updater.h)
+add_library(pm_app_menus STATIC menus/menus.h menus/menu_items.cpp menus/menu_view_translate.cpp menus/menu_roots.cpp
+  menus/menu_devshots.cpp)
+
+target_link_libraries(pm_app_help      PUBLIC pm_app_base)
+target_link_libraries(pm_app_share     PUBLIC pm_app_base)
+target_link_libraries(pm_app_translate PUBLIC pm_app_base)
+target_link_libraries(pm_app_capture   PUBLIC pm_app_share)
+target_link_libraries(pm_app_connect   PUBLIC pm_app_capture pm_app_help)
+target_link_libraries(pm_app_view      PUBLIC pm_app_connect pm_app_translate)
+target_link_libraries(pm_app_update    PUBLIC pm_app_view)
+target_link_libraries(pm_app_menus     PUBLIC pm_app_view)
+
+# wWinMain 和資源檔留在 exe 自己的來源裡（.rc 放進靜態函式庫不會被連結）。
+add_executable(PhoneMirror WIN32 core/app/main.cpp core/app/app_proc.cpp core/app/commands.cpp core/app/dev_harness.cpp
+  core/app/core_app.h resource.h res/app.rc res/app.manifest
+  ${CMAKE_SOURCE_DIR}/include/pm/i18n.h ${CMAKE_SOURCE_DIR}/include/pm/i18n_strings.inc)
+# 連結順序：先列出全部 pm_app_*，再接拆檔前的原清單（同順序）。這樣 app 的程式碼在連到
+# winhttp … shcore 之前就全部載入，外部符號的解析和拆檔前一樣（匯入表相同）；若只列
+# pm_app_menus，registry 等 API 會改由後面的 windowsapp.lib 以 api-ms-win-* 匯入。
+target_link_libraries(PhoneMirror PRIVATE pm_app_menus pm_app_update pm_app_view pm_app_connect pm_app_capture
+  pm_app_share pm_app_help pm_app_translate pm_app_base pm_app_ui
+  pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version wintrust
   shell32 shlwapi ole32 advapi32 comctl32 mfplat mfuuid d2d1 dwrite windowscodecs dwmapi shcore)
+# ---- 拆檔 0.7.9 (end) ----
 set_target_properties(PhoneMirror PROPERTIES OUTPUT_NAME "自在投影")
 target_compile_definitions(PhoneMirror PRIVATE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
   PM_UPDATE_URL_STR="${PM_UPDATE_URL}" PM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
@@ -127,8 +181,7 @@ else()
   message(WARNING "onnxruntime.dll not found (${PM_ONNXRUNTIME_DLL}): run translate/tools/get_onnxruntime.sh; 翻譯 falls back to Windows OCR")
 endif()
 
-# 音量 / 靜音: toolbar speaker + slider, Ctrl+M / Ctrl+↑ / Ctrl+↓, menus (volume_ui.h).
-target_sources(PhoneMirror PRIVATE volume_ui.cpp volume_ui.h volume_memory.h)
+# 音量 / 靜音: toolbar speaker + slider, Ctrl+M / Ctrl+↑ / Ctrl+↓, menus (volume_ui.h): in pm_app_ui above.
 
 # pm_volume_test: remembered phone volume (volume_memory.h), app mute and the
 # slider's 0..100 % mapping; no network / device.
@@ -137,7 +190,7 @@ target_link_libraries(pm_volume_test PRIVATE pm_media_api)
 
 # pm_update_test: 自動更新 URL policy (https only), SHA-256 from the locked
 # installer, launching it while locked, Authenticode; no network / UI.
-add_executable(pm_update_test tools/pm_update_test.cpp updater.cpp updater.h)
+add_executable(pm_update_test tools/pm_update_test.cpp update/updater.cpp update/updater.h)
 target_link_libraries(pm_update_test PRIVATE winhttp bcrypt version wintrust)
 target_compile_definitions(pm_update_test PRIVATE UNICODE _UNICODE)
 

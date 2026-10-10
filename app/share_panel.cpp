@@ -606,11 +606,31 @@ struct ShareChip::Impl {
     Theme th = theme();
 };
 
+float ShareChip::actionW(size_t i) const {
+    return 14 + 18 + 8 + std::ceil(fx().width(fx().chip.Get(), actions_[i].label)) + 14;
+}
+
 float ShareChip::widthDip() const {
-    return 14 + 18 + 8 + std::ceil(fx().width(fx().chip.Get(), tr(S::ShareChip))) + 14 + kChipX;
+    float w = kChipX;
+    for (size_t i = 0; i < actions_.size(); ++i) w += actionW(i);
+    return w;
+}
+
+int ShareChip::hitAt(int xPx) const {
+    const float x = xPx * 96.0f / static_cast<float>(dpi_ ? dpi_ : 96);
+    float left = 0;
+    for (size_t i = 0; i < actions_.size(); ++i) {
+        left += actionW(i);
+        if (x < left) return static_cast<int>(i) + 1;
+    }
+    return static_cast<int>(actions_.size()) + 1;
 }
 
 void ShareChip::show(HWND owner, std::function<void()> onClick, int ms) {
+    show(owner, std::vector<Action>{{kGlyphShare, tr(S::ShareChip), std::move(onClick)}}, ms);
+}
+
+void ShareChip::show(HWND owner, std::vector<Action> actions, int ms) {
     if (!owner || !IsWindowVisible(owner) || IsIconic(owner) || !fx().init()) return;
     static bool registered = false;
     if (!registered) {
@@ -622,13 +642,14 @@ void ShareChip::show(HWND owner, std::function<void()> onClick, int ms) {
         RegisterClassExW(&wc);
         registered = true;
     }
-    onClick_ = std::move(onClick);
+    if (actions.empty()) return;
+    actions_ = std::move(actions);
     ms_ = ms;
     if (owner_ != owner) hide();
     owner_ = owner;
     if (!hwnd_) {
         impl_ = new Impl;
-        hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, kChipClass, tr(S::ShareChip), WS_POPUP, 0, 0, 10, 10,
+        hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, kChipClass, actions_.front().label.c_str(), WS_POPUP, 0, 0, 10, 10,
                                 owner, nullptr, GetModuleHandleW(nullptr), this);
         if (!hwnd_) {
             delete impl_;
@@ -639,6 +660,7 @@ void ShareChip::show(HWND owner, std::function<void()> onClick, int ms) {
         DwmSetWindowAttribute(hwnd_, 33, &round, sizeof(round));
     } else {
         impl_->th = theme();
+        SetWindowTextW(hwnd_, actions_.front().label.c_str());
     }
     hot_ = 0;
     reposition();
@@ -701,27 +723,33 @@ void ShareChip::retheme() {
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
-void ShareChip::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, float w, float h, bool hotMain, bool hotClose) {
+void ShareChip::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, float w, float h, int hot) {
     Factories& f = fx();
     const Theme& t = impl_ ? impl_->th : theme();
     cardBackground(rt, b, t, w, h, false);
     const float mainW = w - kChipX;
-    if (hotMain) {
-        b->SetColor(withA(t.accent, 0.22f));
-        rt->FillRectangle(rc(1, 1, mainW - 1, h - 2), b);
+    const bool hotClose = hot == static_cast<int>(actions_.size()) + 1;
+    float x = 0;
+    for (size_t i = 0; i < actions_.size(); ++i) {  // [glyph label] | [glyph label] | ×
+        const float aw = actionW(i);
+        if (hot == static_cast<int>(i) + 1) {
+            b->SetColor(withA(t.accent, 0.22f));
+            rt->FillRectangle(rc(x + 1, 1, aw - 1, h - 2), b);
+        }
+        const wchar_t g[2] = {actions_[i].glyph, 0};
+        b->SetColor(t.accent);
+        rt->DrawTextW(g, 1, f.glyph.Get(), rc(x + 12, 0, 22, h), b);
+        const std::wstring& label = actions_[i].label;
+        b->SetColor(t.fg);
+        rt->DrawTextW(label.c_str(), static_cast<UINT32>(label.size()), f.chip.Get(), rc(x + 40, 0, aw - 40, h), b);
+        x += aw;
+        b->SetColor(withA(t.fg, 0.18f));
+        rt->DrawLine({x, 9}, {x, h - 9}, b, 1);
     }
     if (hotClose) {
         b->SetColor(withA(t.accent, 0.22f));
         rt->FillRectangle(rc(mainW, 1, kChipX - 1, h - 2), b);
     }
-    const wchar_t g[2] = {kGlyphShare, 0};
-    b->SetColor(t.accent);
-    rt->DrawTextW(g, 1, f.glyph.Get(), rc(12, 0, 22, h), b);
-    const std::wstring label = tr(S::ShareChip);
-    b->SetColor(t.fg);
-    rt->DrawTextW(label.c_str(), static_cast<UINT32>(label.size()), f.chip.Get(), rc(40, 0, mainW - 40, h), b);
-    b->SetColor(withA(t.fg, 0.18f));
-    rt->DrawLine({mainW, 9}, {mainW, h - 9}, b, 1);
     b->SetColor(hotClose ? t.fg : t.dim);
     const float cx = mainW + kChipX / 2, cy = h / 2, d = 4.5f;
     rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.4f);
@@ -744,7 +772,7 @@ void ShareChip::paint() {
     }
     const float sc = dpi_ / 96.0f;
     im.rt->BeginDraw();
-    draw(im.rt.Get(), im.brush.Get(), r.right / sc, r.bottom / sc, hot_ == 1, hot_ == 2);
+    draw(im.rt.Get(), im.brush.Get(), r.right / sc, r.bottom / sc, hot_);
     if (im.rt->EndDraw() == D2DERR_RECREATE_TARGET) {
         im.brush.Reset();
         im.rt.Reset();
@@ -757,18 +785,13 @@ bool ShareChip::renderPng(const std::wstring& path) {
     return renderToPng(w, kChipH, dpi_, path, [this, w](ID2D1RenderTarget* rt) {
         ComPtr<ID2D1SolidColorBrush> b;
         rt->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &b);
-        if (b) draw(rt, b.Get(), w, kChipH, true, false);
+        if (b) draw(rt, b.Get(), w, kChipH, 1);
     });
 }
 
 LRESULT ShareChip::handle(UINT msg, WPARAM wp, LPARAM lp) {
     HWND h = hwnd_;
-    auto hitAt = [&](LPARAM l) {
-        RECT r{};
-        GetClientRect(h, &r);
-        const int x = static_cast<short>(LOWORD(l));
-        return x >= r.right - static_cast<int>(kChipX * dpi_ / 96.0f) ? 2 : 1;
-    };
+    auto hitAt = [&](LPARAM l) { return this->hitAt(static_cast<short>(LOWORD(l))); };
     switch (msg) {
     case WM_PAINT: {
         PAINTSTRUCT ps;
@@ -803,9 +826,10 @@ LRESULT ShareChip::handle(UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_LBUTTONUP: {
         const int hit = hitAt(lp);
-        auto cb = onClick_;
+        std::function<void()> cb;
+        if (hit >= 1 && hit <= static_cast<int>(actions_.size())) cb = actions_[hit - 1].onClick;
         hide();
-        if (hit == 1 && cb) cb();
+        if (cb) cb();
         return 0;
     }
     case WM_DESTROY:

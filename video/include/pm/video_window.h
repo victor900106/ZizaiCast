@@ -157,6 +157,9 @@ public:
     //     (the knob follows at once; done = released).  The wheel over it, or
     //     over the button just before it (even while the slider is left
     //     out), calls onWheel(id, notches) (+ = up).  No onClick for it.
+    //   * label (0.7.8): a short caption under the icon (e.g. 截圖); the pill
+    //     grows by one line.  All captions or none: none when the window is
+    //     too narrow for the wider buttons they need (long English words).
     // Call again to update (e.g. toggled); an empty list removes it.
     struct ToolbarItem {
         int id = 0;
@@ -168,8 +171,13 @@ public:
         bool recording = false;
         bool optional = false;
         float slider = -1;
+        std::wstring label;
     };
     void setLiveToolbar(std::vector<ToolbarItem> items, std::function<void(int id)> onClick);
+    // One-time introduction (0.7.8): shows the toolbar by itself for holdMs
+    // as soon as a live picture has it (now, or at the next first frame), with
+    // note in a small callout under it.  Moving the mouse works as usual.
+    void revealToolbar(int holdMs, const std::wstring& note);
     void setLiveToolbarSlider(std::function<void(int id, float value, bool done)> onSlide,
                               std::function<void(int id, int notches)> onWheel);
 
@@ -305,6 +313,11 @@ public:
     // true: hide the translations, only outline their areas (the picture's
     // own text shows).
     void setTextOverlayOriginal(bool showOriginal);
+    // 即時翻譯 (0.7.8): every block in place (never the list panel), and the
+    // boxes follow the page while it scrolls (a picture that is not the
+    // boxes' picture scrolled hides them until the next setTextOverlay).
+    // The boxes of setTextOverlay are taken to be of the last grabPicture().
+    void setTextOverlayLive(bool on);
     // Centre card with a spinner, e.g. 「正在翻譯…」; empty string hides it.
     void setOverlayBusy(const std::wstring& label);
     // Lets the user drag a rectangle on the picture (crosshair cursor, hint
@@ -406,12 +419,25 @@ public:
     // UI thread. Only drawn on the fully shown idle screen (not while
     // connecting / live / paused). Call again to replace; empty list (or
     // empty labels) hides them.
+    // card >= 0 (0.7.8): the button inside that idle card (setIdleCards)
+    // instead of the row.
     struct IdleAction {
         std::wstring label;
         bool primary = false;
         std::function<void()> onClick;
+        int card = -1;
     };
     void setIdleActions(std::vector<IdleAction> actions);
+    // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards side by
+    // side (wide window) or stacked: a title, one line of how-to, a smaller
+    // note (e.g. why it cannot be used now); muted greys the card.  The
+    // card's button is the IdleAction with card = its index.  Non-empty:
+    // replaces setIdleHints and the default title; empty restores them.
+    struct IdleCard {
+        std::wstring title, body, note;
+        bool muted = false;
+    };
+    void setIdleCards(std::vector<IdleCard> cards);
     // Shorthand: a single link (e.g. 「怎麼連線？」); empty label hides it.
     // Same as setIdleActions({{label, false, onClick}}).
     void setIdleHelpLink(const std::wstring& label, std::function<void()> onClick);

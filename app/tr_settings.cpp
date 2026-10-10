@@ -394,11 +394,16 @@ void llmStartDownload() {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
         auto progress = [](double p) {
             Ai.progress = p;
-            if (!Ai.progressPosted.exchange(true))
-                postUi([] {
-                    Ai.progressPosted = false;
-                    if (Ai.downloading) llmRefresh(false);
-                });
+            // The panel is redrawn at most ~8 times a second (every block of a
+            // fast download reported here); the done message redraws it at the end.
+            static std::atomic<ULONGLONG> lastPost{0};
+            const ULONGLONG now = GetTickCount64();
+            if (now - lastPost.load() < 120 || Ai.progressPosted.exchange(true)) return;
+            lastPost = now;
+            postUi([] {
+                Ai.progressPosted = false;
+                if (Ai.downloading) llmRefresh(false);
+            });
         };
         // Bytes, speed and time left for the progress line (all files at once).
         auto rich = [progress](const llm::DownloadProgress& d) {
@@ -501,11 +506,14 @@ void ocrStartDownload() {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
         auto progress = [](double p) {
             Ai.ocrProgress = p;
-            if (!Ai.ocrPosted.exchange(true))
-                postUi([] {
-                    Ai.ocrPosted = false;
-                    if (Ai.ocrDownloading) llmRefresh(false);
-                });
+            static std::atomic<ULONGLONG> lastPost{0};  // redrawn at most ~8 times a second
+            const ULONGLONG now = GetTickCount64();
+            if (now - lastPost.load() < 120 || Ai.ocrPosted.exchange(true)) return;
+            lastPost = now;
+            postUi([] {
+                Ai.ocrPosted = false;
+                if (Ai.ocrDownloading) llmRefresh(false);
+            });
         };
         std::wstring detail;
         llm::Result r;
@@ -924,7 +932,13 @@ void onlineAction(int id) {
         O.provider = np;
         O.hasTest = false;
         O.panel.wipeEdit(OKey);  // a key belongs to one provider
-        break;
+        // The region box is created empty when Azure is picked here (it only
+        // exists while Azure is selected): fill in the saved region, else
+        // 儲存 / 測試連線 would send "" and clear it.
+        onlineRefresh();
+        if (np == onl::Provider::Azure && trim(O.panel.editText(ORegion)).empty())
+            O.panel.setEditText(ORegion, onl::loadSettings().azureRegion);
+        return;
     }
     case OModeEscalate: O.mode = onl::Mode::Escalate; break;
     case OModeAll: O.mode = onl::Mode::All; break;
@@ -971,26 +985,31 @@ void init(Host h) {
     O.toasted = onl::Status::Ok;
 }
 
-void shutdown() {
+// When quitting (UI still up: cancel, close, wait up to 2 s) and, last=true,
+// at the very end of wWinMain (every exit path; joins whatever still runs).
+// The workers are never detached: one still running while the statics it
+// uses are destroyed at exit would crash (and a joinable std::thread left
+// to its destructor calls std::terminate).
+void shutdown(bool last) {
     ask.close();
-    if (Ai.ocrWorker.joinable()) {  // the add-on download: stops at its next block (.part kept)
-        Ai.ocrCancel = true;
-        Ai.ocrWorker.detach();
-    }
     Ai.panel.close();
     O.panel.close();
-    if (Ai.worker.joinable()) {
-        Ai.cancel = true;
-        // The download stops at its next block (the partial file is kept); do not hang the exit.
-        for (int i = 0; i < 40 && Ai.downloading; ++i) {
-            MSG m;
-            while (PeekMessageW(&m, msgWnd, 0, 0, PM_REMOVE)) DispatchMessageW(&m);
-            if (Ai.downloading) Sleep(50);
-        }
-        if (Ai.worker.joinable()) Ai.worker.detach();
+    // Downloads stop at their next block (the partial file is kept); a key
+    // test cannot be cancelled but ends by itself (<= ~25 s).
+    if (Ai.downloading) Ai.cancel = true;
+    if (Ai.ocrDownloading) Ai.ocrCancel = true;
+    // Their done messages (llmDownloadDone / ocrDownloadDone / the test
+    // result) join them on this thread.
+    for (int i = 0; i < 40 && (Ai.downloading || Ai.ocrDownloading || O.testing); ++i) {
+        MSG m;
+        while (msgWnd && PeekMessageW(&m, msgWnd, 0, 0, PM_REMOVE)) DispatchMessageW(&m);
+        if (Ai.downloading || Ai.ocrDownloading || O.testing) Sleep(50);
     }
-    if (O.tester.joinable()) O.tester.detach();  // a key test ends by itself (<= ~25 s)
+    if (!last) return;
     if (msgWnd) DestroyWindow(msgWnd), msgWnd = nullptr;  // later results are dropped
+    if (Ai.worker.joinable()) Ai.worker.join();
+    if (Ai.ocrWorker.joinable()) Ai.ocrWorker.join();
+    if (O.tester.joinable()) O.tester.join();
 }
 
 void openLocalAi() {
@@ -1126,7 +1145,7 @@ void devScreen(int dpi, int workAreaPx) {
 namespace pm::ui::trset {
 bool available() { return false; }
 void init(Host) {}
-void shutdown() {}
+void shutdown(bool) {}
 void openLocalAi() {}
 void openOnline() {}
 void retheme() {}

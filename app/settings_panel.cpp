@@ -461,6 +461,16 @@ void SettingsPanel::layout() {
             if (it.kind == K::Heading && i > 0) y += 6;
             break;
         }
+        case K::KeyRow: {  // label | key cap (right-aligned)
+            const float kw = std::ceil(f.width(f.label.Get(), it.sub)) + 16;
+            r.b = f.layout(f.label.Get(), it.sub, kw);
+            r.bh = Factories::height(r.b.Get());
+            r.x.assign(1, kw);
+            r.a = f.layout(f.body.Get(), it.text, (std::max)(80.0f, w - kw - 12));
+            r.ah = Factories::height(r.a.Get());
+            h = (std::max)(r.ah, r.bh + 6) + 2;
+            break;
+        }
         case K::Code:
             r.a = f.layout(f.code.Get(), it.text, w - 20);
             r.ah = Factories::height(r.a.Get());
@@ -899,6 +909,14 @@ void SettingsPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, bool pn
         case K::Status:
             layoutAt(r.a.Get(), x0, y, withA(it.tone == 2 ? t.warn : it.tone == 1 ? t.accent : t.fg, a));
             break;
+        case K::KeyRow: {
+            layoutAt(r.a.Get(), x0, y + (h - r.ah) / 2, withA(t.fg, a));
+            const float kw = r.x.empty() ? 0 : r.x[0], kx = kW - kPad - kw, kh = r.bh + 6, ky = y + (h - kh) / 2;
+            fill(rc(kx, ky, kw, kh), withA(t.fg, t.light ? 0.06f : 0.08f), 6);
+            stroke({kx + 0.5f, ky + 0.5f, kx + kw - 0.5f, ky + kh - 0.5f}, withA(t.fg, 0.18f), 6);
+            layoutAt(r.b.Get(), kx + 8, ky + 3, withA(t.accent, a));
+            break;
+        }
         case K::Code:
             fill(rc(x0, y, kW - kPad - x0, h), withA(t.fg, t.light ? 0.05f : 0.07f), 8);
             layoutAt(r.a.Get(), x0 + 10, y + 8, withA(t.dim, a));

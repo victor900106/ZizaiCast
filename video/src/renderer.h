@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -96,8 +97,18 @@ public:
     struct Action {
         std::wstring label;
         bool primary = false;
+        int card = -1;  // 0.7.8: the button of idle card #card (drawn in it, not in the row)
     };
     void setHints(std::vector<std::wstring> lines) { hints_ = std::move(lines); }
+    // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards (title,
+    // one line of how, a muted note; muted: greyed, cannot be used now).  Each
+    // card's button is the Action with that card index.  Non-empty: replaces
+    // the hints and the default title.
+    struct Card {
+        std::wstring title, body, note;
+        bool muted = false;
+    };
+    void setCards(std::vector<Card> cards) { cards_ = std::move(cards); }
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }
     void setActionHover(int index) {
         actionHot_ = index;
@@ -131,7 +142,16 @@ public:
         // button (glyph unused; toggled = greyed, e.g. muted).  Hidden only when
         // the window is too narrow even without every optional button.
         float slider = -1;
+        // 0.7.8: short caption under the icon (all or none: none when the
+        // window is too narrow for the buttons they widen).
+        std::wstring label;
     };
+    // One-time introduction: shown by itself for holdMs (pending until the
+    // toolbar is available on a live picture) with note in a callout under it.
+    void revealToolbar(double holdMs, std::wstring note) {
+        revealMs_ = holdMs;
+        revealNote_ = std::move(note);
+    }
     // Slider track ends: this fraction of the item's height in from each side
     // (hit rect -> value mapping in VideoWindow uses the same).
     static constexpr float kToolSliderInset = 0.22f;
@@ -224,6 +244,13 @@ public:
     // The boxes whose original is in `originals` get the 「線上」 badge (the others lose it).
     void setTextOverlayOnline(const std::vector<std::wstring>& originals);
     void setTextOverlayOriginal(bool on) { showOriginal_ = on; }
+    // 即時翻譯 (live_overlay.cpp): every block in place, never the list
+    // panel; the boxes follow the page when it scrolls (live_scroll_tracker)
+    // and hide when the picture changed some other way.  liveBoxesSet():
+    // after setTextOverlay - the boxes are of the picture of the last grab().
+    void setOverlayLive(bool on);
+    bool overlayLive() const;
+    void liveBoxesSet();
     // List panel / markers: item = list number - 1.  hot: under the cursor
     // (-1 none); selected: clicked (reveal: scroll the list to it); scroll in DIPs.
     void setOverlayHot(int item) { ovHot_ = item; }
@@ -386,6 +413,14 @@ private:
     bool renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror);
     // Magnifier / freeze / overlay UI (DIPs; pic = the picture viewport).
     void drawTextOverlay(const D2D1_RECT_F& pic, float radius);
+    // 即時翻譯 (live_overlay.cpp): live_ is created on first use.
+    struct LiveOverlay;
+    std::shared_ptr<LiveOverlay> live_;
+    LiveOverlay& live();
+    void liveNoteGrab();  // grab(): the signature of the picture handed out
+    void liveTrack();     // render(), before 2D: a new picture -> its scroll shift
+    void liveReleaseDevice();  // releaseDevice(): its GPU copy belongs to the old device
+    void drawLiveOverlay(const D2D1_RECT_F& pic, float radius);
     struct Badges {
         D2D1_RECT_F zoom{}, frozen{};  // DIPs, empty if not shown
     };
@@ -422,7 +457,10 @@ private:
         D2D1_RECT_F text;         // region for the text block
         float title, hint;        // font sizes
     };
-    Layout layoutFor() const;
+    // mascot false: no 投投, the text region is the whole window (see
+    // idleNoMascot_); the default follows idleNoMascot_.
+    Layout layoutFor() const { return layoutFor(!idleNoMascot_); }
+    Layout layoutFor(bool mascot) const;
     // Art frame point -> DIPs at rest (no float / squash).
     static D2D1_POINT_2F framePoint(const Layout& L, float x, float y);
     // The mascot's pose this frame: expression, float, squash / stretch, hover.
@@ -538,6 +576,29 @@ private:
     std::vector<RECT> optionRects_;
     std::vector<std::wstring> hints_;
     std::vector<Action> actions_;
+    std::vector<Card> cards_;
+    // Lays out (and with draw, draws at x / top within maxW) the idle cards;
+    // returns their height.  clickable: publishes the buttons' hit rects.
+    // mode 0: title, how-to line, note, button; 1 (a short window): no
+    // how-to line; 2 (a tiny one): title and button only.
+    float drawCards(float x, float top, float maxW, float size, bool draw, bool clickable, int mode = 0);
+    // How the 「請選你的手機」 screen fits the text region, most generous
+    // first: full cards with the check boxes; without the check boxes (they
+    // are in 設定 too); cards without the how-to line; a smaller title; title
+    // and button only; no title.  Cards shrink to ~62 % at each step.
+    struct IdlePlan {
+        int level = -1;  // the step used (-1: none fits; the last one, shrunk)
+        bool fits = false, opts = true, title = true;
+        int mode = 0;
+        float titleSize = 0, cardSize = 0, cardsH = 0, gapCards = 0, block = 0;
+    };
+    IdlePlan planIdleCards(const Layout& L, bool full);
+    bool optionsFit(float size, float regionW);  // every check box label whole (drawOptions trims)
+    // A title's size: shrunk up to 25 % so it stays on one line within maxW.
+    float oneLineSize(const std::wstring& text, float size, float maxW);
+    D2D1_RECT_F cardsRect_{};  // the cards as last drawn (DIPs; empty: none)
+    D2D1_RECT_F beamAvoid_{};  // drawBeam: not drawn when it would cross this (the cards)
+    bool idleNoMascot_ = false;  // a window too small for 投投 and the cards: cards only
     int actionHot_ = -1;
     std::vector<RECT> actionRects_;
     RECT picRect_{};
@@ -557,6 +618,11 @@ private:
     double toolHotAt_ = -1e9;  // hover started (tooltip delay)
     std::vector<RECT> toolRects_;
     RECT toolPill_{};
+    double revealMs_ = 0;        // revealToolbar() pending (0: none)
+    std::wstring revealNote_;    // its callout text
+    double revealUntil_ = -1e9;  // callout shown until (fades with the toolbar)
+    void startReveal(double now);
+    void drawRevealNote(const D2D1_RECT_F& pill, float a, double now);
     D2D1_RECT_F recBadge_{};   // last REC badge (DIPs), empty if none
     D2D1_RECT_F textBlock_{};  // last idle / connecting text block (DIPs): the hearts fade there
     std::wstring iconFamily_;  // Segoe Fluent Icons / Segoe MDL2 Assets ("-": none)
