@@ -13,7 +13,7 @@
 #define AppName "自在投影"
 ; /DAppVersion=x.y.z overrides it (fake newer installers for updater tests).
 #ifndef AppVersion
-  #define AppVersion "0.7.7"
+  #define AppVersion "0.7.9"
 #endif
 #define AppExe "自在投影.exe"
 #ifndef BuildDir
@@ -55,7 +55,10 @@ UninstallDisplayName={cm:AppName}
 OutputDir=Output
 ; File name pattern relied on by 本機更新 (自在投影-安裝程式-*.exe in 安裝檔).
 OutputBaseFilename={#AppName}-安裝程式-{#AppVersion}
-Compression=lzma2/max
+; ultra64 = 64 MB dictionary (needs ~700 MB RAM while compiling); the
+; separate process keeps the LZMA compressor out of the ISCC process.
+Compression=lzma2/ultra64
+LZMAUseSeparateProcess=yes
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
