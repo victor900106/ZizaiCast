@@ -3,7 +3,7 @@
 #
 #   py -3 translate/testdata/eval_metrics.py --img IMGDIR --run OCR.jsonl [--gtrun GT.jsonl] [--json OUT.json] [-v] [--gate gt|ocr]
 #
-#   IMGDIR   the pictures + NAME.gt.tsv (make_eval_scenes.py / make_owner_072.py output)
+#   IMGDIR   the pictures + NAME.gt.tsv (make_eval_scenes.py output)
 #   OCR.jsonl  pm_translate_test --eval OCR.jsonl IMGDIR/*.png              (the app's path)
 #   GT.jsonl   pm_translate_test --eval GT.jsonl --gt IMGDIR/*.png         (same, ground-truth lines)
 #

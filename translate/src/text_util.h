@@ -1,6 +1,7 @@
 // Text helpers of pm_translate: scripts, UTF-8, Chinese variants, punctuation.
 #pragma once
 
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -23,6 +24,7 @@ struct ScriptCount {
     int letters() const { return kana + hangul + han + latin; }
 };
 ScriptCount countScripts(const std::wstring& s);
+bool isHangul(wchar_t c);  // syllables, jamo, compatibility jamo (the one definition of the hangul ranges)
 bool isCjk(wchar_t c);  // kana, hangul, Han, CJK punctuation / full-width forms
 
 std::wstring toSimplified(const std::wstring& s);
@@ -90,6 +92,11 @@ int japaneseOnlyKanji(const std::wstring& s);
 // Signs of Chinese in kanji-only text: Traditional forms Japanese writes
 // differently (會 說 譯 點 灣), Chinese function words (這 們 的 了 是 嗎 一定).
 int chineseSignals(const std::wstring& s);
+// 「文法 Grammar」: a short Japanese / Korean label and its capitalised English gloss on one line.
+bool labelWithGloss(const std::wstring& t);
+// pickBlocks found a page about the Japanese language (furigana, quoted kana
+// examples): translateTextsEx on this thread keeps 「kana」 quotes as written.
+void setLearningPage(bool on);
 // A postal address (〒, 601-8446, 京都府…市…区…35-2, 서울시 …구 …로).
 bool looksLikeAddress(const std::wstring& t);
 // High-risk label sentences (保存方法 / 注意 / allergens) whose slots are all
@@ -230,6 +237,46 @@ struct TextInfo {
 bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const std::vector<std::wstring>& in,
                       const std::vector<size_t>& labelLen, std::vector<std::wstring>& out, std::vector<TextInfo>* info,
                       std::wstring* err);
+
+// One picture the way ScreenTranslator handles it, shared with pm_translate_test
+// (--eval) so that the test and the app cannot drift apart: the lines laid out
+// as blocks (table rows, paragraphs), the ones worth translating by source
+// language (pickBlocks) and why the others are left out.
+struct PicturePlan {
+    std::vector<Block> blocks;
+    std::map<Lang, std::vector<size_t>> byLang;  // indices into blocks
+    std::vector<std::string> why;                // per block: "" = picked
+    Lang screenLang = Lang::Unknown;             // ja / ko / zh the screen is in (pickBlocks)
+    size_t picked() const {
+        size_t n = 0;
+        for (const auto& [l, v] : byLang) n += v.size();
+        return n;
+    }
+};
+// legacy: 0.7.2's grouping (groupLines instead of layoutBlocks; the baseline of pm_translate_test --eval).
+PicturePlan planPicture(const std::vector<OcrLine>& lines, Lang src, Lang tgt, float aspect, bool trustText, bool legacy = false);
+
+// A block's translation is worth a card: translatedOk, or a table row (always listed).
+bool cardWorthy(const Block& b, const std::wstring& tx, const TextInfo* info, Lang from, Lang tgt);
+// The text of a card: tx + the checked key facts on its last line when the
+// translation still failed a check (selecting its list row shows the original).
+std::wstring cardText(const std::wstring& tx, const TextInfo* info);
+
+// Blocks per engine call (dense screens are shown chunk by chunk).
+constexpr size_t kPlanChunk = 24;
+struct PlanHooks {
+    std::function<bool(Lang)> beforeLang;  // before a source language's blocks: false = stop (models missing)
+    // after each chunk: its block indices, input texts, translations, details
+    std::function<bool(Lang, const std::vector<size_t>&, const std::vector<std::wstring>&, const std::vector<std::wstring>&,
+                       const std::vector<TextInfo>&)>
+        chunkDone;  // false = stop
+    bool legacy = false;  // 0.7.2: translateTexts without rows / escalator
+};
+// Translates the picked blocks, byLang order, chunk blocks per call, through
+// translateTextsEx (glossary, rows, names, checks, escalation).  false: failed
+// (err) or a hook said stop.
+bool translatePlan(Engine& engine, Escalator* esc, const PicturePlan& plan, Lang tgt, size_t chunk, const PlanHooks& hooks,
+                   std::wstring* err);
 }  // namespace pm::translate
 
 namespace pm::translate {

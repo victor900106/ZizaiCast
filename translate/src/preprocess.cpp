@@ -349,7 +349,7 @@ bool applyTemplate(const std::wstring& text, Lang src, Lang tgt, std::wstring& o
 
 // ---- Data glossary (ja / ko -> zh-Hant, Taiwan usage) ----
 // Proper nouns, stations, dishes, signs: Wikidata (CC0), hand-curated lists,
-// OpenCC-converted labels (launch/_work/glossary, SOURCES.md), compiled in
+// OpenCC-converted labels (tools/glossary, SOURCES.md), compiled in
 // from glossary_data.inc (translate/tools/make_glossary_inc.py).  Tests:
 // PM_GLOSSARY=DIR reads DIR\glossary_ja.tsv / glossary_ko.tsv instead,
 // PM_GLOSSARY=off turns it off.
@@ -452,7 +452,6 @@ const GTable* gTable(Lang src) {
 bool gHira(wchar_t c) { return c >= 0x3041 && c <= 0x309F; }
 bool gKata(wchar_t c) { return (c >= 0x30A1 && c <= 0x30FA) || c == 0x30FC || (c >= 0xFF66 && c <= 0xFF9F); }
 bool gHan(wchar_t c) { return (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF) || c == 0x3005; }
-bool gHangul(wchar_t c) { return c >= 0xAC00 && c <= 0xD7AF; }
 bool gLatin(wchar_t c) { return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9'); }
 
 // Japanese: no cut inside a run of the same script (チキン in チキンカツ, 日本
@@ -473,13 +472,13 @@ size_t koParticle(const std::wstring& s, size_t e) {
                                         L"와", L"과", L"도", L"만", L"랑"};
     for (const wchar_t* p : kP) {
         const size_t n = wcslen(p);
-        if (s.compare(e, n, p) == 0 && (e + n == s.size() || !gHangul(s[e + n]))) return n;
+        if (s.compare(e, n, p) == 0 && (e + n == s.size() || !isHangul(s[e + n]))) return n;
     }
     return 0;
 }
 bool koBoundary(const std::wstring& s, size_t b, size_t e) {
-    if (b > 0 && gHangul(s[b - 1])) return false;
-    return e == s.size() || !gHangul(s[e]) || koParticle(s, e) > 0;
+    if (b > 0 && isHangul(s[b - 1])) return false;
+    return e == s.size() || !isHangul(s[e]) || koParticle(s, e) > 0;
 }
 
 // English: whole words only (case-insensitive, any spacing); ' and - are word characters (gluten in gluten-free is

@@ -14,7 +14,9 @@
 #include <dxgi.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -43,12 +45,15 @@ constexpr char kKoModel[] = "korean_PP-OCRv5_rec_mobile.onnx";
 // the 1x + 2x set for +30 ms).
 int kDetLimit = 1280;
 float kDetThresh = 0.3f, kBoxThresh = 0.5f, kUnclip = 1.6f;
-// Test overrides: PM_OCR_DET="limit thresh box unclip".
+// Test overrides: PM_OCR_DET="limit thresh box unclip" (read for every
+// picture: the tests switch settings between runs, as do the other PM_OCR_*).
 void detParams() {
-    static bool done = false;
-    if (done) return;
-    done = true;
+    kDetLimit = 1280, kDetThresh = 0.3f, kBoxThresh = 0.5f, kUnclip = 1.6f;
     if (const char* e = std::getenv("PM_OCR_DET")) sscanf_s(e, "%d %f %f %f", &kDetLimit, &kDetThresh, &kBoxThresh, &kUnclip);
+}
+int envInt(const char* name, int def) {
+    const char* e = std::getenv(name);
+    return e && *e ? atoi(e) : def;
 }
 constexpr int kRecH = 48, kRecMaxW = 3200, kRecBatch = 8;
 
@@ -56,6 +61,14 @@ double nowMs() {
     using namespace std::chrono;
     return duration<double, std::milli>(steady_clock::now().time_since_epoch()).count();
 }
+
+// Tests (PM_OCR_PROF): where one picture's time goes.
+struct Prof {
+    double detPre = 0, detRun = 0, detPost = 0, cache = 0, probe = 0, main = 0, ko = 0, more = 0, early = 0;
+    int detW = 0, detH = 0, cached = 0, nProbe = 0, nMain = 0, nKo = 0, nMore = 0, batches = 0;
+    double realPx = 0, paddedPx = 0;  // recognition input columns: crops' own / with batch padding
+};
+Prof g_prof;
 
 std::wstring exeDir() {
     wchar_t p[MAX_PATH];
@@ -197,8 +210,12 @@ std::unique_ptr<Session> openSession(const char* file, bool rec) {
     check(a.CreateSessionOptions(&so));
     int threads = static_cast<int>(std::clamp(std::thread::hardware_concurrency() / 4, 2u, 4u));  // measured: more is slower
     if (const char* e = std::getenv("PM_OCR_THREADS"); e && atoi(e) > 0) threads = atoi(e);  // tests
+    if (!rec && envInt("PM_OCR_DET_THREADS", 0) > 0) threads = envInt("PM_OCR_DET_THREADS", 0);
     a.SetIntraOpNumThreads(so, threads);
-    a.SetInterOpNumThreads(so, 1);
+    a.SetInterOpNumThreads(so, std::max(1, envInt("PM_OCR_INTER", 1)));  // tests
+    if (envInt("PM_OCR_INTER", 1) > 1) a.SetSessionExecutionMode(so, ORT_PARALLEL);
+    if (const char* sp = std::getenv("PM_OCR_SPIN"); sp && *sp)
+        if (OrtStatus* st = a.AddSessionConfigEntry(so, "session.intra_op.allow_spinning", sp)) a.ReleaseStatus(st);
     a.SetSessionGraphOptimizationLevel(so, ORT_ENABLE_ALL);
     // GPU through DirectML: the add-on's runtime (PaddleOcr::gpuWanted), or
     // tests: PM_OCR_DML=1 (device 0) / =2N (device N) with the DirectML build
@@ -397,9 +414,29 @@ struct Quad {
     float h() const { return std::max(std::hypot(p[3].x - p[0].x, p[3].y - p[0].y), std::hypot(p[2].x - p[1].x, p[2].y - p[1].y)); }
 };
 
+// f(0 .. n-1) on a few threads, grain items at a time (picture work before /
+// after the networks: resizing, the line crops).  PM_OCR_CROPT: threads (tests).
+template <class F>
+void parallelFor(size_t n, size_t grain, F&& f) {
+    const int nt = envInt("PM_OCR_CROPT", 0) > 0 ? envInt("PM_OCR_CROPT", 0)
+                                                  : static_cast<int>(std::clamp(std::thread::hardware_concurrency() / 2, 1u, 8u));
+    const size_t chunks = (n + grain - 1) / grain;
+    const size_t k = std::min<size_t>(static_cast<size_t>(nt), chunks);
+    std::atomic<size_t> next{0};
+    auto work = [&] {
+        for (size_t c; (c = next++) < chunks;)
+            for (size_t i = c * grain; i < std::min(n, (c + 1) * grain); ++i) f(i);
+    };
+    std::vector<std::thread> th;
+    for (size_t t = 1; t < k; ++t) th.emplace_back(work);
+    work();
+    for (auto& t : th) t.join();
+}
+
 // ---- Detection ----
 std::vector<Quad> detect(Session& det, const uint8_t* bgra, int w, int h) {
     detParams();
+    const double t0 = nowMs();
     const float r = std::min(1.f, static_cast<float>(kDetLimit) / std::max(w, h));
     const int nw = std::max(32, static_cast<int>(std::lround(w * r / 32.f)) * 32);
     const int nh = std::max(32, static_cast<int>(std::lround(h * r / 32.f)) * 32);
@@ -408,7 +445,9 @@ std::vector<Quad> detect(Session& det, const uint8_t* bgra, int w, int h) {
     std::vector<float> in(static_cast<size_t>(3) * nw * nh);
     const float sx = static_cast<float>(w) / nw, sy = static_cast<float>(h) / nh;
     static const float mean[3] = {0.485f, 0.456f, 0.406f}, stdv[3] = {0.229f, 0.224f, 0.225f};
-    for (int y = 0; y < nh; ++y) {
+    // Rows on a few threads (~30 ms for a phone screenshot on one).
+    parallelFor(static_cast<size_t>(nh), 16, [&](size_t row) {
+        const int y = static_cast<int>(row);
         const int ya = static_cast<int>(y * sy), yb = std::max(ya + 1, std::min(h, static_cast<int>(std::ceil((y + 1) * sy))));
         for (int x = 0; x < nw; ++x) {
             const int xa = static_cast<int>(x * sx), xb = std::max(xa + 1, std::min(w, static_cast<int>(std::ceil((x + 1) * sx))));
@@ -424,10 +463,13 @@ std::vector<Quad> detect(Session& det, const uint8_t* bgra, int w, int h) {
             for (int c = 0; c < 3; ++c)
                 in[(static_cast<size_t>(c) * nh + y) * nw + x] = (acc[c] / n / 255.f - mean[c]) / stdv[c];
         }
-    }
+    });
     const int64_t shape[4] = {1, 3, nh, nw};
     std::vector<int64_t> os;
+    const double tRun = nowMs();
+    g_prof.detPre = tRun - t0, g_prof.detW = nw, g_prof.detH = nh;
     const std::vector<float> prob = run(det, in, shape, os);
+    g_prof.detRun = nowMs() - tRun;
     if (os.size() != 4 || os[2] != nh || os[3] != nw) throw OrtError{L"unexpected detection output"};
     // Connected regions of prob > kDetThresh (8-neighbourhood).
     std::vector<int> label(static_cast<size_t>(nw) * nh, 0);
@@ -501,6 +543,7 @@ std::vector<Quad> detect(Session& det, const uint8_t* bgra, int w, int h) {
             if (q.w() < 4 || q.h() < 4) continue;
             out.push_back(q);
         }
+    g_prof.detPost = nowMs() - t0 - g_prof.detPre - g_prof.detRun;
     return out;
 }
 
@@ -604,23 +647,26 @@ struct RecOut {
 // games running): warm OCR 1.31-2.02 s with one session, 1.03-1.58 s with
 // two; three were slower again.  PM_OCR_PAR overrides (tests).
 int recParallel() {
-    static const int n = [] {
-        if (const char* e = std::getenv("PM_OCR_PAR"); e && atoi(e) > 0) return std::min(4, atoi(e));
-        return std::thread::hardware_concurrency() >= 8 ? 2 : 1;
-    }();
-    return n;
+    const int n = envInt("PM_OCR_PAR", 0);
+    if (n > 0) return std::min(8, n);
+    return std::thread::hardware_concurrency() >= 8 ? 2 : 1;
 }
 
-// CTC greedy decoding of one batch: crops order[b .. b + kRecBatch).
-void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vector<size_t>& order, size_t b,
-                    std::vector<RecOut>& res) {
-    const size_t n = std::min<size_t>(kRecBatch, order.size() - b);
-    int bw = 0;
-    for (size_t k = 0; k < n; ++k) bw = std::max(bw, crops[order[b + k]].w);
-    bw = std::max(bw, 64);
-    // Fewer distinct shapes (a GPU compiles one graph per shape): widths in steps of 128.
+// The batch's input width for crops of at most maxW columns.  Tests with a
+// GPU: in steps of 128 (DirectML builds its graph again for every new shape).
+int batchWidth(int maxW) {
+    int bw = std::max(maxW, 64);
     static const bool bucket = std::getenv("PM_OCR_DML") || std::getenv("PM_OCR_BUCKET");
     if (bucket) bw = (bw + 127) / 128 * 128;
+    return bw;
+}
+
+// CTC greedy decoding of one batch: crops order[b .. b + n).
+void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vector<size_t>& order, size_t b, size_t n,
+                    std::vector<RecOut>& res) {
+    int bw = 0;
+    for (size_t k = 0; k < n; ++k) bw = std::max(bw, crops[order[b + k]].w);
+    bw = batchWidth(bw);
     const size_t plane = static_cast<size_t>(kRecH) * bw;
     std::vector<float> in(n * 3 * plane, 0.f);
     for (size_t k = 0; k < n; ++k) {
@@ -633,6 +679,13 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
     const int64_t shape[4] = {static_cast<int64_t>(n), 3, kRecH, bw};
     std::vector<int64_t> os;
     const double tb = nowMs();
+    {
+        static std::mutex pm;
+        std::lock_guard pl(pm);
+        ++g_prof.batches;
+        g_prof.paddedPx += static_cast<double>(n) * bw;
+        for (size_t k = 0; k < n; ++k) g_prof.realPx += crops[order[b + k]].w;
+    }
     const std::vector<float> p = run(rec, in, shape, os);
     static const bool prof = std::getenv("PM_OCR_PROF") != nullptr && std::getenv("PM_OCR_PROF")[0] == '2';
     if (prof) std::fprintf(stderr, "[rec] %s n %zu w %d: %.0f ms\n", rec.name.c_str(), n, bw, nowMs() - tb);
@@ -676,22 +729,111 @@ void recognizeBatch(Session& rec, const std::vector<Crop>& crops, const std::vec
     }
 }
 
-// Crops (batched by similar width) on the sessions in parallel: the widest
-// batches first, dealt out in turn, so the threads finish together.
+// Batching (tests: PM_OCR_BATCH = most crops per batch, PM_OCR_PADCAP = the
+// most padding a batch may add, as input columns over the crops' own;
+// PM_OCR_SCHED=1: these, handed to whichever session is free; default 0:
+// 0.7.7's fixed batches of 8 dealt out in turn - measured on eval_web (50
+// pictures, E-cores): the free-session order was 3 % slower and changed 3
+// pictures' text (other batches, other padding), so it stays a test).
+int recBatchMax() { return std::max(1, envInt("PM_OCR_BATCH", kRecBatch)); }
+float recPadCap() {
+    const char* e = std::getenv("PM_OCR_PADCAP");
+    return e && *e ? static_cast<float>(atof(e)) : 0.f;
+}
+bool recOldSchedule() { return envInt("PM_OCR_SCHED", 0) == 0; }
+
+// Crops (batched by similar width) on the sessions in parallel.
+// first (a part of which, e.g. the top of the picture): batched on its own and
+// read before the others; onFirst(res) is called (on one of the recognition
+// threads, the others going on) as soon as all of it is read.
 std::vector<RecOut> recognizeCrops(const std::vector<Session*>& sessions, const std::vector<Crop>& crops,
-                                   const std::vector<size_t>& which) {
+                                   const std::vector<size_t>& which, const std::vector<size_t>* first = nullptr,
+                                   const std::function<void(const std::vector<RecOut>&)>& onFirst = {}) {
     std::vector<RecOut> res(crops.size());
-    std::vector<size_t> order = which;
-    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return crops[a].w < crops[b].w; });
-    std::vector<size_t> starts;
-    for (size_t b = 0; b < order.size(); b += kRecBatch) starts.push_back(b);
-    const size_t nw = std::min(sessions.size(), starts.size());
+    auto byW = [&](size_t a, size_t b) { return crops[a].w < crops[b].w; };
+    std::vector<size_t> order;
+    size_t nFirst = 0;  // order[0, nFirst): the first group
+    if (first && !first->empty()) {
+        std::vector<char> in(crops.size(), 0);
+        for (size_t i : *first) in[i] = 1;
+        for (size_t i : which)
+            if (in[i]) order.push_back(i);
+        nFirst = order.size();
+        for (size_t i : which)
+            if (!in[i]) order.push_back(i);
+        std::sort(order.begin(), order.begin() + nFirst, byW);
+        std::sort(order.begin() + nFirst, order.end(), byW);
+    } else {
+        order = which;
+        std::sort(order.begin(), order.end(), byW);
+    }
+    struct Batch {
+        size_t b, n;
+        double cost;
+        int grp = 1;  // 0: the first group
+    };
+    std::vector<Batch> batches;
+    auto costOf = [&](size_t b, size_t n) { return static_cast<double>(n) * batchWidth(crops[order[b + n - 1]].w); };
+    if (recOldSchedule()) {
+        // 0.7.7: batches of 8, the widest first, dealt out in turn.
+        // With a first group: its batches come first (each group on its own).
+        for (size_t g0 = 0, g1 = nFirst ? nFirst : order.size(), grp = nFirst ? 0 : 1; g0 < order.size();
+             g0 = g1, g1 = order.size(), grp = 1) {
+            const size_t at = batches.size();
+            for (size_t b = g0; b < g1; b += kRecBatch)
+                batches.push_back({b, std::min<size_t>(kRecBatch, g1 - b), 0, static_cast<int>(grp)});
+            std::reverse(batches.begin() + at, batches.end());
+        }
+    } else {
+        // Up to recBatchMax crops of similar width; a batch ends where the
+        // next crop would make the padding exceed recPadCap.
+        const size_t maxN = static_cast<size_t>(recBatchMax());
+        const float cap = recPadCap();
+        for (size_t b = 0; b < order.size();) {
+            const size_t end = b < nFirst ? nFirst : order.size();  // batches never mix the groups
+            size_t e = b;
+            double own = 0;
+            while (e < end && e - b < maxN) {
+                const double w = batchWidth(crops[order[e]].w);
+                if (e > b && cap > 0 && (e - b + 1) * w > cap * (own + w)) break;
+                own += w;
+                ++e;
+            }
+            batches.push_back({b, e - b, 0, b < nFirst ? 0 : 1});
+            b = e;
+        }
+        // Every session gets work: the largest batches split in halves.
+        while (batches.size() < sessions.size()) {
+            auto big = std::max_element(batches.begin(), batches.end(), [](const Batch& x, const Batch& y) { return x.n < y.n; });
+            if (big == batches.end() || big->n < 2) break;
+            const Batch h{big->b + big->n / 2, big->n - big->n / 2, 0, big->grp};
+            big->n /= 2;
+            batches.push_back(h);
+        }
+        for (Batch& x : batches) x.cost = costOf(x.b, x.n);
+        // The first group first; the costliest first, each session taking the
+        // next when it is free.
+        std::stable_sort(batches.begin(), batches.end(),
+                         [](const Batch& x, const Batch& y) { return x.grp != y.grp ? x.grp < y.grp : x.cost > y.cost; });
+    }
+    const size_t nw = std::min(sessions.size(), batches.size());
     std::vector<OrtError> errors(nw);
     std::vector<int> failed(nw, 0);
+    std::atomic<size_t> next{0};
+    std::atomic<int> firstLeft{static_cast<int>(std::count_if(batches.begin(), batches.end(), [](const Batch& x) { return x.grp == 0; }))};
     auto work = [&](size_t wi) {
         try {
-            for (size_t j = wi; j < starts.size(); j += nw)
-                recognizeBatch(*sessions[wi], crops, order, starts[starts.size() - 1 - j], res);
+            if (recOldSchedule()) {
+                for (size_t j = wi; j < batches.size(); j += nw) {
+                    recognizeBatch(*sessions[wi], crops, order, batches[j].b, batches[j].n, res);
+                    if (batches[j].grp == 0 && --firstLeft == 0 && onFirst) onFirst(res);
+                }
+            } else {
+                for (size_t j; (j = next++) < batches.size();) {
+                    recognizeBatch(*sessions[wi], crops, order, batches[j].b, batches[j].n, res);
+                    if (batches[j].grp == 0 && --firstLeft == 0 && onFirst) onFirst(res);
+                }
+            }
         } catch (const OrtError& e) {
             errors[wi] = e;
             failed[wi] = 1;
@@ -714,14 +856,14 @@ std::vector<Session*> recSessions(std::unique_ptr<Session>& first, std::vector<s
                                   const char* file) {
     if (!first) first = openSession(file, true);
     std::vector<Session*> v{first.get()};
-    while (static_cast<int>(more.size()) + 1 < recParallel()) more.push_back(openSession(file, true));
-    for (auto& s : more) v.push_back(s.get());
+    const size_t n = static_cast<size_t>(recParallel());
+    while (more.size() + 1 < n) more.push_back(openSession(file, true));
+    for (size_t k = 0; k + 1 < n; ++k) v.push_back(more[k].get());
     return v;
 }
 
 bool isKanaChar(wchar_t c) { return (c >= 0x3041 && c <= 0x30FA) || c == 0x30FC || (c >= 0x31F0 && c <= 0x31FF); }
 bool isKatakana(wchar_t c) { return (c >= 0x30A1 && c <= 0x30FA) || c == 0x30FC; }
-bool isHangulChar(wchar_t c) { return c >= 0xAC00 && c <= 0xD7AF; }
 bool isHanChar(wchar_t c) { return (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF); }
 int nonSpace(const std::wstring& s) {
     return static_cast<int>(std::count_if(s.begin(), s.end(), [](wchar_t c) { return !iswspace(c); }));
@@ -766,6 +908,143 @@ std::wstring fixJapanese(std::wstring s, bool japanese) {
     return s;
 }
 
+// ---- Line cache ----
+// The last picture's pixels and its lines as read.  A detected line whose
+// pixels (its box and a margin) are the same as those of a line of the
+// last picture at the same size, anywhere (scrolled, or the magnified part
+// read before the whole picture), takes that reading instead of being read
+// again.  即時翻譯 runs after a scroll / a small change, and the whole picture
+// after its magnified part, so read only what changed.  PM_OCR_CACHE=0: off.
+struct CacheLine {
+    Quad q;
+    RecOut r;
+    Crop meta;  // without its pixels
+    bool ko = false;
+};
+struct LineCache {
+    std::vector<uint8_t> px;
+    int w = 0, h = 0;
+    std::vector<CacheLine> lines;
+    bool koreanFirst = false;
+    // The whole result: a picture with the very same pixels (翻譯整個畫面 again
+    // on an unchanged screen: 250-400 ms of detection with every line cached)
+    // returns it without running anything.
+    std::vector<OcrLine> result;
+    int koLines = 0;
+    bool haveResult = false;
+    Lang hint = Lang::Unknown;  // recognize()'s, for the result
+};
+LineCache g_cache;
+
+bool cacheOn() {
+    const char* e = std::getenv("PM_OCR_CACHE");  // read each time: the tests switch it
+    return !(e && e[0] == '0');
+}
+
+struct IBox {
+    int x0, y0, x1, y1;
+};
+IBox boxOf(const Quad& q, float dx, float dy, int m) {
+    float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+    for (const Pt& p : q.p) x0 = std::min(x0, p.x), y0 = std::min(y0, p.y), x1 = std::max(x1, p.x), y1 = std::max(y1, p.y);
+    return {static_cast<int>(std::floor(x0 + dx)) - m, static_cast<int>(std::floor(y0 + dy)) - m,
+            static_cast<int>(std::ceil(x1 + dx)) + m, static_cast<int>(std::ceil(y1 + dy)) + m};
+}
+
+// The new picture's box b and the cached picture's at b - (dx, dy) hold the
+// same pixels (a little video noise allowed, no stroke).
+bool samePixels(const uint8_t* a, int aw, int ah, IBox b, const LineCache& c, int dx, int dy) {
+    b.x0 = std::max(b.x0, 0), b.y0 = std::max(b.y0, 0), b.x1 = std::min(b.x1, aw), b.y1 = std::min(b.y1, ah);
+    if (b.x1 <= b.x0 || b.y1 <= b.y0) return false;
+    if (b.x0 - dx < 0 || b.y0 - dy < 0 || b.x1 - dx > c.w || b.y1 - dy > c.h) return false;
+    constexpr int kMax = 40;       // one channel, one pixel
+    constexpr double kMean = 2.0;  // per channel over the box
+    uint64_t sum = 0;
+    const int n = (b.x1 - b.x0) * 4;
+    for (int y = b.y0; y < b.y1; ++y) {
+        const uint8_t* p = a + (static_cast<size_t>(y) * aw + b.x0) * 4;
+        const uint8_t* q = c.px.data() + (static_cast<size_t>(y - dy) * c.w + (b.x0 - dx)) * 4;
+        if (std::memcmp(p, q, n) == 0) continue;
+        for (int k = 0; k < n; ++k) {
+            if ((k & 3) == 3) continue;  // alpha
+            const int d = std::abs(p[k] - q[k]);
+            if (d > kMax) return false;
+            sum += d;
+        }
+    }
+    return sum <= kMean * 3.0 * (b.x1 - b.x0) * (b.y1 - b.y0);
+}
+
+// Vertical shifts of the picture since the cached one (a scroll; 0 for fixed
+// bars): rows of the same pixels vote, the most voted first.
+std::vector<int> scrollShifts(const uint8_t* bgra, int w, int h) {
+    std::vector<int> out;
+    if (g_cache.w != w || g_cache.px.empty()) return out;
+    auto rowHash = [w](const uint8_t* row, bool* flat) {
+        uint64_t x = 1469598103934665603ull;
+        const uint32_t* p = reinterpret_cast<const uint32_t*>(row);
+        *flat = true;
+        for (int i = 0; i < w; ++i) {
+            x = (x ^ (p[i] & 0xFFFFFF)) * 1099511628211ull;
+            *flat = *flat && (p[i] & 0xFFFFFF) == (p[0] & 0xFFFFFF);
+        }
+        return x;
+    };
+    std::vector<std::pair<uint64_t, int>> old;
+    old.reserve(g_cache.h);
+    for (int y = 0; y < g_cache.h; ++y) {
+        bool flat;
+        const uint64_t hh = rowHash(g_cache.px.data() + static_cast<size_t>(y) * w * 4, &flat);
+        if (!flat) old.emplace_back(hh, y);
+    }
+    std::sort(old.begin(), old.end());
+    std::vector<std::pair<int, int>> votes;  // shift, count
+    for (int y = 0; y < h; ++y) {
+        bool flat;
+        const uint64_t hh = rowHash(bgra + static_cast<size_t>(y) * w * 4, &flat);
+        if (flat) continue;
+        auto it = std::lower_bound(old.begin(), old.end(), std::make_pair(hh, INT_MIN));
+        for (int k = 0; it != old.end() && it->first == hh && k < 4; ++it, ++k) {  // a repeated row: a few candidates
+            const int d = y - it->second;
+            auto v = std::find_if(votes.begin(), votes.end(), [d](const auto& p) { return p.first == d; });
+            if (v == votes.end()) votes.emplace_back(d, 1);
+            else ++v->second;
+        }
+    }
+    std::sort(votes.begin(), votes.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+    for (const auto& [d, n] : votes)
+        if (n >= 8 && out.size() < 3) out.push_back(d);
+    return out;
+}
+
+// The cached line showing the same text as quad q of the new picture, -1 if none.
+int findCached(const uint8_t* bgra, int w, int h, const Quad& q, bool vertical, const std::vector<int>& shifts) {
+    const float qw = q.w(), qh = q.h();
+    const float cx = (q.p[0].x + q.p[1].x + q.p[2].x + q.p[3].x) / 4, cy = (q.p[0].y + q.p[1].y + q.p[2].y + q.p[3].y) / 4;
+    for (size_t j = 0; j < g_cache.lines.size(); ++j) {
+        const CacheLine& c = g_cache.lines[j];
+        if (c.meta.vertical != vertical) continue;
+        // Detection boxes of the same line move by a few pixels with its position.
+        if (std::fabs(c.q.w() - qw) > 6 + 0.01f * qw || std::fabs(c.q.h() - qh) > 6) continue;
+        const float ox = (c.q.p[0].x + c.q.p[1].x + c.q.p[2].x + c.q.p[3].x) / 4, oy = (c.q.p[0].y + c.q.p[1].y + c.q.p[2].y + c.q.p[3].y) / 4;
+        const int dx0 = static_cast<int>(std::lround(cx - ox)), dy0 = static_cast<int>(std::lround(cy - oy));
+        // The picture's shifts (exact) when they fit this line, then offsets around its own.
+        std::vector<std::pair<int, int>> offs;
+        for (int s : shifts)
+            if (std::abs(s - dy0) <= 6 && std::abs(dx0) <= 6) offs.emplace_back(0, s);
+        static const int kOff[][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1},
+                                      {2, 0}, {-2, 0}, {0, 2}, {0, -2}};
+        for (const auto& o : kOff) offs.emplace_back(dx0 + o[0], dy0 + o[1]);
+        for (const auto& [dx, dy] : offs) {
+            // Both boxes (the new line's and the cached one moved) with a margin.
+            const IBox a = boxOf(q, 0, 0, 2), b = boxOf(c.q, static_cast<float>(dx), static_cast<float>(dy), 2);
+            const IBox u{std::min(a.x0, b.x0), std::min(a.y0, b.y0), std::max(a.x1, b.x1), std::max(a.y1, b.y1)};
+            if (samePixels(bgra, w, h, u, g_cache, dx, dy)) return static_cast<int>(j);
+        }
+    }
+    return -1;
+}
+
 }  // namespace
 
 bool PaddleOcr::runtimeAvailable(std::wstring* err) { return loadRuntime(err); }
@@ -790,11 +1069,44 @@ bool PaddleOcr::modelsInstalled() { return ModelStore::installed("ocr"); }
 
 void PaddleOcr::unload() {
     std::lock_guard lk(g_modelsM);
+    g_cache = {};
     if (!rt().api) return;
     g_models = {};
 }
 
-bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult& out, std::wstring* err) {
+bool PaddleOcr::warmUp(std::wstring* err) {
+    if (!loadRuntime(err) || !modelsInstalled()) return false;
+    std::lock_guard lk(g_modelsM);
+    static bool warm = false;  // (unload() keeps it: sessions opened again lazily, a cheap part)
+    if (warm && g_models.det && g_models.rec) return true;
+    try {
+        if (!g_models.det) g_models.det = openSession(kDetModel, false);
+        // Detection on a small blank picture, recognition of one blank crop
+        // per session (the first Run allocates; DirectML builds its graph).
+        std::vector<uint8_t> px(static_cast<size_t>(64) * 64 * 4, 255);
+        detect(*g_models.det, px.data(), 64, 64);
+        Crop c;
+        c.w = 320;
+        c.aspect = static_cast<float>(c.w) / kRecH;
+        c.px.assign(static_cast<size_t>(3) * kRecH * c.w, 1.f);
+        const std::vector<Crop> crops{c};
+        const std::vector<size_t> order{0};
+        std::vector<RecOut> res(1);
+        for (Session* s : recSessions(g_models.rec, g_models.recMore, kRecModel)) recognizeBatch(*s, crops, order, 0, 1, res);
+        if (!ModelStore::ocrFile(kKoModel).empty())
+            for (Session* s : recSessions(g_models.ko, g_models.koMore, kKoModel)) recognizeBatch(*s, crops, order, 0, 1, res);
+        warm = true;
+        return true;
+    } catch (const OrtError& e) {
+        if (err) *err = e.msg;
+    } catch (const std::exception& e) {
+        if (err) *err = L"OCR error: " + fromUtf8(e.what());
+    }
+    return false;  // recognize() opens them again (and falls back to the CPU)
+}
+
+bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult& out, std::wstring* err, Lang hint,
+                          const std::function<void(std::vector<OcrLine>)>& early) {
     out = {};
     out.backend = OcrBackend::Paddle;
     const double t0 = nowMs();
@@ -804,18 +1116,41 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
     }
     if (!loadRuntime(err)) return false;
     std::unique_lock lk(g_modelsM);
+    if (cacheOn() && g_cache.haveResult && g_cache.hint == hint && g_cache.w == width && g_cache.h == height &&
+        g_cache.px.size() == static_cast<size_t>(width) * height * 4 && !std::memcmp(g_cache.px.data(), bgra, g_cache.px.size())) {
+        out.lines = g_cache.result;
+        out.koLines = g_cache.koLines;
+        out.ms = nowMs() - t0;
+        return true;
+    }
     try {
         if (!g_models.det) g_models.det = openSession(kDetModel, false);
         if (!g_models.rec) g_models.rec = openSession(kRecModel, true);
+        g_prof = {};
         const double td = nowMs();
         const std::vector<Quad> quads = detect(*g_models.det, bgra, width, height);
         out.detMs = nowMs() - td;
         const double tr = nowMs();
-        std::vector<Crop> crops;
-        crops.reserve(quads.size());
-        for (const Quad& q : quads) crops.push_back(makeCrop(bgra, width, height, q));
-        std::vector<size_t> all(crops.size());
-        std::iota(all.begin(), all.end(), 0);
+        // Lines of the last picture with the same pixels: their reading again.
+        std::vector<int> hit(quads.size(), -1);
+        std::vector<size_t> todo;
+        const bool useCache = cacheOn();
+        int koCached = 0;
+        const std::vector<int> shifts = useCache && !g_cache.lines.empty() ? scrollShifts(bgra, width, height) : std::vector<int>();
+        for (size_t i = 0; i < quads.size(); ++i) {
+            if (useCache && !g_cache.lines.empty())
+                hit[i] = findCached(bgra, width, height, quads[i], quads[i].h() >= 1.5f * quads[i].w(), shifts);
+            if (hit[i] < 0) todo.push_back(i);
+            else koCached += g_cache.lines[hit[i]].ko;
+        }
+        g_prof.cached = static_cast<int>(quads.size() - todo.size());
+        g_prof.cache = nowMs() - tr;
+        // The crops on a few threads (independent; ~100 ms for a dense page on one).
+        std::vector<Crop> crops(quads.size());
+        for (size_t i = 0; i < quads.size(); ++i)
+            if (hit[i] >= 0) crops[i] = g_cache.lines[hit[i]].meta;
+        parallelFor(todo.size(), 2, [&](size_t k) { crops[todo[k]] = makeCrop(bgra, width, height, quads[todo[k]]); });
+        const std::vector<size_t>& all = todo;
         const double tCrops = nowMs();
         // A Korean picture (the main recogniser has no hangul: on 0.7.x every
         // Korean line was read twice, 18 s for a Wikipedia page): one batch of
@@ -823,136 +1158,18 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
         // Korean first, the main recogniser only for the lines it did not read.
         const bool haveKo = !ModelStore::ocrFile(kKoModel).empty();
         std::vector<RecOut> rec(crops.size()), kor;
-        std::vector<char> korDone(crops.size(), 0);
-        auto hangulOk = [](const RecOut& r) {
-            int hangul = 0, letters = 0;
-            for (wchar_t c : r.text) hangul += isHangulChar(c), letters += !iswspace(c) && !iswdigit(c) && !iswpunct(c);
-            return hangul > 0 && hangul * 10 >= letters * 3;
-        };
-        bool koreanFirst = false;
-        static const bool noProbe = std::getenv("PM_OCR_KO_PROBE") && std::getenv("PM_OCR_KO_PROBE")[0] == '0';  // tests: the 0.7.x order
-        if (haveKo && !noProbe && crops.size() >= 6) {
-            std::vector<size_t> byW(crops.size());
-            std::iota(byW.begin(), byW.end(), 0);
-            std::sort(byW.begin(), byW.end(), [&](size_t x, size_t y) { return crops[x].w < crops[y].w; });
-            std::vector<size_t> probe;
-            for (size_t k = byW.size() / 4; k < byW.size() && probe.size() < 8; ++k)
-                if (crops[byW[k]].aspect >= 1.5f && !crops[byW[k]].vertical) probe.push_back(byW[k]);
-            kor = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, probe);
-            int hits = 0;
-            for (size_t i : probe) {
-                korDone[i] = 1;
-                hits += hangulOk(kor[i]) && kor[i].conf >= 0.8f;
-            }
-            koreanFirst = hits * 2 >= static_cast<int>(probe.size()) && hits >= 3;
-        }
-        if (kor.empty()) kor.assign(crops.size(), {});
-        int koLines = 0;
-        double tKo1 = 0;
-        size_t nMore = 0;
-        std::vector<size_t> ko;
-        if (koreanFirst) {
-            std::vector<size_t> rest;
-            for (size_t i = 0; i < crops.size(); ++i)
-                if (!korDone[i]) rest.push_back(i);
-            const auto k2 = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, rest);
-            for (size_t i : rest) kor[i] = k2[i];
-            // The main recogniser: lines without (confident) hangul - numbers,
-            // Latin, kanji / kana - and the decision of 0.7.x for each.
-            std::vector<size_t> mainIdx;
-            for (size_t i = 0; i < crops.size(); ++i) {
-                if (hangulOk(kor[i]) && kor[i].conf >= 0.6f) {
-                    rec[i] = kor[i];
-                    ++koLines;
-                } else {
-                    mainIdx.push_back(i);
-                }
-            }
-            tKo1 = nowMs();
-            const auto m = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, mainIdx);
-            for (size_t i : mainIdx) {
-                rec[i] = m[i];
-                bool mainHan = false;
-                for (wchar_t c : m[i].text) mainHan |= isHanChar(c);
-                const RecOut& r = kor[i];
-                if (hangulOk(r) && (r.conf >= std::max(0.6f, m[i].conf - 0.05f) || nonSpace(m[i].text) * 2 < nonSpace(r.text) ||
-                                    (r.conf >= 0.8f && (nonSpace(r.text) > nonSpace(m[i].text) || mainHan)))) {
-                    rec[i] = kor[i];
-                    ++koLines;
-                }
-            }
-            nMore = mainIdx.size();
-        }
-        const double tMain = nowMs();
-        if (!koreanFirst) {
-        rec = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, all);
-        // Korean: lines the main recogniser could not read (no hangul in its
-        // dictionary: empty, unsure, or far too few characters for the width).
-        for (size_t i = 0; i < crops.size(); ++i) {
-            const RecOut& r = rec[i];
-            int kana = 0;
-            for (wchar_t c : r.text) kana += isKanaChar(c);
-            const int n = nonSpace(r.text);
-            if (kana >= 2 && r.conf >= 0.8f) continue;
-            if (r.conf < 0.8f || n == 0 || (crops[i].aspect > 1.6f && n < 0.5f * crops[i].aspect)) ko.push_back(i);
-        }
-        auto tryKorean = [&](const std::vector<size_t>& idx, bool digitsOnly /* second pass: short lines of a Korean picture */) {
-            if (idx.empty() || !ModelStore::ocrFile(kKoModel).size()) return;
-            const std::vector<RecOut> k = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, idx);
-            for (size_t i : idx) {
-                const RecOut& r = k[i];
-                int hangul = 0, letters = 0;
-                for (wchar_t c : r.text) hangul += isHangulChar(c), letters += !iswspace(c) && !iswdigit(c) && !iswpunct(c);
-                if (hangul == 0 || hangul * 10 < letters * 3) continue;
-                bool mainHan = false;
-                for (wchar_t c : rec[i].text) mainHan |= isHanChar(c);
-                const bool better =
-                    digitsOnly ? r.conf >= 0.8f && (nonSpace(r.text) > nonSpace(rec[i].text) || mainHan)
-                               : r.conf >= std::max(0.6f, rec[i].conf - 0.05f) || nonSpace(rec[i].text) * 2 < nonSpace(r.text);
-                if (better) {
-                    rec[i] = r;
-                    ++koLines;
-                }
-            }
-        };
-        tryKorean(ko, false);
-        tKo1 = nowMs();
-        if (koLines >= 2) {
-            // A Korean picture: prices / numbers lose their 원 / 개 with the main recogniser.
-            std::vector<size_t> more;
-            for (size_t i = 0; i < crops.size(); ++i) {
-                if (std::find(ko.begin(), ko.end(), i) != ko.end()) continue;
-                bool kana = false;
-                int han = 0;
-                for (wchar_t c : rec[i].text) han += isHanChar(c), kana |= isKanaChar(c);
-                // Short lines only (a price, 켬 read as 君): wide Latin / number
-                // lines took 1.6 s again for nothing (eval_web ko_sign_04).
-                bool digit = false;
-                for (wchar_t c : rec[i].text) digit |= iswdigit(c) != 0;
-                if (!kana && han <= 2 && (digit || han > 0 || nonSpace(rec[i].text) <= 3) && nonSpace(rec[i].text) <= 12 && crops[i].aspect <= 10)
-                    more.push_back(i);
-            }
-            tKo1 = nowMs(), nMore = more.size();
-            tryKorean(more, true);
-        }
-        }
-        out.recMs = nowMs() - tr;
-        out.koLines = koLines;
-        static const bool prof = std::getenv("PM_OCR_PROF") != nullptr;  // tests: where the time goes
-        if (prof) {
-            size_t px = 0, pxKo = 0;
-            for (const Crop& c : crops) px += c.w;
-            for (size_t i : ko) pxKo += crops[i].w;
-            if (koreanFirst) std::fprintf(stderr, "[ocr] Korean first: %d lines Korean, %zu read by the main recogniser\n", koLines, nMore);
-            std::fprintf(stderr, "[ocr] %dx%d det %.0f ms, %zu crops (%zu px wide in all) %.0f ms, main rec %.0f ms, korean %zu crops (%zu px) %.0f ms, more %zu crops %.0f ms\n",
-                         width, height, out.detMs, crops.size(), px, tCrops - tr, tMain - tCrops, ko.size(), pxKo, tKo1 - tMain, nMore, nowMs() - tKo1);
-        }
-        // Lines in reading order: top to bottom, left to right within a row.
+        std::vector<char> korDone(crops.size(), 0), fromKo(crops.size(), 0);
+        for (size_t i = 0; i < crops.size(); ++i)
+            if (hit[i] >= 0) rec[i] = g_cache.lines[hit[i]].r, fromKo[i] = g_cache.lines[hit[i]].ko;
+        // Lines in reading order: top to bottom, left to right within a row
+        // (which: these quads only - the early part - else all).
+        auto makeLines = [&](const std::vector<size_t>* which) {
         int kanaAll = 0;
-        for (const RecOut& r : rec)
-            for (wchar_t c : r.text) kanaAll += isKanaChar(c);
+        for (size_t k = 0; k < (which ? which->size() : rec.size()); ++k)
+            for (wchar_t c : rec[which ? (*which)[k] : k].text) kanaAll += isKanaChar(c);
         std::vector<OcrLine> lines;
-        for (size_t i = 0; i < quads.size(); ++i) {
+        for (size_t k = 0; k < (which ? which->size() : quads.size()); ++k) {
+            const size_t i = which ? (*which)[k] : k;
             RecOut& r = rec[i];
             const int n = nonSpace(r.text);
             // Garbage: unsure lines, single unsure characters.
@@ -996,6 +1213,283 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
             std::sort(lines.begin() + i, lines.begin() + j, [](const OcrLine& a, const OcrLine& b) { return a.x0 < b.x0; });
             i = j;
         }
+        return lines;
+        };
+        auto hangulOk = [](const RecOut& r) {
+            int hangul = 0, letters = 0;
+            for (wchar_t c : r.text) hangul += isHangul(c), letters += !iswspace(c) && !iswdigit(c) && !iswpunct(c);
+            return hangul > 0 && hangul * 10 >= letters * 3;
+        };
+        // The user chose a source language other than Korean: no probe (the
+        // lines it cannot read still go to the Korean recogniser below - a
+        // bilingual sign).  Korean chosen: the probe as for "automatic"
+        // (measured: without it, Korean first everywhere, CER a little worse).
+        bool koreanFirst = false;
+        const bool noKoProbe = hint != Lang::Unknown && hint != Lang::Ko;
+        const bool noProbe = envInt("PM_OCR_KO_PROBE", 1) == 0 || noKoProbe;  // tests: the 0.7.x order
+        if (haveKo && !noProbe && g_prof.cached > 0 && static_cast<size_t>(g_prof.cached) >= all.size()) {
+            koreanFirst = g_cache.koreanFirst;  // mostly the last picture: its decision
+        } else if (haveKo && !noProbe && all.size() >= 6) {
+            std::vector<size_t> byW = all;
+            std::sort(byW.begin(), byW.end(), [&](size_t x, size_t y) { return crops[x].w < crops[y].w; });
+            std::vector<size_t> probe;
+            for (size_t k = byW.size() / 4; k < byW.size() && probe.size() < 8; ++k)
+                if (crops[byW[k]].aspect >= 1.5f && !crops[byW[k]].vertical) probe.push_back(byW[k]);
+            const double tp = nowMs();
+            const auto koSessions = recSessions(g_models.ko, g_models.koMore, kKoModel);
+            // Fewer than 3 lines can never decide "Korean": no probe.  Wide
+            // lines (a sparse page: the probe was its widest lines, up to 1.7 s
+            // on the E-cores): first their starts only, with a looser test; the
+            // full probe below (the same batches as before, the same decision)
+            // only when that may be Korean.  PM_OCR_PROBE_W=0: always the full probe.
+            bool full = probe.size() >= 3;
+            const int cutW = envInt("PM_OCR_PROBE_W", 0);
+            bool wide = false;
+            for (size_t i : probe) wide |= cutW > 0 && crops[i].w > cutW;
+            if (full && wide) {
+                std::vector<Crop> cut(probe.size());
+                std::vector<size_t> idx(probe.size());
+                for (size_t k = 0; k < probe.size(); ++k) {
+                    const Crop& c = crops[probe[k]];
+                    Crop& d = cut[k];
+                    idx[k] = k;
+                    d.w = std::min(c.w, cutW);
+                    d.aspect = static_cast<float>(d.w) / kRecH;
+                    d.px.resize(static_cast<size_t>(3) * kRecH * d.w);
+                    for (int ch = 0; ch < 3; ++ch)
+                        for (int y = 0; y < kRecH; ++y)
+                            std::memcpy(&d.px[(static_cast<size_t>(ch) * kRecH + y) * d.w], &c.px[(static_cast<size_t>(ch) * kRecH + y) * c.w],
+                                        sizeof(float) * d.w);
+                }
+                const auto kc = recognizeCrops(koSessions, cut, idx);
+                int maybe = 0;
+                for (const RecOut& r : kc) maybe += hangulOk(r) && r.conf >= 0.5f;
+                full = maybe >= 2;
+                g_prof.nProbe = static_cast<int>(probe.size()) * 100;  // tests: the cut probe
+                if (!full && envInt("PM_OCR_PROBE_CHECK", 0)) {  // tests: would the full probe have said Korean?
+                    const auto kf = recognizeCrops(koSessions, crops, probe);
+                    int hits = 0;
+                    for (size_t i : probe) hits += hangulOk(kf[i]) && kf[i].conf >= 0.8f;
+                    std::fprintf(stderr, "[probecheck] %dx%d cut maybe %d, full hits %d/%zu%s\n", width, height, maybe, hits,
+                                 probe.size(), hits * 2 >= static_cast<int>(probe.size()) && hits >= 3 ? " MISMATCH" : "");
+                }
+            }
+            if (full) {
+                kor = recognizeCrops(koSessions, crops, probe);
+                g_prof.nProbe += static_cast<int>(probe.size());
+                int hits = 0;
+                for (size_t i : probe) {
+                    korDone[i] = 1;
+                    hits += hangulOk(kor[i]) && kor[i].conf >= 0.8f;
+                }
+                koreanFirst = hits * 2 >= static_cast<int>(probe.size()) && hits >= 3;
+            }
+            g_prof.probe = nowMs() - tp;
+        }
+        if (kor.empty()) kor.assign(crops.size(), {});
+        int koLines = koCached;
+        double tKo1 = 0;
+        size_t nMore = 0;
+        std::vector<size_t> ko;
+        // A dense picture read for the first time (early: 翻譯整個畫面): the
+        // top part first, handed out (its translation shown while the rest
+        // is read), then the rest.  The split is at the widest gap between
+        // lines within the top quarter to half of them, so the paragraphs
+        // above it are complete.  Both orders (Korean first or not).
+        std::vector<size_t> earlyTopAll, earlyTop, earlyRest;  // the top part's quads (cached ones too) / to read, the rest to read
+        if (early && all.size() >= static_cast<size_t>(envInt("PM_OCR_EARLY_MIN", 40))) {
+            std::vector<size_t> byY(quads.size());
+            for (size_t i = 0; i < byY.size(); ++i) byY[i] = i;
+            auto cy = [&](size_t i) {
+                float a = 1e9f, b = -1e9f;
+                for (const Pt& p : quads[i].p) a = std::min(a, p.y), b = std::max(b, p.y);
+                return (a + b) / 2;
+            };
+            std::sort(byY.begin(), byY.end(), [&](size_t a, size_t b) { return cy(a) < cy(b); });
+            std::vector<float> bottomAbove(byY.size()), topBelow(byY.size() + 1, 1e9f);
+            float m = -1e9f;
+            for (size_t k = 0; k < byY.size(); ++k) {
+                for (const Pt& p : quads[byY[k]].p) m = std::max(m, p.y);
+                bottomAbove[k] = m;
+            }
+            for (size_t k = byY.size(); k-- > 0;) {
+                float t = 1e9f;
+                for (const Pt& p : quads[byY[k]].p) t = std::min(t, p.y);
+                topBelow[k] = std::min(topBelow[k + 1], t);
+            }
+            size_t best = 0;
+            float bestGap = 0;
+            for (size_t k = byY.size() / 4; k <= byY.size() / 2; ++k) {
+                const float gap = topBelow[k] - bottomAbove[k - 1];
+                if (gap > bestGap) bestGap = gap, best = k;
+            }
+            if (best > 0) {
+                std::vector<char> isTop(quads.size(), 0);
+                for (size_t k = 0; k < best; ++k) isTop[byY[k]] = 1, earlyTopAll.push_back(byY[k]);
+                for (size_t i : all) (isTop[i] ? earlyTop : earlyRest).push_back(i);
+            }
+        }
+        if (koreanFirst) {
+            // The Korean recogniser on the lines (of a part), then the main one
+            // on those without (confident) hangul.
+            auto koFirst = [&](const std::vector<size_t>& part) {
+                std::vector<size_t> rest;
+                for (size_t i : part)
+                    if (!korDone[i]) rest.push_back(i);
+                const double tk = nowMs();
+                const auto k2 = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, rest);
+                g_prof.ko += nowMs() - tk, g_prof.nKo += static_cast<int>(rest.size());
+                for (size_t i : rest) kor[i] = k2[i];
+                // The main recogniser: lines without (confident) hangul - numbers,
+                // Latin, kanji / kana - and the decision of 0.7.x for each.
+                std::vector<size_t> mainIdx;
+                for (size_t i : part) {
+                    if (hangulOk(kor[i]) && kor[i].conf >= 0.6f) {
+                        rec[i] = kor[i];
+                        fromKo[i] = 1;
+                        ++koLines;
+                    } else {
+                        mainIdx.push_back(i);
+                    }
+                }
+                tKo1 = nowMs();
+                const auto m = recognizeCrops(recSessions(g_models.rec, g_models.recMore, kRecModel), crops, mainIdx);
+                g_prof.main += nowMs() - tKo1, g_prof.nMain += static_cast<int>(mainIdx.size());
+                for (size_t i : mainIdx) {
+                    rec[i] = m[i];
+                    bool mainHan = false;
+                    for (wchar_t c : m[i].text) mainHan |= isHanChar(c);
+                    const RecOut& r = kor[i];
+                    if (hangulOk(r) && (r.conf >= std::max(0.6f, m[i].conf - 0.05f) || nonSpace(m[i].text) * 2 < nonSpace(r.text) ||
+                                        (r.conf >= 0.8f && (nonSpace(r.text) > nonSpace(m[i].text) || mainHan)))) {
+                        rec[i] = kor[i];
+                        fromKo[i] = 1;
+                        ++koLines;
+                    }
+                }
+                nMore += mainIdx.size();
+            };
+            if (!earlyTopAll.empty()) {
+                koFirst(earlyTop);
+                g_prof.early = nowMs() - tr;
+                early(makeLines(&earlyTopAll));
+                koFirst(earlyRest);
+            } else {
+                koFirst(all);
+            }
+        }
+        const double tMain = nowMs();
+        if (!koreanFirst) {
+        {
+            const auto sessions = recSessions(g_models.rec, g_models.recMore, kRecModel);
+            if (!earlyTopAll.empty()) {
+                // The top part's batches first; handed out as soon as they are
+                // read (the other sessions keep reading the rest).
+                if (earlyTop.empty()) early(makeLines(&earlyTopAll));  // all of it cached
+                const auto m = recognizeCrops(sessions, crops, all, &earlyTop, [&](const std::vector<RecOut>& r) {
+                    for (size_t i : earlyTop) rec[i] = r[i];
+                    g_prof.early = nowMs() - tr;
+                    early(makeLines(&earlyTopAll));
+                });
+                for (size_t i : all) rec[i] = m[i];
+            } else {
+                const auto m = recognizeCrops(sessions, crops, all);
+                for (size_t i : all) rec[i] = m[i];
+            }
+        }
+        g_prof.main = nowMs() - tMain, g_prof.nMain = static_cast<int>(all.size());
+        // Korean: lines the main recogniser could not read (no hangul in its
+        // dictionary: empty, unsure, or far too few characters for the width).
+        for (size_t i : all) {
+            const RecOut& r = rec[i];
+            int kana = 0;
+            for (wchar_t c : r.text) kana += isKanaChar(c);
+            const int n = nonSpace(r.text);
+            if (kana >= 2 && r.conf >= 0.8f) continue;
+            if (r.conf < 0.8f || n == 0 || (crops[i].aspect > 1.6f && n < 0.5f * crops[i].aspect)) ko.push_back(i);
+        }
+        auto tryKorean = [&](const std::vector<size_t>& idx, bool digitsOnly /* second pass: short lines of a Korean picture */) {
+            if (idx.empty() || !ModelStore::ocrFile(kKoModel).size()) return;
+            const std::vector<RecOut> k = recognizeCrops(recSessions(g_models.ko, g_models.koMore, kKoModel), crops, idx);
+            for (size_t i : idx) {
+                const RecOut& r = k[i];
+                int hangul = 0, letters = 0;
+                for (wchar_t c : r.text) hangul += isHangul(c), letters += !iswspace(c) && !iswdigit(c) && !iswpunct(c);
+                if (hangul == 0 || hangul * 10 < letters * 3) continue;
+                bool mainHan = false;
+                for (wchar_t c : rec[i].text) mainHan |= isHanChar(c);
+                const bool better =
+                    digitsOnly ? r.conf >= 0.8f && (nonSpace(r.text) > nonSpace(rec[i].text) || mainHan)
+                               : r.conf >= std::max(0.6f, rec[i].conf - 0.05f) || nonSpace(rec[i].text) * 2 < nonSpace(r.text);
+                if (better) {
+                    rec[i] = r;
+                    fromKo[i] = 1;
+                    ++koLines;
+                }
+            }
+        };
+        const double tk = nowMs();
+        tryKorean(ko, false);
+        tKo1 = nowMs();
+        g_prof.ko = tKo1 - tk, g_prof.nKo = static_cast<int>(ko.size());
+        if (koLines >= 2) {
+            // A Korean picture: prices / numbers lose their 원 / 개 with the main recogniser.
+            std::vector<size_t> more;
+            for (size_t i : all) {
+                if (std::find(ko.begin(), ko.end(), i) != ko.end()) continue;
+                bool kana = false;
+                int han = 0;
+                for (wchar_t c : rec[i].text) han += isHanChar(c), kana |= isKanaChar(c);
+                // Short lines only (a price, 켬 read as 君): wide Latin / number
+                // lines took 1.6 s again for nothing (eval_web ko_sign_04).
+                bool digit = false;
+                for (wchar_t c : rec[i].text) digit |= iswdigit(c) != 0;
+                if (!kana && han <= 2 && (digit || han > 0 || nonSpace(rec[i].text) <= 3) && nonSpace(rec[i].text) <= 12 && crops[i].aspect <= 10)
+                    more.push_back(i);
+            }
+            tKo1 = nowMs(), nMore = more.size();
+            tryKorean(more, true);
+            g_prof.more = nowMs() - tKo1, g_prof.nMore = static_cast<int>(more.size());
+        }
+        }
+        out.recMs = nowMs() - tr;
+        out.koLines = koLines;
+        if (useCache) {
+            g_cache.px.assign(bgra, bgra + static_cast<size_t>(width) * height * 4);
+            g_cache.w = width, g_cache.h = height;
+            g_cache.koreanFirst = koreanFirst;
+            g_cache.haveResult = false;  // set below with these pixels' lines
+            g_cache.lines.clear();
+            for (size_t i = 0; i < quads.size(); ++i) {
+                CacheLine c;
+                c.q = quads[i];
+                c.r = rec[i];
+                c.meta = crops[i];
+                c.meta.px.clear();
+                c.meta.px.shrink_to_fit();
+                c.ko = fromKo[i] != 0;
+                g_cache.lines.push_back(std::move(c));
+            }
+        } else {
+            g_cache = {};
+        }
+        static const bool prof = std::getenv("PM_OCR_PROF") != nullptr;  // tests: where the time goes
+        if (prof) {
+            const Prof& p = g_prof;
+            std::fprintf(stderr,
+                         "[ocrprof] %dx%d det %.0f (pre %.0f run %.0f post %.0f @%dx%d) cached %d %.0f crops %zu %.0f probe %d %.0f main %d %.0f "
+                         "ko %d %.0f more %d %.0f koFirst %d batches %d pad %.2f\n",
+                         width, height, out.detMs, p.detPre, p.detRun, p.detPost, p.detW, p.detH, p.cached, p.cache, crops.size(),
+                         tCrops - tr - p.cache, p.nProbe, p.probe, p.nMain, p.main, p.nKo, p.ko, p.nMore, p.more, koreanFirst ? 1 : 0,
+                         p.batches, p.realPx > 0 ? p.paddedPx / p.realPx : 0.0);
+        }
+        std::vector<OcrLine> lines = makeLines(nullptr);
+        if (useCache) {
+            g_cache.result = lines;
+            g_cache.koLines = koLines;
+            g_cache.haveResult = true;
+            g_cache.hint = hint;
+        }
         out.lines = std::move(lines);
         out.ms = nowMs() - t0;
         return true;
@@ -1021,7 +1515,7 @@ bool PaddleOcr::recognize(const uint8_t* bgra, int width, int height, OcrResult&
     }
     if (retry) {
         lk.unlock();
-        return recognize(bgra, width, height, out, err);
+        return recognize(bgra, width, height, out, err, hint, early);
     }
     return false;
 }

@@ -380,7 +380,7 @@ std::vector<Piece> splitFields(const std::wstring& s, Lang src) {
                 // not by a particle (保存方法は… is a sentence).
                 const wchar_t nx = e < s.size() ? s[e] : 0;
                 const bool sep = !nx || isSpace(nx) || nx == L'：' || nx == L':';
-                const bool glued = i == 0 && nx && !isHira(nx) && wcslen(f.label) >= 3 && !(nx >= 0xAC00 && nx <= 0xD7AF);
+                const bool glued = i == 0 && nx && !isHira(nx) && wcslen(f.label) >= 3 && !isHangul(nx);
                 if (!sep && !glued) continue;
                 // An English label followed by words is prose ("Protein bars
                 // are on sale" is not 蛋白質　…): a colon, or an amount after it.
@@ -491,8 +491,23 @@ std::vector<Entity> protectedTokens(const std::wstring& s, Lang src, Lang tgt) {
     return out;
 }
 
+namespace {
+thread_local bool tLearningPage = false;
+}
+
 std::vector<Entity> findEntities(const std::wstring& s, Lang src, Lang tgt) {
     std::vector<Entity> out = protectedTokens(s, src, tgt);
+    // On a page about the language: quoted kana examples (「がくせいが」, 「っ」) as written.
+    if (tLearningPage && src == Lang::Ja) {
+        static const std::wregex quoted(L"「[ぁ-ゖァ-ヺー・]{1,10}(」|$)|^[ぁ-ゖァ-ヺー・]{1,10}」|[（(][ぁ-ゖー・]{2,12}[）)]");  // (also a quote cut by the line end)  // (a reading in brackets: 平板型（へいばんがた）)
+        for (std::wsregex_iterator it(s.begin(), s.end(), quoted), e; it != e; ++it) {
+            const size_t pos = static_cast<size_t>(it->position()), len = it->str().size();
+            bool overlap = false;
+            for (const auto& o : out) overlap |= pos < o.pos + o.len && o.pos < pos + len;
+            if (!overlap) out.push_back({pos, len, it->str()});
+        }
+        std::sort(out.begin(), out.end(), [](const Entity& a, const Entity& b) { return a.pos < b.pos; });
+    }
     auto inToken = [&](size_t pos, size_t len) {
         for (const auto& t : out)
             if (pos < t.pos + t.len && t.pos < pos + len) return true;
@@ -600,7 +615,7 @@ bool quantityOnly(const std::wstring& t) {
     if (n.kana > 0 || n.hangul > 1) return false;
     if (n.hangul == 1) {  // 9,000원, 3개
         for (wchar_t c : t)
-            if (c >= 0xAC00 && c <= 0xD7AF && !wcschr(L"원개장병잔인분", c)) return false;
+            if (isHangul(c) && !wcschr(L"원개장병잔인분", c)) return false;
     }
     if (n.han > 2) return false;  // 8袋（16枚）: two counters
     // Latin letters only as units (kcal, mAh, V ~ Hz, mL), not words (Best by, cup).
@@ -810,6 +825,19 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             if (std::regex_match(t, nameHandle)) {
                 parts.push_back({t});
                 return;
+            }
+        }
+        // A label and its English gloss on one line (文法 Grammar): the label
+        // translated, the gloss kept as written.
+        if ((src == Lang::Ja || src == Lang::Ko) && fixes && labelWithGloss(t)) {
+            size_t e = t.size();
+            while (e > 0 && (iswalpha(t[e - 1]) || t[e - 1] == L' ') && t[e - 1] < 0x80) --e;
+            while (e < t.size() && t[e] == L' ') ++e;
+            std::wstring label = t.substr(0, e), gloss = t.substr(e);
+            while (!label.empty() && iswspace(label.back())) label.pop_back();
+            if (!label.empty() && !gloss.empty()) {
+                trail = trail.empty() ? gloss : gloss + L" " + trail;  // appended by addText
+                t = label;
             }
         }
         if (src == Lang::Ja && fixes) {
@@ -1195,7 +1223,9 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
         // where the source has the word and the answer the flat reading.
         if (tgt == Lang::ZhHant && src == Lang::Ja) {
             static const struct { const wchar_t *src, *flat, *right; } kSense[] = {
-                {L"帰国", L"回家", L"回國"}, {L"帰国", L"回到家", L"回國"}, {L"帰国", L"返回家園", L"回國"}};
+                {L"帰国", L"回家", L"回國"}, {L"帰国", L"回到家", L"回國"}, {L"帰国", L"返回家園", L"回國"},
+                // grammar words through "particle" / "accent" (a page about the language)
+                {L"助詞", L"粒子", L"助詞"}, {L"アクセント", L"口音", L"重音"}};
             for (const auto& k : kSense)
                 if (p.plain.find(k.src) != std::wstring::npos)
                     for (size_t at = r.find(k.flat); at != std::wstring::npos; at = r.find(k.flat, at + 1)) r.replace(at, wcslen(k.flat), k.right);
@@ -1364,5 +1394,7 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
     }
     return true;
 }
+
+void setLearningPage(bool on) { tLearningPage = on; }
 
 }  // namespace pm::translate

@@ -6,7 +6,7 @@
 // asset llama-b11514-bin-win-cpu-x64.zip - the SHA-256 is the one GitHub
 // lists for the asset.  Only the files below are unpacked (no .exe):
 // llama.dll, ggml*.dll (ggml picks the ggml-cpu-<arch>.dll variant that fits
-// the CPU at run time), libomp.dll (LLVM OpenMP, Apache-2.0 WITH
+// the CPU at run time; only that one and ggml-cpu-x64 are downloaded), libomp.dll (LLVM OpenMP, Apache-2.0 WITH
 // LLVM-exception) and its license.  The headers in llm_api/ are the same tag.
 // PM_LLM_RUNTIME(archive name, size, sha256, host, path)
 PM_LLM_RUNTIME("llama-b11514-bin-win-cpu-x64.zip", 19484487, "5a1d6ba1b414ab0234b12e29d911b3b8fe63051b4455215e184cf74870eac596", "github.com", "/ggml-org/llama.cpp/releases/download/b11514/llama-b11514-bin-win-cpu-x64.zip")
@@ -30,6 +30,31 @@ PM_LLM_RUNTIME_FILE("ggml-cpu-x64.dll", 908800, "861e77580f1a9e46b1da3135715bb4f
 PM_LLM_RUNTIME_FILE("ggml-cpu-zen4.dll", 1615872, "e06fc2dc12da9c063d0feff6d05c23b399268bfb5e19335d1b6fe1bd29d2b896")
 PM_LLM_RUNTIME_FILE("libomp.dll", 768000, "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c")
 PM_LLM_RUNTIME_FILE("LICENSE-LLVM-OpenMP", 19741, "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4")
+
+// PM_LLM_RUNTIME_ENTRY(name, offset, length, sha256): where the file's zip
+// record (local header + deflated data) lies in the archive above, and the
+// SHA-256 of exactly those bytes.  The runtime is fetched as these byte ranges
+// (HTTP Range; only the files this PC needs), the whole archive only when the
+// server cannot do Range.  Generated: py tools/make_llm_runtime_entries.py ZIP
+PM_LLM_RUNTIME_ENTRY("llama.dll", 17676892ull, 1211470ull, "08b9b9be9df222b0f69c66f15f4217cc31c7d3e5ed57bef35537ee0d68aea840")
+PM_LLM_RUNTIME_ENTRY("ggml.dll", 7630727ull, 30978ull, "e0cd5e4bdbf86d7f66072ff4a4736e6538ac505cd418258b1bfe4528d3ffd684")
+PM_LLM_RUNTIME_ENTRY("ggml-base.dll", 0ull, 308577ull, "008149f2be46487c0442c423b7e044089883050433671487fe2e11ae2be84fa6")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-alderlake.dll", 308577ull, 525068ull, "1e0b5d0d9f7b4b64cb52758e3733263621dcd892c028d147f418a00384b9c21f")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-cannonlake.dll", 833645ull, 573847ull, "9e35ecfbff6ac70a4528329d973e584d0defd94b5f2e1723b43e5b7a6f653ed7")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-cascadelake.dll", 1407492ull, 571359ull, "967b10b7e3d7d1963b4ddddcf0512662f578589faa126633bed1c8d08a8accb9")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-cooperlake.dll", 1978851ull, 574713ull, "b40092455ccafabfb43f204f0e77d1264246dae4fdfb8e022c2f0a5faf2c055a")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-haswell.dll", 2553564ull, 526760ull, "001c41d6b9d716b0aaf8e636b8d0581a73ad1e9b3638fbfcb5e586a34eeee820")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-icelake.dll", 3080324ull, 574888ull, "875eae01f53c16698b40fec93408d01a6eab8ac57c16ab2eb5a841ad5228477c")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-ivybridge.dll", 3655212ull, 459769ull, "01b6f86ed906c6f854f655a94f3a01291a21699c8ea178155f952a3be42b1fda")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-piledriver.dll", 4114981ull, 459444ull, "388c62aedd06dd42c41a522612b6c62ad31d5474b1ebd18fa890a6ce92d9a309")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-sandybridge.dll", 4574425ull, 451582ull, "8ad6a8e18607f30d5ac941dff1ff744914151349a46200a51b359c8c0a8e4b2e")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-sapphirerapids.dll", 5026007ull, 660526ull, "87b01d65be0a1ed5e223ae3ee819732485abb26b2aaab0fb9e3a16814c6745ae")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-skylakex.dll", 5686533ull, 570452ull, "3951538a60ba72210ac9c8b3e1aee7aa75e3b788e767668918acb9b571137b52")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-sse42.dll", 6256985ull, 336788ull, "c2dc3745983c4fec60e3e35d1392d73c7ee8a534cd6dc5fdba59e979e2fe373a")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-x64.dll", 6593773ull, 332805ull, "3a4fae1bf9352c83b692577e85e9636d30533f47f8bd8bd8da567f849071bbd0")
+PM_LLM_RUNTIME_ENTRY("ggml-cpu-zen4.dll", 6926578ull, 578420ull, "c67905d5752985616564fc1a93543225da6a8770349cd3e412cf15196430f6e4")
+PM_LLM_RUNTIME_ENTRY("libomp.dll", 7661705ull, 343811ull, "a8229d5f64f62cabe042253fbbdbe71198686e834e319f13748a1529aa658fe1")
+PM_LLM_RUNTIME_ENTRY("LICENSE-LLVM-OpenMP", 8005516ull, 5853ull, "537257da711084cd0b5f35622cd6815d0ec9f11737eb67308d0a0271ab6319ea")
 
 // Optional GPU backend: ggml-vulkan.dll from the Vulkan build of the same
 // release (its other DLLs are byte-identical to the CPU build's), unpacked

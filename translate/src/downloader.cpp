@@ -236,12 +236,23 @@ void worker(std::shared_ptr<State> stp, std::shared_ptr<File> fp, std::shared_pt
         }
         const Url u = f.urls[urlIdx];
         const bool mirror = urlIdx + 1 < f.urls.size();
-        const std::wstring whost = fromUtf8(u.host), wpath = fromUtf8(u.path);
+        std::wstring whost = fromUtf8(u.host);
+        const std::wstring wpath = fromUtf8(u.path);
+        INTERNET_PORT port = INTERNET_DEFAULT_HTTPS_PORT;
+        DWORD reqFlags = WINHTTP_FLAG_SECURE;
+#ifdef PM_DL_TEST_HTTP
+        // Test builds only: "127.0.0.1:PORT" is a plain-HTTP local test server.
+        if (whost.rfind(L"127.0.0.1:", 0) == 0) {
+            port = static_cast<INTERNET_PORT>(std::stoi(whost.substr(10)));
+            whost = L"127.0.0.1";
+            reqFlags = 0;
+        }
+#endif
         HINTERNET ses = WinHttpOpen(st.opt.userAgent, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
                                     WINHTTP_NO_PROXY_BYPASS, 0);
-        HINTERNET con = ses ? WinHttpConnect(ses, whost.c_str(), INTERNET_DEFAULT_HTTPS_PORT, 0) : nullptr;
+        HINTERNET con = ses ? WinHttpConnect(ses, whost.c_str(), port, 0) : nullptr;
         HINTERNET rq = con ? WinHttpOpenRequest(con, L"GET", wpath.c_str(), nullptr, WINHTTP_NO_REFERER,
-                                                WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE)
+                                                WINHTTP_DEFAULT_ACCEPT_TYPES, reqFlags)
                            : nullptr;
         bool progressed = false;
         std::wstring why;
@@ -444,8 +455,9 @@ Stats lastStats() {
     return gStats;
 }
 
-std::vector<Result> fetchAll(const std::vector<Item>& items, const std::function<void(const Progress&)>& progress,
-                             const std::atomic<bool>* cancel, const Options& o) {
+// One round over the items' URLs (fetchAll: + the next source after a SHA-256 mismatch).
+static std::vector<Result> fetchOnce(const std::vector<Item>& items, const std::function<void(const Progress&)>& progress,
+                                     const std::atomic<bool>* cancel, const Options& o) {
     const double t0 = nowMs();
     // Shared with the connection threads (a straggler after a cancel keeps it alive).
     auto stp = std::make_shared<State>();
@@ -727,6 +739,54 @@ std::vector<Result> fetchAll(const std::vector<Item>& items, const std::function
             gStats.ranged.push_back(f->ranged);
             gStats.itemSeconds.push_back(f->doneAt / 1000);
             gStats.maxConnections = std::max(gStats.maxConnections, f->maxSeen);
+        }
+    }
+    return out;
+}
+
+// A file whose bytes do not match its pin (a mirror serving a broken or
+// different file): deleted and fetched again from the next source - the next
+// mirror, the original last; when the bad copy came partly from an earlier
+// source and the original was already in use, from the original alone.  Only
+// when every source failed is it a Verify error.  (A file that matches its pin
+// is the same bytes from any source, so an unpack failure after it is not the
+// source's fault.)
+std::vector<Result> fetchAll(const std::vector<Item>& items, const std::function<void(const Progress&)>& progress,
+                             const std::atomic<bool>* cancel, const Options& o) {
+    std::vector<Result> out = fetchOnce(items, progress, cancel, o);
+    std::vector<Item> cur = items;
+    std::vector<int> base(items.size(), 0);  // cur[i]'s first URL = items[i]'s URL base[i]
+    for (;;) {
+        if (cancel && cancel->load()) break;
+        std::vector<size_t> idx;
+        std::vector<Item> again;
+        uint64_t otherBytes = 0;
+        for (size_t i = 0; i < cur.size(); ++i) {
+            const int n = static_cast<int>(cur[i].mirrors.size()) + 1, used = out[i].url - base[i];
+            int next = -1;
+            if (out[i].status == Status::Verify && used >= 0) next = used + 1 < n ? used + 1 : used > 0 ? used : -1;
+            if (next < 0) {
+                otherBytes += items[i].size;
+                continue;
+            }
+            cur[i].mirrors.erase(cur[i].mirrors.begin(), cur[i].mirrors.begin() + std::min(next, n - 1));
+            base[i] += next;
+            idx.push_back(i);
+            again.push_back(cur[i]);
+        }
+        if (again.empty()) break;
+        // The bar goes on from where it was: the other items count as done.
+        const std::function<void(const Progress&)> relay = [&](const Progress& p) {
+            if (!progress) return;
+            Progress q = p;
+            q.done += otherBytes;
+            q.total += otherBytes;
+            progress(q);
+        };
+        const std::vector<Result> r = fetchOnce(again, relay, cancel, o);
+        for (size_t k = 0; k < idx.size(); ++k) {
+            out[idx[k]] = r[k];
+            if (out[idx[k]].url >= 0) out[idx[k]].url += base[idx[k]];
         }
     }
     return out;

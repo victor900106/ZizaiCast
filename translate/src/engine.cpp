@@ -227,6 +227,10 @@ bool Engine::translate(Lang src, Lang tgt, const std::vector<std::wstring>& in, 
     for (const auto& s : u8) argv.push_back(s.c_str());
     // Dense pictures (many texts): split between parallel translators,
     // balanced by length (measured: a Wikipedia page 8.6 s with one).
+    // 2026-10: 4 or 6 (OCR on the GPU leaves the cores free) were tried on the
+    // 8 dense eval_web pages: no faster (sum of first-pass times 5.8 / 5.8 /
+    // 6.2 s for 3 / 4 / 6) and 30 blocks translated differently (another
+    // split, another batch for Marian int8) - kept at 3.
     static const size_t kWorkers = [] {
         if (const char* e = std::getenv("PM_TR_WORKERS"); e && atoi(e) > 0) return static_cast<size_t>(std::min(8, atoi(e)));
         return static_cast<size_t>(std::clamp(std::thread::hardware_concurrency() / 6, 1u, 3u));

@@ -101,4 +101,19 @@ if(PM_TRANSLATE_ENGINES AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/llm_engine.c
     target_compile_options(pm_llm_eval PRIVATE /W4 /utf-8 /EHsc)
     target_compile_definitions(pm_llm_eval PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
   endif()
+
+  # Per-CPU runtime download (src/llm_engine_cpu.cpp + the ranged fetch in
+  # src/llm_engine_store.cpp): offline CPUID-pick tests, and --fetch DIR
+  # against a local server (PM_DL_TEST_HTTP: plain HTTP to 127.0.0.1 only in
+  # this test build) or the real mirror.  Its own copies of the store /
+  # downloader objects (with the test hooks) take precedence over pm_translate's.
+  add_executable(pm_llm_runtime_test tools/llm_runtime_test.cpp
+    src/llm_engine_cpu.cpp src/llm_engine_store.cpp src/downloader.cpp)
+  target_include_directories(pm_llm_runtime_test PRIVATE include src)
+  target_compile_definitions(pm_llm_runtime_test PRIVATE PM_DL_TEST_HTTP)
+  target_link_libraries(pm_llm_runtime_test PRIVATE pm_translate winhttp bcrypt shell32)
+  if(MSVC)
+    target_compile_options(pm_llm_runtime_test PRIVATE /W4 /utf-8 /EHsc)
+    target_compile_definitions(pm_llm_runtime_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+  endif()
 endif()

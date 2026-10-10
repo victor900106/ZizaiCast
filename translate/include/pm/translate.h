@@ -69,10 +69,20 @@ public:
     // runtime + models.
     static bool ready() { return runtimeAvailable() && modelsInstalled(); }
     // Lines of bgra (stride width*4), reading order.  Blocking, any thread
-    // (one recognition at a time).  Loads the models on first use.
-    static bool recognize(const uint8_t* bgra, int width, int height, OcrResult& out, std::wstring* err = nullptr);
+    // (one recognition at a time).  Loads the models on first use.  hint: the
+    // source language the user chose (Unknown: automatic) - Ja / En / Zh*: no
+    // Korean probe (9-10 % of the OCR time; unreadable lines still get the Korean retry).
+    // early (dense pictures, nothing cached): the lines of the top part as soon
+    // as they are read, then the rest is read (screen_translator.cpp shows the
+    // top part's translation meanwhile).  Called on this thread: return quickly.
+    static bool recognize(const uint8_t* bgra, int width, int height, OcrResult& out, std::wstring* err = nullptr,
+                          Lang hint = Lang::Unknown, const std::function<void(std::vector<OcrLine>)>& early = {});
     // Frees the models (e.g. after they were deleted).
     static void unload();
+    // Opens the sessions recognize() would open and runs one small picture
+    // through each (DirectML: also builds its graphs).  Blocking; false
+    // when the runtime or the models are missing.  No-op when warm.
+    static bool warmUp(std::wstring* err = nullptr);
     // GPU (DirectML) for the OCR: a discrete NVIDIA / AMD / Intel GPU with
     // >= 3 GB of its own video memory (never an integrated one: measured
     // slower than the CPU), and 「使用顯示卡加速」 on (models\llm\settings.ini
@@ -254,6 +264,13 @@ public:
     // Overlay on screen (or a run in progress).
     bool active() const;
     bool busy() const;
+    // Loads what the first 翻譯整個畫面 would load - the OCR sessions (with a
+    // tiny run each) and, src known, the installed src -> target models - on
+    // the worker at a low priority, so the first picture does not pay for
+    // them (674-3812 ms on the owner's PC).  Never downloads, never shows
+    // anything, does not make busy() true; a translation asked meanwhile
+    // waits for it (it loads the same).  Cheap when already loaded.
+    void prewarm(Lang src = Lang::Unknown);
     // Removes the overlay, ends live mode and unfreezes (if we froze).
     void close();
     Timing lastTiming() const;

@@ -267,7 +267,13 @@ Accuracy printAccuracy(const std::vector<OcrLine>& gt, const std::vector<OcrLine
 
 // OCR with the chosen engine (PaddleOCR unless --engine windows / not ready).
 bool doOcr(const std::vector<uint8_t>& px, int w, int h, Lang src, OcrResult& r, std::wstring& err) {
-    if (!g_windowsOcr && PaddleOcr::ready()) return PaddleOcr::recognize(px.data(), w, h, r, &err);
+    if (!g_windowsOcr && PaddleOcr::ready()) {
+        // PM_OCR_EARLY_TEST=1: the app's early top part (read first, then the
+        // rest; the lines handed out are dropped) - its effect on the text.
+        const char* e = std::getenv("PM_OCR_EARLY_TEST");
+        static const std::function<void(std::vector<OcrLine>)> drop = [](std::vector<OcrLine>) {};
+        return PaddleOcr::recognize(px.data(), w, h, r, &err, src, e && *e == '1' ? drop : std::function<void(std::vector<OcrLine>)>());
+    }
     if (!g_windowsOcr) std::printf("  (PaddleOCR not ready: Windows OCR)\n");
     const bool ok = Ocr::recognize(px.data(), w, h, src, r, &err);
     r.backend = OcrBackend::Windows;
@@ -419,6 +425,93 @@ int runText(const std::wstring& file, Lang src, Lang tgt, bool raw) {
     return ok ? 0 : 1;
 }
 
+// ---- --ocr with PM_OCR_AB="name:K=V;K=V|name:K=V|...": OCR settings compared
+// on each picture in turn (one process, the order rotated per round, so the
+// load of the PC falls on all alike).  PM_OCR_REPS rounds (default 3).  One
+// ABSTAT line per picture and setting: median ms, detection / recognition of
+// that run, character errors of the last run.
+int runOcrAb(const std::vector<std::wstring>& pngs, Lang src, const std::string& spec) {
+    struct Variant {
+        std::string name;
+        std::vector<std::pair<std::string, std::string>> kv;
+    };
+    std::vector<Variant> vs;
+    std::vector<std::string> keys;
+    for (size_t p = 0; p <= spec.size();) {
+        size_t e = spec.find('|', p);
+        if (e == std::string::npos) e = spec.size();
+        std::string part = spec.substr(p, e - p);
+        Variant v;
+        if (const size_t c = part.find(':'); c != std::string::npos) v.name = part.substr(0, c), part = part.substr(c + 1);
+        for (size_t q = 0; q < part.size();) {
+            size_t f = part.find(';', q);
+            if (f == std::string::npos) f = part.size();
+            const std::string kv = part.substr(q, f - q);
+            if (const size_t eq = kv.find('='); eq != std::string::npos) {
+                v.kv.emplace_back(kv.substr(0, eq), kv.substr(eq + 1));
+                if (std::find(keys.begin(), keys.end(), kv.substr(0, eq)) == keys.end()) keys.push_back(kv.substr(0, eq));
+            }
+            q = f + 1;
+        }
+        if (v.name.empty()) v.name = "v" + std::to_string(vs.size());
+        vs.push_back(v);
+        p = e + 1;
+    }
+    const int reps = std::max(1, std::getenv("PM_OCR_REPS") ? atoi(std::getenv("PM_OCR_REPS")) : 3);
+    auto sessionKey = [](const std::string& k) { return k == "PM_OCR_THREADS" || k == "PM_OCR_INTER" || k == "PM_OCR_SPIN" || k == "PM_OCR_DET_THREADS"; };
+    std::string sessionNow = "?";
+    auto apply = [&](const Variant& v) {
+        std::string sess;
+        for (const auto& k : keys) _putenv_s(k.c_str(), "");
+        for (const auto& [k, val] : v.kv) {
+            _putenv_s(k.c_str(), val.c_str());
+            if (sessionKey(k)) sess += k + "=" + val + ";";
+        }
+        if (sess != sessionNow) {  // other session options: new sessions, one untimed run
+            PaddleOcr::unload();
+            sessionNow = sess;
+            return true;
+        }
+        return false;
+    };
+    int fails = 0;
+    for (const auto& png : pngs) {
+        std::vector<uint8_t> px;
+        int w = 0, h = 0;
+        if (!readPng(png, px, w, h)) {
+            ++fails;
+            continue;
+        }
+        const auto gt = loadGt(png);
+        std::vector<std::vector<OcrResult>> res(vs.size());
+        std::wstring err;
+        for (int r = 0; r < reps; ++r)
+            for (size_t k = 0; k < vs.size(); ++k) {
+                const size_t vi = (k + r) % vs.size();
+                OcrResult o;
+                if (apply(vs[vi]) || (r == 0 && &png == &pngs.front())) doOcr(px, w, h, src, o, err);
+                if (doOcr(px, w, h, src, o, err)) res[vi].push_back(std::move(o));
+                else ++fails;
+            }
+        for (size_t vi = 0; vi < vs.size(); ++vi) {
+            auto& v = res[vi];
+            if (v.empty()) continue;
+            const OcrResult last = v.back();
+            std::sort(v.begin(), v.end(), [](const OcrResult& a, const OcrResult& b) { return a.ms < b.ms; });
+            const OcrResult& m = v[v.size() / 2];
+            Accuracy a;
+            if (!gt.empty()) a = printAccuracy(gt, last.lines, false);
+            std::printf("ABSTAT %ls %s ms %.0f det %.0f rec %.0f lines %zu ko %d gtchars %zu errs %zu exact %zu/%zu min %.0f\n",
+                        baseName(png).c_str(), vs[vi].name.c_str(), m.ms, m.detMs, m.recMs, last.lines.size(), last.koLines, a.chars,
+                        a.errs, a.exact, a.lines, v.front().ms);
+            if (std::getenv("PM_OCR_AB_TEXT"))
+                for (const auto& l : last.lines) std::printf("ABLINE %ls %s %s\n", baseName(png).c_str(), vs[vi].name.c_str(), u8(l.text).c_str());
+        }
+        std::fflush(stdout);
+    }
+    return fails;
+}
+
 // ---- --ocr / --pipeline ----
 int runPipeline(const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool translateToo, bool download) {
     Engine engine;
@@ -447,9 +540,20 @@ int runPipeline(const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool 
             ++fails;
             continue;
         }
-        if (!g_useGt || !translateToo) {  // warm second run: the steady-state time
-            OcrResult r2;
-            if (doOcr(px, w, h, src, r2, err)) r.ms = r2.ms;
+        // Warm second run: the steady-state time.  PM_OCR_REPS=N: N more runs
+        // (0: the first only), the median of them reported.
+        static const int reps = std::getenv("PM_OCR_REPS") ? atoi(std::getenv("PM_OCR_REPS")) : 1;
+        if (!g_useGt || !translateToo) {
+            std::vector<OcrResult> runs;
+            for (int k = 0; k < reps; ++k) {
+                OcrResult r2;
+                if (doOcr(px, w, h, src, r2, err)) runs.push_back(std::move(r2));
+            }
+            if (!runs.empty()) {
+                std::sort(runs.begin(), runs.end(), [](const OcrResult& a, const OcrResult& b) { return a.ms < b.ms; });
+                const OcrResult& m = runs[runs.size() / 2];
+                r.ms = m.ms, r.detMs = m.detMs, r.recMs = m.recMs;
+            }
         }
         std::printf("== %ls (%dx%d): %ls %ls, %zu lines, OCR %.0f ms (warm; detection %.0f, recognition %.0f, %d Korean)\n",
                     baseName(png).c_str(), w, h, r.backend == OcrBackend::Paddle ? L"PaddleOCR" : L"Windows OCR",
@@ -459,7 +563,12 @@ int runPipeline(const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool 
             for (const auto& l : r.lines) all += l.text;
             std::printf("  looksMisread: %s\n", looksMisread(all) ? "YES (Japanese / Korean recogniser missing?)" : "no");
         }
-        if (!translateToo && !gt.empty()) printAccuracy(gt, r.lines);
+        if (!translateToo) {  // one machine-readable line per picture (OCR speed work)
+            Accuracy a;
+            if (!gt.empty()) a = printAccuracy(gt, r.lines);
+            std::printf("OCRSTAT %ls ms %.0f det %.0f rec %.0f lines %zu ko %d gtchars %zu errs %zu exact %zu/%zu\n",
+                        baseName(png).c_str(), r.ms, r.detMs, r.recMs, r.lines.size(), r.koLines, a.chars, a.errs, a.exact, a.lines);
+        }
         if (!translateToo) {
             for (const auto& l : r.lines)
                 std::printf("  [%.3f %.3f %.3f %.3f] h %.4f a %+.3f %.2f %-7ls %s%s\n", l.x0, l.y0, l.x1, l.y1, l.lineH,
@@ -471,7 +580,7 @@ int runPipeline(const std::vector<std::wstring>& pngs, Lang src, Lang tgt, bool 
         // Same per-block language rule as ScreenTranslator (kanji-only labels on a kana screen = ja).
         int kana = 0, hangul = 0;
         for (const auto& b : blocks)
-            for (wchar_t c : b.text) kana += (c >= 0x3040 && c <= 0x30FF && c != 0x30FB && c != 0x30FC), hangul += (c >= 0xAC00 && c <= 0xD7AF);
+            for (wchar_t c : b.text) kana += (c >= 0x3040 && c <= 0x30FF && c != 0x30FB && c != 0x30FC), hangul += isHangul(c);
         const Lang screen = kana >= 2 ? Lang::Ja : hangul >= 2 ? Lang::Ko : Lang::Unknown;
         double trMs = 0, loadMs = 0;
         int n = 0;
@@ -556,9 +665,11 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
             continue;
         }
         const double ocrMs = nowMs() - t0;
-        auto blocks = (std::getenv("PM_EVAL_072") ? groupLines : layoutBlocks)(r.lines, static_cast<float>(w) / h);
-        std::vector<std::string> why;
-        const auto byLang = pickBlocks(blocks, src, tgt, static_cast<float>(w) / h, g_useGt, &why);
+        // The app's own steps (screen_translator.cpp planPicture / translatePlan).
+        const bool old = std::getenv("PM_EVAL_072") != nullptr;  // 0.7.2's path (baseline)
+        const PicturePlan plan = planPicture(r.lines, src, tgt, static_cast<float>(w) / h, g_useGt, old);
+        const auto& blocks = plan.blocks;
+        const auto& why = plan.why;
         std::vector<std::wstring> tx(blocks.size()), raw(blocks.size());
         std::vector<int> ok(blocks.size(), 0);
         std::vector<TextInfo> infos(blocks.size());
@@ -569,39 +680,35 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
         // result (pass 2, from the cache).
         bool modelsOk = true;
         auto pass = [&](bool first) {
-        for (const auto& [l, idx] : byLang) {
-            if (!ensureModels(l, tgt, download)) {
+            PlanHooks hooks;
+            hooks.legacy = old;
+            hooks.beforeLang = [&](Lang l) {
+                if (ensureModels(l, tgt, download)) return true;
                 modelsOk = false;
-                return;
-            }
-            std::vector<std::wstring> in, o, ro;
-            std::vector<size_t> labels;
-            std::vector<TextInfo> info;
-            for (size_t i : idx) in.push_back(blocks[i].text), labels.push_back(blocks[i].labelLen);
-            const bool old = std::getenv("PM_EVAL_072") != nullptr;  // 0.7.2's path (baseline)
-            if (old ? !translateTexts(engine, l, tgt, in, o, &err)
-                    : !translateTextsEx(engine, &esc, l, tgt, in, labels, o, &info, &err)) {
+                return false;
+            };
+            hooks.chunkDone = [&](Lang l, const std::vector<size_t>& idx, const std::vector<std::wstring>& in, const std::vector<std::wstring>& o,
+                                  const std::vector<TextInfo>& info) {
+                std::vector<std::wstring> ro;
+                loadMs += engine.lastLoadMs();
+                if (first) {  // the engine alone (metrics' "raw"; not part of the times)
+                    const double r0 = nowMs();
+                    engine.translate(l, tgt, in, ro, &err);
+                    rawMs += nowMs() - r0;
+                }
+                for (size_t k = 0; k < idx.size() && k < o.size(); ++k) {
+                    const TextInfo* inf = k < info.size() ? &info[k] : nullptr;
+                    tx[idx[k]] = cardText(o[k], inf);
+                    if (inf) infos[idx[k]] = *inf;
+                    if (first && k < ro.size()) raw[idx[k]] = ro[k];
+                    ok[idx[k]] = (old ? translatedOk(blocks[idx[k]].text, o[k], l, tgt) : cardWorthy(blocks[idx[k]], o[k], inf, l, tgt)) ? 1 : 0;
+                }
+                return true;
+            };
+            if (!translatePlan(engine, &esc, plan, tgt, kPlanChunk, hooks, &err) && modelsOk) {
                 std::printf("%ls: translation failed: %s\n", baseName(png).c_str(), u8(err).c_str());
                 ++fails;
-                continue;
             }
-            loadMs += engine.lastLoadMs();
-            if (first) {  // the engine alone (metrics' "raw"; not part of the times)
-                const double r0 = nowMs();
-                engine.translate(l, tgt, in, ro, &err);
-                rawMs += nowMs() - r0;
-            }
-            for (size_t k = 0; k < idx.size() && k < o.size(); ++k) {
-                tx[idx[k]] = o[k];
-                if (k < info.size()) {
-                    infos[idx[k]] = info[k];
-                    if (info[k].uncertain && !info[k].verified.empty()) tx[idx[k]] += L"\n⚠ " + info[k].verified;
-                }
-                if (first && k < ro.size()) raw[idx[k]] = ro[k];
-                const bool isRow = blocks[idx[k]].labelLen > 0 || (k < info.size() && info[k].row);
-                ok[idx[k]] = translatedOk(blocks[idx[k]].text, o[k], l, tgt) || (!old && isRow && !o[k].empty()) ? 1 : 0;
-            }
-        }
         };
         pass(true);
         if (!modelsOk) return fails + 1;
@@ -934,6 +1041,19 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
             }
             if (g_zoom > 1) onUi([&] { win.setZoom(g_zoom); });  // --zoom: the magnified part is translated first
             onUi([&] { tr.translateScreen(); });
+            if (std::getenv("PM_OVERLAY_FIRST_SHOT")) {  // the first cards on screen (dense pictures: before the result)
+                const double s0 = nowMs();
+                while (done < runs + 1 && nowMs() - s0 < 120000) {
+                    const auto fi = win.textOverlayInfo();
+                    if (fi.inPlace + fi.listed > 0) {
+                        std::printf("  FIRST %ls at %.0f ms: %d in place, %d listed; overlaps %d, cut characters %d, kinsoku %d\n", n.c_str(),
+                                    nowMs() - s0, fi.inPlace, fi.listed, fi.overlaps, fi.truncated, fi.kinsoku);
+                        shot(n + L"_first.png");
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+            }
             if (!waitDone(++runs, 120000)) {
                 std::printf("  FAIL: no result within 120 s\n");
                 ++fails;
@@ -1483,6 +1603,9 @@ int wmain(int argc, wchar_t** argv) {
         return runText(files[0], src, tgt, mode == L"--raw");
     }
     if (mode == L"--ocr" || mode == L"--pipeline" || mode == L"--eval") {
+        // Each picture read on its own (PaddleOCR's line cache would take
+        // lines of the picture before; PM_OCR_CACHE=1 keeps it).
+        if (!std::getenv("PM_OCR_CACHE")) _putenv_s("PM_OCR_CACHE", "0");
         // OCR needs an MTA thread.
         int rc = 0;
         std::thread([&] {
@@ -1492,8 +1615,16 @@ int wmain(int argc, wchar_t** argv) {
                 CoUninitialize();
                 return;
             }
-            rc = mode == L"--eval" ? runEval(outDir, files, src, tgt, download)
-                                   : runPipeline(files, src, tgt, mode == L"--pipeline", download);
+            if (std::getenv("PM_OCR_WARM") && !g_windowsOcr) {  // as ScreenTranslator::prewarm before the first picture
+                const double w0 = nowMs();
+                std::wstring e;
+                const bool ok = PaddleOcr::warmUp(&e);
+                std::printf("OCR warm-up %s in %.0f ms%s%s\n", ok ? "OK" : "FAILED", nowMs() - w0, ok ? "" : ": ", u8(e).c_str());
+            }
+            const char* ab = std::getenv("PM_OCR_AB");
+            rc = mode == L"--eval"                ? runEval(outDir, files, src, tgt, download)
+                 : mode == L"--ocr" && ab && *ab ? runOcrAb(files, src, ab)
+                                                  : runPipeline(files, src, tgt, mode == L"--pipeline", download);
             if (g_total.lines)
                 std::printf("TOTAL OCR: %zu/%zu lines exact, character error rate %.2f %% (%zu/%zu)\n", g_total.exact,
                             g_total.lines, g_total.chars ? 100.0 * g_total.errs / g_total.chars : 0.0, g_total.errs, g_total.chars);

@@ -48,10 +48,29 @@ std::wstring squeezeSpaces(const std::wstring& s) {
 // target's script (a Japanese / Korean source must not come back as kana /
 // hangul, a zh-Hant / ja / ko target needs CJK characters when the source had
 // some).
+// 「文法 Grammar」, 「漢字 Kanji」, 「JLPTクイズ Quiz」: a short CJK label, then one or two
+// capitalised English words (its gloss).
+bool labelWithGloss(const std::wstring& t) {
+    static const std::wregex re(L"^\\s*([^\\x00-\\x7F\\s][^\\s]{0,9}|[A-Z]{2,5}[^\\x00-\\x7F\\s]{1,8})\\s*([A-Z][a-z]{2,14}(\\s[A-Z][a-z]{2,14})?)\\s*$");
+    return std::regex_match(t, re);
+}
+
 bool translatedOk(const std::wstring& src, const std::wstring& tx, Lang from, Lang tgt) {
     if (tx.empty() || squeezeSpaces(tx) == squeezeSpaces(src)) return false;
-    const ScriptCount s = countScripts(src), t = countScripts(tx);
+    const ScriptCount s = countScripts(src);
+    // (kana kept in quotes on purpose - 「よん」, 「なな」 on a page about the
+    // language - does not make the answer "came back Japanese")
+    std::wstring unq;
+    for (size_t i = 0, depth = 0; i < tx.size(); ++i) {
+        if (tx[i] == L'「') ++depth;
+        else if (tx[i] == L'」' && depth) --depth;
+        else if (!depth) unq += tx[i];
+    }
+    const ScriptCount t = countScripts(unq.empty() ? tx : unq);
     if (t.letters() == 0 && t.digits == 0) return false;
+    // A grammar pattern's name kept, its note converted (〜なり〜なり（選択） ->
+    // ～なり～なり（選擇）): a card (label_text.cpp keeps the kana on purpose).
+    if ((src[0] == L'〜' || src[0] == L'～' || src[0] == L'~') && (tx[0] == L'～' || tx[0] == L'〜')) return true;
     if (tgt == Lang::ZhHant || tgt == Lang::En) {
         if (t.kana > 0 && t.kana * 4 >= t.letters()) return false;  // came back Japanese
         if (t.hangul > 0 && t.hangul * 4 >= t.letters()) return false;
@@ -253,6 +272,49 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
     std::map<Lang, std::vector<size_t>> byLang;
     // Phone status bars (the clock row: 16:34 · icons · 5G · battery), also
     // of a screenshot inside the picture: never text to translate.
+    // A grid of kanji tiles (a kanji list: 日 一 国 / 会 人 年, each in a box of
+    // its own): display content, not words - the recogniser joins neighbouring
+    // tiles (自連発, 献維) and the pivot made 「會年」 of them.  A tile block is
+    // kanji only, 1-4 characters set wide apart (each tile a box: 1.2+ glyph
+    // heights a character); a grid is 4+ of them in 2+ rows close together.
+    std::vector<char> kanjiTile(blocks.size(), 0);
+    {
+        std::vector<char> tileLike(blocks.size(), 0);
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            const Block& b = blocks[i];
+            std::wstring t;
+            for (wchar_t c : b.text)
+                if (!iswspace(c)) t += c;
+            const ScriptCount n = countScripts(t);
+            if (b.lines != 1 || t.empty() || t.size() > 4 || n.han != static_cast<int>(t.size())) continue;
+            const float h = std::max(b.y1 - b.y0, 0.004f);
+            const float perChar = (b.x1 - b.x0) * aspect / t.size() / h;
+            tileLike[i] = t.size() == 1 || perChar >= 1.2f;
+        }
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            if (!tileLike[i]) continue;
+            const Block& b = blocks[i];
+            const float h = std::max(b.y1 - b.y0, 0.004f), cy = (b.y0 + b.y1) / 2;
+            int close = 0, otherRow = 0, wide = 0;
+            for (size_t k = 0; k < blocks.size(); ++k) {
+                if (!tileLike[k]) continue;
+                const Block& o = blocks[k];
+                const float oh = std::max(o.y1 - o.y0, 0.004f), oc = (o.y0 + o.y1) / 2;
+                if (oh / h > 1.3f || h / oh > 1.3f) continue;
+                const float dx = std::max(0.f, std::max(b.x0, o.x0) - std::min(b.x1, o.x1)) * aspect;
+                if (std::fabs(oc - cy) > 4 * h || dx > 6 * h) continue;
+                ++close;
+                otherRow += std::fabs(oc - cy) > 0.7f * h;
+                std::wstring t;
+                for (wchar_t c : o.text)
+                    if (!iswspace(c)) t += c;
+                wide += t.size() >= 2;  // (tileLike: set wide apart)
+            }
+            // (single characters only: 6+ of them, a kanji chart)
+            // (two rows of spaced-out kanji are tiles too: a card with 献 維 浜 / 墨 邦 遣)
+            if (otherRow >= 1 && ((close >= 4 && (wide >= 1 || close >= 6)) || wide >= 2)) kanjiTile[i] = 1;
+        }
+    }
     std::vector<char> statusBar(blocks.size(), 0);
     {
         static const std::wregex clock(L"^\\s*[0-9]{1,2}:[0-9]{2}(\\s|$)");
@@ -370,7 +432,7 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
             for (size_t k = 0; k < blocks.size(); ++k) {
                 const Block& w = blocks[k];
                 const ScriptCount nw = countScripts(w.text);
-                if (k == i || w.lines != 1 || nw.han + nw.kana + nw.hangul < 2 || nw.letters() > 8 || nw.latin > 0) continue;
+                if (k == i || w.lines != 1 || nw.han + nw.kana + nw.hangul < 2 || nw.letters() > 12 || nw.latin > 0) continue;
                 if ((w.y1 - w.y0) < 2.0f * (g.y1 - g.y0)) continue;  // a much smaller type (a bilingual sign's English is translated)
                 const float h = w.y1 - w.y0;
                 const bool above = g.y1 <= w.y0 + 0.2f * h && w.y0 - g.y1 < 0.8f * h && std::fabs(g.x0 - w.x0) * aspect < 1.5f * h;
@@ -378,6 +440,40 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
                 if (above || beside) gloss[i] = 1;
             }
     }
+    // A menu / tab bar / button row (ファイル(F) 編集(E) 表示(V), ホーム はじめる 文法):
+    // three or more short items on one baseline are UI text, not packaging
+    // around a label - since 0.7.7 they are separate items, not rows.
+    auto uiRowAt = [&](size_t i) {
+        const Block& b = blocks[i];
+        if (b.lines != 1 || b.conf < 0.8f || countScripts(b.text).letters() > 12) return false;
+        int onRow = 0;
+        for (const Block& o : blocks) {
+            const float h = std::max(b.y1 - b.y0, 0.004f), oh = o.y1 - o.y0;
+            const int ol = countScripts(o.text).letters();
+            if (o.lines == 1 && ol >= 2 && ol <= 12 && std::fabs((o.y0 + o.y1) / 2 - (b.y0 + b.y1) / 2) < 0.4f * h && oh > 0.7f * h &&
+                oh < 1.4f * h)
+                ++onRow;
+        }
+        return onRow >= 3;
+    };
+    // A page about the Japanese language (readings over the words, kana quoted
+    // as examples: 「がくせいが」「あいさつが」): its kana example words are
+    // learning content, kept as written - the pivot spelled them out in sound
+    // characters (加古塞伊, 奧哈那米).  Signals: 2+ furigana readings, or 3+
+    // quoted hiragana words on the picture.
+    // 3+ blocks with the vocabulary of language teaching (拍, 助詞, 音読み …) count too.
+    int kanaQuotes = 0, readings = 0, terms = 0;
+    {
+        static const std::wregex quoted(L"[「（(][ぁ-ゖー・]{1,10}[」）)]");
+        static const std::wregex term(L"(拍|アクセント|助詞|文型|ふりがな|読み方|音読み|訓読み|ひらがな|カタカナ|例文|発音|活用|品詞)");
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            readings += reading[i];
+            for (std::wsregex_iterator it(blocks[i].text.begin(), blocks[i].text.end(), quoted), e; it != e; ++it) ++kanaQuotes;
+            terms += std::regex_search(blocks[i].text, term);
+        }
+    }
+    const bool learningPage = cjk == Lang::Ja && (readings >= 2 || kanaQuotes >= 3 || terms >= 3);
+    setLearningPage(learningPage);
     // A screen (a phone's status bar, crisp text: the recogniser is sure of
     // most lines) is not a photographed package: its short labels away from
     // the main text (ログイン, TOPへ, 12画, a tab) are UI text, translated.
@@ -396,6 +492,23 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
         const bool isolated = photoLike && !screenLike && root(static_cast<int>(i)) != mainGroup;
         if (reading[i] || gloss[i]) {
             skip(i, reading[i] ? "reading" : "gloss");
+            continue;
+        }
+        if (learningPage && !uiRowAt(i)) {
+            // An example word: hiragana only (with ・ or spaces between the morae:
+            // き・っ・て), not a UI label on a tab bar (はじめる).
+            std::wstring t;
+            for (wchar_t c : b.text)
+                if (!iswspace(c)) t += c;
+            bool hira = !t.empty() && t.size() <= 14;
+            for (wchar_t c : t) hira = hira && ((c >= 0x3041 && c <= 0x3096) || c == 0x30FC || c == 0x30FB);
+            if (hira && !dataGlossary(b.text, cjk, tgt) && !glossary(b.text, tgt)) {  // (ふりがな: a UI toggle, in the glossary)
+                skip(i, "example word");
+                continue;
+            }
+        }
+        if (kanjiTile[i]) {
+            skip(i, "kanji tile");
             continue;
         }
         if (statusBar[i]) {
@@ -431,16 +544,7 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
         // A menu / tab bar / button row (ファイル(F) 編集(E) 表示(V), ホーム はじめる 文法):
         // three or more short items on one baseline are UI text, not packaging
         // around a label - since 0.7.7 they are separate items, not rows.
-        int onRow = 0;
-        if (b.lines == 1)
-            for (const Block& o : blocks) {
-                const float h = std::max(b.y1 - b.y0, 0.004f), oh = o.y1 - o.y0;
-                const int ol = countScripts(o.text).letters();
-                if (o.lines == 1 && ol >= 2 && ol <= 12 && std::fabs((o.y0 + o.y1) / 2 - (b.y0 + b.y1) / 2) < 0.4f * h &&
-                    oh > 0.7f * h && oh < 1.4f * h)
-                    ++onRow;
-            }
-        const bool uiRow = onRow >= 3 && b.conf >= 0.8f && n.letters() <= 12;
+        const bool uiRow = uiRowAt(i);
         if (isolated && !row && !uiRow && !glossary(b.text, tgt) && !(sentenceLike && b.conf >= 0.8f)) {
             if (n.letters() <= 10) {  // 福奇, share happi, a logo
                 skip(i, "isolated short");
@@ -528,6 +632,10 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
         // A row with a Latin value (熱量 42kcal, 김치찌개 9,000원 read as English): its label's language.
         if (row && b.lang == Lang::En && cjk == Lang::Ja && n.kana + n.han > 0) b.lang = Lang::Ja;
         if (row && b.lang == Lang::En && cjk == Lang::Ko && n.hangul > 0) b.lang = Lang::Ko;
+        // A Japanese / Korean label with its English gloss on one line (文法 Grammar,
+        // 漢字 Kanji, はじめる Start): the label's language - label_text.cpp keeps
+        // the gloss as written (0.7.7: 「文法文」, 「康司」 through the English engine).
+        if (b.lang == Lang::En && (cjk == Lang::Ja || cjk == Lang::Ko) && labelWithGloss(b.text)) b.lang = cjk;
         if (b.lang == Lang::ZhHant && tgt == Lang::ZhHant) {
             skip(i, "already target");
             continue;
@@ -551,6 +659,47 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
     return byLang;
 }
 
+PicturePlan planPicture(const std::vector<OcrLine>& lines, Lang src, Lang tgt, float aspect, bool trustText, bool legacy) {
+    PicturePlan plan;
+    plan.blocks = legacy ? groupLines(lines, aspect) : layoutBlocks(lines, aspect);
+    plan.byLang = pickBlocks(plan.blocks, src, tgt, aspect, trustText, &plan.why, &plan.screenLang);
+    return plan;
+}
+
+bool cardWorthy(const Block& b, const std::wstring& tx, const TextInfo* info, Lang from, Lang tgt) {
+    std::wstring t = tx;
+    while (!t.empty() && iswspace(t.back())) t.pop_back();
+    // Never show an untranslated card - but a table row is always listed
+    // (「賞味期限　26.12.09」: owner decision (1)).
+    const bool isRow = b.labelLen > 0 || (info && info->row);
+    return translatedOk(b.text, t, from, tgt) || (isRow && !t.empty());
+}
+
+std::wstring cardText(const std::wstring& tx, const TextInfo* info) {
+    return info && info->uncertain && !info->verified.empty() ? tx + L"\n⚠ " + info->verified : tx;
+}
+
+bool translatePlan(Engine& engine, Escalator* esc, const PicturePlan& plan, Lang tgt, size_t chunk, const PlanHooks& hooks,
+                   std::wstring* err) {
+    if (chunk == 0) chunk = kPlanChunk;
+    for (const auto& [l, idxAll] : plan.byLang) {
+        if (hooks.beforeLang && !hooks.beforeLang(l)) return false;
+        for (size_t c0 = 0; c0 < idxAll.size(); c0 += chunk) {
+            const std::vector<size_t> idx(idxAll.begin() + c0, idxAll.begin() + std::min(idxAll.size(), c0 + chunk));
+            std::vector<std::wstring> in, out;
+            std::vector<size_t> labels;
+            std::vector<TextInfo> info;
+            for (size_t i : idx) in.push_back(plan.blocks[i].text), labels.push_back(plan.blocks[i].labelLen);
+            // Glossary, table rows, names, checks + escalation: label_text.cpp / translator.cpp.
+            const bool ok = hooks.legacy ? translateTexts(engine, l, tgt, in, out, err)
+                                         : translateTextsEx(engine, esc, l, tgt, in, labels, out, &info, err);
+            if (!ok) return false;
+            if (hooks.chunkDone && !hooks.chunkDone(l, idx, in, out, info)) return false;
+        }
+    }
+    return true;
+}
+
 struct ScreenTranslator::Impl {
     VideoWindow& win;
     Callbacks cb;
@@ -566,6 +715,10 @@ struct ScreenTranslator::Impl {
     };
     std::deque<Job> jobs;
     bool stop = false;
+    // prewarm(): asked (guarded by m), done (worker thread).
+    bool warmAsked = false, warmDone = false;
+    Lang warmSrc = Lang::Unknown, warmTgt = Lang::Unknown;
+    bool ocrWarm = false;
     // State (guarded by m; UI thread changes it).
     Lang target = defaultTarget(), source = Lang::Unknown;
     bool active = false, busy = false, original = false, live = false, frozeByUs = false;
@@ -575,6 +728,7 @@ struct ScreenTranslator::Impl {
     std::vector<Item> items;
     Engine engine;  // worker thread only
     Escalator escalator{engine};  // worker thread only: checks + escalation (pm/translator.h)
+    std::unique_ptr<Escalator> earlyEsc;  // the early top part's (process()): checks only
     bool onlineAllowed = true;    // guarded by m; the user's switch is online::activeMode() (read per picture)
     std::atomic<bool> cancelDownload{false};
     bool ocrDeclined = false;  // worker thread: the OCR model download was refused (this session)
@@ -621,6 +775,7 @@ struct ScreenTranslator::Impl {
         return static_cast<double>(n) / a.y.size();
     }
     static constexpr double kSettleMs = 300, kMinGapMs = 2000, kChanged = 0.004;
+    static constexpr bool kOverlayFollows = true;  // 0.7.8 即時翻譯: VideoWindow::setTextOverlayLive
     // One look at the picture (worker thread, live mode, idle): true = translate now.
     bool livePoll() {
         const double now = nowMs();
@@ -651,8 +806,9 @@ struct ScreenTranslator::Impl {
                         lastChangeMs = now;
                         if (movingSinceMs <= 0) movingSinceMs = now;
                         dirty = thumbDiff(t, doneThumb) > kChanged;
-                        // The overlay no longer matches the moving picture: hide it.
-                        if (!overlayHidden && dirty) {
+                        // The overlay no longer matches the moving picture: hide it - 0.7.8: no,
+                        // it follows scrolling and hides itself otherwise (video/src/live_overlay.cpp).
+                        if (!overlayHidden && dirty && !kOverlayFollows) {
                             win.setTextOverlay({});
                             overlayHidden = true;
                             std::lock_guard lk(m);
@@ -756,11 +912,19 @@ struct ScreenTranslator::Impl {
         winrt_init();
         for (;;) {
             Job job;
+            bool warmNow = false;
+            Lang wsrc = Lang::Unknown, wtgt = Lang::Unknown;
             {
                 std::unique_lock lk(m);
                 for (;;) {
                     if (stop) return;
                     if (!jobs.empty()) break;
+                    if (warmAsked) {
+                        warmAsked = false;
+                        warmNow = true;
+                        wsrc = warmSrc, wtgt = target;
+                        break;
+                    }
                     if (live && active && !busy) {
                         // 即時翻譯: when the picture changed and is still again.
                         lk.unlock();
@@ -776,8 +940,14 @@ struct ScreenTranslator::Impl {
                     }
                     cv.wait(lk);
                 }
-                job = jobs.front();
-                jobs.pop_front();
+                if (!warmNow) {
+                    job = jobs.front();
+                    jobs.pop_front();
+                }
+            }
+            if (warmNow) {
+                warm(wsrc, wtgt);
+                continue;
             }
             process(job);
             {
@@ -788,6 +958,30 @@ struct ScreenTranslator::Impl {
         }
     }
     static void winrt_init() { CoInitializeEx(nullptr, COINIT_MULTITHREADED); }
+
+    // prewarm(): the OCR sessions and the src -> tgt chain, at a low priority.
+    void warm(Lang src, Lang tgt) {
+        const bool pair = src != Lang::Unknown && src != tgt &&
+                          std::find(warmPairs.begin(), warmPairs.end(), std::pair{src, tgt}) == warmPairs.end();
+        const bool ocr = !ocrWarm && !cb.ocrOverride && PaddleOcr::ready();
+        if (!ocr && !pair) return;
+        HANDLE th = GetCurrentThread();
+        const int prio = GetThreadPriority(th);
+        SetThreadPriority(th, THREAD_PRIORITY_BELOW_NORMAL);
+        const double t0 = nowMs();
+        std::wstring err;
+        if (ocr) ocrWarm = PaddleOcr::warmUp(&err);
+        const double t1 = nowMs();
+        bool pairOk = false;
+        if (pair && Engine::available() && ModelStore::missingBytes(ModelStore::pairsFor(src, tgt)) == 0) {
+            std::vector<std::wstring> out;
+            pairOk = engine.translate(src, tgt, {L"OK"}, out, &err);
+            if (pairOk) warmPairs.push_back({src, tgt});
+        }
+        SetThreadPriority(th, prio);
+        std::fprintf(stderr, "[tr] warm: OCR %s %.0f ms, %ls -> %ls %s %.0f ms\n", ocr ? (ocrWarm ? "loaded" : "failed") : "skipped",
+                     t1 - t0, langTag(src), langTag(tgt), pair ? (pairOk ? "loaded" : "not loaded") : "skipped", nowMs() - t1);
+    }
 
     bool current(uint64_t g) {
         std::lock_guard lk(m);
@@ -857,6 +1051,99 @@ struct ScreenTranslator::Impl {
                        static_cast<size_t>(cw) * 4);
             px.swap(crop);
         }
+        // A translated block -> its result item and its card (nothing when the
+        // translation failed).
+        auto card = [&](const Block& b, std::wstring tx, const TextInfo* inf, Lang l, Lang to, std::vector<Item>& res,
+                        std::vector<VideoWindow::TextBox>& bx) {
+            while (!tx.empty() && iswspace(tx.back())) tx.pop_back();
+            if (!cardWorthy(b, tx, inf, l, to)) return;
+            const bool isRow = b.labelLen > 0 || (inf && inf->row);
+            // Marks for the overlay (text_overlay.cpp): a table row goes to the
+            // list as 「標籤　值」; a translation that failed a check after
+            // every escalation step carries the checked key facts on its last
+            // line, and selecting its row shows the original.
+            std::wstring shown = tx;
+            if (inf && inf->uncertain) {
+                tx = cardText(tx, inf);
+                shown = std::wstring(1, kOverlayUncertain) + tx;
+            } else if (inf && (inf->row || b.labelLen)) {
+                shown = std::wstring(1, kOverlayRow) + tx;
+            }
+            res.push_back({b.text, tx, l, b.x0, b.y0, b.x1, b.y1, isRow, inf && inf->uncertain,
+                           inf ? inf->verified : std::wstring(), inf ? inf->step : 0, inf && inf->online});
+            // A little margin around the text so the card covers it.
+            const float by0 = b.cy1 > b.cy0 ? b.cy0 : b.y0, by1 = b.cy1 > b.cy0 ? b.cy1 : b.y1;
+            const float lineH = (by1 - by0) / std::max(1, b.lines);
+            const float mx = lineH * 0.15f * h / w, my = b.cy1 > b.cy0 ? 0.f : lineH * 0.10f;  // the glyph band is already a little larger than the glyphs
+            VideoWindow::TextBox box{std::max(0.f, b.x0 - mx), std::max(0.f, by0 - my), std::min(1.f, b.x1 + mx),
+                                     std::min(1.f, by1 + my), shown, b.text, b.lines};
+            sampleColors(px, cw, ch, cx0, cy0, box.x0 * w, box.y0 * h, box.x1 * w, box.y1 * h, lineH * h, box.bg, box.fg);
+            box.colors = true;
+            bx.push_back(std::move(box));
+        };
+        // Dense pictures: the top part's lines come early from the OCR (the
+        // split is at a gap between paragraphs); its first blocks are
+        // translated and shown on another thread while the rest is read (the
+        // engine is idle meanwhile; joined before the worker uses it again).
+        // The whole picture then goes through the usual steps and replaces it.
+        // Own escalator: checks only (no LLM / online), the picture's own one
+        // stays as without it.  Off unless PM_TR_EARLY=1: measured on the E-cores (PM_OVERLAY_FIRST_SHOT) it did not show the first cards earlier (the early thread takes CPU from the OCR of the rest), see the commit message.
+        std::thread earlyThread;
+        double earlyMs = 0;
+        struct Joiner {
+            std::thread& th;
+            ~Joiner() {
+                if (th.joinable()) th.join();
+            }
+        } joinEarly{earlyThread};
+        static const bool earlyOn = std::getenv("PM_TR_EARLY") && std::getenv("PM_TR_EARLY")[0] == '1';
+        std::function<void(std::vector<OcrLine>)> early;
+        if (earlyOn && !job.region && !cb.ocrOverride)
+            early = [&](std::vector<OcrLine> top) {
+                if (!current(job.gen) || earlyThread.joinable()) return;
+                earlyThread = std::thread([&, top = std::move(top)]() {
+                    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);  // the OCR of the rest first
+                    const float aspect = static_cast<float>(w) / h;
+                    auto eb = layoutBlocks(top, aspect);
+                    std::vector<std::string> ewhy;
+                    auto eby = pickBlocks(eb, src, tgt, aspect, false, &ewhy);
+                    std::vector<std::string> need;
+                    for (const auto& [l, v] : eby)
+                        for (const auto& pr : ModelStore::pairsFor(l, tgt)) need.push_back(pr);
+                    if (eby.empty() || !Engine::available() || ModelStore::missingBytes(need) > 0) return;  // never downloads
+                    if (!earlyEsc) {
+                        earlyEsc = std::make_unique<Escalator>(engine);
+                        EscalationConfig ec = earlyEsc->config();
+                        ec.localLlm = ec.online = false;
+                        earlyEsc->setConfig(ec);
+                    }
+                    earlyEsc->resetBudget();
+                    std::vector<Item> res;
+                    std::vector<VideoWindow::TextBox> bx;
+                    size_t left = 24;  // as the first chunk of the whole picture
+                    for (const auto& [l, idxAll] : eby) {
+                        if (!left) break;
+                        const std::vector<size_t> idx(idxAll.begin(), idxAll.begin() + std::min(idxAll.size(), left));
+                        left -= idx.size();
+                        std::vector<std::wstring> in, out;
+                        std::vector<size_t> labels;
+                        std::vector<TextInfo> info;
+                        std::wstring e;
+                        for (size_t i : idx) in.push_back(eb[i].text), labels.push_back(eb[i].labelLen);
+                        if (!translateTextsEx(engine, earlyEsc.get(), l, tgt, in, labels, out, &info, &e)) return;
+                        for (size_t k = 0; k < idx.size() && k < out.size(); ++k)
+                            card(eb[idx[k]], out[k], k < info.size() ? &info[k] : nullptr, l, tgt, res, bx);
+                    }
+                    if (bx.empty() || !current(job.gen)) return;
+                    for (size_t i = 0; i < eb.size() && i < ewhy.size(); ++i)  // kept as written: as pass() below
+                        if (ewhy[i] == "name list" || ewhy[i] == "reading" || ewhy[i] == "gloss" || ewhy[i] == "display name")
+                            bx.push_back({eb[i].x0, eb[i].y0, eb[i].x1, eb[i].y1, std::wstring(1, kOverlayKeep), eb[i].text, eb[i].lines});
+                    win.setTextOverlay(bx);
+                    earlyMs = nowMs() - t0;
+                    static const bool prof = std::getenv("PM_TR_PROF") != nullptr;
+                    if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: top part shown early (%zu cards, %zu lines)\n", earlyMs, res.size(), top.size());
+                });
+            };
         // 2) OCR: PaddleOCR (first use: ask, download the models); Windows
         // OCR when the user said no or onnxruntime.dll is missing.
         OcrResult ocr;
@@ -881,10 +1168,12 @@ struct ScreenTranslator::Impl {
                 win.setOverlayBusy(tr(S::TrReading));
             }
             if (PaddleOcr::modelsInstalled()) {
-                if (PaddleOcr::recognize(px.data(), cw, ch, ocr, &err)) paddle = true;
+                if (PaddleOcr::recognize(px.data(), cw, ch, ocr, &err, src, early)) paddle = true;
                 else ocr = {};  // fall back to Windows OCR below
             }
         }
+        if (earlyThread.joinable()) earlyThread.join();  // the engine is the worker's again
+        if (earlyMs > 0) t.firstMs = earlyMs;
         if (cb.ocrOverride) {
             const float region[4] = {static_cast<float>(cx0) / w, static_cast<float>(cy0) / h,
                                      static_cast<float>(cx0 + cw) / w, static_cast<float>(cy0 + ch) / h};
@@ -930,17 +1219,18 @@ struct ScreenTranslator::Impl {
             }
         }
         const double tl0 = nowMs();
-        auto blocks = layoutBlocks(ocr.lines, static_cast<float>(w) / h);
-        const double tl1 = nowMs();
+        // Layout + pick (planPicture: the same call as pm_translate_test --eval).
+        const PicturePlan plan = planPicture(ocr.lines, src, tgt, static_cast<float>(w) / h, cb.ocrOverride != nullptr);
+        const auto& blocks = plan.blocks;
+        const auto& byLang = plan.byLang;
+        const auto& why = plan.why;
+        const Lang cjk = plan.screenLang;
         t.blocks = static_cast<int>(blocks.size());
-        Lang cjk = Lang::Unknown;
         static const bool debug = std::getenv("PM_TR_DEBUG") != nullptr;  // tests: every block and why it is left out
-        std::vector<std::string> why;
-        auto byLang = pickBlocks(blocks, src, tgt, static_cast<float>(w) / h, cb.ocrOverride != nullptr, &why, &cjk);
         static const bool prof = std::getenv("PM_TR_PROF") != nullptr;
         if (prof)
-            std::fprintf(stderr, "[tr] picture %dx%d: grab+crop %.0f ms, OCR %.0f ms, layout %.0f ms (%zu lines -> %zu blocks), pick %.0f ms\n", cw,
-                         ch, t.grabMs, t.ocrMs, tl1 - tl0, ocr.lines.size(), blocks.size(), nowMs() - tl1);
+            std::fprintf(stderr, "[tr] picture %dx%d: grab+crop %.0f ms, OCR %.0f ms, layout + pick %.0f ms (%zu lines -> %zu blocks)\n", cw, ch,
+                         t.grabMs, t.ocrMs, nowMs() - tl0, ocr.lines.size(), blocks.size());
         if (debug)
             for (size_t i = 0; i < blocks.size(); ++i)
                 std::fprintf(stderr, "  [block] %s: %s\n", why[i].empty() ? "translate" : why[i].c_str(), toUtf8(blocks[i].text).c_str());
@@ -1008,65 +1298,29 @@ struct ScreenTranslator::Impl {
         if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: translation starts (resetBudget %.0f ms)\n", nowMs() - t0, nowMs() - tr0);
         // Blocks per engine call: whole pictures for most, chunks shown as they
         // finish on dense screens (progressive).
-        constexpr size_t kChunk = 24;
         bool progressive = true;
-        size_t totalBlocks = 0;
-        for (const auto& [l, idx] : byLang) totalBlocks += idx.size();
+        const size_t totalBlocks = plan.picked();
         auto pass = [&]() -> bool {
         result.clear();
         boxes.clear();
-        for (const auto& [l, idxAll] : byLang) {
-        for (size_t c0 = 0; c0 < idxAll.size(); c0 += kChunk) {
-            const std::vector<size_t> idx(idxAll.begin() + c0, idxAll.begin() + std::min(idxAll.size(), c0 + kChunk));
-            std::vector<std::wstring> in, out;
-            std::vector<size_t> labels;
-            std::vector<TextInfo> info;
-            for (size_t i : idx) in.push_back(blocks[i].text), labels.push_back(blocks[i].labelLen);
-            // Glossary, table rows, names, checks + escalation: label_text.cpp / translator.cpp.
-            if (!translateTextsEx(engine, &escalator, l, tgt, in, labels, out, &info, &err)) {
-                notify(tr(S::MenuTranslate), pm::i18n::fmt(S::TrFailed, {err}), true);
-                return false;
-            }
+        PlanHooks hooks;  // translatePlan: the same call as pm_translate_test --eval
+        hooks.chunkDone = [&](Lang l, const std::vector<size_t>& idx, const std::vector<std::wstring>&, const std::vector<std::wstring>& out,
+                              const std::vector<TextInfo>& info) {
             warmPairs.push_back({l, tgt});
-            for (size_t k = 0; k < idx.size() && k < out.size(); ++k) {
-                const Block& b = blocks[idx[k]];
-                std::wstring tx = out[k];
-                while (!tx.empty() && iswspace(tx.back())) tx.pop_back();
-                // Never show an untranslated card - but a table row is always
-                // listed (「賞味期限　26.12.09」: owner decision (1)).
-                const bool isRow = b.labelLen > 0 || (k < info.size() && info[k].row);
-                if (!translatedOk(b.text, tx, l, tgt) && !(isRow && !tx.empty())) continue;
-                // Marks for the overlay (text_overlay.cpp): a table row goes to the
-                // list as 「標籤　值」; a translation that failed a check after
-                // every escalation step carries the checked key facts on its last
-                // line, and selecting its row shows the original.
-                std::wstring shown = tx;
-                if (k < info.size() && info[k].uncertain) {
-                    if (!info[k].verified.empty()) tx += L"\n⚠ " + info[k].verified;
-                    shown = std::wstring(1, kOverlayUncertain) + tx;
-                } else if (k < info.size() && (info[k].row || b.labelLen)) {
-                    shown = std::wstring(1, kOverlayRow) + tx;
-                }
-                result.push_back({b.text, tx, l, b.x0, b.y0, b.x1, b.y1, isRow, k < info.size() && info[k].uncertain,
-                                  k < info.size() ? info[k].verified : std::wstring(), k < info.size() ? info[k].step : 0, k < info.size() && info[k].online});
-                // A little margin around the text so the card covers it.
-                const float by0 = b.cy1 > b.cy0 ? b.cy0 : b.y0, by1 = b.cy1 > b.cy0 ? b.cy1 : b.y1;
-                const float lineH = (by1 - by0) / std::max(1, b.lines);
-                const float mx = lineH * 0.15f * h / w, my = b.cy1 > b.cy0 ? 0.f : lineH * 0.10f;  // the glyph band is already a little larger than the glyphs
-                VideoWindow::TextBox box{std::max(0.f, b.x0 - mx), std::max(0.f, by0 - my), std::min(1.f, b.x1 + mx),
-                                         std::min(1.f, by1 + my), shown, b.text, b.lines};
-                sampleColors(px, cw, ch, cx0, cy0, box.x0 * w, box.y0 * h, box.x1 * w, box.y1 * h, lineH * h, box.bg, box.fg);
-                box.colors = true;
-                boxes.push_back(std::move(box));
-            }
+            for (size_t k = 0; k < idx.size() && k < out.size(); ++k)
+                card(blocks[idx[k]], out[k], k < info.size() ? &info[k] : nullptr, l, tgt, result, boxes);
         // Dense screens (a Wikipedia page: 84 blocks, 3.6k characters): the
         // blocks done so far are shown after each chunk (top of the page first).
-        if (progressive && totalBlocks > kChunk && current(job.gen)) {
+        if (progressive && totalBlocks > kPlanChunk && current(job.gen)) {
             win.setTextOverlay(boxes);
             if (t.firstMs <= 0) t.firstMs = nowMs() - t0;
             if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: chunk shown\n", nowMs() - t0);
         }
-        }
+            return true;
+        };
+        if (!translatePlan(engine, &escalator, plan, tgt, kPlanChunk, hooks, &err)) {
+            notify(tr(S::MenuTranslate), pm::i18n::fmt(S::TrFailed, {err}), true);
+            return false;
         }
             // Text deliberately kept as written (a name / track list, readings, an
             // English gloss): the overlay keeps its list panel off it (kOverlayKeep).
@@ -1172,6 +1426,16 @@ void ScreenTranslator::translateScreen() {
     impl_->enqueue({});
 }
 
+void ScreenTranslator::prewarm(Lang src) {
+    {
+        std::lock_guard lk(impl_->m);
+        if (impl_->warmDone && impl_->warmSrc == src && impl_->warmTgt == impl_->target) return;  // asked already
+        impl_->warmAsked = impl_->warmDone = true;
+        impl_->warmSrc = src, impl_->warmTgt = impl_->target;
+    }
+    impl_->cv.notify_all();
+}
+
 void ScreenTranslator::translateRegion() {
     {
         std::lock_guard lk(impl_->m);
@@ -1237,6 +1501,7 @@ void ScreenTranslator::setLive(bool on, int seconds) {
         first = on && !impl_->active && !impl_->busy;
     }
     if (unfreeze) impl_->win.setFrozen(false);
+    impl_->win.setTextOverlayLive(on);  // 0.7.8: in place, follows scrolling (video/src/live_overlay.cpp)
     if (first) translateScreen();  // (live: the picture is not frozen)
     impl_->cv.notify_all();
     impl_->changed();
@@ -1274,6 +1539,7 @@ void ScreenTranslator::close() {
     impl_->win.setOverlayBusy(L"");
     impl_->win.setTextOverlay({});
     impl_->win.setTextOverlayOriginal(false);
+    impl_->win.setTextOverlayLive(false);
     if (unfreeze) impl_->win.setFrozen(false);
     impl_->cv.notify_all();
     impl_->changed();

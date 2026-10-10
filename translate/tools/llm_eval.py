@@ -1,6 +1,7 @@
 # Quality of the local LLM engine (translate/src/llm_engine.h) on the
 # translation evaluation units (translate/testdata/eval/*.ref.json, the same
-# must groups / keys as eval_metrics.py) + translate/tools/llm_eval_extra.ref.json.
+# must groups / keys as eval_metrics.py) + translate/tools/llm_eval_extra.ref.json
+# when present (a private extra set, not in the public source).
 #
 #   py -3 translate/tools/llm_eval.py make SEGMENTS.tsv [--refs DIR]
 #   pm_llm_eval --model qwen3.5-2b-q4km --in SEGMENTS.tsv --out RUN.jsonl [--pictures -1] [--ctx]
@@ -38,7 +39,7 @@ def specs():
     if REFS:
         files = sorted(glob.glob(os.path.join(REFS, "*.ref.json")))
     else:
-        files = sorted(glob.glob(os.path.join(TESTDATA, "eval", "*.ref.json"))) + [os.path.join(HERE, "llm_eval_extra.ref.json")]
+        files = sorted(glob.glob(os.path.join(TESTDATA, "eval", "*.ref.json"))) + [p for p in [os.path.join(HERE, "llm_eval_extra.ref.json")] if os.path.exists(p)]
     for f in files:
         d = json.load(open(f, encoding="utf-8"))
         prev = ""

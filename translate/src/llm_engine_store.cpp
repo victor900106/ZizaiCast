@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <mutex>
 
 #include "downloader.h"
@@ -34,15 +35,23 @@ struct RuntimeFile {
     uint64_t size;
     const char* sha256;
 };
+// Where a file's zip record lies in the archive (PM_LLM_RUNTIME_ENTRY).
+struct RuntimeEntry {
+    const char* name;
+    uint64_t offset, length;
+    const char* sha256;  // of exactly those bytes
+};
 
 #define PM_LLM_RUNTIME(name, size, sha, host, path) constexpr RuntimeArchive kArchive{name, size, sha, host, path};
 #define PM_LLM_RUNTIME_FILE(name, size, sha)
+#define PM_LLM_RUNTIME_ENTRY(name, off, len, sha)
 #define PM_LLM_GPU(name, size, sha, host, path)
 #define PM_LLM_GPU_FILE(name, size, sha)
 #define PM_LLM_MODEL(id, family, file, size, sha, host, path, license, name, ram)
 #include "llm_engine_models.inc"
 #undef PM_LLM_RUNTIME
 #undef PM_LLM_RUNTIME_FILE
+#undef PM_LLM_RUNTIME_ENTRY
 #undef PM_LLM_GPU
 #undef PM_LLM_GPU_FILE
 #undef PM_LLM_MODEL
@@ -50,12 +59,30 @@ struct RuntimeFile {
 constexpr RuntimeFile kRuntimeFiles[] = {
 #define PM_LLM_RUNTIME(name, size, sha, host, path)
 #define PM_LLM_RUNTIME_FILE(name, size, sha) {name, size, sha},
+#define PM_LLM_RUNTIME_ENTRY(name, off, len, sha)
 #define PM_LLM_GPU(name, size, sha, host, path)
 #define PM_LLM_GPU_FILE(name, size, sha)
 #define PM_LLM_MODEL(id, family, file, size, sha, host, path, license, name, ram)
 #include "llm_engine_models.inc"
 #undef PM_LLM_RUNTIME
 #undef PM_LLM_RUNTIME_FILE
+#undef PM_LLM_RUNTIME_ENTRY
+#undef PM_LLM_GPU
+#undef PM_LLM_GPU_FILE
+#undef PM_LLM_MODEL
+};
+
+constexpr RuntimeEntry kRuntimeEntries[] = {
+#define PM_LLM_RUNTIME(name, size, sha, host, path)
+#define PM_LLM_RUNTIME_FILE(name, size, sha)
+#define PM_LLM_RUNTIME_ENTRY(name, off, len, sha) {name, off, len, sha},
+#define PM_LLM_GPU(name, size, sha, host, path)
+#define PM_LLM_GPU_FILE(name, size, sha)
+#define PM_LLM_MODEL(id, family, file, size, sha, host, path, license, name, ram)
+#include "llm_engine_models.inc"
+#undef PM_LLM_RUNTIME
+#undef PM_LLM_RUNTIME_FILE
+#undef PM_LLM_RUNTIME_ENTRY
 #undef PM_LLM_GPU
 #undef PM_LLM_GPU_FILE
 #undef PM_LLM_MODEL
@@ -63,12 +90,14 @@ constexpr RuntimeFile kRuntimeFiles[] = {
 
 #define PM_LLM_RUNTIME(name, size, sha, host, path)
 #define PM_LLM_RUNTIME_FILE(name, size, sha)
+#define PM_LLM_RUNTIME_ENTRY(name, off, len, sha)
 #define PM_LLM_GPU(name, size, sha, host, path) constexpr RuntimeArchive kGpuArchive{name, size, sha, host, path};
 #define PM_LLM_GPU_FILE(name, size, sha) constexpr RuntimeFile kGpuFile{name, size, sha};
 #define PM_LLM_MODEL(id, family, file, size, sha, host, path, license, name, ram)
 #include "llm_engine_models.inc"
 #undef PM_LLM_RUNTIME
 #undef PM_LLM_RUNTIME_FILE
+#undef PM_LLM_RUNTIME_ENTRY
 #undef PM_LLM_GPU
 #undef PM_LLM_GPU_FILE
 #undef PM_LLM_MODEL
@@ -97,6 +126,59 @@ bool fileSize(const std::wstring& path, uint64_t& size) {
     return true;
 }
 bool exists(const std::wstring& p) { return GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES; }
+
+// The ggml-cpu variant to fetch (test builds: PM_LLM_TEST_VARIANT overrides).
+std::string wantedVariant() {
+#ifdef PM_DL_TEST_HTTP
+    const std::wstring e = envVar(L"PM_LLM_TEST_VARIANT");
+    if (!e.empty()) return toUtf8(e);
+#endif
+    return cpuVariant();
+}
+const std::string& thisVariant() {
+    static const std::string v = wantedVariant();
+    return v;
+}
+bool isCpuVariant(const char* name) { return std::strncmp(name, "ggml-cpu-", 9) == 0; }
+// A runtime file a PC with `variant` needs: everything that is not a
+// ggml-cpu-<variant>.dll, the variant ggml picks there, and ggml-cpu-x64.dll
+// (its fallback: ggml skips a backend that cannot load and takes the next best).
+bool neededFor(const char* name, const std::string& variant) {
+    if (!isCpuVariant(name)) return true;
+    return "ggml-cpu-" + variant + ".dll" == name || std::strcmp(name, "ggml-cpu-x64.dll") == 0;
+}
+bool neededFile(const char* name) { return neededFor(name, thisVariant()); }
+
+const RuntimeEntry* entryFor(const char* name) {
+    for (const auto& e : kRuntimeEntries)
+        if (std::strcmp(e.name, name) == 0) return &e;
+    return nullptr;
+}
+
+// The owner's mirror of the GitHub release zips (GitHub Pages, same bytes,
+// same pins): tried first, GitHub (throttled per connection) after it.  Until
+// the files are published there the mirror answers 404 and the original is
+// used at once.  Test builds: PM_LLM_TEST_MIRROR / PM_LLM_TEST_ORIGIN
+// ("127.0.0.1:PORT") replace the hosts.
+constexpr char kMirrorHost[] = "victor900106.github.io";
+constexpr char kMirrorDir[] = "/ZizaiCast/addons/";
+std::string mirrorHost() {
+#ifdef PM_DL_TEST_HTTP
+    const std::wstring e = envVar(L"PM_LLM_TEST_MIRROR");
+    if (!e.empty()) return toUtf8(e);
+#endif
+    return kMirrorHost;
+}
+std::string originHost(const char* host) {
+#ifdef PM_DL_TEST_HTTP
+    const std::wstring e = envVar(L"PM_LLM_TEST_ORIGIN");
+    if (!e.empty()) return toUtf8(e);
+#endif
+    return host;
+}
+
+std::mutex gInfoMu;
+RuntimeFetchInfo gInfo;
 
 class Sha256 {
 public:
@@ -276,7 +358,8 @@ void writeMark(const std::wstring& file, const char* sha) { std::ofstream(file +
 
 // Windows' own bsdtar (System32\tar.exe, Windows 10 1803 and later) reads
 // zip archives; no window, no shell.
-bool unzip(const std::wstring& zip, const std::wstring& dir, std::wstring* err, bool gpu = false) {
+// Unpacks the files `names` of zip into dir.
+bool unzip(const std::wstring& zip, const std::wstring& dir, std::wstring* err, const std::vector<std::string>& names) {
     wchar_t sys[MAX_PATH];
     const UINT n = GetSystemDirectoryW(sys, MAX_PATH);
     const std::wstring tar = std::wstring(sys, n) + L"\\tar.exe";
@@ -285,9 +368,7 @@ bool unzip(const std::wstring& zip, const std::wstring& dir, std::wstring* err, 
         return false;
     }
     std::wstring cmd = L"\"" + tar + L"\" -xf \"" + zip + L"\" -C \"" + dir + L"\"";
-    if (gpu) cmd += L" \"" + fromUtf8(kGpuFile.name) + L"\"";
-    else
-        for (const auto& f : kRuntimeFiles) cmd += L" \"" + fromUtf8(f.name) + L"\"";
+    for (const auto& f : names) cmd += L" \"" + fromUtf8(f) + L"\"";
     STARTUPINFOW si{sizeof(si)};
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
@@ -311,6 +392,54 @@ bool unzip(const std::wstring& zip, const std::wstring& dir, std::wstring* err, 
     return true;
 }
 
+uint32_t le(const std::string& s, size_t at, int bytes) {
+    uint32_t v = 0;
+    for (int i = bytes - 1; i >= 0; --i) v = (v << 8) | static_cast<uint8_t>(s[at + i]);
+    return v;
+}
+void put(std::string& s, uint32_t v, int bytes) {
+    for (int i = 0; i < bytes; ++i) s += static_cast<char>((v >> (8 * i)) & 255);
+}
+
+// The fetched zip records (each a local header + its data, already checked
+// against its pin) joined into a zip with a central directory, so tar.exe can
+// unpack them.  False when a record is not what PM_LLM_RUNTIME_ENTRY says.
+bool joinRecords(const std::vector<std::pair<std::string, std::wstring>>& recs, const std::wstring& zipPath) {
+    std::string zip, cd;
+    for (const auto& [name, part] : recs) {
+        std::ifstream in(part, std::ios::binary);
+        std::string r((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (r.size() < 30 || le(r, 0, 4) != 0x04034b50) return false;
+        const uint32_t nl = le(r, 26, 2), el = le(r, 28, 2), flags = le(r, 6, 2);
+        if (r.size() != 30ull + nl + el + le(r, 18, 4) || (flags & 8) || r.compare(30, nl, name) != 0) return false;
+        const uint32_t at = static_cast<uint32_t>(zip.size());
+        cd.append("PK\x01\x02", 4);
+        put(cd, 20, 2);                    // made by
+        cd.append(r, 4, 26 - 4);           // needed, flags, method, time, date, crc, sizes (as in the record)
+        put(cd, nl, 2);
+        put(cd, 0, 2);                     // extra
+        put(cd, 0, 2);                     // comment
+        put(cd, 0, 2);                     // disk
+        put(cd, 0, 2);                     // internal attributes
+        put(cd, 0, 4);                     // external attributes
+        put(cd, at, 4);
+        cd += name;
+        zip += r;
+    }
+    const uint32_t cdAt = static_cast<uint32_t>(zip.size()), count = static_cast<uint32_t>(recs.size());
+    zip += cd;
+    zip.append("PK\x05\x06", 4);
+    put(zip, 0, 4);  // disk numbers
+    put(zip, count, 2);
+    put(zip, count, 2);
+    put(zip, static_cast<uint32_t>(cd.size()), 4);
+    put(zip, cdAt, 4);
+    put(zip, 0, 2);
+    std::ofstream out(zipPath, std::ios::binary | std::ios::trunc);
+    out << zip;
+    return static_cast<bool>(out);
+}
+
 std::mutex& storeMutex() {
     static std::mutex m;
     return m;
@@ -322,12 +451,14 @@ const std::vector<ModelInfo>& models() {
     static const std::vector<ModelInfo> v = {
 #define PM_LLM_RUNTIME(name, size, sha, host, path)
 #define PM_LLM_RUNTIME_FILE(name, size, sha)
+#define PM_LLM_RUNTIME_ENTRY(name, off, len, sha)
 #define PM_LLM_GPU(name, size, sha, host, path)
 #define PM_LLM_GPU_FILE(name, size, sha)
 #define PM_LLM_MODEL(id, family, file, size, sha, host, path, license, name, ram) {id, family, file, size, sha, host, path, license, name, ram},
 #include "llm_engine_models.inc"
 #undef PM_LLM_RUNTIME
 #undef PM_LLM_RUNTIME_FILE
+#undef PM_LLM_RUNTIME_ENTRY
 #undef PM_LLM_GPU
 #undef PM_LLM_GPU_FILE
 #undef PM_LLM_MODEL
@@ -424,6 +555,8 @@ bool gpuInstalled() {
 // The add-on is part of the download when the PC has a GPU and the user did not turn it off.
 bool gpuWanted() { return gpuEnabled() && gpuPossible() && discreteGpu(); }
 
+namespace {
+
 // What download() fetches for m on this PC (the runtime, the GPU backend
 // when wanted, the model), as downloader items.
 struct Need {
@@ -436,21 +569,15 @@ Need needFor(const ModelInfo& m) {
     n.model = !modelInstalled(m);
     return n;
 }
-// The owner's mirror of the GitHub release zips (GitHub Pages, same bytes,
-// same pins): tried first, GitHub (throttled per connection) after it.  Until
-// the files are published there the mirror answers 404 and the original is
-// used at once.
-constexpr char kMirrorHost[] = "victor900106.github.io";
-constexpr char kMirrorDir[] = "/ZizaiCast/addons/";
 
 dl::Item zipItem(const RuntimeArchive& a, const char* label) {
     dl::Item it;
-    it.host = a.host;
+    it.host = originHost(a.host);
     it.path = a.path;
     it.dest = llmDir() + L"\\" + fromUtf8(a.name);
     it.size = a.size;
     it.sha256 = a.sha256;
-    it.mirrors.push_back({kMirrorHost, std::string(kMirrorDir) + a.name});
+    it.mirrors.push_back({mirrorHost(), std::string(kMirrorDir) + a.name});
     it.label = label;
     it.priority = 1;  // small, slow host: first, with most connections
     return it;
@@ -468,9 +595,178 @@ dl::Item modelItem(const ModelInfo& m) {
     return it;
 }
 
+// The runtime file f is in place: right size, right SHA-256.
+bool runtimeFileOk(const RuntimeFile& f) {
+    const std::wstring p = runtimeDir() + L"\\" + fromUtf8(f.name);
+    uint64_t sz = 0;
+    return fileSize(p, sz) && sz == f.size && sha256File(p) == f.sha256;
+}
+
+// The ranged runtime download: one item per zip record this PC still needs
+// (the bytes [offset, offset + length) of the same archive, on the mirror and
+// on GitHub; pinned by the record's SHA-256).  `names`: the files they hold.
+std::vector<dl::Item> rtRecordItems(std::vector<std::string>* names, bool skipPresent) {
+    std::vector<dl::Item> v;
+    for (const auto& f : kRuntimeFiles) {
+        if (!neededFile(f.name) || (skipPresent && runtimeFileOk(f))) continue;
+        const RuntimeEntry* e = entryFor(f.name);
+        if (!e) continue;
+        dl::Item it = rtItem();
+        it.dest = llmDir() + L"\\" + runtimeTag() + L"-" + fromUtf8(f.name) + L".rec";
+        it.size = e->length;
+        it.sha256 = e->sha256;
+        it.offset = e->offset;
+        v.push_back(std::move(it));
+        if (names) names->push_back(f.name);
+    }
+    return v;
+}
+uint64_t rtPartialBytes() {
+    uint64_t n = 0;
+    for (const auto& it : rtRecordItems(nullptr, false)) n += dl::partialBytes(it);
+    return n;
+}
+
+void clearItem(const dl::Item& it) {
+    DeleteFileW(it.dest.c_str());
+    DeleteFileW((it.dest + L".part").c_str());
+    DeleteFileW((it.dest + L".part.seg").c_str());
+}
+
+// Checks the unpacked runtime files (only those this PC needs when
+// `onlyNeeded`) against their pins and writes the marker; a mismatch deletes them.
+bool verifyRuntime(bool onlyNeeded, std::wstring* err) {
+    const std::wstring rt = runtimeDir();
+    for (const auto& f : kRuntimeFiles) {
+        if (onlyNeeded && !neededFile(f.name)) continue;
+        if (!runtimeFileOk(f)) {
+            if (err) *err = L"SHA-256";
+            for (const auto& g : kRuntimeFiles) DeleteFileW((rt + L"\\" + fromUtf8(g.name)).c_str());
+            return false;
+        }
+    }
+    writeMark(rt + L"\\llama.dll", kArchive.sha256);
+    return true;
+}
+
+// The ranged records are in: joined into a small zip, unpacked, verified.
+bool installRecords(const std::vector<dl::Item>& recs, const std::vector<std::string>& names, std::wstring* err) {
+    const std::wstring rt = runtimeDir(), zip = llmDir() + L"\\" + runtimeTag() + L"-records.zip";
+    SHCreateDirectoryExW(nullptr, rt.c_str(), nullptr);
+    std::vector<std::pair<std::string, std::wstring>> parts;
+    for (size_t i = 0; i < recs.size(); ++i) parts.emplace_back(names[i], recs[i].dest);
+    const bool ok = recs.empty() || (joinRecords(parts, zip) && unzip(zip, rt, err, names));
+    DeleteFileW(zip.c_str());
+    for (const auto& it : recs) clearItem(it);
+    return ok && verifyRuntime(true, err);
+}
+
+// The whole archive is in: unpacked (every file), verified.
+bool installArchive(const dl::Item& it, std::wstring* err) {
+    const std::wstring rt = runtimeDir();
+    SHCreateDirectoryExW(nullptr, rt.c_str(), nullptr);
+    std::vector<std::string> names;
+    for (const auto& f : kRuntimeFiles) names.push_back(f.name);
+    const bool unz = unzip(it.dest, rt, err, names);
+    DeleteFileW(it.dest.c_str());
+    return unz && verifyRuntime(false, err);
+}
+
+// m == nullptr: the runtime alone (tests).
+bool downloadImpl(const ModelInfo* m, const std::function<void(const dl::Progress&)>& progress,
+                  const std::atomic<bool>* cancel, std::wstring* err) {
+    std::lock_guard<std::mutex> lock(storeMutex());
+    Need n;
+    if (m) n = needFor(*m);
+    else n.rt = !runtimeInstalled();
+    const std::wstring dir = llmDir(), rt = runtimeDir();
+    SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
+    // All at once: the big model (Hugging Face, fast) moves the bar from the
+    // start while the small runtime records / GPU zip (GitHub, throttled per
+    // connection) come over several connections.
+    std::vector<dl::Item> items;
+    std::vector<std::string> recNames;
+    size_t recN = 0;
+    int iGpu = -1, iModel = -1;
+    if (n.rt) {
+        items = rtRecordItems(&recNames, true);
+        recN = items.size();
+        std::lock_guard<std::mutex> l(gInfoMu);
+        gInfo = RuntimeFetchInfo{};
+        gInfo.variant = thisVariant();
+    }
+    if (n.gpu) iGpu = static_cast<int>(items.size()), items.push_back(gpuItem());
+    if (n.model) iModel = static_cast<int>(items.size()), items.push_back(modelItem(*m));
+    dl::Options o;
+    o.userAgent = L"ZizaiCast/0.7 (model downloader)";
+    std::vector<dl::Result> res;
+    if (!items.empty()) res = dl::fetchAll(items, progress, cancel, o);
+    auto fail = [&](int i) {
+        if (err) *err = res[i].status == dl::Status::Cancelled ? L"cancelled" : res[i].detail;
+        return false;
+    };
+    // Cancelled: everything stops (partial files kept).
+    for (size_t i = 0; i < res.size(); ++i)
+        if (res[i].status == dl::Status::Cancelled) return fail(static_cast<int>(i));
+    bool ok = true;
+    if (n.rt) {
+        bool recsOk = true;
+        uint64_t got = 0;
+        for (size_t i = 0; i < recN; ++i) {
+            recsOk = recsOk && res[i].status == dl::Status::Ok;
+            got += items[i].size;
+        }
+        const std::vector<dl::Item> recs(items.begin(), items.begin() + recN);
+        std::wstring rerr;
+        if (recsOk && installRecords(recs, recNames, &rerr)) {
+            clearItem(rtItem());  // a whole-archive .part an older version left
+            std::lock_guard<std::mutex> l(gInfoMu);
+            gInfo.ranged = true;
+            gInfo.bytes = got;
+        } else {
+            // No Range (a server answering 200), a record that does not match
+            // its pin, a failed unpack: the whole archive, as before.
+            for (const auto& it : recs) clearItem(it);
+            const dl::Item whole = rtItem();
+            const std::vector<dl::Result> r = dl::fetchAll({whole}, progress, cancel, o);
+            {
+                std::lock_guard<std::mutex> l(gInfoMu);
+                gInfo.fellBack = true;
+                gInfo.bytes = whole.size;
+            }
+            if (r[0].status != dl::Status::Ok) {
+                if (err) *err = r[0].status == dl::Status::Cancelled ? L"cancelled" : r[0].detail;
+                if (r[0].status == dl::Status::Cancelled) return false;
+                ok = false;
+            } else if (!installArchive(whole, err)) {
+                ok = false;
+            }
+        }
+    }
+    if (iGpu >= 0 && res[iGpu].status == dl::Status::Ok) {
+        // Optional: without it the CPU is used, so a failure here is not fatal.
+        SHCreateDirectoryExW(nullptr, rt.c_str(), nullptr);
+        const std::wstring zip = items[iGpu].dest, p = rt + L"\\" + fromUtf8(kGpuFile.name);
+        std::wstring gerr;
+        uint64_t sz = 0;
+        if (unzip(zip, rt, &gerr, {kGpuFile.name}) && fileSize(p, sz) && sz == kGpuFile.size && sha256File(p) == kGpuFile.sha256)
+            writeMark(p, kGpuFile.sha256);
+        else
+            DeleteFileW(p.c_str());
+        DeleteFileW(zip.c_str());
+    }
+    if (iModel >= 0) {
+        if (res[iModel].status != dl::Status::Ok) ok = ok && fail(iModel);
+        else writeMark(items[iModel].dest, m->sha256);
+    }
+    return ok;
+}
+
+}  // namespace
+
 uint64_t partialBytes(const ModelInfo& m) {
     const Need n = needFor(m);
-    return (n.rt ? dl::partialBytes(rtItem()) : 0) + (n.gpu ? dl::partialBytes(gpuItem()) : 0) +
+    return (n.rt ? rtPartialBytes() : 0) + (n.gpu ? dl::partialBytes(gpuItem()) : 0) +
            (n.model ? dl::partialBytes(modelItem(m)) : 0);
 }
 
@@ -481,15 +777,39 @@ std::wstring runtimeDir() {
     return !e.empty() ? e : llmDir() + L"\\runtime-" + runtimeTag();
 }
 
+// Installed: the marker + every file this PC needs at its size.  A runtime
+// unpacked from the whole archive (0.7.8 and earlier: all 14 variants) has
+// them too, so it is not fetched again.
 bool runtimeInstalled() {
     const std::wstring dir = runtimeDir();
     if (!envVar(L"PM_LLAMA_DIR").empty()) return exists(dir + L"\\llama.dll");
     if (!markOk(dir + L"\\llama.dll")) return false;
     for (const auto& f : kRuntimeFiles) {
+        if (!neededFile(f.name)) continue;
         uint64_t sz = 0;
         if (!fileSize(dir + L"\\" + fromUtf8(f.name), sz) || sz != f.size) return false;
     }
     return true;
+}
+
+std::vector<std::string> runtimeFilesFor(const std::string& variant) {
+    std::vector<std::string> v;
+    for (const auto& f : kRuntimeFiles)
+        if (neededFor(f.name, variant)) v.push_back(f.name);
+    return v;
+}
+
+uint64_t runtimeRangedBytes(const std::string& variant) {
+    uint64_t n = 0;
+    for (const auto& f : kRuntimeFiles)
+        if (neededFor(f.name, variant))
+            if (const RuntimeEntry* e = entryFor(f.name)) n += e->length;
+    return n;
+}
+
+RuntimeFetchInfo lastRuntimeFetch() {
+    std::lock_guard<std::mutex> l(gInfoMu);
+    return gInfo;
 }
 
 bool modelInstalled(const ModelInfo& m) {
@@ -501,9 +821,10 @@ bool modelInstalled(const ModelInfo& m) {
 bool installed(const ModelInfo& m) { return runtimeInstalled() && modelInstalled(m); }
 
 uint64_t missingBytes(const ModelInfo& m) {
-    // Minus what an interrupted download left (continued, not fetched again).
+    // The runtime: its records for this PC (the whole archive only when the
+    // server cannot do Range).  Minus what an interrupted download left.
     const Need n = needFor(m);
-    const uint64_t all = (n.rt ? kArchive.size : 0) + (n.gpu ? kGpuArchive.size : 0) + (n.model ? m.size : 0);
+    const uint64_t all = (n.rt ? runtimeRangedBytes(thisVariant()) : 0) + (n.gpu ? kGpuArchive.size : 0) + (n.model ? m.size : 0);
     return all - std::min(all, partialBytes(m));
 }
 
@@ -525,72 +846,19 @@ std::wstring describeDownload(const ModelInfo& m) {
     return s;
 }
 
+// The runtime comes as the zip records of the files this PC needs (HTTP Range
+// into the pinned archive: llama.dll, ggml*.dll, libomp.dll, the ggml-cpu
+// variant for this CPU + x64; 2.2-2.9 of 19.5 MB), each checked against its pin,
+// then the unpacked files against theirs.  A server without Range or a record
+// that fails: the whole archive, as before.
 bool download(const ModelInfo& m, const std::function<void(const dl::Progress&)>& progress, const std::atomic<bool>* cancel,
               std::wstring* err) {
-    std::lock_guard<std::mutex> lock(storeMutex());
-    const Need n = needFor(m);
-    const std::wstring dir = llmDir(), rt = runtimeDir();
-    SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    // All at once: the big model (Hugging Face, fast) moves the bar from the
-    // start while the small runtime / GPU zips (GitHub, throttled per
-    // connection) come over several connections.
-    std::vector<dl::Item> items;
-    int iRt = -1, iGpu = -1, iModel = -1;
-    if (n.rt) iRt = static_cast<int>(items.size()), items.push_back(rtItem());
-    if (n.gpu) iGpu = static_cast<int>(items.size()), items.push_back(gpuItem());
-    if (n.model) iModel = static_cast<int>(items.size()), items.push_back(modelItem(m));
-    if (items.empty()) return true;
-    dl::Options o;
-    o.userAgent = L"ZizaiCast/0.7 (model downloader)";
-    const std::vector<dl::Result> res = dl::fetchAll(items, progress, cancel, o);
-    auto fail = [&](int i) {
-        if (err) *err = res[i].status == dl::Status::Cancelled ? L"cancelled" : res[i].detail;
-        return false;
-    };
-    // Cancelled: everything stops (partial files kept).
-    for (size_t i = 0; i < res.size(); ++i)
-        if (res[i].status == dl::Status::Cancelled) return fail(static_cast<int>(i));
-    bool ok = true;
-    if (iRt >= 0) {
-        if (res[iRt].status != dl::Status::Ok) ok = fail(iRt);
-        else {
-            SHCreateDirectoryExW(nullptr, rt.c_str(), nullptr);
-            const std::wstring zip = items[iRt].dest;
-            const bool unz = unzip(zip, rt, err);
-            DeleteFileW(zip.c_str());
-            if (!unz) ok = false;
-            else {
-                for (const auto& f : kRuntimeFiles) {
-                    const std::wstring p = rt + L"\\" + fromUtf8(f.name);
-                    uint64_t sz = 0;
-                    if (!fileSize(p, sz) || sz != f.size || sha256File(p) != f.sha256) {
-                        if (err) *err = L"SHA-256";
-                        for (const auto& g : kRuntimeFiles) DeleteFileW((rt + L"\\" + fromUtf8(g.name)).c_str());
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) writeMark(rt + L"\\llama.dll", kArchive.sha256);
-            }
-        }
-    }
-    if (iGpu >= 0 && res[iGpu].status == dl::Status::Ok) {
-        // Optional: without it the CPU is used, so a failure here is not fatal.
-        SHCreateDirectoryExW(nullptr, rt.c_str(), nullptr);
-        const std::wstring zip = items[iGpu].dest, p = rt + L"\\" + fromUtf8(kGpuFile.name);
-        std::wstring gerr;
-        uint64_t sz = 0;
-        if (unzip(zip, rt, &gerr, true) && fileSize(p, sz) && sz == kGpuFile.size && sha256File(p) == kGpuFile.sha256)
-            writeMark(p, kGpuFile.sha256);
-        else
-            DeleteFileW(p.c_str());
-        DeleteFileW(zip.c_str());
-    }
-    if (iModel >= 0) {
-        if (res[iModel].status != dl::Status::Ok) ok = ok && fail(iModel);
-        else writeMark(items[iModel].dest, m.sha256);
-    }
-    return ok;
+    return downloadImpl(&m, progress, cancel, err);
+}
+
+bool downloadRuntime(const std::function<void(const dl::Progress&)>& progress, const std::atomic<bool>* cancel,
+                     std::wstring* err) {
+    return downloadImpl(nullptr, progress, cancel, err);
 }
 
 bool download(const ModelInfo& m, const std::function<void(double)>& progress, const std::atomic<bool>* cancel,

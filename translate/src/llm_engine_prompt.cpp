@@ -218,7 +218,7 @@ std::wstring cleanOutput(const std::string& raw, const TrRequest& rq, PromptStyl
         size_t foreign = 0, letters = 0;
         for (wchar_t c : w) {
             const bool kana = c >= 0x3041 && c <= 0x30FF && c != 0x30FC && c != 0x30FB;
-            const bool hangul = (c >= 0xAC00 && c <= 0xD7A3) || (c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F);
+            const bool hangul = isHangul(c);
             if (kana || hangul) ++foreign;
             if (iswalpha(c) || c >= 0x3040) ++letters;
         }

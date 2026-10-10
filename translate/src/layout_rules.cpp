@@ -18,10 +18,9 @@ namespace {
 
 float hOf(const OcrLine& l) { return l.lineH > 0 ? l.lineH : l.y1 - l.y0; }
 float hOf(const Block& b) { return b.lineH > 0 ? b.lineH : (b.y1 - b.y0) / std::max(1, b.lines); }
-bool isHangulC(wchar_t c) { return c >= 0xAC00 && c <= 0xD7AF; }
 bool isLetterCjk(wchar_t c) {
     return (c >= 0x3041 && c <= 0x30FA) || c == 0x30FC || (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF) ||
-           c == 0x3005 || isHangulC(c);
+           c == 0x3005 || isHangul(c);
 }
 std::wstring noSpace(const std::wstring& s) {
     std::wstring o;
@@ -34,7 +33,7 @@ std::wstring noSpace(const std::wstring& s) {
 std::wstring joinText(const std::wstring& a, const std::wstring& b) {
     if (a.empty() || b.empty()) return a + b;
     const wchar_t x = a.back(), y = b.front();
-    if (isHangulC(x) || isHangulC(y)) return a + L" " + b;
+    if (isHangul(x) || isHangul(y)) return a + L" " + b;
     if (isCjk(x) && isCjk(y)) return a + b;
     if (isCjk(x) != isCjk(y) && (iswdigit(x) || iswdigit(y))) return a + b;  // 8袋, 〒601
     return a + L" " + b;

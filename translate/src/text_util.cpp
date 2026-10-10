@@ -15,15 +15,16 @@ bool isKana(wchar_t c) {
     return (c >= 0x3040 && c <= 0x30FF && c != 0x30FB && c != 0x30FC) || (c >= 0x31F0 && c <= 0x31FF) ||
            (c >= 0xFF66 && c <= 0xFF9F);
 }
-bool isHangul(wchar_t c) {
-    return (c >= 0xAC00 && c <= 0xD7AF) || (c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F);
-}
 bool isHan(wchar_t c) { return (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF) || (c >= 0xF900 && c <= 0xFAFF); }
 bool isLatin(wchar_t c) {
     return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= 0xC0 && c <= 0x24F && c != 0xD7 && c != 0xF7) ||
            (c >= 0xFF21 && c <= 0xFF3A) || (c >= 0xFF41 && c <= 0xFF5A);
 }
 }  // namespace
+
+bool isHangul(wchar_t c) {
+    return (c >= 0xAC00 && c <= 0xD7AF) || (c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F);
+}
 
 bool isCjk(wchar_t c) {
     return isKana(c) || isHangul(c) || isHan(c) || (c >= 0x3000 && c <= 0x303F) || (c >= 0xFF00 && c <= 0xFF65) ||
@@ -241,7 +242,7 @@ bool endsSentence(const std::wstring& t) {
     if (c == 0x3002 || c == 0xFF01 || c == 0xFF1F || c == L'!' || c == L'?' || c == 0xFF1A || c == L':') return true;
     // Japanese polite sentence endings without a 。 (banners, signs: …仕上げました).
     // Korean: a full stop after hangul, the polite endings (…합니다, …주세요).
-    if (c == L'.' && t.size() >= 2 && t[t.size() - 2] >= 0xAC00 && t[t.size() - 2] <= 0xD7AF) return true;
+    if (c == L'.' && t.size() >= 2 && isHangul(t[t.size() - 2])) return true;
     for (const wchar_t* e : {L"ました", L"ます", L"ません", L"です", L"でした", L"ください", L"니다", L"세요", L"어요", L"아요",
                              L"불가", L"금지"})  // Korean notices: …주문 불가, 촬영 금지
         if (t.size() >= wcslen(e) && t.compare(t.size() - wcslen(e), std::wstring::npos, e) == 0) return true;
@@ -312,10 +313,23 @@ std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect) {
             // 低いで表しま / す。ここで…): the line ends in a kana / kanji, not a
             // 。、 and the next starts at the same left edge - joined up to 1.6 line
             // heights apart (0.7.6 translated 「す。」 alone as 「就是這樣。」).
-            const bool midWord = !p.text.empty() && !ln.text.empty() && isCjk(p.text.back()) && !isHangul(p.text.back()) && !wcschr(L"。、，．！？：）」』", p.text.back()) && isCjk(ln.text.front()) &&
-                                 std::fabs(p.x0 - ln.x0) * aspect < 0.5f * std::max(h, ph) && h / ph < 1.15f && ph / h < 1.15f &&
+            // Also a list item's hanging indent: the next line starts under the
+            // item's first or second character (after a bullet - read or not)
+            // by their positions (charX) (・サイト内検索から…横 / 断して探せます。 was
+            // translated alone as 「我可以拒絕並找到你。」).
+            const float indent = (ln.x0 - p.x0) * aspect;
+            auto underText = [&] {
+                if (indent <= 0 || indent > 2.2f * std::max(h, ph) || p.charX.size() < 3) return false;
+                const float cw = (p.charX.back() - p.charX.front()) / static_cast<float>(p.charX.size() - 1);
+                for (size_t c = 0; c < 2; ++c)
+                    if (std::fabs(p.charX[c] - cw / 2 - ln.x0) * aspect < 0.5f * std::max(h, ph)) return true;
+                return false;
+            };
+            const bool midWord = !p.text.empty() && !ln.text.empty() && isCjk(p.text.back()) && !isHangul(p.text.back()) && !wcschr(L"。、，．！？：）」』", p.text.back()) && (isCjk(ln.text.front()) || wcschr(L"（「『", ln.text.front())) &&
+                                 (std::fabs(indent) < 0.5f * std::max(h, ph) || underText()) &&
+                                 h / ph < 1.45f && ph / h < 1.45f &&
                                  (p.x1 - p.x0) * aspect > 12 * ph;  // a paragraph line, not a menu item
-            if (gap < -0.3f * hm || gap > (midWord ? 1.6f : 0.9f) * hm) continue;  // glyph heights (PaddleOCR): wide UI line spacing still joins
+            if (gap < -0.3f * hm || gap > (midWord ? 2.0f : 0.9f) * hm) continue;  // glyph heights (PaddleOCR): wide UI line spacing still joins
             const float ov = std::min(p.x1, ln.x1) - std::max(p.x0, ln.x0);
             const float minW = std::min(p.x1 - p.x0, ln.x1 - ln.x0);
             if (ov < 0.5f * minW) continue;

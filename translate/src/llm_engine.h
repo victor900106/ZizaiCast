@@ -68,6 +68,29 @@ std::wstring modelPath(const ModelInfo& m);   // where it is / will be
 // whether it is there.  PM_LLAMA_DIR overrides (a llama.cpp build, for tests).
 std::wstring runtimeDir();
 bool runtimeInstalled();
+// The ggml-cpu-<variant>.dll ggml picks on this CPU ("haswell", "zen4", ...;
+// "x64" = the baseline) - the same scoring as ggml's cpu-feats.cpp (llm_engine_cpu.cpp).
+// The download fetches that one + ggml-cpu-x64 only.
+std::string cpuVariant();
+unsigned cpuFeatureBits();                    // this CPU's features (bit n = ggml's weight 1 << n)
+std::string cpuVariantFor(unsigned features); // tests: the pick for a given feature set
+// The runtime files a PC with this ggml-cpu variant needs: llama.dll, ggml*.dll
+// except the other ggml-cpu-*.dll, libomp.dll + its license (tests; the
+// download and runtimeInstalled() use it with cpuVariant()).
+std::vector<std::string> runtimeFilesFor(const std::string& variant);
+// Bytes the ranged runtime download fetches for that variant (the zip records).
+uint64_t runtimeRangedBytes(const std::string& variant);
+// The runtime alone (no model, no GPU add-on): tests (pm_llm_runtime_test).
+bool downloadRuntime(const std::function<void(const dl::Progress&)>& progress, const std::atomic<bool>* cancel,
+                     std::wstring* err);
+// Test hook: how the last runtime download went.
+struct RuntimeFetchInfo {
+    bool ranged = false;       // only the needed zip records (HTTP Range) were fetched
+    bool fellBack = false;     // ... failed, the whole archive was fetched instead
+    uint64_t bytes = 0;        // bytes the chosen way fetched
+    std::string variant;       // the ggml-cpu variant fetched
+};
+RuntimeFetchInfo lastRuntimeFetch();
 bool modelInstalled(const ModelInfo& m);
 // Runtime + model present (verified once, then by size).
 bool installed(const ModelInfo& m);
