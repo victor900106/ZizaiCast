@@ -6,150 +6,144 @@
 
 # 自在投影 Zizai Cast
 
-**把 iPhone、iPad、Android 手機畫面無線投影到 Windows 電腦。**<br>
-iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開源、沒有廣告、不用註冊帳號。
+**把 iPhone、iPad、Android 手機畫面，無線投影到 Windows 電腦。**<br>
+iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。免費、開源、沒有廣告、不用帳號。
 
-[![最新版本](https://img.shields.io/github/v/release/victor900106/ZizaiCast?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=F5A7A7)](https://github.com/victor900106/ZizaiCast/releases/latest)
-[![下載次數](https://img.shields.io/github/downloads/victor900106/ZizaiCast/total?label=%E4%B8%8B%E8%BC%89&color=E3B98A)](https://github.com/victor900106/ZizaiCast/releases)
-[![授權 GPL-3.0](https://img.shields.io/badge/%E6%8E%88%E6%AC%8A-GPL--3.0-8FE3C4)](#license)
-[![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011%20(64--bit)-BBA9F7?logo=windows)](#requirements)
-[![C++](https://img.shields.io/badge/made%20with-C%2B%2B20-6b7fd7?logo=cplusplus)](#build)
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.7.9-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.7.9" height="40"></a>
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F-F5A7A7?style=for-the-badge" alt="免費下載 Windows 安裝程式" height="44"></a>
+[介紹頁](https://victor900106.github.io/ZizaiCast/) ・ [所有版本](https://github.com/victor900106/ZizaiCast/releases) ・ [怎麼連線](#start) ・ [常見問題](#faq) ・ [隱私](#privacy)
 
 <img src="docs/readme/demo-zh.gif" alt="示範：等待連線 → iPhone 連上 → 鏡像 → 手機轉橫向 → 工具列 → 截圖" width="760">
 
-<sub>程式實際畫面（離屏錄製，視窗標題列與背景為後製）；手機內容是示範用的合成畫面，不含任何真實個人資料。</sub>
+<sub>程式實際畫面（離屏錄製，視窗標題列與背景為後製）；手機內容是示範用的合成畫面，不含真實個人資料。</sub>
 
 </div>
 
 ---
 
-## ✨ 亮點
+手機上的東西，常常需要搬到大螢幕上：上課示範一個 App、幫長輩把字放大看清楚、出國拍到一張看不懂的菜單、把遊戲或操作過程錄下來。自在投影做的就是這一件事：手機和電腦連同一個 Wi‑Fi，從手機選「自在投影」，畫面和聲音就出現在電腦上；之後要錄、要截、要放大、要翻譯，都在同一個視窗裡完成，資料不離開你家的網路。
 
-- 🍎 **iPhone / iPad 免裝 App**：控制中心 →「螢幕鏡像」→ 選「自在投影」，畫面和聲音就過來了（AirPlay）。
-- 🤖 **Android 兩種連法**：手機內建的「投放／Smart View」（Miracast），或掃 QR 碼用「無線偵錯」連線——**可以用電腦的滑鼠、鍵盤直接操控手機**。
-- ⚡ **低延遲**：電腦端從解碼到顯示約 **3 ms**（H.264 硬體解碼，開發者實測）；最高 **3840×2160（4K）/ 60 fps**（H.265）。
-- ⏺ **錄影・截圖・傳到手機**：一鍵錄成 MP4（含聲音）、截成 PNG；實測錄影影音偏差 0.2 ms。截好的檔案可以**一次勾選多張傳到手機**。
-- 🔍 **放大鏡**：最多放大 8 倍，加上弱視濾鏡（加強對比、黑白、反轉、黃字黑底）與凍結畫面。
-- 🈯 **畫面翻譯**：把畫面上的英文、日文、韓文、簡體中文翻成繁體中文（或英文、日文、韓文），手機相機拍到的包裝、招牌、菜單也行；**內建文字辨識（OCR），在電腦上離線執行，文字不會上傳**。想要更準，可以選用**本機 AI 翻譯**（同樣在電腦上執行），或用自己的金鑰開啟**線上翻譯**。
-- 🎨 **用起來舒服**：工具列音量與靜音、iPhone 外框、旋轉、4 種主題、多支手機接手、PIN 碼、系統匣常駐、開機自動啟動、一鍵更新；介面有**繁體中文、英文、日文、韓文**。
-- 🔒 **資料不出你家網路**：畫面只在區域網路裡傳；沒有遙測、不用帳號。平常唯一的對外連線是檢查更新；翻譯模型只在你同意後下載一次，線上翻譯預設關閉（[詳見隱私說明](#privacy)）。
-- 🆓 **免費、開源（GPL-3.0）、沒有廣告**。
+## 重點
 
-## 🚀 3 步驟開始
+- **iPhone / iPad 免裝 App**：控制中心 →「螢幕鏡像」→「自在投影」，畫面和聲音一起過來（AirPlay）。
+- **Android 兩種連法**：手機內建的「投放／Smart View」（Miracast），或掃 QR 碼用「無線偵錯」連線，**可以用電腦的滑鼠、鍵盤直接操控手機**。
+- **低延遲、高畫質**：電腦端從解碼到顯示約 3 ms（H.264 硬體解碼，開發者實測）；最高 3840×2160、60 fps（H.265）。
+- **錄影、截圖、傳到手機**：一鍵錄成 MP4（含聲音）或截成 PNG，再一次勾選多個檔案傳回手機。
+- **放大鏡與弱視濾鏡**：最多放大 8 倍，加強對比、黑白、反轉、黃字黑底，可凍結畫面。
+- **畫面翻譯**：英文、日文、韓文、簡體中文翻成繁體中文（或英文、日文、韓文）。文字辨識與翻譯**都在電腦上離線執行**；可選用本機 AI 翻譯，或用自己的金鑰開啟線上翻譯。
+- **四語介面**：繁體中文、English、日本語、한국어；有新版時一鍵更新（不會自己偷偷更新）。
+- **資料留在你的網路**：沒有遙測、不用帳號；平常唯一的對外連線是檢查更新（[隱私說明](#privacy)）。
 
-<img src="docs/readme/steps.png" alt="1. iPhone 打開控制中心點螢幕鏡像 2. 選擇自在投影 3. 電腦上出現手機畫面" width="100%">
-
-1. **下載安裝**：[直接下載最新版安裝程式](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（快速下載點；也可以到 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest) 下載 `zizai-setup-<版本>.exe`），點兩下安裝（不需要系統管理員權限）。第一次開啟時 Windows 防火牆詢問，請勾「私人網路」並按「允許」。
-2. **手機和電腦連同一個 Wi‑Fi**（不是訪客網路；先關掉 VPN）。
-3. **連線**
-   - **iPhone / iPad**：控制中心 →「螢幕鏡像」→「自在投影」。
-   - **Android（只要看）**：快速設定的「投放」（Samsung 叫 Smart View）→「自在投影」。
-   - **Android（要用電腦操控）**：手機開「開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置」，掃電腦上「顯示 Android QR 碼」的 QR 碼。之後只要無線偵錯開著就會自動連回來。
-
-<div align="center"><img src="docs/readme/phone-pc.png" alt="左邊是手機，右邊是電腦上的自在投影視窗，透過同一個 Wi‑Fi 連線" width="760"></div>
-
-## 🆕 v0.7.7 新功能
+## 0.7.9 新功能
 
 | | |
 |---|---|
-| 📱 **手機與網頁截圖翻得更準**（0.7.7） | 導覽列、按鈕、振假名、漢字表格和瀏覽器網址列不再被誤翻；換行的段落當成一整句翻譯；品牌名、使用者名稱、@帳號和網址會保留。剛開啟程式就按「即時翻譯」也能用。 |
-| 🧭 **更簡單的翻譯選單**（0.7.7） | 「翻譯」選單只留常用動作，其他選項在「翻譯設定 ▸」；「管理翻譯模型」依語言列出。 |
-| 🧠 **本機 AI 翻譯（選用）** | 日文、韓文直接翻成中文，用詞更自然；在這台電腦上執行，文字不會上傳，有獨立顯示卡時用顯示卡加速。需要時再下載（約 1.3 GB，小模型約 560 MB），可隨時刪除。 |
-| 🌐 **線上翻譯（選用）** | 使用你自己的 DeepL 或 Azure 金鑰；預設關閉，開啟並同意後才會把辨識出的文字（不含畫面）送到你選的服務。 |
-| ⚡ **即時翻譯** | 取代「連續翻譯」：畫面有變化才重新翻譯；文字很多的畫面快很多，文字辨識也能用顯示卡加速。 |
-| 🈯 **翻得更準** | 日文、韓文、英文詞彙表（菜單、車站、標示、介面用語），成分表逐項翻譯，表格顯示成「標籤　值」；否定和數字會核對，沒把握的句子會標出來，點一下看原文。推文截圖的 @帳號、#標籤、網址會保留。 |
-| 🔊 **音量與靜音** | 工具列新增音量滑桿和靜音（Ctrl+↑／↓／M）。 |
-| ❎ **關閉視窗時** | 可選縮到系統匣或結束程式，並記住你的選擇；選單變短，分成「設定」「Android」「資料夾」「說明」。 |
-| ⏬ **下載更快** | 模型同時用多條連線下載（本機 AI 執行環境改從本專案的 GitHub Pages 鏡像下載），顯示速度和剩餘時間，中斷後可接著下載，「取消」立即停止。 |
-| 📲 **iPhone 一次存全部** | 「傳到手機」的網頁新增「全部下載（ZIP）」，iPhone 也能一次拿到所有截圖和錄影。 |
+| **即時翻譯跟著畫面走** | 即時翻譯的譯文固定蓋在原文位置，手機畫面捲動時譯文跟著移動，不用每次重新按翻譯。 |
+| **選單更好懂** | 「連接手機 ▸」取代「Android ▸」，第一項就是「怎麼連線？」；截圖、錄影資料夾放在第一層；「說明 ▸ 快速鍵一覽」（F1）。 |
+| **截圖、錄影完成後直接動手** | 完成提示上可以直接點「開啟資料夾」或「傳到手機」。 |
+| **設定用白話說** | 「畫面清晰度」標準（順暢）／高（建議）／最高（較吃網路）；「第二支手機連上時」換成新的／維持原本的；關閉視窗時可選「背景待命」，並告訴你圖示在哪裡。 |
+| **沒連手機時也看得到** | 截圖、錄影、放大鏡一律列在選單上，沒連手機時顯示「手機連上後可用」。 |
 
-另外修正了許多問題（翻譯後畫面卡住、Wi‑Fi 斷線後黑畫面、暫停後影音不同步等）。0.7.6 合併了沒有公開過的 0.7.3–0.7.5。完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
+完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
 
-## 🧩 功能一覽
+<a id="start"></a>
+
+## 怎麼連線：3 步驟
+
+**開始前**：[下載並安裝自在投影](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（快速下載點；備用：[Releases](https://github.com/victor900106/ZizaiCast/releases/latest) 的 `zizai-setup-<版本>.exe`，不需要系統管理員權限），手機和電腦連同一個 Wi‑Fi（不是訪客網路；先關掉 VPN）。第一次開啟時 Windows 防火牆詢問，請勾「私人網路」並按「允許」。
+
+<img src="docs/readme/steps.png" alt="iPhone：1. 打開控制中心點螢幕鏡像 2. 選擇自在投影 3. 電腦上出現手機畫面" width="100%">
+
+| | 1 | 2 | 3 |
+|---|---|---|---|
+| **iPhone / iPad**（AirPlay，免裝 App） | 打開控制中心，點「螢幕鏡像」 | 選「自在投影」 | 電腦上出現手機畫面和聲音 |
+| **Android：只要看**（Miracast） | 下拉快速設定，點「投放」（Samsung 叫 Smart View） | 選「自在投影」 | 電腦上出現手機畫面（電腦需 Windows「無線顯示器」功能） |
+| **Android：用電腦操控**（無線偵錯，Android 11 以上） | 手機開「開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置」 | 掃電腦上「連接手機 ▸ 連接 Android（掃 QR）」的 QR 碼 | 用滑鼠鍵盤操控手機；之後會自動重連 |
+
+上圖以 iPhone 為例。忘了怎麼連？程式裡「連接手機 ▸ 怎麼連線？」隨時看得到。
+
+<div align="center"><img src="docs/readme/phone-pc.png" alt="左邊是手機，右邊是電腦上的自在投影視窗，透過同一個 Wi‑Fi 連線" width="760"></div>
+
+## 功能
+
+以下都是程式的實際畫面；手機內容是示範用的合成畫面。
+
+### 投影與操控
 
 <table>
 <tr>
-<td width="33%" valign="top"><img src="docs/readme/features/f-magnifier.jpg" alt="放大鏡：原本大小、放大 2 倍、黃字黑底濾鏡"><br><b>🔍 放大鏡</b><br>Ctrl+滾輪或工具列放大（最多 8 倍），右下角小地圖可拖曳；弱視濾鏡（Ctrl+K）：加強對比、黑白、反轉、黃字黑底。</td>
-<td width="33%" valign="top"><img src="docs/readme/features/f-translate.jpg" alt="畫面翻譯原位顯示：日文菜單翻成繁體中文，譯文蓋在原文上"><br><b>🈯 畫面翻譯（原位顯示）</b><br>Ctrl+L 離線翻譯英、日、韓、簡中，譯文直接蓋在原文位置。<sub>圖中菜單為合成的測試圖。</sub></td>
-<td width="33%" valign="top"><img src="docs/readme/features/f-translate-list.jpg" alt="畫面翻譯清單顯示：編號標記與譯文清單"><br><b>📋 畫面翻譯（清單顯示）</b><br>原文旁標上編號，譯文整理成清單；選單可切換自動／原位／清單、翻成哪種語言。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-iphone.jpg" alt="iPhone 鏡像"><br><b>iPhone / iPad 鏡像</b><br>AirPlay 螢幕鏡像，免裝 App，畫面加聲音；iPhone 的音量鍵可以調電腦音量。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-miracast.jpg" alt="Android 投放"><br><b>Android 投放</b><br>手機內建的「投放／Smart View」（Miracast）直接選自在投影。<a href="#faq">需要 Windows「無線顯示器」功能</a>。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-control.jpg" alt="電腦操控 Android"><br><b>用電腦操控 Android</b><br>點擊、拖曳滑動、滾輪捲動、右鍵返回、鍵盤打字；工具列有返回／主畫面／最近使用。</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/readme/features/f-send.jpg" alt="傳到手機：勾選這次的截圖和錄影"><br><b>📤 傳到手機（電腦端）</b><br>截圖、錄影後點「傳到手機」，勾選要傳的檔案一次送出。</td>
-<td valign="top"><img src="docs/readme/features/f-phone.jpg" alt="傳到手機：電腦上的 QR 碼與手機上的下載網頁"><br><b>📲 傳到手機（手機網頁）</b><br>iPhone 等手機掃 QR 碼打開網頁（同一個 Wi‑Fi），點「全部下載（ZIP）」，照網頁上的說明存進「照片」；Android 無線偵錯可直接存入。<sub>手機外框為示意。</sub></td>
-<td valign="top"><img src="docs/readme/features/f-jako.jpg" alt="日文與韓文介面"><br><b>🌏 日本語・한국어 介面</b><br>介面與安裝程式新增日文、韓文（設定 → 語言 / Language）。</td>
+<td valign="top"><img src="docs/readme/features/f-qr.jpg" alt="掃 QR 配對"><br><b>掃 QR 碼配對</b><br>Android 11 以上掃一下就配對，之後自動重連；也可以輸入 6 位數配對碼。</td>
+<td valign="top"><img src="docs/readme/features/f-rotate.jpg" alt="橫向與旋轉"><br><b>橫向與旋轉</b><br>手機轉橫向，視窗自動跟著轉；也能手動旋轉 90°、左右翻轉。</td>
+<td valign="top"><img src="docs/readme/features/f-takeover.jpg" alt="第二支手機連上時"><br><b>多支手機輪流</b><br>第二支手機連上時，可選「換成新的」或「維持原本的」，不用重開程式。</td>
+</tr>
+</table>
+
+### 記錄與分享
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="docs/readme/features/f-record.jpg" alt="錄影"><br><b>錄影</b><br>Ctrl+R 錄成 MP4（60 fps、含聲音）；斷線、換手機時自動存檔。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-shot.jpg" alt="截圖"><br><b>截圖</b><br>Ctrl+S 存成 PNG；開著 iPhone 外框時連外框一起截（透明背景）。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-frame.jpg" alt="iPhone 外框"><br><b>iPhone 外框</b><br>Ctrl+F 加上手機外框，教學影片、簡報示範更清楚。</td>
 </tr>
 <tr>
-<td width="33%" valign="top"><img src="docs/readme/features/f-iphone.jpg" alt="iPhone 鏡像"><br><b>🍎 iPhone / iPad 鏡像</b><br>AirPlay 螢幕鏡像，免裝 App，畫面＋聲音。iPhone 的音量鍵可以調電腦音量。</td>
-<td width="33%" valign="top"><img src="docs/readme/features/f-miracast.jpg" alt="Android 投放"><br><b>🤖 Android 投放</b><br>手機內建的「投放／Smart View」（Miracast）直接選自在投影。<a href="#faq">需要 Windows「無線顯示器」功能</a>。</td>
-<td width="33%" valign="top"><img src="docs/readme/features/f-control.jpg" alt="電腦操控 Android"><br><b>🖱️ 用電腦操控 Android</b><br>無線偵錯連線：左鍵點擊、拖曳滑動、滾輪捲動、右鍵返回、鍵盤打字；工具列有返回／主畫面／最近使用。</td>
+<td valign="top"><img src="docs/readme/features/f-send.jpg" alt="傳到手機：勾選這次的截圖和錄影"><br><b>傳到手機（電腦端）</b><br>勾選這次的截圖和錄影，一次送出。</td>
+<td valign="top"><img src="docs/readme/features/f-phone.jpg" alt="傳到手機：電腦上的 QR 碼與手機上的下載網頁"><br><b>傳到手機（手機端）</b><br>iPhone 掃 QR 碼打開網頁（同一個 Wi‑Fi），「全部下載（ZIP）」一次拿到；Android 無線偵錯可直接存入。<sub>手機外框為示意。</sub></td>
+<td valign="top"></td>
+</tr>
+</table>
+
+### 看清楚、看得懂
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="docs/readme/features/f-magnifier.jpg" alt="放大鏡：原本大小、放大 2 倍、黃字黑底濾鏡"><br><b>放大鏡</b><br>Ctrl+滾輪放大（最多 8 倍），小地圖可拖曳；弱視濾鏡（Ctrl+K）與凍結畫面（Ctrl+P）。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate.jpg" alt="畫面翻譯原位顯示：日文菜單翻成繁體中文"><br><b>畫面翻譯・原位顯示</b><br>Ctrl+L 離線翻譯，譯文直接蓋在原文位置。<sub>圖中菜單為合成的測試圖。</sub></td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-translate-list.jpg" alt="畫面翻譯清單顯示：編號標記與譯文清單"><br><b>畫面翻譯・清單顯示</b><br>原文旁標上編號，譯文整理成清單；可切換自動／原位／清單。</td>
+</tr>
+</table>
+
+翻譯的細節：導覽列、按鈕、振假名、網址列不會被誤翻；換行的段落當成一整句；品牌名、@帳號、#標籤和網址保留原文；否定和數字會核對，沒把握的句子會標出來。想要更自然的用詞，可以下載**本機 AI 翻譯**（約 1.3 GB，小模型約 560 MB，在電腦上執行，有獨立顯示卡時加速），或用自己的 DeepL／Azure 金鑰開啟**線上翻譯**（預設關閉）。
+
+### 用起來順手
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="docs/readme/features/f-themes.jpg" alt="4 種主題"><br><b>4 種主題</b><br>櫻花粉、薄荷綠、夜空藍、奶茶；等待畫面有雲朵精靈「投投」陪你。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-language.jpg" alt="介面語言"><br><b>四語介面</b><br>繁體中文、English、日本語、한국어（設定 → 語言 / Language），預設跟隨 Windows。</td>
+<td width="33%" valign="top"><img src="docs/readme/features/f-pin.jpg" alt="PIN 碼"><br><b>連線 PIN 碼</b><br>開啟後，新的 iPhone 要輸入電腦上顯示的 4 位數 PIN 才能投影。<sub>圖為示意。</sub></td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/readme/features/f-qr.jpg" alt="掃 QR 配對"><br><b>📷 掃 QR 碼配對</b><br>Android 11 以上：掃一下就配對，之後自動重連；也可以輸入 6 位數配對碼。</td>
-<td valign="top"><img src="docs/readme/features/f-record.jpg" alt="錄影"><br><b>⏺ 錄影</b><br>Ctrl+R 錄成 MP4（60 fps、含聲音），右上角顯示錄影時間；斷線、換手機時自動存檔。</td>
-<td valign="top"><img src="docs/readme/features/f-shot.jpg" alt="截圖"><br><b>📸 截圖</b><br>Ctrl+S 或工具列一鍵截圖存成 PNG；開著 iPhone 外框時連外框一起截（透明背景）。</td>
-</tr>
-<tr>
-<td valign="top"><img src="docs/readme/features/f-frame.jpg" alt="iPhone 外框"><br><b>📱 iPhone 外框</b><br>Ctrl+F 加上手機外框，做教學影片、簡報示範更好看。</td>
-<td valign="top"><img src="docs/readme/features/f-rotate.jpg" alt="橫向與旋轉"><br><b>🔄 橫向・旋轉</b><br>手機轉橫向，視窗自動跟著轉；也能手動旋轉 90°、左右翻轉（Ctrl+→ / Ctrl+H）。</td>
-<td valign="top"><img src="docs/readme/features/f-themes.jpg" alt="4 種主題"><br><b>🎨 4 種主題</b><br>櫻花粉、薄荷綠、夜空藍、奶茶；等待畫面有雲朵吉祥物「投投」陪你。</td>
-</tr>
-<tr>
-<td valign="top"><img src="docs/readme/features/f-takeover.jpg" alt="多支手機接手"><br><b>👥 多支手機接手</b><br>新手機連線時可以「接手」或「保持目前」，家人朋友輪流投影不用重開。</td>
-<td valign="top"><img src="docs/readme/features/f-pin.jpg" alt="PIN 碼"><br><b>🔒 連線 PIN 碼</b><br>開啟後新的 iPhone 要輸入電腦上顯示的 4 位數 PIN 才能投影（成功過的會記住）。<sub>圖為示意。</sub></td>
-<td valign="top"><img src="docs/readme/features/f-language.jpg" alt="繁體中文與英文介面"><br><b>🌐 繁體中文／English／日本語／한국어</b><br>介面可切換繁體中文、英文、日文或韓文（設定 → 語言 / Language），預設跟隨 Windows 的顯示語言。</td>
-</tr>
-<tr>
-<td valign="top"><img src="docs/readme/features/f-menu.jpg" alt="選單與系統匣"><br><b>🧰 選單・系統匣・自動更新</b><br>關閉視窗時可選縮到系統匣待命或結束程式、開機自動啟動、視窗置頂、全螢幕；有新版時選「更新到 vX.Y.Z」一鍵更新（不會自己偷偷更新）。</td>
-<td valign="top"><img src="docs/readme/features/f-about.jpg" alt="關於視窗"><br><b>📜 開源・授權透明</b><br>「關於自在投影」列出版本、GPL-3.0 授權、原始碼位置與使用的開源元件；授權聲明隨程式安裝。</td>
-<td valign="top"><img src="docs/readme/features/f-speed.jpg" alt="實測數據"><br><b>⚡ 低延遲</b><br>電腦端解碼到顯示約 3 ms；最高 4K / 60 fps。<a href="#measured">看實測數據</a>。</td>
+<td valign="top"><img src="docs/readme/features/f-menu.jpg" alt="選單與系統匣"><br><b>背景待命與自動更新</b><br>關閉視窗時可選背景待命或結束、開機自動啟動、視窗置頂；有新版時選「更新到 vX.Y.Z」。</td>
+<td valign="top"><img src="docs/readme/features/f-about.jpg" alt="關於視窗"><br><b>開源、授權透明</b><br>「關於自在投影」列出版本、GPL-3.0 授權、原始碼位置與使用的開源元件。</td>
+<td valign="top"><img src="docs/readme/features/f-speed.jpg" alt="實測數據"><br><b>低延遲</b><br>電腦端解碼到顯示約 3 ms；最高 4K / 60 fps。<a href="#measured">看實測數據</a>。</td>
 </tr>
 </table>
 
 <a id="measured"></a>
 
-## 📊 實測數據
+## 實測數據
 
-以下是開發者在自己的電腦上量到的數字（RTX 3060 Ti、2026 年 10 月），實際表現會依電腦、Wi‑Fi 與手機而不同：
+開發者在自己的電腦上量到的數字（RTX 3060 Ti、2026 年 10 月），實際表現會依電腦、Wi‑Fi 與手機而不同：
 
 | 項目 | 結果 |
 |---|---|
 | 電腦端 解碼 → 顯示 | 約 3 ms（H.264 硬體解碼） |
-| 畫質選項 | 1920×1080 H.264／2560×1440、3840×2160 H.265，皆 60 fps |
+| 畫面清晰度 | 標準 1920×1080 H.264／高 2560×1440、最高 3840×2160 H.265，皆 60 fps |
 | 音訊恢復 | < 50 ms |
 | 錄影影音偏差 | 0.2 ms（測試檔） |
 | 長時間測試 | 連續 61 分鐘，記憶體與資源無洩漏 |
 
-整體延遲還包含手機編碼與 Wi‑Fi 傳輸，這部分取決於手機和網路，我們沒有把它算進「3 ms」裡。
-
-
-## 🤔 為什麼選自在投影
-
-| | **自在投影** | 常見付費投影軟體 |
-|---|---|---|
-| 價格 | ✅ 完全免費 | 多為買斷或訂閱制（依產品而異） |
-| 開放原始碼 | ✅ GPL-3.0，程式碼公開 | 多為閉源 |
-| 廣告 | ✅ 沒有 | 依產品而異 |
-| 需要註冊帳號 | ✅ 不用 | 依產品而異 |
-| iPhone 要裝 App | ✅ 不用（AirPlay） | 多數 AirPlay 接收軟體也不用 |
-| 用電腦操控 Android | ✅ 可以（無線偵錯） | 依產品而異 |
-| 錄影 / 截圖 | ✅ 內建 | 多數有 |
-| 資料去向 | ✅ 只在區域網路；沒有遙測 | 依產品而異 |
-
-> 我們不比較特定產品；上表只寫我們能為自己保證的事。若你需要 Mac / Linux 版、或用電腦操控 iPhone，自在投影目前做不到（見[限制](#limits)）。
-
-## 📥 下載與系統需求
-
-| 下載 | 說明 |
-|---|---|
-| [**`zizai-setup-<版本>.exe`**](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（[Releases 備用](https://github.com/victor900106/ZizaiCast/releases/latest)） | Windows 安裝程式，一般使用者請下載這個。免系統管理員權限，預設裝在桌面的「手機投影」資料夾（英文版為「Zizai Cast」）。 |
-| `ZizaiCast-<版本>-source.zip` | 該版本的完整原始碼＋建置說明（在同一個 Release 頁面） |
-| `ZizaiCast-<版本>-deps-source.zip` | 安裝程式內含函式庫的原始碼（OpenSSL、libplist、FFmpeg…） |
+整體延遲還包含手機編碼與 Wi‑Fi 傳輸，取決於手機和網路，沒有算進「3 ms」裡。
 
 <a id="requirements"></a>
 
-### 系統需求
+## 系統需求與下載
 
 | 項目 | 需求 |
 |---|---|
@@ -158,9 +152,17 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 | iPhone / iPad | 有「螢幕鏡像」的 iOS / iPadOS 裝置 |
 | Android 投放 | 手機支援「投放／Smart View」（Miracast）；電腦需 Windows 選用功能「無線顯示器」、Wi‑Fi 網卡支援且 Wi‑Fi 開著。Google Pixel 不支援 Miracast，請改用無線偵錯 |
 | Android 電腦操控 | Android 11 以上，開啟「開發人員選項 → 無線偵錯」 |
-| 高、最高畫質（1440p / 4K） | 電腦需有 HEVC 解碼（Microsoft Store 的「HEVC 影片延伸模組」）；沒有時自動用 1080p |
+| 高、最高清晰度（1440p / 4K） | 電腦需有 HEVC 解碼（Microsoft Store 的「HEVC 影片延伸模組」）；沒有時自動用 1080p |
 
-## ⌨️ 快捷鍵
+| 下載 | 說明 |
+|---|---|
+| [**`zizai-setup-<版本>.exe`**](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe)（[Releases 備用](https://github.com/victor900106/ZizaiCast/releases/latest)） | Windows 安裝程式，一般使用者請下載這個。免系統管理員權限，預設裝在桌面的「手機投影」資料夾（英文版為「Zizai Cast」）。 |
+| `ZizaiCast-<版本>-source.zip` | 該版本的完整原始碼＋建置說明（在同一個 Release 頁面） |
+| `ZizaiCast-<版本>-deps-source.zip` | 安裝程式內含函式庫的原始碼（OpenSSL、libplist、FFmpeg…） |
+
+## 快捷鍵
+
+在程式裡按 **F1**（說明 ▸ 快速鍵一覽）也看得到。
 
 | 按鍵 | 功能 | 按鍵 | 功能 |
 |---|---|---|---|
@@ -168,14 +170,14 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 | Ctrl+S | 截圖 | Ctrl+R | 開始／停止錄影 |
 | Ctrl+→ / Ctrl+← | 旋轉 90° | Ctrl+H | 左右翻轉 |
 | Ctrl+F | iPhone 外框 | Ctrl+0 | 還原畫面 |
-| Ctrl+T | 視窗置頂 | 右鍵 | 完整選單（Android 畫面上是「返回」，選單請用工具列「更多」） |
+| Ctrl+T | 視窗置頂 | 右鍵 | 完整選單（Android 畫面上是「返回」，Shift+右鍵開選單） |
 | Ctrl+滾輪 | 放大鏡（最多 8 倍） | Ctrl+K | 弱視濾鏡 |
 | Ctrl+P | 凍結畫面 | Ctrl+L | 畫面翻譯 |
 | Ctrl+↑ / Ctrl+↓ | 音量 | Ctrl+M | 靜音 |
 
 <a id="faq"></a>
 
-## ❓ 常見問題
+## 常見問題
 
 <details>
 <summary><b>安裝時出現「Windows 已保護您的電腦」？</b></summary>
@@ -219,24 +221,30 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 <details>
 <summary><b>延遲、卡頓或畫面糊？</b></summary>
 
-改用 5 GHz Wi‑Fi 或讓電腦接網路線。延遲優先就把畫質調「標準」；畫面要清楚就調「高」或「最高」（需要 HEVC 影片延伸模組，下次連線生效）。
+改用 5 GHz Wi‑Fi 或讓電腦接網路線。延遲優先就把「畫面清晰度」調「標準（順暢）」；要清楚就調「高」或「最高」（需要 HEVC 影片延伸模組，下次連線生效）。
 </details>
 
 <details>
-<summary><b>有 Mac 或 Linux 版嗎？有英文介面嗎？</b></summary>
+<summary><b>關掉視窗後程式跑去哪了？</b></summary>
 
-目前只有 Windows 10 / 11（64 位元）。介面有繁體中文、英文、日文、韓文：設定 →「語言 / Language」，預設跟隨 Windows 的顯示語言。
+選了「背景待命」時，程式會在背景繼續接收投影，手機連上時視窗會自動出現；要自己打開，按工作列右邊的自在投影圖示。沒看到圖示就先按「^」，把圖示拖到工作列上。要完全結束，請在圖示上按右鍵 →「結束」，或到「設定 ▸ 關閉視窗時」改成「結束程式」。
+</details>
+
+<details>
+<summary><b>有 Mac 或 Linux 版嗎？</b></summary>
+
+目前只有 Windows 10 / 11（64 位元）。
 </details>
 
 <details>
 <summary><b>真的免費？為什麼？</b></summary>
 
-是的。自在投影以 GPL-3.0 開源，建立在 UxPlay、scrcpy、FFmpeg 等開源專案之上。沒有付費版、沒有廣告、不收集資料。喜歡的話請幫忙按 ⭐ Star 或分享給朋友。
+是的。自在投影以 GPL-3.0 開源，建立在 UxPlay、scrcpy、FFmpeg 等開源專案之上。沒有付費版、沒有廣告、不收集資料。喜歡的話請在 GitHub 按 Star 或分享給朋友。
 </details>
 
 <a id="limits"></a>
 
-## 🚧 目前的限制
+## 目前的限制
 
 說清楚做不到的事，省得你白試：
 
@@ -250,11 +258,11 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <a id="privacy"></a>
 
-## 🔒 隱私
+## 隱私
 
 - **畫面、聲音、錄影、截圖都只在你的區域網路與電腦裡**，不經過任何伺服器。
 - **沒有遙測、沒有分析、沒有廣告、不用帳號。**
-- 程式平常唯一主動連上網際網路的地方是**檢查更新**（程式碼：`app/updater.cpp`；另外只有在你同意或自己開啟時才會下載翻譯模型、使用線上翻譯，見下方）：
+- 程式平常唯一主動連上網際網路的地方是**檢查更新**（程式碼：`app/update/updater.cpp`；另外只有在你同意或自己開啟時才會下載翻譯模型、使用線上翻譯，見下方）：
   - 開啟後 30 秒一次、之後每 24 小時一次，以及你按「檢查更新」時，向 `https://github.com/victor900106/ZizaiCast/releases/latest/download/update.json` 發出一個 HTTPS GET（只帶一般的 HTTP 標頭，User-Agent `ZizaiProjection-Updater/1.0`，不帶任何裝置資訊）。
   - 只有在你按下「更新到 vX.Y.Z」時，才會從清單裡的網址（`https://victor900106.github.io/ZizaiCast/download/`，速度比 Releases 快）下載安裝程式，並以 SHA-256 驗證後執行。
   - 不想檢查更新：在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=`（留空）即可完全關閉。
@@ -267,7 +275,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <a id="roadmap"></a>
 
-## 🗺️ 路線圖
+## 路線圖
 
 以下是**考慮中**的方向，不是承諾，也沒有時程。想要哪個，歡迎到 [Issues](https://github.com/victor900106/ZizaiCast/issues) 告訴我們：
 
@@ -278,7 +286,7 @@ iPhone 不用裝 App、Android 還能用滑鼠鍵盤直接操控。免費、開�
 
 <a id="build"></a>
 
-## 🛠️ 從原始碼建置
+## 從原始碼建置
 
 需要 Visual Studio 2026 Build Tools（MSVC）、CMake 3.25 以上、vcpkg（`x64-windows`）。完整版本與步驟見每個 Release 附的 `source.zip` 裡的 `BUILD.md` 與 `docs/licenses/SOURCE.md`。
 
@@ -304,9 +312,9 @@ https://github.com/victor900106/ZizaiCast/releases
 
 第三方元件的版本、授權與著作權聲明見 [`docs/licenses/第三方授權.txt`](docs/licenses/第三方授權.txt)（英文：[`THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt)），原始碼提供方式見 [`docs/licenses/SOURCE.md`](docs/licenses/SOURCE.md)。
 
-吉祥物雲朵「投投」是本專案的原創角色，美術檔在 [`assets/public/toutou/`](assets/public/toutou/)。
+吉祥物雲朵精靈「投投」是本專案的原創角色，美術檔在 [`assets/public/toutou/`](assets/public/toutou/)。
 
-## 🙏 致謝
+## 致謝
 
 自在投影站在這些開源專案的肩膀上：
 
@@ -320,8 +328,8 @@ https://github.com/victor900106/ZizaiCast/releases
 
 <div align="center">
 
-**覺得好用嗎？按右上角的 ⭐ Star，讓更多人找到自在投影！**
+[下載最新版](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) ・ [介紹頁](https://victor900106.github.io/ZizaiCast/) ・ [回報問題](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [功能建議](https://github.com/victor900106/ZizaiCast/issues/new/choose)
 
-[下載最新版](https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe) ・ [回報問題](https://github.com/victor900106/ZizaiCast/issues/new/choose) ・ [功能建議](https://github.com/victor900106/ZizaiCast/issues/new/choose)
+覺得好用的話，在 GitHub 按個 Star，讓更多人找到自在投影。
 
 </div>

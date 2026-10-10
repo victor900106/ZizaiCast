@@ -15,7 +15,7 @@
 - 精確版本與指令：source zip 裡的 `BUILD.md`、`docs/licenses/SOURCE.md`。
 
 ```bat
-vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --triplet x64-windows
+vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --triplet x64-windows --overlay-ports=tools/vcpkg-overlay
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
 cmake --build build --config Release
 ```
