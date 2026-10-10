@@ -1,0 +1,2 @@
+# vcpkg port files (patches, build.sh.in) must keep LF line endings
+* text eol=lf

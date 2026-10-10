@@ -1,0 +1,851 @@
+# Hand-checked en -> zh-Hant (Taiwan) terms: common UI words (Windows / Android / web style), error dialogs,
+# signs / notices, transit, nutrition and allergen labels, menus.  Written for this project (GPL-3, also offered as CC0).
+# src	zh	kind	mode	note
+#   mode: x = whole block only; s = also inside a sentence / line (whole words, any case); q = inside a line only when
+#         the rest of the line is an amount (Sodium 87.2 mg, Iron 2 mg 10%); blank = by rule (one word x, a negation x).
+#   note: eval = added after looking at an eval_web failure (so its eval gain is not held out).
+# Matching is case-insensitive (SAVE, Save, save).  Words whose sense depends on context are NOT here (Open, Closed,
+# Exit, Transfer, Local, Information, Security, Storage, History, Review, Table, Line, Gate, Free, Stop, Platform alone):
+# see stoplist_en.txt.
+# --- UI: buttons / menus (whole block)
+Settings	設定	ui	x
+Setting	設定	ui	x
+Preferences	偏好設定	ui	x
+Options	選項	ui	x
+Home	首頁	ui	x
+Home page	首頁	ui	x
+Homepage	首頁	ui	x
+Save	儲存	ui	x
+Save as	另存新檔	ui	x
+Save changes	儲存變更	ui	x
+Don't save	不要儲存	ui	x
+Do not save	不要儲存	ui	x
+Discard	捨棄	ui	x
+Discard changes	捨棄變更	ui	x
+Unsaved changes	未儲存的變更	ui	x
+Apply	套用	ui	x
+Quit	結束	ui	x
+Edit	編輯	ui	x
+Delete	刪除	ui	x
+Remove	移除	ui	x
+Rename	重新命名	ui	x
+Copy	複製	ui	x
+Cut	剪下	ui	x
+Paste	貼上	ui	x
+Undo	復原	ui	x
+Redo	重做	ui	x
+Select all	全選	ui	x
+Find	尋找	ui	x
+Find and replace	尋找及取代	ui	x
+Replace	取代	ui	x
+Replace all	全部取代	ui	x
+Search	搜尋	ui	x
+Print	列印	ui	x
+Print preview	預覽列印	ui	x
+Share	分享	ui	x
+Download	下載	ui	x
+Downloads	下載	ui	x
+Upload	上傳	ui	x
+Install	安裝	ui	x
+Uninstall	解除安裝	ui	x
+Update	更新	ui	x
+Update now	立即更新	ui	x
+Check for updates	檢查更新	ui	x
+Update available	有可用的更新	ui	x
+Restart now	立即重新啟動	ui	x
+Restart later	稍後重新啟動	ui	x
+Install now	立即安裝	ui	x
+Not now	以後再說	ui	x
+Remind me later	稍後提醒我	ui	x
+Learn more	瞭解詳情	ui	x
+More info	更多資訊	ui	x
+Show more	顯示更多	ui	x
+Show less	顯示較少	ui	x
+See all	查看全部	ui	x
+View all	查看全部	ui	x
+Got it	我知道了	ui	x
+Continue	繼續	ui	x
+Skip	略過	ui	x
+Previous	上一個	ui	x
+Finish	完成	ui	x
+Get started	開始使用	ui	x
+Confirm	確認	ui	x
+Submit	送出	ui	x
+Send	傳送	ui	x
+Retry	重試	ui	x
+Try again	再試一次	ui	x
+Refresh	重新整理	ui	x
+Reload	重新載入	ui	x
+Accept	接受	ui	x
+Decline	拒絕	ui	x
+Allow	允許	ui	x
+Deny	拒絕	ui	x
+Don't allow	不允許	ui	x
+Allow only while using the app	僅在使用應用程式時允許	ui	x
+Agree	同意	ui	x
+I agree	我同意	ui	x
+Disagree	不同意	ui	x
+Dismiss	關閉	ui	x
+Clear all	全部清除	ui	x
+Select	選取	ui	x
+Add	新增	ui	x
+Add new	新增	ui	x
+Create	建立	ui	x
+New folder	新增資料夾	ui	x
+New tab	新分頁	ui	x
+New window	新視窗	ui	x
+Close tab	關閉分頁	ui	x
+Bookmarks	書籤	ui	x
+Favorites	我的最愛	ui	x
+Favourites	我的最愛	ui	x
+Recent	最近使用	ui	x
+Untitled	未命名	ui	x
+Details	詳細資料	ui	x
+View	檢視	ui	x
+Format	格式	ui	x
+Insert	插入	ui	x
+Tools	工具	ui	x
+Window	視窗	ui	x
+Help	說明	ui	x
+About	關於	ui	x
+Feedback	意見回饋	ui	x
+Send feedback	傳送意見回饋	ui	x
+Report a problem	回報問題	ui	x
+Privacy	隱私權	ui	x
+Privacy policy	隱私權政策	ui	s
+Terms of service	服務條款	ui	s
+Terms of use	使用條款	ui	s
+Terms and conditions	條款及細則	ui	s
+Language	語言	ui	x
+Notifications	通知	ui	x
+Notification	通知	ui	x
+Sound	音效	ui	x
+Volume	音量	ui	x
+Brightness	亮度	ui	x
+Battery	電池	ui	x
+Wallpaper	桌布	ui	x
+Theme	主題	ui	x
+Font	字型	ui	x
+Font size	字型大小	ui	x
+Special characters	特殊字元	ui	s
+Special character	特殊字元	ui	s
+Toolbar	工具列	ui	x
+Status bar	狀態列	ui	x
+Sidebar	側邊欄	ui	x
+Bold	粗體	ui	x
+Italic	斜體	ui	x
+Underline	底線	ui	x
+Strikethrough	刪除線	ui	x
+Align left	靠左對齊	ui	x
+Align right	靠右對齊	ui	x
+Bullets	項目符號	ui	x
+Numbering	編號	ui	x
+Word count	字數統計	ui	x
+Page number	頁碼	ui	x
+Page layout	版面配置	ui	x
+Zoom in	放大	ui	x
+Zoom out	縮小	ui	x
+Full screen	全螢幕	ui	x
+Fullscreen	全螢幕	ui	x
+Exit full screen	結束全螢幕	ui	x
+Screenshot	螢幕截圖	ui	x
+Screen recording	螢幕錄影	ui	x
+Sign in	登入	ui	x
+Sign out	登出	ui	x
+Log in	登入	ui	x
+Login	登入	ui	x
+Log out	登出	ui	x
+Logout	登出	ui	x
+Sign up	註冊	ui	x
+Create account	建立帳戶	ui	x
+Create an account	建立帳戶	ui	x
+Forgot password?	忘記密碼？	ui	x
+Forgot your password?	忘記密碼了嗎？	ui	x
+Remember me	記住我	ui	x
+Username	使用者名稱	ui	x
+User name	使用者名稱	ui	x
+Password	密碼	ui	x
+Confirm password	確認密碼	ui	x
+Email address	電子郵件地址	ui	s
+Phone number	電話號碼	ui	s
+Verification code	驗證碼	ui	s
+Profile	個人資料	ui	x
+My account	我的帳戶	ui	x
+Account	帳戶	ui	x
+Accounts	帳戶	ui	x
+Delete account	刪除帳戶	ui	x
+Subscribe	訂閱	ui	x
+Unsubscribe	取消訂閱	ui	x
+Inbox	收件匣	ui	x
+Drafts	草稿	ui	x
+Spam	垃圾郵件	ui	x
+Archive	封存	ui	x
+Reply	回覆	ui	x
+Reply all	全部回覆	ui	x
+Compose	撰寫	ui	x
+Attachment	附件	ui	x
+Attachments	附件	ui	x
+Subject	主旨	ui	x
+Recycle Bin	資源回收筒	ui	s
+Trash	垃圾桶	ui	x
+Desktop	桌面	ui	x
+Documents	文件	ui	x
+Pictures	圖片	ui	x
+Music	音樂	ui	x
+Videos	影片	ui	x
+Files	檔案	ui	x
+File	檔案	ui	x
+Folder	資料夾	ui	x
+Folders	資料夾	ui	x
+Contacts	聯絡人	ui	x
+Messages	訊息	ui	x
+Camera	相機	ui	x
+Photos	相片	ui	x
+Calendar	日曆	ui	x
+Clock	時鐘	ui	x
+Calculator	計算機	ui	x
+Weather	天氣	ui	x
+Maps	地圖	ui	x
+Keyboard	鍵盤	ui	x
+Mouse	滑鼠	ui	x
+Printer	印表機	ui	x
+Printers	印表機	ui	x
+Network	網路	ui	x
+Internet	網際網路	ui	x
+Wireless	無線	ui	x
+Bluetooth	藍牙	ui	x
+Airplane mode	飛航模式	ui	s
+Flight mode	飛航模式	ui	s
+Mobile data	行動數據	ui	s
+Hotspot	熱點	ui	x
+Mobile hotspot	行動熱點	ui	s
+Dark mode	深色模式	ui	s
+Light mode	淺色模式	ui	s
+Battery saver	省電模式	ui	s
+Power saving mode	省電模式	ui	s
+Developer options	開發人員選項	ui	s
+USB debugging	USB 偵錯	ui	s
+About phone	關於手機	ui	x
+Software update	軟體更新	ui	s
+System update	系統更新	ui	s
+Factory reset	恢復原廠設定	ui	s
+Factory data reset	恢復原廠設定	ui	s
+Clear cache	清除快取	ui	x
+Clear data	清除資料	ui	x
+Clear history	清除記錄	ui	x
+Force stop	強制停止	ui	x
+App info	應用程式資訊	ui	x
+Permissions	權限	ui	x
+Apps	應用程式	ui	x
+Applications	應用程式	ui	x
+Start	開始	ui	x
+Start menu	開始功能表	ui	s
+Taskbar	工作列	ui	x
+Task Manager	工作管理員	ui	s
+Control Panel	控制台	ui	s
+File Explorer	檔案總管	ui	s
+Device Manager	裝置管理員	ui	s
+Personalization	個人化	ui	x
+Shut down	關機	ui	x
+Shutdown	關機	ui	x
+Power off	關機	ui	x
+Restart	重新啟動	ui	x
+Reboot	重新開機	ui	x
+Sleep	睡眠	ui	x
+Lock	鎖定	ui	x
+Switch user	切換使用者	ui	x
+Lock screen	鎖定畫面	ui	s
+Home screen	主畫面	ui	s
+Notification panel	通知面板	ui	s
+Quick settings	快速設定	ui	s
+Screen time	螢幕使用時間	ui	s
+Screen timeout	螢幕逾時	ui	s
+Auto-rotate	自動旋轉	ui	x
+Flashlight	手電筒	ui	x
+Location services	定位服務	ui	s
+Backup	備份	ui	x
+Back up	備份	ui	x
+Back up now	立即備份	ui	x
+Restore	還原	ui	x
+Reset	重設	ui	x
+Sort by	排序方式	ui	x
+Filter	篩選	ui	x
+Upload file	上傳檔案	ui	x
+Choose file	選擇檔案	ui	x
+No file chosen	未選擇任何檔案	ui	x
+Drag and drop	拖放	ui	x
+Loading	載入中	ui	x
+Loading...	載入中…	ui	x
+Please wait	請稍候	ui	x
+Please wait...	請稍候…	ui	x
+Processing	處理中	ui	x
+Connecting	連線中	ui	x
+Connected	已連線	ui	x
+Disconnected	已中斷連線	ui	x
+Downloading	下載中	ui	x
+Uploading	上傳中	ui	x
+Installing	安裝中	ui	x
+Updating	更新中	ui	x
+Saved	已儲存	ui	x
+Copied	已複製	ui	x
+Deleted	已刪除	ui	x
+Sent	已傳送	ui	x
+Completed	已完成	ui	x
+Enabled	已啟用	ui	x
+Disabled	已停用	ui	x
+Enable	啟用	ui	x
+Disable	停用	ui	x
+Turn on	開啟	ui	x
+Turn off	關閉	ui	x
+Show	顯示	ui	x
+Hide	隱藏	ui	x
+Mute	靜音	ui	x
+Unmute	取消靜音	ui	x
+Play	播放	ui	x
+Pause	暫停	ui	x
+Resume	繼續	ui	x
+Rewind	倒轉	ui	x
+Fast forward	快轉	ui	x
+Shuffle	隨機播放	ui	x
+Subtitles	字幕	ui	x
+Captions	字幕	ui	x
+Playback speed	播放速度	ui	x
+Autoplay	自動播放	ui	x
+Picture-in-picture	子母畫面	ui	x
+Screen mirroring	螢幕鏡像	ui	s
+# --- error dialogs / status (whole block; negations are whole-block only)
+Error	錯誤	error	x
+Unknown error	未知的錯誤	error	x
+An error occurred	發生錯誤	error	x
+An error has occurred	發生錯誤	error	x
+An unexpected error occurred	發生未預期的錯誤	error	x
+Something went wrong	發生錯誤	error	x
+Oops! Something went wrong	糟糕！發生錯誤	error	x
+Network error	網路錯誤	error	x
+Server error	伺服器錯誤	error	x
+Internal server error	內部伺服器錯誤	error	x
+Connection failed	連線失敗	error	x
+Connection error	連線錯誤	error	x
+Connection timed out	連線逾時	error	x
+Request timed out	要求逾時	error	x
+No internet connection	沒有網際網路連線	error	x
+No connection	沒有連線	error	x
+You're offline	你目前離線	error	x
+You are offline	你目前離線	error	x
+Unable to connect	無法連線	error	x
+Unable to connect to the server	無法連線到伺服器	error	x
+Page not found	找不到網頁	error	x
+File not found	找不到檔案	error	x
+Not found	找不到	error	x
+Access denied	拒絕存取	error	x
+Permission denied	權限遭拒	error	x
+Invalid password	密碼無效	error	x
+Incorrect password	密碼錯誤	error	x
+Wrong password	密碼錯誤	error	x
+Invalid username or password	使用者名稱或密碼無效	error	x
+Invalid email address	電子郵件地址無效	error	x
+This field is required	此欄位為必填	error	x
+Required	必填	error	x
+Required field	必填欄位	error	x
+Please try again later	請稍後再試	error	x
+Please try again	請再試一次	error	x
+Try again later	請稍後再試	error	x
+Out of memory	記憶體不足	error	x
+Low battery	電池電量不足	error	x
+Battery low	電池電量不足	error	x
+Insufficient storage	儲存空間不足	error	x
+Not enough storage	儲存空間不足	error	x
+Storage full	儲存空間已滿	error	x
+Storage is full	儲存空間已滿	error	x
+Download failed	下載失敗	error	x
+Upload failed	上傳失敗	error	x
+Installation failed	安裝失敗	error	x
+Update failed	更新失敗	error	x
+Failed to load	無法載入	error	x
+Session expired	工作階段已過期	error	x
+Your session has expired	你的工作階段已過期	error	x
+Are you sure?	確定嗎？	error	x
+Are you sure you want to delete this?	確定要刪除嗎？	error	x
+Unsupported file format	不支援的檔案格式	error	x
+Not responding	沒有回應	error	x
+Stop code	停止代碼	error	s
+# --- signs / notices (prohibitions and warnings: whole block, the engine's grammar and negation checks elsewhere)
+No smoking area	禁菸區	sign	x
+Non-smoking area	禁菸區	sign	x
+Smoking area	吸菸區	sign	x
+Smoking room	吸菸室	sign	x
+Smoking prohibited	禁止吸菸	sign	x
+Smoking is prohibited	禁止吸菸	sign	x
+Smoking is not permitted	禁止吸菸	sign	x
+No vaping	禁止使用電子菸	sign	x
+No littering	禁止亂丟垃圾	sign	x
+Do not litter	請勿亂丟垃圾	sign	x
+No dogs	禁止攜帶狗	sign	x
+No dogs allowed	禁止攜帶狗	sign	x
+No pets allowed	禁止攜帶寵物	sign	x
+No eating or drinking	禁止飲食	sign	x
+No food or drinks	禁止飲食	sign	x
+No flash	禁止使用閃光燈	sign	x
+No flash photography	禁止使用閃光燈攝影	sign	x
+No photography allowed	禁止攝影	sign	x
+No photos allowed	禁止拍照	sign	x
+No cell phones	禁止使用手機	sign	x
+No mobile phones	禁止使用手機	sign	x
+No swimming	禁止游泳	sign	x
+No fishing	禁止釣魚	sign	x
+No bicycles	禁止自行車進入	sign	x
+No cycling	禁止騎自行車	sign	x
+No skateboarding	禁止玩滑板	sign	x
+No climbing	禁止攀爬	sign	x
+No running	禁止奔跑	sign	x
+No entry for unauthorized persons	非相關人員禁止進入	sign	x
+No unauthorized entry	未經許可禁止進入	sign	x
+Unauthorized persons not allowed	非相關人員禁止進入	sign	x
+Employees only	員工專用	sign	x
+Staff only beyond this point	非工作人員請勿進入	sign	x
+Private property	私人土地	sign	x
+Restricted area	管制區	sign	x
+Do not touch	請勿觸摸	sign	x
+Please do not touch	請勿觸摸	sign	x
+Do not lean	請勿倚靠	sign	x
+Do not feed the animals	請勿餵食動物	sign	x
+Please do not feed the animals	請勿餵食動物	sign	x
+Do not disturb	請勿打擾	sign	x
+Please do not disturb	請勿打擾	sign	x
+Keep off the grass	請勿踐踏草皮	sign	x
+Keep clear	保持淨空	sign	x
+Keep door closed	請隨手關門	sign	x
+Please close the door	請隨手關門	sign	x
+Mind the gap	小心月台間隙	sign	x
+Mind your step	小心腳步	sign	x
+Watch your step	小心腳步	sign	x
+Mind your head	小心碰頭	sign	x
+Watch your head	小心碰頭	sign	x
+Caution wet floor	小心地滑	sign	x
+Slippery when wet	地面濕滑請小心	sign	x
+Slippery floor	小心地滑	sign	x
+High voltage	高壓電	sign	x
+Danger high voltage	危險！高壓電	sign	x
+Out of order	故障	sign	x
+Under construction	施工中	sign	x
+Closed for maintenance	維修中，暫停開放	sign	x
+Under maintenance	維修中	sign	x
+Temporarily closed	暫停營業	sign	x
+Closed today	今日公休	sign	x
+We're open	營業中	sign	x
+We are open	營業中	sign	x
+Sorry, we're closed	抱歉，休息中	sign	x
+Sorry we're closed	抱歉，休息中	sign	x
+Sorry, we are closed	抱歉，休息中	sign	x
+Open 24 hours	24小時營業	sign	x
+Open daily	每日營業	sign	x
+Opening hours	營業時間	sign	x
+Business hours	營業時間	sign	x
+Hours of operation	營業時間	sign	x
+Attention	注意	sign	x
+Important	重要	sign	x
+Important notice	重要公告	sign	x
+Announcement	公告	sign	x
+Welcome	歡迎	sign	x
+Thank you	謝謝	sign	x
+Thank you for your cooperation	感謝您的配合	sign	x
+Thank you for your understanding	感謝您的諒解	sign	x
+Restroom	洗手間	sign	x
+Restrooms	洗手間	sign	x
+Toilet	廁所	sign	x
+Toilets	廁所	sign	x
+Men	男	sign	x
+Women	女	sign	x
+Ladies	女士	sign	x
+Gentlemen	男士	sign	x
+Men's room	男廁	sign	x
+Women's room	女廁	sign	x
+Accessible toilet	無障礙廁所	sign	s
+Multipurpose toilet	多功能廁所	sign	s
+Baby changing	尿布台	sign	x
+Baby changing station	尿布台	sign	s
+Nursing room	哺乳室	sign	s
+Elevator	電梯	sign	x
+Elevators	電梯	sign	x
+Lift	電梯	sign	x
+Escalator	手扶梯	sign	x
+Escalators	手扶梯	sign	x
+Stairs	樓梯	sign	x
+Emergency exit	緊急出口	sign	s
+Fire exit	安全出口	sign	s
+Fire extinguisher	滅火器	sign	s
+Fire alarm	火災警報器	sign	s
+Fire hydrant	消防栓	sign	s
+In case of fire	發生火災時	sign	x
+In case of emergency	緊急時	sign	x
+Emergency stop	緊急停止	sign	s
+Emergency call	緊急呼叫	sign	s
+Emergency	緊急	sign	x
+First aid	急救	sign	s
+Assembly point	集合點	sign	s
+Evacuation route	避難路線	sign	s
+Evacuation area	避難場所	sign	s
+Tsunami evacuation area	海嘯避難場所	sign	s
+Hand sanitizer	乾洗手	sign	s
+Please wear a mask	請配戴口罩	sign	x
+Masks required	請配戴口罩	sign	x
+Lost and found	失物招領	sign	s
+Lost & found	失物招領	sign	s
+Ticket office	售票處	sign	s
+Ticket machine	售票機	sign	s
+Ticket machines	售票機	sign	s
+Entrance	入口	sign	x
+Main entrance	正門入口	sign	x
+Way out	出口	sign	x
+Way in	入口	sign	x
+Priority seat	博愛座	sign	s
+Priority seats	博愛座	sign	s
+Priority seating	博愛座	sign	s
+Women only	女性專用	sign	x
+Wheelchair accessible	無障礙	sign	x
+Cashier	收銀台	sign	x
+Pay here	在此付款	sign	x
+Self checkout	自助結帳	sign	x
+Self-checkout	自助結帳	sign	x
+Fitting room	試衣間	sign	s
+Fitting rooms	試衣間	sign	s
+Customer service	客服中心	sign	x
+Beware of dog	內有惡犬	sign	x
+Beware of pickpockets	小心扒手	sign	x
+CCTV in operation	監視器錄影中	sign	x
+Security cameras in use	監視器錄影中	sign	x
+Free Wi-Fi	免費 Wi-Fi	sign	x
+Free WiFi	免費 Wi-Fi	sign	x
+Free admission	免費入場	sign	x
+Admission free	免費入場	sign	x
+Adults	成人	sign	x
+Adult	成人	sign	x
+Children	兒童	sign	x
+Child	兒童	sign	x
+Students	學生	sign	x
+Seniors	長者	sign	x
+Infants	嬰兒	sign	x
+Parking	停車場	sign	x
+Car park	停車場	sign	x
+Parking lot	停車場	sign	x
+Bicycle parking	自行車停車場	sign	s
+Pedestrians	行人	sign	x
+Speed limit	速限	sign	x
+Road closed	道路封閉	sign	x
+Detour	改道	sign	x
+Slow	慢	sign	x
+One way	單行道	sign	x
+Wrong way	逆向	sign	x
+Recycling	資源回收	sign	x
+Burnable	可燃垃圾	sign	x
+Burnable garbage	可燃垃圾	sign	x
+Burnable waste	可燃垃圾	sign	x
+Combustible garbage	可燃垃圾	sign	x
+Non-burnable	不可燃垃圾	sign	x
+Non-burnable garbage	不可燃垃圾	sign	x
+Non-burnable waste	不可燃垃圾	sign	x
+PET bottles	寶特瓶	sign	x
+Cans and bottles	瓶罐	sign	x
+Bottles and cans	瓶罐	sign	x
+General waste	一般垃圾	sign	x
+Pay attention while walking	行走時請注意安全	sign	x	eval
+Sit-ins	靜坐	sign	x	eval
+Shouting	大聲喊叫	sign	x	eval
+Bringing in dangerous objects	攜帶危險物品	sign	x	eval
+Sales and solicitation prohibited	禁止販售及招攬	sign	x	eval
+# --- transit (numbered forms are generated by build_glossary_en.py: Platform N, Transfer to Line N, Exit N, Terminal N)
+Departures	出發	transit	x
+Arrivals	抵達	transit	x
+Next train	下一班列車	transit	s
+Next stop	下一站	transit	s
+Last train	末班車	transit	s
+First train	首班車	transit	s
+Timetable	時刻表	transit	x
+Ticket gate	剪票口	transit	s
+Ticket gates	剪票口	transit	s
+Fare adjustment	補票處	transit	x
+Fare adjustment machine	補票機	transit	s
+Fare adjustment machines	補票機	transit	s
+Reserved seats	對號座	transit	x
+Non-reserved seats	自由座	transit	x
+Non-reserved	自由座	transit	x
+Limited Express	特急	transit	s
+Rapid	快速	transit	x	eval
+Women-only car	女性專用車廂	transit	s
+Bus stop	公車站	transit	s
+Bus terminal	公車總站	transit	s
+Taxi stand	計程車招呼站	transit	s
+Taxi	計程車	transit	x
+Bus	公車	transit	x
+Airport	機場	transit	x
+Baggage claim	行李提領處	transit	s
+Check-in counter	報到櫃檯	transit	s
+Security check	安全檢查	transit	s
+Customs	海關	transit	x
+Boarding gate	登機門	transit	s
+Boarding	登機	transit	x
+Transfer gate	轉乘剪票口	transit	s
+Transfer passage	轉乘通道	transit	s
+Transfer station	轉乘站	transit	s
+To platforms	往月台	transit	x
+To trains	往月台	transit	x
+# --- nutrition (q: a nutrient followed by its amount; words that also have other senses)
+Nutrition Facts	營養標示	nutrition	s
+Nutrition information	營養標示	nutrition	s
+Nutritional information	營養標示	nutrition	s
+Amount per serving	每份含量	nutrition	s
+Amount/Serving	每份含量	nutrition	s	eval
+Per serving	每份	nutrition	x
+Per 100g	每100公克	nutrition	s
+Per 100 g	每100公克	nutrition	s
+Per 100ml	每100毫升	nutrition	s
+Per 100 ml	每100毫升	nutrition	s
+Servings per container	每包裝份數	nutrition	s
+Serving size	每份份量	nutrition	s
+Calories	熱量	nutrition	q
+Calories from fat	脂肪熱量	nutrition	s
+Energy	熱量	nutrition	q
+Total fat	總脂肪	nutrition	q
+Fat	脂肪	nutrition	q
+Saturated fat	飽和脂肪	nutrition	s
+Saturates	飽和脂肪	nutrition	q
+Trans fat	反式脂肪	nutrition	s
+Polyunsaturated fat	多元不飽和脂肪	nutrition	s
+Monounsaturated fat	單元不飽和脂肪	nutrition	s
+Cholesterol	膽固醇	nutrition	s
+Sodium	鈉	nutrition	q
+Salt	鹽	nutrition	q
+Total carbohydrate	總碳水化合物	nutrition	q
+Total carbohydrates	總碳水化合物	nutrition	q
+Carbohydrate	碳水化合物	nutrition	q
+Carbohydrates	碳水化合物	nutrition	q
+Dietary fiber	膳食纖維	nutrition	s
+Dietary fibre	膳食纖維	nutrition	s
+Fiber	膳食纖維	nutrition	q
+Fibre	膳食纖維	nutrition	q
+Total sugars	總糖	nutrition	q
+Sugars	糖	nutrition	q
+Added sugars	添加糖	nutrition	s
+Protein	蛋白質	nutrition	q
+Vitamin A	維生素A	nutrition	s
+Vitamin B1	維生素B1	nutrition	s
+Vitamin B2	維生素B2	nutrition	s
+Vitamin B6	維生素B6	nutrition	s
+Vitamin B12	維生素B12	nutrition	s
+Vitamin C	維生素C	nutrition	s
+Vitamin D	維生素D	nutrition	s
+Vitamin E	維生素E	nutrition	s
+Vitamin K	維生素K	nutrition	s
+Calcium	鈣	nutrition	q
+Iron	鐵	nutrition	q
+Potassium	鉀	nutrition	q
+Magnesium	鎂	nutrition	q
+Zinc	鋅	nutrition	q
+Phosphorus	磷	nutrition	q
+Niacin	菸鹼素	nutrition	q
+Thiamin	維生素B1	nutrition	q
+Thiamine	維生素B1	nutrition	q
+Riboflavin	維生素B2	nutrition	q
+Folate	葉酸	nutrition	q
+Folic acid	葉酸	nutrition	s
+Biotin	生物素	nutrition	q
+Pantothenic acid	泛酸	nutrition	s
+% Daily Value	每日參考值百分比	nutrition	s
+%Daily Value	每日參考值百分比	nutrition	s
+% DV	每日參考值百分比	nutrition	x
+%DV	每日參考值百分比	nutrition	x
+%DV*	每日參考值百分比*	nutrition	x	eval
+Daily Value	每日參考值	nutrition	s
+Percent Daily Values	每日參考值百分比	nutrition	s
+# --- labels: dates, storage, origin (the field labels Best before / Use by are also in label_text.cpp)
+Best before end	賞味期限	label	s
+Use by	有效日期	label	x
+Expiry date	有效日期	label	s
+Expiration date	有效日期	label	s
+Exp date	有效日期	label	x
+Manufacturing date	製造日期	label	s
+Production date	製造日期	label	s
+Date of manufacture	製造日期	label	s
+Lot number	批號	label	s
+Batch number	批號	label	s
+Net weight	淨重	label	s
+Net contents	內容量	label	s
+Country of origin	原產地	label	s
+Storage instructions	保存方式	label	s
+Directions for use	使用方法	label	s
+How to use	使用方法	label	x
+Keep refrigerated	請冷藏	label	x
+Keep frozen	請冷凍保存	label	x
+Store in a cool, dry place	請存放於陰涼乾燥處	label	x
+Store in a cool dry place	請存放於陰涼乾燥處	label	x
+Refrigerate after opening	開封後請冷藏	label	x
+Shake well before use	使用前請搖勻	label	x
+Do not microwave	請勿微波	label	x
+Microwave safe	可微波	label	x
+Keep out of reach of children	請放置於兒童無法取得之處	label	x
+Keep out of the reach of children	請放置於兒童無法取得之處	label	x
+For external use only	僅供外用	label	x
+Assembly instructions	組裝說明	label	x	eval
+All-aluminium can	全鋁罐	label	x	eval
+All-aluminum can	全鋁罐	label	x	eval
+Premium quality	頂級品質	label	x	eval
+Japanese style rice cracker	日式米果	label	x	eval
+# --- allergens (single common words: whole block only; multiword / unambiguous ones also in a line)
+Allergens	過敏原	allergen	x
+Allergen	過敏原	allergen	x
+Allergen information	過敏原資訊	allergen	s
+Allergy information	過敏原資訊	allergen	s
+Allergy advice	過敏原資訊	allergen	s
+May contain	可能含有	allergen	x
+Milk	牛奶	allergen	x
+Egg	蛋	allergen	x
+Eggs	蛋	allergen	x
+Peanut	花生	allergen	x
+Peanuts	花生	allergen	x
+Tree nuts	堅果	allergen	s
+Nuts	堅果	allergen	x
+Soy	大豆	allergen	x
+Soya	大豆	allergen	x
+Soybeans	大豆	allergen	s
+Wheat	小麥	allergen	x
+Gluten	麩質	allergen	x
+Gluten-free	無麩質	allergen	x
+Gluten free	無麩質	allergen	x
+Shellfish	甲殼類及貝類	allergen	x
+Crustaceans	甲殼類	allergen	s
+Molluscs	軟體動物類	allergen	s
+Mollusks	軟體動物類	allergen	s
+Sesame	芝麻	allergen	x
+Sesame seeds	芝麻	allergen	s
+Mustard	芥末	allergen	x
+Celery	芹菜	allergen	x
+Lupin	羽扇豆	allergen	x
+Sulphites	亞硫酸鹽	allergen	s
+Sulfites	亞硫酸鹽	allergen	s
+Sulphur dioxide	二氧化硫	allergen	s
+Sulfur dioxide	二氧化硫	allergen	s
+Lactose	乳糖	allergen	x
+Lactose-free	無乳糖	allergen	x
+Dairy-free	不含乳製品	allergen	x
+# --- menus
+Menu	菜單	menu	x
+Today's special	今日特餐	menu	x
+Today's specials	今日特餐	menu	x
+Chef's recommendation	主廚推薦	menu	s
+Chef's special	主廚特餐	menu	s
+Recommended	推薦	menu	x
+Recommend	推薦	menu	x	eval
+Best seller	熱銷	menu	x
+Bestseller	熱銷	menu	x
+Popular	熱門	menu	x
+Set menu	套餐	menu	x
+Set meal	套餐	menu	x
+Lunch set	午間套餐	menu	x
+Lunch menu	午餐菜單	menu	x
+Dinner menu	晚餐菜單	menu	x
+Drink menu	飲料單	menu	x
+Drinks	飲料	menu	x
+Beverages	飲料	menu	x
+Soft drinks	無酒精飲料	menu	x
+Alcoholic beverages	酒精飲料	menu	x
+Appetizers	開胃菜	menu	x
+Starters	前菜	menu	x
+Main course	主菜	menu	x
+Main dishes	主菜	menu	x
+Mains	主餐	menu	x
+Side dishes	配菜	menu	x
+Desserts	甜點	menu	x
+Dessert	甜點	menu	x
+Soups	湯品	menu	x
+Salads	沙拉	menu	x
+Kids menu	兒童菜單	menu	x
+Kids' menu	兒童菜單	menu	x
+Children's menu	兒童菜單	menu	x
+Vegetarian	素食	menu	x
+Vegan	純素	menu	x
+Spicy	辣	menu	x
+Extra spicy	特辣	menu	x
+Free refill	免費續杯	menu	x
+Free refills	免費續杯	menu	x
+Takeout	外帶	menu	x
+Take out	外帶	menu	x
+Take away	外帶	menu	x
+Takeaway	外帶	menu	x
+Dine in	內用	menu	x
+Eat in	內用	menu	x
+For here	內用	menu	x
+For here or to go?	內用還是外帶？	menu	x
+Order here	在此點餐	menu	x
+Pick up here	取餐處	menu	x
+Service charge	服務費	menu	s
+Tax included	含稅	menu	x
+Tax not included	未稅	menu	x
+Prices include tax	價格含稅	menu	x
+All prices include tax	所有價格均含稅	menu	x
+Plus tax	另加稅	menu	x
+Cash only	僅收現金	menu	x
+No credit cards	不收信用卡	menu	x
+Credit cards accepted	可刷卡	menu	x
+Reservation required	需預約	menu	x
+Reservations required	需預約	menu	x
+Please wait to be seated	請稍候帶位	menu	x
+Please seat yourself	請自行入座	menu	x
+Last order	最後點餐	menu	x
+Last orders	最後點餐	menu	x
+Sold out	售完	menu	x
+Out of stock	缺貨	menu	x
+Fish and chips	炸魚薯條	dish	s
+Fish & chips	炸魚薯條	dish	s	eval
+French fries	薯條	dish	x
+Hash browns	薯餅	dish	s
+Fried chicken	炸雞	dish	s
+Fried rice	炒飯	dish	s
+Cream croquette	奶油可樂餅	dish	s	eval
+Croquette	可樂餅	dish	s	eval
+Croquettes	可樂餅	dish	s	eval
+Ajillo	西班牙蒜味橄欖油煮	dish	s	eval
+Paella	西班牙海鮮燉飯	dish	s	eval
+Bolognese	波隆那肉醬	dish	s	eval
+Genovese	青醬	dish	s	eval
+Carbonara	培根蛋汁	dish	s
+Brochette	串燒	dish	s	eval
+Firefly squid	螢火魷	dish	s	eval
+Squid tentacles	魷魚腳	dish	s	eval
+White leek	白蔥	dish	s	eval
+Draft beer	生啤酒	drink	s
+Draught beer	生啤酒	drink	s
+Soda pop	汽水	drink	s	eval
+Soda pops	汽水	drink	s	eval
+Sparkling water	氣泡水	drink	s
+Mineral water	礦泉水	drink	s
+Iced tea	冰紅茶	drink	s
+Iced coffee	冰咖啡	drink	s
+Hot coffee	熱咖啡	drink	s
+Green tea	綠茶	drink	s
+Black tea	紅茶	drink	s
+Milk tea	奶茶	drink	s
+Bubble tea	珍珠奶茶	drink	s
+Orange juice	柳橙汁	drink	s
+Apple juice	蘋果汁	drink	s
+House wine	招牌葡萄酒	drink	s
+Red wine	紅酒	drink	s
+White wine	白酒	drink	s
+Sandwich	三明治	dish	x	eval
+Beer	啤酒	drink	x	eval
+# --- table / app labels in capitals (0.7.7: an ad table, a quiz page)
+Wake up time	起床時間	ui	x
+Daily meals	每日餐數	ui	x
+Fasting schedule	斷食時段	ui	x
+Your BMI	你的 BMI	ui	x
+Age	年齡	ui	x
+Sleep time	睡眠時間	ui	x
+Question bank	題庫	ui	x
+Top	TOP	ui	x
+Pitch accent	音高重音	ui	x
+# --- learning-site tabs (whole block)
+Vocabulary	詞彙	ui	x
+Grammar	文法	ui	x
+Reading	閱讀	ui	x
+Kanji	漢字	ui	x
+Quiz	測驗	ui	x
+Speaking	會話	ui	x

@@ -25,7 +25,10 @@
         whose DLLs / static code ship in the installer (openssl, libplist,
         pthreads4w, alac, ffmpeg; pcre2 x64-windows-static, linked into
         bergamot.dll), taken from <vcpkg>\downloads, plus each vcpkg port
-        directory (portfile.cmake + patches = the build scripts).
+        directory (portfile.cmake + patches = the build scripts). Ports that
+        this repository overrides in tools/vcpkg-overlay/<port>/ at <Ref>
+        (ffmpeg: minimal AAC-only LGPL configuration) are taken from there
+        (git, not the working tree) instead of <vcpkg>\ports.
         bergamot/: the complete source of bergamot.dll (translation engine,
         MPL-2.0 + MIT / Apache-2.0 / BSD components): `git archive` of
         BergamotTranslatorSharp at the commit pinned in
@@ -125,6 +128,12 @@ foreach ($k in @($ShippedPorts.Keys)) { $ShippedPorts[$k].Triplet = 'x64-windows
 $hasTranslate = [bool](Invoke-Git ls-tree --name-only $Commit -- translate/tools/build_bergamot.sh)
 if ($hasTranslate) { $ShippedPorts['pcre2'] = @{ Archive = 'PCRE2Project-pcre2-*'; Url = 'https://github.com/PCRE2Project/pcre2'; Triplet = 'x64-windows-static' } }
 
+# vcpkg overlay ports of this repository at <Ref> (vcpkg install --overlay-ports=tools/vcpkg-overlay)
+$OverlayPorts = @{}
+$ovTree = & git -C $Repo -c core.quotepath=off ls-tree -d --name-only "${Commit}:tools/vcpkg-overlay" 2>$null
+if ($LASTEXITCODE -eq 0) { foreach ($o in @($ovTree)) { if ($o) { $OverlayPorts[$o.Trim()] = $true } } }
+$overlayArg = if ($OverlayPorts.Count) { ' --overlay-ports=tools\vcpkg-overlay' } else { '' }
+
 $installed = @{}
 $statusFile = Join-Path $VcpkgRoot 'installed\vcpkg\status'
 $statusText = @()
@@ -146,7 +155,8 @@ foreach ($line in ($statusText + '')) {
 $vcpkgCommit = try { (& git -C $VcpkgRoot rev-parse HEAD).Trim() } catch { 'unknown' }
 $PortInfo = [ordered]@{}
 foreach ($p in $ShippedPorts.Keys) {
-    $json = Get-Content -Raw (Join-Path $VcpkgRoot "ports\$p\vcpkg.json") | ConvertFrom-Json
+    $json = if ($OverlayPorts.ContainsKey($p)) { (Invoke-Git show "${Commit}:tools/vcpkg-overlay/$p/vcpkg.json") -join "`n" | ConvertFrom-Json }
+            else { Get-Content -Raw (Join-Path $VcpkgRoot "ports\$p\vcpkg.json") | ConvertFrom-Json }
     $portVer = @($json.version, $json.'version-string', $json.'version-semver', $json.'version-date') | Where-Object { $_ } | Select-Object -First 1
     $portRev = if ($json.'port-version') { [int]$json.'port-version' } else { 0 }
     $v = $portVer; $r = $portRev
@@ -157,13 +167,16 @@ foreach ($p in $ShippedPorts.Keys) {
         $r = if ($installed[$ik].'Port-Version') { [int]$installed[$ik].'Port-Version' } else { 0 }
         if ($v -ne $portVer -or $r -ne $portRev) { Write-Warning "$ik installed $v#$r but ports/ has $portVer#$portRev" }
     } else { Write-Warning "$ik is not installed in $VcpkgRoot (using ports/$p/vcpkg.json: $portVer#$portRev)" }
-    $PortInfo[$p] = [pscustomobject]@{ Name = $p; Version = $v; PortVersion = $r; Url = $ShippedPorts[$p].Url; Archive = $ShippedPorts[$p].Archive; Triplet = $trip }
+    $PortInfo[$p] = [pscustomobject]@{ Name = $p; Version = $v; PortVersion = $r; Url = $ShippedPorts[$p].Url; Archive = $ShippedPorts[$p].Archive; Triplet = $trip; Overlay = $OverlayPorts.ContainsKey($p) }
 }
 $portLines = ($PortInfo.Values | ForEach-Object {
     $spec = if ($_.Name -eq 'ffmpeg') { 'ffmpeg[core,avcodec]' } else { $_.Name }
-    "| ``$spec`` | $($_.Triplet) | $($_.Version) | $($_.PortVersion) | $($_.Url) |"
+    $cell = "``$spec``"
+    if ($_.Overlay) { $cell += " (overlay port ``tools/vcpkg-overlay/$($_.Name)``)" }
+    "| $cell | $($_.Triplet) | $($_.Version) | $($_.PortVersion) | $($_.Url) |"
 }) -join "`n"
 $installList = ($PortInfo.Values | Where-Object { $_.Triplet -eq 'x64-windows' } | ForEach-Object { if ($_.Name -eq 'ffmpeg') { '"ffmpeg[core,avcodec]"' } else { $_.Name } }) -join ' '
+$installList += $overlayArg
 
 # ---- bergamot.dll / onnxruntime.dll provenance (translate/, 0.7.0+) ----
 $BtsCommit = $null; $OrtUrl = $null; $OrtSha = $null; $OrtVer = $null
@@ -308,6 +321,7 @@ C:\vcpkg\vcpkg install $installList --triplet x64-windows
 ``````
 $(if ($hasTranslate) { "`n``pcre2`` (static) is only needed for ``bergamot.dll``, see section 5.`n" })
 
+$(if ($overlayArg) { "Run it from the root of this archive: ``--overlay-ports=tools\vcpkg-overlay`` makes vcpkg use`nthis project's port of $(($OverlayPorts.Keys | Sort-Object) -join ', ') instead of the one of the vcpkg commit (ffmpeg:`nthe same port with a minimal configuration, only libavcodec's native AAC`ndecoder + libavutil; see the comment at the end of its ``portfile.cmake``).`n" })
 FFmpeg must stay an LGPL build: do not enable the ``gpl``, ``version3`` or
 ``nonfree`` features. ``fdk-aac`` is *not* needed by the shipped program
 (at most by the optional ``pm_audio_test``).
@@ -491,13 +505,27 @@ if (-not $NoDeps) {
             if (-not $arc) { throw "upstream archive for $($pi.Name) $($pi.Version) not found in $dl (pattern $($pi.Archive), run 'vcpkg install' first or use -NoDeps)" }
             [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $arc.FullName, "upstream/$($arc.Name)", [IO.Compression.CompressionLevel]::NoCompression)
             [void]$seen.Add("upstream/$($arc.Name)")
-            $portDir = Join-Path $VcpkgRoot "ports\$($pi.Name)"
-            Get-ChildItem $portDir -Recurse -File | ForEach-Object {
-                $rel = $_.FullName.Substring($portDir.Length + 1) -replace '\\', '/'
-                [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, "ports/$($pi.Name)/$rel", [IO.Compression.CompressionLevel]::Optimal)
-                [void]$seen.Add("ports/$($pi.Name)/$rel")
+            if ($pi.Overlay) {
+                # this project's overlay port, as committed at <Ref>
+                $ovTmp = Join-Path $stage "overlay-$($pi.Name).zip"
+                & git -C $Repo archive --format=zip -o $ovTmp $Commit -- "tools/vcpkg-overlay/$($pi.Name)"
+                if ($LASTEXITCODE -ne 0) { throw "git archive tools/vcpkg-overlay/$($pi.Name) failed" }
+                $nOv = Copy-ZipEntries $zip $ovTmp "tools/vcpkg-overlay/$($pi.Name)/" "ports/$($pi.Name)/" $seen
+                Remove-Item -Force $ovTmp
+                if (-not $nOv) { throw "overlay port tools/vcpkg-overlay/$($pi.Name) is empty at $Commit" }
+            } else {
+                $portDir = Join-Path $VcpkgRoot "ports\$($pi.Name)"
+                Get-ChildItem $portDir -Recurse -File | ForEach-Object {
+                    $rel = $_.FullName.Substring($portDir.Length + 1) -replace '\\', '/'
+                    [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, "ports/$($pi.Name)/$rel", [IO.Compression.CompressionLevel]::Optimal)
+                    [void]$seen.Add("ports/$($pi.Name)/$rel")
+                }
             }
             $readme.Add(('{0,-9} {1}#{2}  {3}  ({4})' -f $pi.Name, $pi.Version, $pi.PortVersion, $pi.Url, $pi.Triplet))
+            if ($pi.Overlay) {
+                $readme.Add("          ports/$($pi.Name)/ = this project's overlay port tools/vcpkg-overlay/$($pi.Name)/ (vcpkg port of the")
+                $readme.Add("          commit below + a minimal configuration, see the end of portfile.cmake; upstream source unmodified)")
+            }
             $readme.Add(('          upstream/{0}  sha256 {1}' -f $arc.Name, (Get-Sha256 $arc.FullName)))
         }
         if ($hasTranslate) {

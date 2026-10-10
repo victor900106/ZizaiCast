@@ -1,13 +1,13 @@
-# Building ZizaiCast 0.7.7 from source
+# Building ZizaiCast 0.7.9 from source
 
-This archive is the Corresponding Source of the ZizaiCast 0.7.7 installer
+This archive is the Corresponding Source of the ZizaiCast 0.7.9 installer
 (GPL-3.0, see `LICENSE`, `docs/licenses/SOURCE.md` and
 `docs/licenses/THIRD_PARTY_NOTICES.txt`).
 
-* git commit: `11de1bf1ee49911350d46b075861f597e2ac78ff` (2026-10-10T00:05:27+08:00)
+* git commit: `4336ff7256dfc00588bfe35e38492c313f2cf7dd` (2026-10-10T08:18:09+08:00)
 * vcpkg commit used for the release build: `f451d04d496aa089e294a1a2d799a269788d47ba`
 * Library sources (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg, PCRE2 + vcpkg port scripts/patches; the complete source of `bergamot.dll`; licence and provenance of `onnxruntime.dll`):
-  `ZizaiCast-0.7.7-deps-source.zip` on the same release page.
+  `ZizaiCast-0.7.9-deps-source.zip` on the same release page.
 
 ## 1. Tools (Windows 10/11 x64)
 
@@ -27,18 +27,23 @@ This archive is the Corresponding Source of the ZizaiCast 0.7.7 installer
 | `libplist` | x64-windows | 2.8.0 | 0 | https://github.com/libimobiledevice/libplist |
 | `pthreads` | x64-windows | 3.0.0 | 14 | https://sourceforge.net/projects/pthreads4w/ |
 | `alac` | x64-windows | 2017-11-03-c38887c5 | 4 | https://github.com/macosforge/alac |
-| `ffmpeg[core,avcodec]` | x64-windows | 9.0.2 | 1 | https://ffmpeg.org/ (git: https://git.ffmpeg.org/ffmpeg.git) |
+| `ffmpeg[core,avcodec]` (overlay port `tools/vcpkg-overlay/ffmpeg`) | x64-windows | 9.0.2 | 2 | https://ffmpeg.org/ (git: https://git.ffmpeg.org/ffmpeg.git) |
 | `pcre2` | x64-windows-static | 10.49 | 0 | https://github.com/PCRE2Project/pcre2 |
 
 ```
 git clone https://github.com/microsoft/vcpkg C:\vcpkg
 git -C C:\vcpkg checkout f451d04d496aa089e294a1a2d799a269788d47ba
 C:\vcpkg\bootstrap-vcpkg.bat
-C:\vcpkg\vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --triplet x64-windows
+C:\vcpkg\vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --overlay-ports=tools\vcpkg-overlay --triplet x64-windows
 ```
 
 `pcre2` (static) is only needed for `bergamot.dll`, see section 5.
 
+
+Run it from the root of this archive: `--overlay-ports=tools\vcpkg-overlay` makes vcpkg use
+this project's port of ffmpeg instead of the one of the vcpkg commit (ffmpeg:
+the same port with a minimal configuration, only libavcodec's native AAC
+decoder + libavutil; see the comment at the end of its `portfile.cmake`).
 
 FFmpeg must stay an LGPL build: do not enable the `gpl`, `version3` or
 `nonfree` features. `fdk-aac` is *not* needed by the shipped program
@@ -94,7 +99,7 @@ VCPKG_ROOT=C:/vcpkg bash translate/tools/build_bergamot.sh
 
 Output: `build-translate/bergamot/bin/bergamot.dll`.
 
-**Offline, from `ZizaiCast-0.7.7-deps-source.zip`** — its
+**Offline, from `ZizaiCast-0.7.9-deps-source.zip`** — its
 `bergamot/BergamotTranslatorSharp/` is exactly that tree (every submodule at
 the commit recorded by its parent, unmodified; list in `DEPS-README.txt`).
 BergamotTranslatorSharp's own CMake applies its patches from
@@ -104,7 +109,7 @@ root of this archive, deps zip next to it; no download from GitHub needed):
 
 ```
 mkdir -p build-translate/x
-unzip -q ../ZizaiCast-0.7.7-deps-source.zip -d build-translate/x
+unzip -q ../ZizaiCast-0.7.9-deps-source.zip -d build-translate/x
 mv build-translate/x/bergamot/BergamotTranslatorSharp build-translate/bts-src
 M=build-translate/bts-src/bergamot-translator/3rd_party/marian-dev   # Marian's CMake reads its revision from git:
 git -C $M init -q
@@ -165,7 +170,7 @@ pm_audio_test pm_recorder_test pm_miracast_test pm_android_test`.
 
 (`installer\zizai.iss` packages the user guides from `docs\tutorial\` and
 the notices from `docs\licenses\`, both in this archive. Output:
-`installer\Output\自在投影-安裝程式-0.7.7.exe`, Traditional Chinese +
+`installer\Output\自在投影-安裝程式-0.7.9.exe`, Traditional Chinese +
 English.)
 
 ## 8. Replacing the LGPL libraries

@@ -1,0 +1,36 @@
+# Korean sources never used: homonyms / ordinary words that are also a food, place, station or brand name.
+사과  # apple / apology
+가지  # eggplant / kinds, branch
+다리  # leg / bridge
+나라
+중앙
+시청  # city hall / watching
+정부
+대학
+시장  # market / mayor
+공원
+교대  # station / shift change
+신사  # station / gentleman
+이대
+미래
+우리  # we / Woori bank
+하나  # one / Hana bank
+국민  # citizen / Kookmin bank
+현대  # modern / Hyundai
+기아  # Kia / starvation
+대한
+진로  # Jinro / career path
+오늘
+내일
+다음  # next / Daum
+카카오
+라인
+한국
+세계
+중국
+일본
+미국
+신세계
+노을
+보리
+고추

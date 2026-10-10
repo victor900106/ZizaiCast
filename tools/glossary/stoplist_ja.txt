@@ -1,0 +1,41 @@
+# Japanese sources never used: homonyms / ordinary words that are also a food, place, station or brand name.
+キリン  # giraffe / Kirin
+セブン
+ヤマト
+サクラ
+タイ  # Thailand / sea bream
+マス  # trout / square
+ブリ
+カキ  # oyster / persimmon
+ハツ
+ナシ
+モモ
+クリ
+キス
+ライト
+ドライ
+スーパー
+ダイエット
+ゼロ
+ホット
+アイス
+プレミアム
+オリジナル
+スペシャル
+クラシック
+ゴールド
+ブラック
+ホワイト
+レギュラー
+ミックス
+フレッシュ
+ナチュラル
+ジャンボ
+ライン
+ローマ
+日本
+中央
+本町
+玉子焼き  # Wikidata: Akashiyaki (明石燒); on a label it is 玉子燒 (built-in name)
+玉子焼
+卵焼き

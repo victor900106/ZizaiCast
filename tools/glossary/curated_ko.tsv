@@ -1,0 +1,248 @@
+# Hand-checked ko -> zh-Hant (Taiwan) terms: signs / notices, shop and menu words, allergens, nutrition labels,
+# common dishes / drinks the pivot gets wrong (소주 -> 「小酒」).  Written for this project (GPL-3, also offered as CC0).
+# src	zh	kind	mode (x = whole block only, s = also inside a sentence, as a protected name; blank = by rule)
+# --- signs / notices (whole block only)
+금연	禁菸	sign	x
+금연구역	禁菸區	sign	x
+금연 구역	禁菸區	sign	x
+흡연구역	吸菸區	sign	x
+흡연 구역	吸菸區	sign	x
+흡연실	吸菸室	sign	x
+출입금지	禁止進入	sign	x
+출입 금지	禁止進入	sign	x
+관계자외 출입금지	非相關人員禁止進入	sign	x
+관계자 외 출입금지	非相關人員禁止進入	sign	x
+촬영금지	禁止攝影	sign	x
+촬영 금지	禁止攝影	sign	x
+사진촬영금지	禁止拍照	sign	x
+주차금지	禁止停車	sign	x
+주차 금지	禁止停車	sign	x
+주정차금지	禁止停車	sign	x
+주정차 금지	禁止停車	sign	x
+음식물 반입금지	禁止攜帶外食	sign	x
+반려동물 출입금지	禁止攜帶寵物	sign	x
+화기엄금	嚴禁煙火	sign	x
+위험	危險	sign	x
+미끄럼 주의	小心地滑	sign	x
+미끄럼주의	小心地滑	sign	x
+머리 조심	小心碰頭	sign	x
+발밑 조심	小心腳下	sign	x
+발밑주의	小心腳下	sign	x
+손대지 마세요	請勿觸摸	sign	x
+만지지 마세요	請勿觸摸	sign	x
+영업중	營業中	sign	x
+영업 중	營業中	sign	x
+준비중	準備中	sign	x
+준비 중	準備中	sign	x
+휴무	公休	sign	x
+정기휴무	定期公休	sign	x
+오늘 휴무	今日公休	sign	x
+임시휴무	臨時公休	sign	x
+브레이크 타임	休息時間	sign	x
+브레이크타임	休息時間	sign	x
+품절	售完	sign	x
+매진	售完	sign	x
+예약석	預約席	sign	x
+화장실	洗手間	sign	x
+남자 화장실	男廁	sign	x
+여자 화장실	女廁	sign	x
+남자화장실	男廁	sign	x
+여자화장실	女廁	sign	x
+비상구	緊急出口	sign	x
+출구	出口	sign	x
+입구	入口	sign	x
+출입구	出入口	sign	x
+나가는 곳	出口	sign	x
+나가는곳	出口	sign	x
+타는 곳	乘車處	sign	x
+타는곳	乘車處	sign	x
+갈아타는 곳	轉乘處	sign	x
+갈아타는곳	轉乘處	sign	x
+환승	轉乘	sign	x
+엘리베이터	電梯	sign	x
+에스컬레이터	手扶梯	sign	x
+계단	樓梯	sign	x
+매표소	售票處	sign	x
+안내소	服務處	sign	x
+관광안내소	觀光服務處	sign	x
+관광 안내소	觀光服務處	sign	x
+계산대	收銀台	sign	x
+무료	免費	sign	x
+유료	收費	sign	x
+부가세 포함	含稅	sign	x
+부가세 별도	稅另計	sign	x
+부가세별도	稅另計	sign	x
+VAT 포함	含稅	sign	x
+VAT 별도	稅另計	sign	x
+별도	另計	sign	x
+음료 별도	飲料另計	sign	x
+주류 별도	酒類另計	sign	x
+현금만 가능	僅收現金	sign	x
+카드 가능	可刷卡	sign	x
+카드결제 가능	可刷卡	sign	x
+# --- menu / shop words
+무한리필	無限續點	menu	x
+셀프	自助	menu	x
+셀프서비스	自助服務	menu	x
+셀프 서비스	自助服務	menu	x
+물은 셀프	水請自取	menu	x
+물은 셀프입니다	水請自取	menu	x
+반찬은 셀프	小菜請自取	menu	x
+반찬 셀프	小菜請自取	menu	x
+배달	外送	menu	x
+배달 가능	可外送	menu	x
+사리 추가	加麵	menu	x
+곱빼기	大碗	menu	x
+순한맛	小辣	menu	x
+매운맛	辣味	menu	x
+아주 매운맛	特辣	menu	x
+점심특선	午間特餐	menu	x
+점심 특선	午間特餐	menu	x
+오늘의 메뉴	今日菜單	menu	x
+추천 메뉴	推薦菜單	menu	x
+추천메뉴	推薦菜單	menu	x
+인기 메뉴	人氣菜單	menu	x
+인기메뉴	人氣菜單	menu	x
+신메뉴	新菜單	menu	x
+세트 메뉴	套餐	menu	x
+세트메뉴	套餐	menu	x
+식사류	餐點類	menu	x
+식사	餐點	menu	x
+안주	下酒菜	menu	x
+안주류	下酒菜類	menu	x
+주류	酒類	menu	x
+음료	飲料	menu	x
+음료수	飲料	menu	x
+음료류	飲料類	menu	x
+사이드 메뉴	附餐	menu	x
+사이드메뉴	附餐	menu	x
+반찬	小菜	menu	x
+물티슈	濕紙巾	menu	x
+원산지	原產地	menu	x
+원산지 표시	原產地標示	menu	x
+원산지표시	原產地標示	menu	x
+국내산	韓國國產	menu	x
+국산	韓國國產	menu	x
+수입산	進口	menu	x
+호주산	澳洲產	menu	x
+미국산	美國產	menu	x
+중국산	中國產	menu	x
+# --- dishes / drinks / ingredients
+허니버터	蜂蜜奶油	food	s
+공깃밥	白飯	dish	s
+생맥주	生啤酒	drink	s
+소맥	燒啤	drink	x
+사이다	汽水	drink	s
+콜라	可樂	drink	s
+국밥	湯飯	dish	s
+돼지국밥	豬肉湯飯	dish	s
+순대국밥	血腸湯飯	dish	s
+순대국	血腸湯	dish	s
+순대	血腸	dish	s
+해장국	解酒湯	dish	s
+설렁탕	雪濃湯	dish	s
+곰탕	牛骨湯	dish	s
+감자탕	馬鈴薯排骨湯	dish	s
+육개장	辣牛肉湯	dish	s
+미역국	海帶湯	dish	s
+칼국수	韓式刀切麵	dish	s
+수제비	麵疙瘩	dish	s
+짜장면	炸醬麵	dish	s
+자장면	炸醬麵	dish	s
+짬뽕	炒碼麵	dish	s
+탕수육	糖醋肉	dish	s
+만두	餃子	dish	s
+군만두	煎餃	dish	s
+물만두	水餃	dish	s
+떡국	年糕湯	dish	s
+닭갈비	辣炒雞排	dish	s
+찜닭	燉雞	dish	s
+안동찜닭	安東燉雞	dish	s
+닭볶음탕	辣燉雞	dish	s
+양념치킨	韓式調味炸雞	dish	s
+후라이드치킨	原味炸雞	dish	s
+후라이드 치킨	原味炸雞	dish	s
+프라이드치킨	原味炸雞	dish	s
+족발	豬腳	dish	s
+보쌈	菜包肉	dish	s
+곱창	烤腸	dish	s
+막창	烤大腸	dish	s
+육회	生拌牛肉	dish	s
+물회	冷湯生魚片	dish	s
+해물탕	海鮮湯	dish	s
+아귀찜	燉鮟鱇魚	dish	s
+갈치조림	燉白帶魚	dish	s
+고등어구이	烤鯖魚	dish	s
+생선구이	烤魚	dish	s
+계란찜	蒸蛋	dish	s
+계란말이	雞蛋捲	dish	s
+김치전	泡菜煎餅	dish	s
+파전	蔥煎餅	dish	s
+빈대떡	綠豆煎餅	dish	s
+호떡	糖餅	dish	s
+붕어빵	鯛魚燒	dish	s
+팥빙수	紅豆刨冰	dish	s
+빙수	刨冰	dish	s
+비빔냉면	拌冷麵	dish	s
+물냉면	水冷麵	dish	s
+쫄면	韓式辣拌麵	dish	s
+잔치국수	喜麵	dish	s
+비빔국수	拌麵	dish	s
+라볶이	拉麵炒年糕	dish	s
+김치볶음밥	泡菜炒飯	dish	s
+볶음밥	炒飯	dish	s
+오므라이스	蛋包飯	dish	s
+돈까스	炸豬排	dish	s
+돈가스	炸豬排	dish	s
+카레	咖哩	dish	s
+우동	烏龍麵	dish	s
+김치	泡菜	dish	s
+깍두기	蘿蔔泡菜	dish	s
+된장	大醬	ingredient	s
+고추장	辣椒醬	ingredient	s
+쌈장	包飯醬	ingredient	s
+상추	生菜	ingredient	s
+깻잎	紫蘇葉	ingredient	s
+목살	豬頸肉	dish	s
+항정살	松阪豬	dish	s
+갈매기살	豬橫膈膜肉	dish	s
+차돌박이	牛五花薄片	dish	s
+소고기	牛肉	ingredient	s
+한우	韓牛	ingredient	s
+돼지갈비	豬排骨	dish	s
+소갈비	牛排骨	dish	s
+양념갈비	調味排骨	dish	s
+닭꼬치	雞肉串	dish	s
+어묵	魚板	dish	s
+오뎅	魚板	dish	s
+떡꼬치	年糕串	dish	s
+튀김	炸物	dish	s
+김말이	炸海苔捲	dish	s
+순두부	嫩豆腐	ingredient	s
+두부	豆腐	ingredient	s
+달걀	雞蛋	ingredient	s
+커피	咖啡	drink	s
+아메리카노	美式咖啡	drink	s
+카페라떼	拿鐵	drink	s
+카페 라떼	拿鐵	drink	s
+녹차	綠茶	drink	s
+유자차	柚子茶	drink	s
+식혜	甜米露	drink	s
+생수	礦泉水	drink	s
+# --- allergens and nutrition labels
+알레르기 유발물질	過敏原	allergen	x
+알레르기유발물질	過敏原	allergen	x
+알레르기 유발 물질	過敏原	allergen	x
+아황산류	亞硫酸鹽	allergen	x
+조개류	貝類	allergen	x
+오징어	魷魚	allergen	s
+전복	鮑魚	allergen	s
+홍합	淡菜	allergen	s
+영양정보	營養資訊	nutrition	x
+영양 정보	營養資訊	nutrition	x
+영양성분	營養成分	nutrition	x
+칼슘	鈣	nutrition	x
+식이섬유	膳食纖維	nutrition	x
+1일 영양성분 기준치	每日營養素參考值	nutrition	x
+교통카드	交通卡	word	s
+충전	儲值	word	x

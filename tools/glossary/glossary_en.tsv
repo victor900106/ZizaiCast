@@ -1,0 +1,2051 @@
+# en -> zh-Hant (Taiwan). Built by build_glossary_en.py; sources and licences: SOURCES.md. Keys: any case.
+src	zh	mode	kind	conf	source
+% Daily Value	每日參考值百分比	s	nutrition	A	curated
+% DV	每日參考值百分比	x	nutrition	A	curated
+%Daily Value	每日參考值百分比	s	nutrition	A	curated
+%DV	每日參考值百分比	x	nutrition	A	curated
+%DV*	每日參考值百分比*	x	nutrition	A	curated:eval
+About	關於	x	ui	A	curated
+About phone	關於手機	x	ui	A	curated
+Accept	接受	x	ui	A	curated
+Access denied	拒絕存取	x	error	A	curated
+Accessible toilet	無障礙廁所	s	sign	A	curated
+Account	帳戶	x	ui	A	curated
+Accounts	帳戶	x	ui	A	curated
+Add	新增	x	ui	A	curated
+Add new	新增	x	ui	A	curated
+Added sugars	添加糖	s	nutrition	A	curated
+Admission free	免費入場	x	sign	A	curated
+Adult	成人	x	sign	A	curated
+Adults	成人	x	sign	A	curated
+Age	年齡	x	ui	A	curated
+Agree	同意	x	ui	A	curated
+Airplane mode	飛航模式	s	ui	A	curated
+Airport	機場	x	transit	A	curated
+Alcoholic beverages	酒精飲料	x	menu	A	curated
+Align left	靠左對齊	x	ui	A	curated
+Align right	靠右對齊	x	ui	A	curated
+All prices include tax	所有價格均含稅	x	menu	A	curated
+All-aluminium can	全鋁罐	x	label	A	curated:eval
+All-aluminum can	全鋁罐	x	label	A	curated:eval
+Allergen	過敏原	x	allergen	A	curated
+Allergen information	過敏原資訊	s	allergen	A	curated
+Allergens	過敏原	x	allergen	A	curated
+Allergy advice	過敏原資訊	s	allergen	A	curated
+Allergy information	過敏原資訊	s	allergen	A	curated
+Allow	允許	x	ui	A	curated
+Allow only while using the app	僅在使用應用程式時允許	x	ui	A	curated
+Amount per serving	每份含量	s	nutrition	A	curated
+Amount/Serving	每份含量	s	nutrition	A	curated:eval
+An error has occurred	發生錯誤	x	error	A	curated
+An error occurred	發生錯誤	x	error	A	curated
+An unexpected error occurred	發生未預期的錯誤	x	error	A	curated
+Announcement	公告	x	sign	A	curated
+App info	應用程式資訊	x	ui	A	curated
+Appetizers	開胃菜	x	menu	A	curated
+Applications	應用程式	x	ui	A	curated
+Apply	套用	x	ui	A	curated
+Apps	應用程式	x	ui	A	curated
+Archive	封存	x	ui	A	curated
+Are you sure you want to delete this?	確定要刪除嗎？	x	error	A	curated
+Are you sure?	確定嗎？	x	error	A	curated
+Arrivals	抵達	x	transit	A	curated
+Assembly instructions	組裝說明	x	label	A	curated:eval
+Assembly point	集合點	s	sign	A	curated
+Attachment	附件	x	ui	A	curated
+Attachments	附件	x	ui	A	curated
+Attention	注意	x	sign	A	curated
+Auto-rotate	自動旋轉	x	ui	A	curated
+Autoplay	自動播放	x	ui	A	curated
+Baby changing	尿布台	x	sign	A	curated
+Baby changing station	尿布台	s	sign	A	curated
+Back up	備份	x	ui	A	curated
+Back up now	立即備份	x	ui	A	curated
+Backup	備份	x	ui	A	curated
+Baggage claim	行李提領處	s	transit	A	curated
+Batch number	批號	s	label	A	curated
+Battery	電池	x	ui	A	curated
+Battery low	電池電量不足	x	error	A	curated
+Battery saver	省電模式	s	ui	A	curated
+Best before end	賞味期限	s	label	A	curated
+Best seller	熱銷	x	menu	A	curated
+Bestseller	熱銷	x	menu	A	curated
+Beverages	飲料	x	menu	A	curated
+Beware of dog	內有惡犬	x	sign	A	curated
+Beware of pickpockets	小心扒手	x	sign	A	curated
+Bicycle parking	自行車停車場	s	sign	A	curated
+Biotin	生物素	q	nutrition	A	curated
+Bluetooth	藍牙	x	ui	A	curated
+Boarding	登機	x	transit	A	curated
+Boarding gate	登機門	s	transit	A	curated
+Bold	粗體	x	ui	A	curated
+Bookmarks	書籤	x	ui	A	curated
+Bottles and cans	瓶罐	x	sign	A	curated
+Brightness	亮度	x	ui	A	curated
+Bringing in dangerous objects	攜帶危險物品	x	sign	A	curated:eval
+Bullets	項目符號	x	ui	A	curated
+Burnable	可燃垃圾	x	sign	A	curated
+Burnable garbage	可燃垃圾	x	sign	A	curated
+Burnable waste	可燃垃圾	x	sign	A	curated
+Bus	公車	x	transit	A	curated
+Bus stop	公車站	s	transit	A	curated
+Bus terminal	公車總站	s	transit	A	curated
+Business hours	營業時間	x	sign	A	curated
+Calcium	鈣	q	nutrition	A	curated
+Calculator	計算機	x	ui	A	curated
+Calendar	日曆	x	ui	A	curated
+Calories	熱量	q	nutrition	A	curated
+Calories from fat	脂肪熱量	s	nutrition	A	curated
+Camera	相機	x	ui	A	curated
+Cans and bottles	瓶罐	x	sign	A	curated
+Captions	字幕	x	ui	A	curated
+Car park	停車場	x	sign	A	curated
+Carbohydrate	碳水化合物	q	nutrition	A	curated
+Carbohydrates	碳水化合物	q	nutrition	A	curated
+Cash only	僅收現金	x	menu	A	curated
+Cashier	收銀台	x	sign	A	curated
+Caution wet floor	小心地滑	x	sign	A	curated
+CCTV in operation	監視器錄影中	x	sign	A	curated
+Celery	芹菜	x	allergen	A	curated
+Check for updates	檢查更新	x	ui	A	curated
+Check-in counter	報到櫃檯	s	transit	A	curated
+Chef's recommendation	主廚推薦	s	menu	A	curated
+Chef's special	主廚特餐	s	menu	A	curated
+Child	兒童	x	sign	A	curated
+Children	兒童	x	sign	A	curated
+Children's menu	兒童菜單	x	menu	A	curated
+Cholesterol	膽固醇	s	nutrition	A	curated
+Choose file	選擇檔案	x	ui	A	curated
+Clear all	全部清除	x	ui	A	curated
+Clear cache	清除快取	x	ui	A	curated
+Clear data	清除資料	x	ui	A	curated
+Clear history	清除記錄	x	ui	A	curated
+Clock	時鐘	x	ui	A	curated
+Close tab	關閉分頁	x	ui	A	curated
+Closed for maintenance	維修中，暫停開放	x	sign	A	curated
+Closed today	今日公休	x	sign	A	curated
+Combustible garbage	可燃垃圾	x	sign	A	curated
+Completed	已完成	x	ui	A	curated
+Compose	撰寫	x	ui	A	curated
+Confirm	確認	x	ui	A	curated
+Confirm password	確認密碼	x	ui	A	curated
+Connected	已連線	x	ui	A	curated
+Connecting	連線中	x	ui	A	curated
+Connection error	連線錯誤	x	error	A	curated
+Connection failed	連線失敗	x	error	A	curated
+Connection timed out	連線逾時	x	error	A	curated
+Contacts	聯絡人	x	ui	A	curated
+Continue	繼續	x	ui	A	curated
+Control Panel	控制台	s	ui	A	curated
+Copied	已複製	x	ui	A	curated
+Copy	複製	x	ui	A	curated
+Country of origin	原產地	s	label	A	curated
+Create	建立	x	ui	A	curated
+Create account	建立帳戶	x	ui	A	curated
+Create an account	建立帳戶	x	ui	A	curated
+Credit cards accepted	可刷卡	x	menu	A	curated
+Crustaceans	甲殼類	s	allergen	A	curated
+Customer service	客服中心	x	sign	A	curated
+Customs	海關	x	transit	A	curated
+Cut	剪下	x	ui	A	curated
+Daily meals	每日餐數	x	ui	A	curated
+Daily Value	每日參考值	s	nutrition	A	curated
+Dairy-free	不含乳製品	x	allergen	A	curated
+Danger high voltage	危險！高壓電	x	sign	A	curated
+Dark mode	深色模式	s	ui	A	curated
+Date of manufacture	製造日期	s	label	A	curated
+Decline	拒絕	x	ui	A	curated
+Delete	刪除	x	ui	A	curated
+Delete account	刪除帳戶	x	ui	A	curated
+Deleted	已刪除	x	ui	A	curated
+Deny	拒絕	x	ui	A	curated
+Departures	出發	x	transit	A	curated
+Desktop	桌面	x	ui	A	curated
+Dessert	甜點	x	menu	A	curated
+Desserts	甜點	x	menu	A	curated
+Details	詳細資料	x	ui	A	curated
+Detour	改道	x	sign	A	curated
+Developer options	開發人員選項	s	ui	A	curated
+Device Manager	裝置管理員	s	ui	A	curated
+Dietary fiber	膳食纖維	s	nutrition	A	curated
+Dietary fibre	膳食纖維	s	nutrition	A	curated
+Dine in	內用	x	menu	A	curated
+Dinner menu	晚餐菜單	x	menu	A	curated
+Directions for use	使用方法	s	label	A	curated
+Disable	停用	x	ui	A	curated
+Disabled	已停用	x	ui	A	curated
+Disagree	不同意	x	ui	A	curated
+Discard	捨棄	x	ui	A	curated
+Discard changes	捨棄變更	x	ui	A	curated
+Disconnected	已中斷連線	x	ui	A	curated
+Dismiss	關閉	x	ui	A	curated
+Do not disturb	請勿打擾	x	sign	A	curated
+Do not feed the animals	請勿餵食動物	x	sign	A	curated
+Do not lean	請勿倚靠	x	sign	A	curated
+Do not litter	請勿亂丟垃圾	x	sign	A	curated
+Do not microwave	請勿微波	x	label	A	curated
+Do not save	不要儲存	x	ui	A	curated
+Do not touch	請勿觸摸	x	sign	A	curated
+Documents	文件	x	ui	A	curated
+Don't allow	不允許	x	ui	A	curated
+Don't save	不要儲存	x	ui	A	curated
+Download	下載	x	ui	A	curated
+Download failed	下載失敗	x	error	A	curated
+Downloading	下載中	x	ui	A	curated
+Downloads	下載	x	ui	A	curated
+Drafts	草稿	x	ui	A	curated
+Drag and drop	拖放	x	ui	A	curated
+Drink menu	飲料單	x	menu	A	curated
+Drinks	飲料	x	menu	A	curated
+Eat in	內用	x	menu	A	curated
+Edit	編輯	x	ui	A	curated
+Egg	蛋	x	allergen	A	curated
+Eggs	蛋	x	allergen	A	curated
+Elevator	電梯	x	sign	A	curated
+Elevators	電梯	x	sign	A	curated
+Email address	電子郵件地址	s	ui	A	curated
+Emergency	緊急	x	sign	A	curated
+Emergency call	緊急呼叫	s	sign	A	curated
+Emergency exit	緊急出口	s	sign	A	curated
+Emergency stop	緊急停止	s	sign	A	curated
+Employees only	員工專用	x	sign	A	curated
+Enable	啟用	x	ui	A	curated
+Enabled	已啟用	x	ui	A	curated
+Energy	熱量	q	nutrition	A	curated
+Entrance	入口	x	sign	A	curated
+Error	錯誤	x	error	A	curated
+Escalator	手扶梯	x	sign	A	curated
+Escalators	手扶梯	x	sign	A	curated
+Evacuation area	避難場所	s	sign	A	curated
+Evacuation route	避難路線	s	sign	A	curated
+Exit 1	1號出口	s	transit	A	curated:gen
+Exit 10	10號出口	s	transit	A	curated:gen
+Exit 11	11號出口	s	transit	A	curated:gen
+Exit 12	12號出口	s	transit	A	curated:gen
+Exit 13	13號出口	s	transit	A	curated:gen
+Exit 14	14號出口	s	transit	A	curated:gen
+Exit 15	15號出口	s	transit	A	curated:gen
+Exit 16	16號出口	s	transit	A	curated:gen
+Exit 17	17號出口	s	transit	A	curated:gen
+Exit 18	18號出口	s	transit	A	curated:gen
+Exit 19	19號出口	s	transit	A	curated:gen
+Exit 2	2號出口	s	transit	A	curated:gen
+Exit 20	20號出口	s	transit	A	curated:gen
+Exit 3	3號出口	s	transit	A	curated:gen
+Exit 4	4號出口	s	transit	A	curated:gen
+Exit 5	5號出口	s	transit	A	curated:gen
+Exit 6	6號出口	s	transit	A	curated:gen
+Exit 7	7號出口	s	transit	A	curated:gen
+Exit 8	8號出口	s	transit	A	curated:gen
+Exit 9	9號出口	s	transit	A	curated:gen
+Exit full screen	結束全螢幕	x	ui	A	curated
+Exp date	有效日期	x	label	A	curated
+Expiration date	有效日期	s	label	A	curated
+Expiry date	有效日期	s	label	A	curated
+Extra spicy	特辣	x	menu	A	curated
+Factory data reset	恢復原廠設定	s	ui	A	curated
+Factory reset	恢復原廠設定	s	ui	A	curated
+Failed to load	無法載入	x	error	A	curated
+Fare adjustment	補票處	x	transit	A	curated
+Fare adjustment machine	補票機	s	transit	A	curated
+Fare adjustment machines	補票機	s	transit	A	curated
+Fast forward	快轉	x	ui	A	curated
+Fasting schedule	斷食時段	x	ui	A	curated
+Fat	脂肪	q	nutrition	A	curated
+Favorites	我的最愛	x	ui	A	curated
+Favourites	我的最愛	x	ui	A	curated
+Feedback	意見回饋	x	ui	A	curated
+Fiber	膳食纖維	q	nutrition	A	curated
+Fibre	膳食纖維	q	nutrition	A	curated
+File	檔案	x	ui	A	curated
+File Explorer	檔案總管	s	ui	A	curated
+File not found	找不到檔案	x	error	A	curated
+Files	檔案	x	ui	A	curated
+Filter	篩選	x	ui	A	curated
+Find	尋找	x	ui	A	curated
+Find and replace	尋找及取代	x	ui	A	curated
+Finish	完成	x	ui	A	curated
+Fire alarm	火災警報器	s	sign	A	curated
+Fire exit	安全出口	s	sign	A	curated
+Fire extinguisher	滅火器	s	sign	A	curated
+Fire hydrant	消防栓	s	sign	A	curated
+First aid	急救	s	sign	A	curated
+First train	首班車	s	transit	A	curated
+Fitting room	試衣間	s	sign	A	curated
+Fitting rooms	試衣間	s	sign	A	curated
+Flashlight	手電筒	x	ui	A	curated
+Flight mode	飛航模式	s	ui	A	curated
+Folate	葉酸	q	nutrition	A	curated
+Folder	資料夾	x	ui	A	curated
+Folders	資料夾	x	ui	A	curated
+Folic acid	葉酸	s	nutrition	A	curated
+Font	字型	x	ui	A	curated
+Font size	字型大小	x	ui	A	curated
+For external use only	僅供外用	x	label	A	curated
+For here	內用	x	menu	A	curated
+For here or to go?	內用還是外帶？	x	menu	A	curated
+Force stop	強制停止	x	ui	A	curated
+Forgot password?	忘記密碼？	x	ui	A	curated
+Forgot your password?	忘記密碼了嗎？	x	ui	A	curated
+Format	格式	x	ui	A	curated
+Free admission	免費入場	x	sign	A	curated
+Free refill	免費續杯	x	menu	A	curated
+Free refills	免費續杯	x	menu	A	curated
+Free Wi-Fi	免費 Wi-Fi	x	sign	A	curated
+Free WiFi	免費 Wi-Fi	x	sign	A	curated
+Full screen	全螢幕	x	ui	A	curated
+Fullscreen	全螢幕	x	ui	A	curated
+General waste	一般垃圾	x	sign	A	curated
+Gentlemen	男士	x	sign	A	curated
+Get started	開始使用	x	ui	A	curated
+Gluten	麩質	x	allergen	A	curated
+Gluten free	無麩質	x	allergen	A	curated
+Gluten-free	無麩質	x	allergen	A	curated
+Got it	我知道了	x	ui	A	curated
+Grammar	文法	x	ui	A	curated
+Hand sanitizer	乾洗手	s	sign	A	curated
+Help	說明	x	ui	A	curated
+Hide	隱藏	x	ui	A	curated
+High voltage	高壓電	x	sign	A	curated
+Home	首頁	x	ui	A	curated
+Home page	首頁	x	ui	A	curated
+Home screen	主畫面	s	ui	A	curated
+Homepage	首頁	x	ui	A	curated
+Hotspot	熱點	x	ui	A	curated
+Hours of operation	營業時間	x	sign	A	curated
+How to use	使用方法	x	label	A	curated
+I agree	我同意	x	ui	A	curated
+Important	重要	x	sign	A	curated
+Important notice	重要公告	x	sign	A	curated
+In case of emergency	緊急時	x	sign	A	curated
+In case of fire	發生火災時	x	sign	A	curated
+Inbox	收件匣	x	ui	A	curated
+Incorrect password	密碼錯誤	x	error	A	curated
+Infants	嬰兒	x	sign	A	curated
+Insert	插入	x	ui	A	curated
+Install	安裝	x	ui	A	curated
+Install now	立即安裝	x	ui	A	curated
+Installation failed	安裝失敗	x	error	A	curated
+Installing	安裝中	x	ui	A	curated
+Insufficient storage	儲存空間不足	x	error	A	curated
+Internal server error	內部伺服器錯誤	x	error	A	curated
+Internet	網際網路	x	ui	A	curated
+Invalid email address	電子郵件地址無效	x	error	A	curated
+Invalid password	密碼無效	x	error	A	curated
+Invalid username or password	使用者名稱或密碼無效	x	error	A	curated
+Iron	鐵	q	nutrition	A	curated
+Italic	斜體	x	ui	A	curated
+Japanese style rice cracker	日式米果	x	label	A	curated:eval
+Kanji	漢字	x	ui	A	curated
+Keep clear	保持淨空	x	sign	A	curated
+Keep door closed	請隨手關門	x	sign	A	curated
+Keep frozen	請冷凍保存	x	label	A	curated
+Keep off the grass	請勿踐踏草皮	x	sign	A	curated
+Keep out of reach of children	請放置於兒童無法取得之處	x	label	A	curated
+Keep out of the reach of children	請放置於兒童無法取得之處	x	label	A	curated
+Keep refrigerated	請冷藏	x	label	A	curated
+Keyboard	鍵盤	x	ui	A	curated
+Kids menu	兒童菜單	x	menu	A	curated
+Kids' menu	兒童菜單	x	menu	A	curated
+Lactose	乳糖	x	allergen	A	curated
+Lactose-free	無乳糖	x	allergen	A	curated
+Ladies	女士	x	sign	A	curated
+Language	語言	x	ui	A	curated
+Last order	最後點餐	x	menu	A	curated
+Last orders	最後點餐	x	menu	A	curated
+Last train	末班車	s	transit	A	curated
+Learn more	瞭解詳情	x	ui	A	curated
+Lift	電梯	x	sign	A	curated
+Light mode	淺色模式	s	ui	A	curated
+Limited Express	特急	s	transit	A	curated
+Line 1 Platform	1號線月台	s	transit	A	curated:gen
+Line 2 Platform	2號線月台	s	transit	A	curated:gen
+Line 3 Platform	3號線月台	s	transit	A	curated:gen
+Line 4 Platform	4號線月台	s	transit	A	curated:gen
+Line 5 Platform	5號線月台	s	transit	A	curated:gen
+Line 6 Platform	6號線月台	s	transit	A	curated:gen
+Line 7 Platform	7號線月台	s	transit	A	curated:gen
+Line 8 Platform	8號線月台	s	transit	A	curated:gen
+Line 9 Platform	9號線月台	s	transit	A	curated:gen
+Loading	載入中	x	ui	A	curated
+Loading...	載入中…	x	ui	A	curated
+Location services	定位服務	s	ui	A	curated
+Lock	鎖定	x	ui	A	curated
+Lock screen	鎖定畫面	s	ui	A	curated
+Log in	登入	x	ui	A	curated
+Log out	登出	x	ui	A	curated
+Login	登入	x	ui	A	curated
+Logout	登出	x	ui	A	curated
+Lost & found	失物招領	s	sign	A	curated
+Lost and found	失物招領	s	sign	A	curated
+Lot number	批號	s	label	A	curated
+Low battery	電池電量不足	x	error	A	curated
+Lunch menu	午餐菜單	x	menu	A	curated
+Lunch set	午間套餐	x	menu	A	curated
+Lupin	羽扇豆	x	allergen	A	curated
+Made in Australia	澳洲製造	s	label	A	curated:gen
+Made in Canada	加拿大製造	s	label	A	curated:gen
+Made in China	中國製造	s	label	A	curated:gen
+Made in France	法國製造	s	label	A	curated:gen
+Made in Germany	德國製造	s	label	A	curated:gen
+Made in India	印度製造	s	label	A	curated:gen
+Made in Indonesia	印尼製造	s	label	A	curated:gen
+Made in Italy	義大利製造	s	label	A	curated:gen
+Made in Japan	日本製造	s	label	A	curated:gen
+Made in Korea	韓國製造	s	label	A	curated:gen
+Made in Malaysia	馬來西亞製造	s	label	A	curated:gen
+Made in Mexico	墨西哥製造	s	label	A	curated:gen
+Made in New Zealand	紐西蘭製造	s	label	A	curated:gen
+Made in South Korea	韓國製造	s	label	A	curated:gen
+Made in Spain	西班牙製造	s	label	A	curated:gen
+Made in Taiwan	台灣製造	s	label	A	curated:gen
+Made in Thailand	泰國製造	s	label	A	curated:gen
+Made in the Philippines	菲律賓製造	s	label	A	curated:gen
+Made in the U.S.A.	美國製造	s	label	A	curated:gen
+Made in the UK	英國製造	s	label	A	curated:gen
+Made in the USA	美國製造	s	label	A	curated:gen
+Made in USA	美國製造	s	label	A	curated:gen
+Made in Vietnam	越南製造	s	label	A	curated:gen
+Magnesium	鎂	q	nutrition	A	curated
+Main course	主菜	x	menu	A	curated
+Main dishes	主菜	x	menu	A	curated
+Main entrance	正門入口	x	sign	A	curated
+Mains	主餐	x	menu	A	curated
+Manufacturing date	製造日期	s	label	A	curated
+Maps	地圖	x	ui	A	curated
+Masks required	請配戴口罩	x	sign	A	curated
+May contain	可能含有	x	allergen	A	curated
+Men	男	x	sign	A	curated
+Men's room	男廁	x	sign	A	curated
+Menu	菜單	x	menu	A	curated
+Messages	訊息	x	ui	A	curated
+Microwave safe	可微波	x	label	A	curated
+Milk	牛奶	x	allergen	A	curated
+Mind the gap	小心月台間隙	x	sign	A	curated
+Mind your head	小心碰頭	x	sign	A	curated
+Mind your step	小心腳步	x	sign	A	curated
+Mobile data	行動數據	s	ui	A	curated
+Mobile hotspot	行動熱點	s	ui	A	curated
+Molluscs	軟體動物類	s	allergen	A	curated
+Mollusks	軟體動物類	s	allergen	A	curated
+Monounsaturated fat	單元不飽和脂肪	s	nutrition	A	curated
+More info	更多資訊	x	ui	A	curated
+Mouse	滑鼠	x	ui	A	curated
+Multipurpose toilet	多功能廁所	s	sign	A	curated
+Music	音樂	x	ui	A	curated
+Mustard	芥末	x	allergen	A	curated
+Mute	靜音	x	ui	A	curated
+My account	我的帳戶	x	ui	A	curated
+Net contents	內容量	s	label	A	curated
+Net weight	淨重	s	label	A	curated
+Network	網路	x	ui	A	curated
+Network error	網路錯誤	x	error	A	curated
+New folder	新增資料夾	x	ui	A	curated
+New tab	新分頁	x	ui	A	curated
+New window	新視窗	x	ui	A	curated
+Next stop	下一站	s	transit	A	curated
+Next train	下一班列車	s	transit	A	curated
+Niacin	菸鹼素	q	nutrition	A	curated
+No bicycles	禁止自行車進入	x	sign	A	curated
+No cell phones	禁止使用手機	x	sign	A	curated
+No climbing	禁止攀爬	x	sign	A	curated
+No connection	沒有連線	x	error	A	curated
+No credit cards	不收信用卡	x	menu	A	curated
+No cycling	禁止騎自行車	x	sign	A	curated
+No dogs	禁止攜帶狗	x	sign	A	curated
+No dogs allowed	禁止攜帶狗	x	sign	A	curated
+No eating or drinking	禁止飲食	x	sign	A	curated
+No entry for unauthorized persons	非相關人員禁止進入	x	sign	A	curated
+No file chosen	未選擇任何檔案	x	ui	A	curated
+No fishing	禁止釣魚	x	sign	A	curated
+No flash	禁止使用閃光燈	x	sign	A	curated
+No flash photography	禁止使用閃光燈攝影	x	sign	A	curated
+No food or drinks	禁止飲食	x	sign	A	curated
+No internet connection	沒有網際網路連線	x	error	A	curated
+No littering	禁止亂丟垃圾	x	sign	A	curated
+No mobile phones	禁止使用手機	x	sign	A	curated
+No pets allowed	禁止攜帶寵物	x	sign	A	curated
+No photography allowed	禁止攝影	x	sign	A	curated
+No photos allowed	禁止拍照	x	sign	A	curated
+No running	禁止奔跑	x	sign	A	curated
+No skateboarding	禁止玩滑板	x	sign	A	curated
+No smoking area	禁菸區	x	sign	A	curated
+No swimming	禁止游泳	x	sign	A	curated
+No unauthorized entry	未經許可禁止進入	x	sign	A	curated
+No vaping	禁止使用電子菸	x	sign	A	curated
+Non-burnable	不可燃垃圾	x	sign	A	curated
+Non-burnable garbage	不可燃垃圾	x	sign	A	curated
+Non-burnable waste	不可燃垃圾	x	sign	A	curated
+Non-reserved	自由座	x	transit	A	curated
+Non-reserved seats	自由座	x	transit	A	curated
+Non-smoking area	禁菸區	x	sign	A	curated
+Not enough storage	儲存空間不足	x	error	A	curated
+Not found	找不到	x	error	A	curated
+Not now	以後再說	x	ui	A	curated
+Not responding	沒有回應	x	error	A	curated
+Notification	通知	x	ui	A	curated
+Notification panel	通知面板	s	ui	A	curated
+Notifications	通知	x	ui	A	curated
+Numbering	編號	x	ui	A	curated
+Nursing room	哺乳室	s	sign	A	curated
+Nutrition Facts	營養標示	s	nutrition	A	curated
+Nutrition information	營養標示	s	nutrition	A	curated
+Nutritional information	營養標示	s	nutrition	A	curated
+Nuts	堅果	x	allergen	A	curated
+One way	單行道	x	sign	A	curated
+Oops! Something went wrong	糟糕！發生錯誤	x	error	A	curated
+Open 24 hours	24小時營業	x	sign	A	curated
+Open daily	每日營業	x	sign	A	curated
+Opening hours	營業時間	x	sign	A	curated
+Options	選項	x	ui	A	curated
+Order here	在此點餐	x	menu	A	curated
+Out of memory	記憶體不足	x	error	A	curated
+Out of order	故障	x	sign	A	curated
+Out of stock	缺貨	x	menu	A	curated
+Page layout	版面配置	x	ui	A	curated
+Page not found	找不到網頁	x	error	A	curated
+Page number	頁碼	x	ui	A	curated
+Pantothenic acid	泛酸	s	nutrition	A	curated
+Parking	停車場	x	sign	A	curated
+Parking lot	停車場	x	sign	A	curated
+Password	密碼	x	ui	A	curated
+Paste	貼上	x	ui	A	curated
+Pause	暫停	x	ui	A	curated
+Pay attention while walking	行走時請注意安全	x	sign	A	curated:eval
+Pay here	在此付款	x	sign	A	curated
+Peanut	花生	x	allergen	A	curated
+Peanuts	花生	x	allergen	A	curated
+Pedestrians	行人	x	sign	A	curated
+Per 100 g	每100公克	s	nutrition	A	curated
+Per 100 ml	每100毫升	s	nutrition	A	curated
+Per 100g	每100公克	s	nutrition	A	curated
+Per 100ml	每100毫升	s	nutrition	A	curated
+Per serving	每份	x	nutrition	A	curated
+Percent Daily Values	每日參考值百分比	s	nutrition	A	curated
+Permission denied	權限遭拒	x	error	A	curated
+Permissions	權限	x	ui	A	curated
+Personalization	個人化	x	ui	A	curated
+PET bottles	寶特瓶	x	sign	A	curated
+Phone number	電話號碼	s	ui	A	curated
+Phosphorus	磷	q	nutrition	A	curated
+Photos	相片	x	ui	A	curated
+Pick up here	取餐處	x	menu	A	curated
+Picture-in-picture	子母畫面	x	ui	A	curated
+Pictures	圖片	x	ui	A	curated
+Pitch accent	音高重音	x	ui	A	curated
+Platform 1	第1月台	s	transit	A	curated:gen
+Platform 10	第10月台	s	transit	A	curated:gen
+Platform 11	第11月台	s	transit	A	curated:gen
+Platform 12	第12月台	s	transit	A	curated:gen
+Platform 13	第13月台	s	transit	A	curated:gen
+Platform 14	第14月台	s	transit	A	curated:gen
+Platform 15	第15月台	s	transit	A	curated:gen
+Platform 16	第16月台	s	transit	A	curated:gen
+Platform 17	第17月台	s	transit	A	curated:gen
+Platform 18	第18月台	s	transit	A	curated:gen
+Platform 19	第19月台	s	transit	A	curated:gen
+Platform 2	第2月台	s	transit	A	curated:gen
+Platform 20	第20月台	s	transit	A	curated:gen
+Platform 3	第3月台	s	transit	A	curated:gen
+Platform 4	第4月台	s	transit	A	curated:gen
+Platform 5	第5月台	s	transit	A	curated:gen
+Platform 6	第6月台	s	transit	A	curated:gen
+Platform 7	第7月台	s	transit	A	curated:gen
+Platform 8	第8月台	s	transit	A	curated:gen
+Platform 9	第9月台	s	transit	A	curated:gen
+Play	播放	x	ui	A	curated
+Playback speed	播放速度	x	ui	A	curated
+Please close the door	請隨手關門	x	sign	A	curated
+Please do not disturb	請勿打擾	x	sign	A	curated
+Please do not feed the animals	請勿餵食動物	x	sign	A	curated
+Please do not touch	請勿觸摸	x	sign	A	curated
+Please seat yourself	請自行入座	x	menu	A	curated
+Please try again	請再試一次	x	error	A	curated
+Please try again later	請稍後再試	x	error	A	curated
+Please wait	請稍候	x	ui	A	curated
+Please wait to be seated	請稍候帶位	x	menu	A	curated
+Please wait...	請稍候…	x	ui	A	curated
+Please wear a mask	請配戴口罩	x	sign	A	curated
+Plus tax	另加稅	x	menu	A	curated
+Polyunsaturated fat	多元不飽和脂肪	s	nutrition	A	curated
+Popular	熱門	x	menu	A	curated
+Potassium	鉀	q	nutrition	A	curated
+Power off	關機	x	ui	A	curated
+Power saving mode	省電模式	s	ui	A	curated
+Preferences	偏好設定	x	ui	A	curated
+Premium quality	頂級品質	x	label	A	curated:eval
+Previous	上一個	x	ui	A	curated
+Prices include tax	價格含稅	x	menu	A	curated
+Print	列印	x	ui	A	curated
+Print preview	預覽列印	x	ui	A	curated
+Printer	印表機	x	ui	A	curated
+Printers	印表機	x	ui	A	curated
+Priority seat	博愛座	s	sign	A	curated
+Priority seating	博愛座	s	sign	A	curated
+Priority seats	博愛座	s	sign	A	curated
+Privacy	隱私權	x	ui	A	curated
+Privacy policy	隱私權政策	s	ui	A	curated
+Private property	私人土地	x	sign	A	curated
+Processing	處理中	x	ui	A	curated
+Product of Australia	澳洲產品	s	label	A	curated:gen
+Product of Canada	加拿大產品	s	label	A	curated:gen
+Product of China	中國產品	s	label	A	curated:gen
+Product of France	法國產品	s	label	A	curated:gen
+Product of Germany	德國產品	s	label	A	curated:gen
+Product of India	印度產品	s	label	A	curated:gen
+Product of Indonesia	印尼產品	s	label	A	curated:gen
+Product of Italy	義大利產品	s	label	A	curated:gen
+Product of Japan	日本產品	s	label	A	curated:gen
+Product of Korea	韓國產品	s	label	A	curated:gen
+Product of Malaysia	馬來西亞產品	s	label	A	curated:gen
+Product of Mexico	墨西哥產品	s	label	A	curated:gen
+Product of New Zealand	紐西蘭產品	s	label	A	curated:gen
+Product of South Korea	韓國產品	s	label	A	curated:gen
+Product of Spain	西班牙產品	s	label	A	curated:gen
+Product of Taiwan	台灣產品	s	label	A	curated:gen
+Product of Thailand	泰國產品	s	label	A	curated:gen
+Product of the Philippines	菲律賓產品	s	label	A	curated:gen
+Product of the U.S.A.	美國產品	s	label	A	curated:gen
+Product of the UK	英國產品	s	label	A	curated:gen
+Product of the USA	美國產品	s	label	A	curated:gen
+Product of USA	美國產品	s	label	A	curated:gen
+Product of Vietnam	越南產品	s	label	A	curated:gen
+Production date	製造日期	s	label	A	curated
+Profile	個人資料	x	ui	A	curated
+Protein	蛋白質	q	nutrition	A	curated
+Question bank	題庫	x	ui	A	curated
+Quick settings	快速設定	s	ui	A	curated
+Quit	結束	x	ui	A	curated
+Quiz	測驗	x	ui	A	curated
+Rapid	快速	x	transit	A	curated:eval
+Reading	閱讀	x	ui	A	curated
+Reboot	重新開機	x	ui	A	curated
+Recent	最近使用	x	ui	A	curated
+Recommend	推薦	x	menu	A	curated:eval
+Recommended	推薦	x	menu	A	curated
+Recycle Bin	資源回收筒	s	ui	A	curated
+Recycling	資源回收	x	sign	A	curated
+Redo	重做	x	ui	A	curated
+Refresh	重新整理	x	ui	A	curated
+Refrigerate after opening	開封後請冷藏	x	label	A	curated
+Reload	重新載入	x	ui	A	curated
+Remember me	記住我	x	ui	A	curated
+Remind me later	稍後提醒我	x	ui	A	curated
+Remove	移除	x	ui	A	curated
+Rename	重新命名	x	ui	A	curated
+Replace	取代	x	ui	A	curated
+Replace all	全部取代	x	ui	A	curated
+Reply	回覆	x	ui	A	curated
+Reply all	全部回覆	x	ui	A	curated
+Report a problem	回報問題	x	ui	A	curated
+Request timed out	要求逾時	x	error	A	curated
+Required	必填	x	error	A	curated
+Required field	必填欄位	x	error	A	curated
+Reservation required	需預約	x	menu	A	curated
+Reservations required	需預約	x	menu	A	curated
+Reserved seats	對號座	x	transit	A	curated
+Reset	重設	x	ui	A	curated
+Restart	重新啟動	x	ui	A	curated
+Restart later	稍後重新啟動	x	ui	A	curated
+Restart now	立即重新啟動	x	ui	A	curated
+Restore	還原	x	ui	A	curated
+Restricted area	管制區	x	sign	A	curated
+Restroom	洗手間	x	sign	A	curated
+Restrooms	洗手間	x	sign	A	curated
+Resume	繼續	x	ui	A	curated
+Retry	重試	x	ui	A	curated
+Rewind	倒轉	x	ui	A	curated
+Riboflavin	維生素B2	q	nutrition	A	curated
+Road closed	道路封閉	x	sign	A	curated
+Salads	沙拉	x	menu	A	curated
+Sales and solicitation prohibited	禁止販售及招攬	x	sign	A	curated:eval
+Salt	鹽	q	nutrition	A	curated
+Saturated fat	飽和脂肪	s	nutrition	A	curated
+Saturates	飽和脂肪	q	nutrition	A	curated
+Save	儲存	x	ui	A	curated
+Save as	另存新檔	x	ui	A	curated
+Save changes	儲存變更	x	ui	A	curated
+Saved	已儲存	x	ui	A	curated
+Screen mirroring	螢幕鏡像	s	ui	A	curated
+Screen recording	螢幕錄影	x	ui	A	curated
+Screen time	螢幕使用時間	s	ui	A	curated
+Screen timeout	螢幕逾時	s	ui	A	curated
+Screenshot	螢幕截圖	x	ui	A	curated
+Search	搜尋	x	ui	A	curated
+Security cameras in use	監視器錄影中	x	sign	A	curated
+Security check	安全檢查	s	transit	A	curated
+See all	查看全部	x	ui	A	curated
+Select	選取	x	ui	A	curated
+Select all	全選	x	ui	A	curated
+Self checkout	自助結帳	x	sign	A	curated
+Self-checkout	自助結帳	x	sign	A	curated
+Send	傳送	x	ui	A	curated
+Send feedback	傳送意見回饋	x	ui	A	curated
+Seniors	長者	x	sign	A	curated
+Sent	已傳送	x	ui	A	curated
+Server error	伺服器錯誤	x	error	A	curated
+Service charge	服務費	s	menu	A	curated
+Serving size	每份份量	s	nutrition	A	curated
+Servings per container	每包裝份數	s	nutrition	A	curated
+Sesame	芝麻	x	allergen	A	curated
+Sesame seeds	芝麻	s	allergen	A	curated
+Session expired	工作階段已過期	x	error	A	curated
+Set meal	套餐	x	menu	A	curated
+Set menu	套餐	x	menu	A	curated
+Setting	設定	x	ui	A	curated
+Settings	設定	x	ui	A	curated
+Shake well before use	使用前請搖勻	x	label	A	curated
+Share	分享	x	ui	A	curated
+Shellfish	甲殼類及貝類	x	allergen	A	curated
+Shouting	大聲喊叫	x	sign	A	curated:eval
+Show	顯示	x	ui	A	curated
+Show less	顯示較少	x	ui	A	curated
+Show more	顯示更多	x	ui	A	curated
+Shuffle	隨機播放	x	ui	A	curated
+Shut down	關機	x	ui	A	curated
+Shutdown	關機	x	ui	A	curated
+Side dishes	配菜	x	menu	A	curated
+Sidebar	側邊欄	x	ui	A	curated
+Sign in	登入	x	ui	A	curated
+Sign out	登出	x	ui	A	curated
+Sign up	註冊	x	ui	A	curated
+Sit-ins	靜坐	x	sign	A	curated:eval
+Skip	略過	x	ui	A	curated
+Sleep	睡眠	x	ui	A	curated
+Sleep time	睡眠時間	x	ui	A	curated
+Slippery floor	小心地滑	x	sign	A	curated
+Slippery when wet	地面濕滑請小心	x	sign	A	curated
+Slow	慢	x	sign	A	curated
+Smoking area	吸菸區	x	sign	A	curated
+Smoking is not permitted	禁止吸菸	x	sign	A	curated
+Smoking is prohibited	禁止吸菸	x	sign	A	curated
+Smoking prohibited	禁止吸菸	x	sign	A	curated
+Smoking room	吸菸室	x	sign	A	curated
+Sodium	鈉	q	nutrition	A	curated
+Soft drinks	無酒精飲料	x	menu	A	curated
+Software update	軟體更新	s	ui	A	curated
+Sold out	售完	x	menu	A	curated
+Something went wrong	發生錯誤	x	error	A	curated
+Sorry we're closed	抱歉，休息中	x	sign	A	curated
+Sorry, we are closed	抱歉，休息中	x	sign	A	curated
+Sorry, we're closed	抱歉，休息中	x	sign	A	curated
+Sort by	排序方式	x	ui	A	curated
+Sound	音效	x	ui	A	curated
+Soups	湯品	x	menu	A	curated
+Soy	大豆	x	allergen	A	curated
+Soya	大豆	x	allergen	A	curated
+Soybeans	大豆	s	allergen	A	curated
+Spam	垃圾郵件	x	ui	A	curated
+Speaking	會話	x	ui	A	curated
+Special character	特殊字元	s	ui	A	curated
+Special characters	特殊字元	s	ui	A	curated
+Speed limit	速限	x	sign	A	curated
+Spicy	辣	x	menu	A	curated
+Staff only beyond this point	非工作人員請勿進入	x	sign	A	curated
+Stairs	樓梯	x	sign	A	curated
+Start	開始	x	ui	A	curated
+Start menu	開始功能表	s	ui	A	curated
+Starters	前菜	x	menu	A	curated
+Status bar	狀態列	x	ui	A	curated
+Stop code	停止代碼	s	error	A	curated
+Storage full	儲存空間已滿	x	error	A	curated
+Storage instructions	保存方式	s	label	A	curated
+Storage is full	儲存空間已滿	x	error	A	curated
+Store in a cool dry place	請存放於陰涼乾燥處	x	label	A	curated
+Store in a cool, dry place	請存放於陰涼乾燥處	x	label	A	curated
+Strikethrough	刪除線	x	ui	A	curated
+Students	學生	x	sign	A	curated
+Subject	主旨	x	ui	A	curated
+Submit	送出	x	ui	A	curated
+Subscribe	訂閱	x	ui	A	curated
+Subtitles	字幕	x	ui	A	curated
+Sugars	糖	q	nutrition	A	curated
+Sulfites	亞硫酸鹽	s	allergen	A	curated
+Sulfur dioxide	二氧化硫	s	allergen	A	curated
+Sulphites	亞硫酸鹽	s	allergen	A	curated
+Sulphur dioxide	二氧化硫	s	allergen	A	curated
+Switch user	切換使用者	x	ui	A	curated
+System update	系統更新	s	ui	A	curated
+Take away	外帶	x	menu	A	curated
+Take out	外帶	x	menu	A	curated
+Takeaway	外帶	x	menu	A	curated
+Takeout	外帶	x	menu	A	curated
+Task Manager	工作管理員	s	ui	A	curated
+Taskbar	工作列	x	ui	A	curated
+Tax included	含稅	x	menu	A	curated
+Tax not included	未稅	x	menu	A	curated
+Taxi	計程車	x	transit	A	curated
+Taxi stand	計程車招呼站	s	transit	A	curated
+Temporarily closed	暫停營業	x	sign	A	curated
+Terminal 1	第1航廈	x	transit	A	curated:gen
+Terminal 2	第2航廈	x	transit	A	curated:gen
+Terminal 3	第3航廈	x	transit	A	curated:gen
+Terminal 4	第4航廈	x	transit	A	curated:gen
+Terminal 5	第5航廈	x	transit	A	curated:gen
+Terms and conditions	條款及細則	s	ui	A	curated
+Terms of service	服務條款	s	ui	A	curated
+Terms of use	使用條款	s	ui	A	curated
+Thank you	謝謝	x	sign	A	curated
+Thank you for your cooperation	感謝您的配合	x	sign	A	curated
+Thank you for your understanding	感謝您的諒解	x	sign	A	curated
+Theme	主題	x	ui	A	curated
+Thiamin	維生素B1	q	nutrition	A	curated
+Thiamine	維生素B1	q	nutrition	A	curated
+This field is required	此欄位為必填	x	error	A	curated
+Ticket gate	剪票口	s	transit	A	curated
+Ticket gates	剪票口	s	transit	A	curated
+Ticket machine	售票機	s	sign	A	curated
+Ticket machines	售票機	s	sign	A	curated
+Ticket office	售票處	s	sign	A	curated
+Timetable	時刻表	x	transit	A	curated
+To Line 1	往1號線	x	transit	A	curated:gen
+To Line 2	往2號線	x	transit	A	curated:gen
+To Line 3	往3號線	x	transit	A	curated:gen
+To Line 4	往4號線	x	transit	A	curated:gen
+To Line 5	往5號線	x	transit	A	curated:gen
+To Line 6	往6號線	x	transit	A	curated:gen
+To Line 7	往7號線	x	transit	A	curated:gen
+To Line 8	往8號線	x	transit	A	curated:gen
+To Line 9	往9號線	x	transit	A	curated:gen
+To platforms	往月台	x	transit	A	curated
+To trains	往月台	x	transit	A	curated
+Today's special	今日特餐	x	menu	A	curated
+Today's specials	今日特餐	x	menu	A	curated
+Toilet	廁所	x	sign	A	curated
+Toilets	廁所	x	sign	A	curated
+Toolbar	工具列	x	ui	A	curated
+Tools	工具	x	ui	A	curated
+Top	TOP	x	ui	A	curated
+Total carbohydrate	總碳水化合物	q	nutrition	A	curated
+Total carbohydrates	總碳水化合物	q	nutrition	A	curated
+Total fat	總脂肪	q	nutrition	A	curated
+Total sugars	總糖	q	nutrition	A	curated
+Trans fat	反式脂肪	s	nutrition	A	curated
+Transfer gate	轉乘剪票口	s	transit	A	curated
+Transfer passage	轉乘通道	s	transit	A	curated
+Transfer station	轉乘站	s	transit	A	curated
+Transfer to Line 1	轉乘1號線	s	transit	A	curated:gen
+Transfer to Line 2	轉乘2號線	s	transit	A	curated:gen
+Transfer to Line 3	轉乘3號線	s	transit	A	curated:gen
+Transfer to Line 4	轉乘4號線	s	transit	A	curated:gen
+Transfer to Line 5	轉乘5號線	s	transit	A	curated:gen
+Transfer to Line 6	轉乘6號線	s	transit	A	curated:gen
+Transfer to Line 7	轉乘7號線	s	transit	A	curated:gen
+Transfer to Line 8	轉乘8號線	s	transit	A	curated:gen
+Transfer to Line 9	轉乘9號線	s	transit	A	curated:gen
+Trash	垃圾桶	x	ui	A	curated
+Tree nuts	堅果	s	allergen	A	curated
+Try again	再試一次	x	ui	A	curated
+Try again later	請稍後再試	x	error	A	curated
+Tsunami evacuation area	海嘯避難場所	s	sign	A	curated
+Turn off	關閉	x	ui	A	curated
+Turn on	開啟	x	ui	A	curated
+Unable to connect	無法連線	x	error	A	curated
+Unable to connect to the server	無法連線到伺服器	x	error	A	curated
+Unauthorized persons not allowed	非相關人員禁止進入	x	sign	A	curated
+Under construction	施工中	x	sign	A	curated
+Under maintenance	維修中	x	sign	A	curated
+Underline	底線	x	ui	A	curated
+Undo	復原	x	ui	A	curated
+Uninstall	解除安裝	x	ui	A	curated
+Unknown error	未知的錯誤	x	error	A	curated
+Unmute	取消靜音	x	ui	A	curated
+Unsaved changes	未儲存的變更	x	ui	A	curated
+Unsubscribe	取消訂閱	x	ui	A	curated
+Unsupported file format	不支援的檔案格式	x	error	A	curated
+Untitled	未命名	x	ui	A	curated
+Update	更新	x	ui	A	curated
+Update available	有可用的更新	x	ui	A	curated
+Update failed	更新失敗	x	error	A	curated
+Update now	立即更新	x	ui	A	curated
+Updating	更新中	x	ui	A	curated
+Upload	上傳	x	ui	A	curated
+Upload failed	上傳失敗	x	error	A	curated
+Upload file	上傳檔案	x	ui	A	curated
+Uploading	上傳中	x	ui	A	curated
+USB debugging	USB 偵錯	s	ui	A	curated
+Use by	有效日期	x	label	A	curated
+User name	使用者名稱	x	ui	A	curated
+Username	使用者名稱	x	ui	A	curated
+Vegan	純素	x	menu	A	curated
+Vegetarian	素食	x	menu	A	curated
+Verification code	驗證碼	s	ui	A	curated
+Videos	影片	x	ui	A	curated
+View	檢視	x	ui	A	curated
+View all	查看全部	x	ui	A	curated
+Vitamin A	維生素A	s	nutrition	A	curated
+Vitamin B1	維生素B1	s	nutrition	A	curated
+Vitamin B12	維生素B12	s	nutrition	A	curated
+Vitamin B2	維生素B2	s	nutrition	A	curated
+Vitamin B6	維生素B6	s	nutrition	A	curated
+Vitamin C	維生素C	s	nutrition	A	curated
+Vitamin D	維生素D	s	nutrition	A	curated
+Vitamin E	維生素E	s	nutrition	A	curated
+Vitamin K	維生素K	s	nutrition	A	curated
+Vocabulary	詞彙	x	ui	A	curated
+Volume	音量	x	ui	A	curated
+Wake up time	起床時間	x	ui	A	curated
+Wallpaper	桌布	x	ui	A	curated
+Watch your head	小心碰頭	x	sign	A	curated
+Watch your step	小心腳步	x	sign	A	curated
+Way in	入口	x	sign	A	curated
+Way out	出口	x	sign	A	curated
+We are open	營業中	x	sign	A	curated
+We're open	營業中	x	sign	A	curated
+Weather	天氣	x	ui	A	curated
+Welcome	歡迎	x	sign	A	curated
+Wheat	小麥	x	allergen	A	curated
+Wheelchair accessible	無障礙	x	sign	A	curated
+Window	視窗	x	ui	A	curated
+Wireless	無線	x	ui	A	curated
+Women	女	x	sign	A	curated
+Women only	女性專用	x	sign	A	curated
+Women's room	女廁	x	sign	A	curated
+Women-only car	女性專用車廂	s	transit	A	curated
+Word count	字數統計	x	ui	A	curated
+Wrong password	密碼錯誤	x	error	A	curated
+Wrong way	逆向	x	sign	A	curated
+You are offline	你目前離線	x	error	A	curated
+You're offline	你目前離線	x	error	A	curated
+Your BMI	你的 BMI	x	ui	A	curated
+Your session has expired	你的工作階段已過期	x	error	A	curated
+Zinc	鋅	q	nutrition	A	curated
+Zoom in	放大	x	ui	A	curated
+Zoom out	縮小	x	ui	A	curated
+Ajillo	西班牙蒜味橄欖油煮	s	dish	A	curated:eval
+Apple juice	蘋果汁	s	drink	A	curated
+Beer	啤酒	x	drink	A	curated:eval
+Black tea	紅茶	s	drink	A	curated
+Bolognese	波隆那肉醬	s	dish	A	curated:eval
+Brochette	串燒	s	dish	A	curated:eval
+Bubble tea	珍珠奶茶	s	drink	A	curated
+Carbonara	培根蛋汁	s	dish	A	curated
+Cream croquette	奶油可樂餅	s	dish	A	curated:eval
+Croquette	可樂餅	s	dish	A	curated:eval
+Croquettes	可樂餅	s	dish	A	curated:eval
+Draft beer	生啤酒	s	drink	A	curated
+Draught beer	生啤酒	s	drink	A	curated
+Firefly squid	螢火魷	s	dish	A	curated:eval
+Fish & chips	炸魚薯條	s	dish	A	curated:eval
+Fish and chips	炸魚薯條	s	dish	A	curated
+French fries	薯條	x	dish	A	curated
+Fried chicken	炸雞	s	dish	A	curated
+Fried rice	炒飯	s	dish	A	curated
+Genovese	青醬	s	dish	A	curated:eval
+Green tea	綠茶	s	drink	A	curated
+Hash browns	薯餅	s	dish	A	curated
+Hot coffee	熱咖啡	s	drink	A	curated
+House wine	招牌葡萄酒	s	drink	A	curated
+Iced coffee	冰咖啡	s	drink	A	curated
+Iced tea	冰紅茶	s	drink	A	curated
+Milk tea	奶茶	s	drink	A	curated
+Mineral water	礦泉水	s	drink	A	curated
+Orange juice	柳橙汁	s	drink	A	curated
+Paella	西班牙海鮮燉飯	s	dish	A	curated:eval
+Red wine	紅酒	s	drink	A	curated
+Sandwich	三明治	x	dish	A	curated:eval
+Soda pop	汽水	s	drink	A	curated:eval
+Soda pops	汽水	s	drink	A	curated:eval
+Sparkling water	氣泡水	s	drink	A	curated
+Squid tentacles	魷魚腳	s	dish	A	curated:eval
+White leek	白蔥	s	dish	A	curated:eval
+White wine	白酒	s	drink	A	curated
+Action	動作	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Actions	動作	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Advanced	進階	x	ui	A	l10n:gnome+kde+lo+moz:7/8
+All	全部	x	ui	A	l10n:gnome+kde+lo+moz:13/13
+All files	所有檔案	x	ui	A	l10n:gnome+kde+lo:19/19
+Author	作者	x	ui	A	l10n:gnome+kde+lo+moz:11/11
+Automatic	自動	x	ui	A	l10n:gnome+kde+lo:11/11
+Back	返回	x	ui	A	l10n:gnome+kde+lo:15/18
+Background	背景	x	ui	A	l10n:gnome+kde+lo+moz:11/11
+Blue	藍色	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Browse	瀏覽	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Choose	選擇	x	ui	A	l10n:kde+lo+moz:8/8
+Close Document	關閉文件	x	ui	A	l10n:gnome+kde+lo:8/8
+Close Other Tabs	關閉其他分頁	x	ui	A	l10n:gnome+kde+moz:6/6
+Close Window	關閉視窗	x	ui	A	l10n:gnome+kde+moz:12/12
+Copy to Clipboard	複製到剪貼簿	x	ui	A	l10n:gnome+kde+lo+moz:12/12
+Custom	自訂	x	ui	A	l10n:gnome+kde+lo+moz:18/18
+Device	裝置	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Document	文件	x	ui	A	l10n:gnome+kde+lo:6/6
+Domain	網域	x	ui	A	l10n:gnome+kde+lo+moz:7/7
+Done	完成	x	ui	A	l10n:gnome+kde+moz:13/13
+Email	電子郵件	x	ui	A	l10n:gnome+kde+lo:6/7
+Encoding	編碼	x	ui	A	l10n:gnome+kde+lo:8/8
+Export	匯出	x	ui	A	l10n:gnome+kde+lo+moz:13/13
+File name	檔案名稱	x	ui	A	l10n:gnome+kde+lo+moz:7/7
+File System	檔案系統	x	ui	A	l10n:gnome+kde+lo:6/6
+First Page	第一頁	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Fonts	字型	x	ui	A	l10n:gnome+kde+lo+moz:11/11
+Green	綠色	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Group	群組	x	ui	A	l10n:gnome+kde+lo:8/9
+Height	高度	x	ui	A	l10n:gnome+kde+lo+moz:11/11
+Hidden	隱藏	x	ui	A	l10n:gnome+kde+lo:6/6
+Horizontal	水平	x	ui	A	l10n:gnome+kde+lo:8/8
+Icon	圖示	x	ui	A	l10n:gnome+kde+lo+moz:10/10
+Icon Size	圖示大小	x	ui	A	l10n:gnome+kde+lo:6/6
+Ignore	忽略	x	ui	A	l10n:gnome+kde+lo:10/11
+Import	匯入	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Input	輸入	x	ui	A	l10n:gnome+kde+lo+moz:6/7
+Installed	已安裝	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Just now	剛剛	x	ui	A	l10n:gnome+kde+moz:5/6
+Keywords	關鍵字	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Label	標籤	x	ui	A	l10n:gnome+kde+lo:6/7
+Languages	語言	x	ui	A	l10n:gnome+kde+moz:6/6
+Large	大	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Last Page	最後一頁	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Link	連結	x	ui	A	l10n:gnome+kde+lo:9/9
+Month	月	x	ui	A	l10n:gnome+lo+moz:6/6
+More	更多	x	ui	A	l10n:gnome+kde+lo+moz:11/12
+More Options	更多選項	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Move	移動	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Move Down	下移	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Move Up	上移	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Name	名稱	x	ui	A	l10n:gnome+kde+lo+moz:32/32
+Never	永不	x	ui	A	l10n:gnome+kde+lo:14/15
+Next month	下個月	x	ui	A	l10n:gnome+kde+lo+moz:7/7
+Next Page	下一頁	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+No	否	x	ui	A	l10n:gnome+kde+lo+moz:11/13
+None	無	x	ui	A	l10n:gnome+kde+lo+moz:24/29
+OK	確定	x	ui	A	l10n:gnome+kde+lo+moz:11/11
+Open File	開啟檔案	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Open Menu	開啟選單	x	ui	A	l10n:gnome+kde+moz:10/10
+Organization	組織	x	ui	A	l10n:gnome+kde+lo+moz:6/7
+Orientation	方向	x	ui	A	l10n:gnome+kde+lo+moz:10/10
+Other	其他	x	ui	A	l10n:gnome+kde+lo+moz:17/17
+Output	輸出	x	ui	A	l10n:gnome+kde+lo:6/6
+Owner	擁有者	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Paragraph	段落	x	ui	A	l10n:gnome+kde+lo:7/7
+Path	路徑	x	ui	A	l10n:gnome+kde+lo:8/8
+Plain Text	純文字	x	ui	A	l10n:gnome+kde+lo:6/6
+Position	位置	x	ui	A	l10n:gnome+kde+lo+moz:9/9
+Preview	預覽	x	ui	A	l10n:gnome+kde+lo+moz:15/15
+Previous month	上個月	x	ui	A	l10n:gnome+kde+moz:6/6
+Program	程式	x	ui	A	l10n:gnome+kde+lo:5/6
+Red	紅色	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Search Results	搜尋結果	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Show Sidebar	顯示側邊欄	x	ui	A	l10n:gnome+kde+moz:6/6
+Size	大小	x	ui	A	l10n:gnome+kde+lo+moz:20/20
+Small	小	x	ui	A	l10n:gnome+kde+lo+moz:8/8
+Sort	排序	x	ui	A	l10n:gnome+kde+lo+moz:6/7
+Source	來源	x	ui	A	l10n:gnome+kde+lo:8/8
+Speed	速度	x	ui	A	l10n:gnome+kde+moz:6/6
+Status	狀態	x	ui	A	l10n:gnome+kde+lo+moz:7/7
+Symbols	符號	x	ui	A	l10n:gnome+kde+lo:6/6
+System	系統	x	ui	A	l10n:gnome+kde+lo+moz:9/9
+Text	文字	x	ui	A	l10n:gnome+kde+lo+moz:9/10
+Time	時間	x	ui	A	l10n:gnome+kde+lo+moz:7/9
+Time zone	時區	x	ui	A	l10n:gnome+kde+moz:6/6
+User	使用者	x	ui	A	l10n:gnome+kde+lo:7/7
+Version	版本	x	ui	A	l10n:gnome+kde+lo+moz:12/12
+Vertical	垂直	x	ui	A	l10n:gnome+kde+lo:8/8
+Warning	警告	x	ui	A	l10n:gnome+kde+lo+moz:10/10
+Website	網站	x	ui	A	l10n:gnome+kde+lo+moz:9/9
+Width	寬度	x	ui	A	l10n:gnome+kde+lo+moz:12/12
+Yellow	黃色	x	ui	A	l10n:gnome+kde+lo+moz:6/6
+Yes	是	x	ui	A	l10n:gnome+kde+lo+moz:13/15
+absinthe	苦艾酒	x	drink	A	wikidata:Q170210:zh-tw
+ale	艾爾啤酒	x	drink	A	wikidata:Q208385:zh-tw
+ame	糖膠	x	dish	A	wikidata:Q17238884:zh-tw
+American pale ale	美式淡艾爾	s	drink	A	wikidata:Q15940735:zh-tw
+Angel's kiss	天使之吻	s	drink	A	wikidata:Q122937245:zh-tw
+apple cheese	蘋果起司	s	dish	A	wikidata:Q9335353:zh-tw
+apple pie	蘋果派	s	dish	A	wikidata:Q1068034:zh-tw
+Apple Sidra	蘋果西打	s	drink	A	wikidata:Q24699992:zh-tw
+ayahuasca	死藤水	x	drink	A	wikidata:Q380436:zh-tw
+baekkimchi	白辛奇	x	dish	A	wikidata:Q1073156:zh-tw
+bagel	貝果	x	dish	A	wikidata:Q272502:zh-tw
+baguette	法式長棍麵包	x	dish	A	wikidata:Q208172:zh-tw
+bai ye tofu	百頁豆腐	s	dish	A	wikidata:Q134395384:zh-tw
+Baileys Irish Cream	貝禮詩奶酒	s	drink	A	wikidata:Q285480:zh-tw
+baklava	果仁蜜餅	x	dish	A	wikidata:Q187495:zh-tw
+banana split	香蕉船	s	dish	A	wikidata:Q245752:zh-tw
+Baozhong	文山包種茶	x	drink	A	wikidata:Q2106693:zh-tw
+Barrel chicken	桶仔雞	s	dish	A	wikidata:Q109587599:zh-tw
+bean vermicelli	綠豆冬粉	s	dish	A	wikidata:Q104251400:zh-tw
+Beef Wellington	威靈頓牛柳	s	dish	A	wikidata:Q1412680:zh-tw
+bibimbap	韓式拌飯	x	dish	A	wikidata:Q648352:zh-tw
+Big Mac	大麥克漢堡	s	dish	A	wikidata:Q506796:zh-tw
+biryani	印度香飯	x	dish	A	wikidata:Q271555:zh-tw
+Bonaqua	怡漾	x	drink	A	wikidata:Q14462719:zh-tw
+brandy	白蘭地	x	drink	A	wikidata:Q146470:zh-tw
+bread	麵包	x	dish	A	wikidata:Q7802:zh-tw
+brown rice green tea	糙米綠茶	s	drink	A	wikidata:Q28838591:zh-tw
+brown rice tea	糙米茶	s	drink	A	wikidata:Q1074092:zh-tw
+Bubur cha cha	摩摩喳喳	s	dish	A	wikidata:Q30587715:zh-tw
+burrito	墨西哥捲餅	x	dish	A	wikidata:Q390823:zh-tw
+butter tea	酥油茶	s	drink	A	wikidata:Q989930:zh-tw
+buttermilk	酪漿	x	drink	A	wikidata:Q106612:zh-tw
+butterscotch	焦糖奶油	x	dish	A	wikidata:Q2009326:zh-tw
+Caesar salad	凱撒沙拉	s	dish	A	wikidata:Q275508:zh-tw
+cake	蛋糕	x	dish	A	wikidata:Q13276:zh-tw
+candy	糖果	x	dish	A	wikidata:Q185583:zh-tw
+cannoli	乳清乳酪卷	x	dish	A	wikidata:Q836151:zh-tw
+cappuccino	卡布奇諾	x	drink	A	wikidata:Q159774:zh-tw
+caramel	焦糖	x	dish	A	wikidata:Q183440:zh-tw
+carbonated water	蘇打水	s	drink	A	wikidata:Q264554:zh-tw
+carrot	胡蘿蔔	x	dish	A	wikidata:Q81:zh-tw
+caviar	魚子醬	x	dish	A	wikidata:Q186385:zh-tw
+century egg	皮蛋	s	dish	A	wikidata:Q622547:zh-tw
+cha siu bao	叉燒包	s	dish	A	wikidata:Q1207732:zh-tw
+champagne	香檳酒	x	drink	A	wikidata:Q134862:zh-tw
+Chanakhi	查納基	x	dish	A	wikidata:Q2378108:zh-tw
+cheese sandwich	起司三明治	s	dish	A	wikidata:Q2734068:zh-tw
+cheesecake	乳酪蛋糕	x	dish	A	wikidata:Q215348:zh-tw
+chewing gum	口香糖	s	dish	A	wikidata:Q130878:zh-tw
+Chhoah-peng	刨冰	x	dish	A	wikidata:Q4857446:zh-tw
+Chicken and chips	雞肉配薯條	s	dish	A	wikidata:Q5096283:zh-tw
+Chicken McNuggets	麥克雞塊	s	dish	A	wikidata:Q135888:zh-tw
+chicken stock powder	雞粉	s	dish	A	wikidata:Q104150541:zh-tw
+chiffon cake	戚風蛋糕	s	dish	A	wikidata:Q1373466:zh-tw
+Chikuwa	竹輪	x	dish	A	wikidata:Q771456:zh-tw
+Chinese steamed eggs	蒸蛋	s	dish	A	wikidata:Q5100943:zh-tw
+chocolate	巧克力	x	dish	A	wikidata:Q195:zh-tw
+chocolate ice cream	巧克力冰淇淋	s	dish	A	wikidata:Q3013199:zh-tw
+chonggak-kimchi	總角辛奇	x	dish	A	wikidata:Q97656573:zh-tw
+churro	吉拿棒	x	dish	A	wikidata:Q727605:zh-tw
+cinavu	吉拿富	x	dish	A	wikidata:Q137270645:zh-tw
+cinnamon roll	肉桂捲	s	dish	A	wikidata:Q254979:zh-tw
+Cioppino	義式燉海鮮湯	x	dish	A	wikidata:Q3104721:zh-tw
+Coca-Cola	可口可樂	x	drink	A	wikidata:Q2813:zh-tw
+cocktail	雞尾酒	x	drink	A	wikidata:Q134768:zh-tw
+coconut jam	咖央醬	s	dish	A	wikidata:Q94835:zh-tw
+coffee	咖啡	x	drink	A	wikidata:Q8486:zh-tw
+cola	可樂	x	drink	A	wikidata:Q134041:zh-tw
+colostrum	牛初乳	x	drink	A	wikidata:Q192746:zh-tw
+confectionery	菓子	x	dish	A	wikidata:Q5159627:zh-tw
+congee	粥	x	dish	A	wikidata:Q878624:zh-tw
+cooked rice	米飯	s	dish	A	wikidata:Q523224:zh-tw
+corn dog	炸熱狗	s	dish	A	wikidata:Q1133127:zh-tw
+corn tea	玉米茶	s	drink	A	wikidata:Q1195324:zh-tw
+croissant	牛角麵包	x	dish	A	wikidata:Q207832:zh-tw
+croque-madame	法式吐司	x	dish	A	wikidata:Q746:zh-tw
+curry	咖哩	x	dish	A	wikidata:Q164606:zh-tw
+Curry fishball	咖哩魚蛋	s	dish	A	wikidata:Q20847867:zh-tw
+Cuttlefish geng	花枝羹	s	dish	A	wikidata:Q10500003:zh-tw
+dangmyeon	地瓜冬粉	x	dish	A	wikidata:Q104252174:zh-tw
+Diet Coke	健怡可口可樂	s	drink	A	wikidata:Q1815345:zh-tw
+dim sum	點心	s	dish	A	wikidata:Q339836:zh-tw
+donburi	丼飯	x	dish	A	wikidata:Q1061842:zh-tw
+dondurma	土耳其冰淇淋	x	dish	A	wikidata:Q141293:zh-tw
+Dongchimi	冬沈	x	dish	A	wikidata:Q904155:zh-tw
+Dongpo pork	東坡肉	s	dish	A	wikidata:Q1146046:zh-tw
+Dopiaza	洋蔥醬咖喱	x	dish	A	wikidata:Q3496916:zh-tw
+doppio	雙份濃縮咖啡	x	drink	A	wikidata:Q5297347:zh-tw
+dorayaki	銅鑼燒	x	dish	A	wikidata:Q1051482:zh-tw
+doubanjiang	豆瓣醬	x	dish	A	wikidata:Q3273096:zh-tw
+doughnut	甜甜圈	x	dish	A	wikidata:Q192783:zh-tw
+doujiang	豆漿	x	dish	A	wikidata:Q104414613:zh-tw
+dry vermouth	乾香艾酒	s	drink	A	wikidata:Q26877423:zh-tw
+Earl Grey tea	格雷伯爵茶	s	drink	A	wikidata:Q207788:zh-tw
+egg fried rice	蛋炒飯	s	dish	A	wikidata:Q122957244:zh-tw
+egg yolk pastry	蛋黃酥	s	dish	A	wikidata:Q15880225:zh-tw
+energy drink	能量飲料	s	drink	A	wikidata:Q215754:zh-tw
+espresso	濃縮咖啡	x	drink	A	wikidata:Q180289:zh-tw
+falafel	中東蔬菜球	x	dish	A	wikidata:Q188788:zh-tw
+Fanta Cake	芬達蛋糕	s	dish	A	wikidata:Q42417569:zh-tw
+fast food	速食	s	dish	A	wikidata:Q81799:zh-tw
+Federweisser	德國羽毛白酒	x	drink	A	wikidata:Q22996:zh-tw
+fermented bean curd	腐乳	s	dish	A	wikidata:Q2901605:zh-tw
+Fesikh	埃及鹹魚	x	dish	A	wikidata:Q4116140:zh-tw
+fettuccine	緞帶麵	x	dish	A	wikidata:Q20032:zh-tw
+Fig roll	無花果卷	s	dish	A	wikidata:Q5447680:zh-tw
+Figgy pudding	無花果布丁	s	dish	A	wikidata:Q15932560:zh-tw
+fish head curry	咖哩魚頭	s	dish	A	wikidata:Q5454639:zh-tw
+focaccia	佛卡夏	x	dish	A	wikidata:Q832791:zh-tw
+French toast	法式吐司	s	dish	A	wikidata:Q197973:zh-tw
+fried egg	煎蛋	s	dish	A	wikidata:Q274151:zh-tw
+fried shrimp	炸蝦	s	dish	A	wikidata:Q3275951:zh-tw
+fried tofu	油豆腐	s	dish	A	wikidata:Q100323254:zh-tw
+fries	馬鈴薯條	x	dish	A	wikidata:Q152088:zh-tw
+frittata	義大利式烘蛋	x	dish	A	wikidata:Q1051155:zh-tw
+frozen surimi	冷凍魚糜	s	dish	A	wikidata:Q30949457:zh-tw
+funazushi	鮒壽司	x	dish	A	wikidata:Q1133945:zh-tw
+fuqi feipian	夫妻肺片	s	dish	A	wikidata:Q843549:zh-tw
+gado-gado	加多加多	x	dish	A	wikidata:Q209304:zh-tw
+gazpacho	西班牙凍湯	x	dish	A	wikidata:Q202677:zh-tw
+Geisha coffee	藝伎咖啡	s	drink	A	wikidata:Q5398530:zh-tw
+gin	琴酒	x	drink	A	wikidata:Q959362:zh-tw
+gin and tonic	琴通寧	s	drink	A	wikidata:Q704357:zh-tw
+ginger duck	薑母鴨	s	dish	A	wikidata:Q17035821:zh-tw
+Gong Fei Cake	共匪餅	s	dish	A	wikidata:Q99554129:zh-tw
+goulash	匈牙利湯	x	dish	A	wikidata:Q205762:zh-tw
+green papaya salad	涼拌青木瓜	s	dish	A	wikidata:Q106768821:zh-tw
+gu lou juk	咕嚕肉	s	dish	A	wikidata:Q1367718:zh-tw
+Gugelhupf	奶油圓蛋糕	x	dish	A	wikidata:Q159754:zh-tw
+Guinness	健力士	x	drink	A	wikidata:Q194297:zh-tw
+gukbap	湯飯	x	dish	A	wikidata:Q1037909:zh-tw
+haggis	肉餡羊肚	x	dish	A	wikidata:Q209500:zh-tw
+Halo-halo	哈囉哈囉	x	dish	A	wikidata:Q1572040:zh-tw
+halva	哈爾瓦甜食	x	dish	A	wikidata:Q183599:zh-tw
+ham	火腿	x	dish	A	wikidata:Q170486:zh-tw
+hamburger	漢堡	x	dish	A	wikidata:Q6663:zh-tw
+Hampen	半片	x	dish	A	wikidata:Q3062329:zh-tw
+har gow	蝦餃	s	dish	A	wikidata:Q842376:zh-tw
+herbal tea	草本茶	s	drink	A	wikidata:Q379932:zh-tw
+Hi-Chew	嗨啾	x	dish	A	wikidata:Q5750159:zh-tw
+hongshao rou	紅燒肉	s	dish	A	wikidata:Q3371467:zh-tw
+hot dog	熱狗	s	dish	A	wikidata:Q181055:zh-tw
+hot pot	火鍋	s	dish	A	wikidata:Q846849:zh-tw
+hot pressed sandwich	熱壓三明治	s	dish	A	wikidata:Q134970941:zh-tw
+ice cream	冰淇淋	s	dish	A	wikidata:Q13233:zh-tw
+ikameshi	烏賊飯	x	dish	A	wikidata:Q5995340:zh-tw
+imagawayaki	今川燒	x	dish	A	wikidata:Q1316624:zh-tw
+India Pale Ale	印度淡艾爾	s	drink	A	wikidata:Q1543214:zh-tw
+injera	因傑拉	x	dish	A	wikidata:Q935807:zh-tw
+instant noodles	速食麵	s	dish	A	wikidata:Q1051265:zh-tw
+Instant rice	方便米飯	s	dish	A	wikidata:Q6038850:zh-tw
+Jing jiang rou si	京醬肉絲	s	dish	A	wikidata:Q549081:zh-tw
+Jingisukan	成吉思汗烤肉	x	dish	A	wikidata:Q1151092:zh-tw
+jipai	香雞排	x	dish	A	wikidata:Q15920051:zh-tw
+Johnnie Walker	約翰走路	s	drink	A	wikidata:Q502268:zh-tw
+kaeng khae	假蒟咖哩	s	dish	A	wikidata:Q6345991:zh-tw
+Kaeng pa	叢林咖哩	s	dish	A	wikidata:Q6345995:zh-tw
+Kaeng som	酸咖哩	s	dish	A	wikidata:Q6345997:zh-tw
+kaeng tai pla	魚雜咖哩	s	dish	A	wikidata:Q251162:zh-tw
+kaki no ha zushi	柿葉壽司	x	dish	A	wikidata:Q10861386:zh-tw
+Kaoliang wine	高粱酒	s	drink	A	wikidata:Q906494:zh-tw
+Katsu ika odori-don	生魷魚跳舞丼飯	s	dish	A	wikidata:Q48841040:zh-tw
+katsuobushi	柴魚	x	dish	A	wikidata:Q113739:zh-tw
+kebab	卡博串	x	dish	A	wikidata:Q179010:zh-tw
+kefir	克非爾	x	drink	A	wikidata:Q185749:zh-tw
+Kenchinjiru	卷纖湯	x	dish	A	wikidata:Q11266028:zh-tw
+ketchup	番茄醬	x	dish	A	wikidata:Q178143:zh-tw
+khong bah png	炕肉飯	s	dish	A	wikidata:Q15915476:zh-tw
+Kimchi	韓式泡菜	x	dish	A	wikidata:Q141898:zh-tw
+kinper	金伯樂	x	dish	A	wikidata:Q137302987:zh-tw
+kkakdugi	蘿蔔泡菜	x	dish	A	wikidata:Q430583:zh-tw
+knafeh	庫納法	x	dish	A	wikidata:Q219123:zh-tw
+knish	牛肉薯泥餅	x	dish	A	wikidata:Q2446322:zh-tw
+kombucha	紅茶菌	x	drink	A	wikidata:Q657032:zh-tw
+kopi luwak	麝香貓咖啡	s	drink	A	wikidata:Q213908:zh-tw
+Kugelis	立陶宛馬鈴薯布丁	x	dish	A	wikidata:Q1690265:zh-tw
+Kung Pao chicken	宮保雞丁	s	dish	A	wikidata:Q549713:zh-tw
+kusaya	臭魚乾	x	dish	A	wikidata:Q858345:zh-tw
+kvass	克瓦斯	x	drink	A	wikidata:Q173773:zh-tw
+Kyushu soy sauce	九州醤油	s	dish	A	wikidata:Q134282351:zh-tw
+lager	拉格啤酒	x	drink	A	wikidata:Q253481:zh-tw
+lemon juice	檸檬汁	s	drink	A	wikidata:Q1375049:zh-tw
+lemon tart	檸檬塔	s	dish	A	wikidata:Q6521367:zh-tw
+lime juice	萊姆汁	s	drink	A	wikidata:Q5361217:zh-tw
+Linzertorte	林茲蛋糕	x	dish	A	wikidata:Q552287:zh-tw
+Lion's head	獅子頭	s	dish	A	wikidata:Q3234952:zh-tw
+liqueur	利口酒	x	drink	A	wikidata:Q178780:zh-tw
+liquor	蒸餾酒	x	drink	A	wikidata:Q56139:zh-tw
+lollipop	棒棒糖	x	dish	A	wikidata:Q217446:zh-tw
+lotus tea	蓮茶	s	drink	A	wikidata:Q50304474:zh-tw
+Lychee pork	荔枝肉	s	dish	A	wikidata:Q15895670:zh-tw
+maids of honour tart	榮譽女僕蛋塔	s	dish	A	wikidata:Q16997205:zh-tw
+Mango shaved ice	芒果冰	s	dish	A	wikidata:Q13386962:zh-tw
+mapo doufu	麻婆豆腐	s	dish	A	wikidata:Q1298577:zh-tw
+marshmallow	棉花糖	x	dish	A	wikidata:Q272198:zh-tw
+Martini	馬丁尼	x	drink	A	wikidata:Q273027:zh-tw
+mashed potato	馬鈴薯泥	s	dish	A	wikidata:Q322787:zh-tw
+Mateus	蜜桃紅	x	drink	A	wikidata:Q460398:zh-tw
+mead	蜂蜜酒	x	drink	A	wikidata:Q184442:zh-tw
+Mei Kuei Lu Chiew	玫瑰露酒	s	drink	A	wikidata:Q3304608:zh-tw
+Merlot	梅洛葡萄	x	drink	A	wikidata:Q213338:zh-tw
+milk powder	奶粉	s	drink	A	wikidata:Q496696:zh-tw
+milkshake	奶昔	x	drink	A	wikidata:Q37159:zh-tw
+Mirinda	華年達	x	drink	A	wikidata:Q568384:zh-tw
+miso	味噌	x	dish	A	wikidata:Q235169:zh-tw
+miso soup	味噌湯	s	dish	A	wikidata:Q471866:zh-tw
+mochi	蔴糬	x	dish	A	wikidata:Q470519:zh-tw
+Mojito	莫希託	x	drink	A	wikidata:Q487338:zh-tw
+Mongolian barbecue	蒙古烤肉	s	dish	A	wikidata:Q6899671:zh-tw
+mooncake	月餅	x	dish	A	wikidata:Q197969:zh-tw
+moussaka	木莎卡	x	dish	A	wikidata:Q206918:zh-tw
+muffin	瑪芬	x	dish	A	wikidata:Q207220:zh-tw
+Mul-kimchi	水辛奇	x	dish	A	wikidata:Q61090700:zh-tw
+Mutton hot pot	羊肉爐	s	dish	A	wikidata:Q15935161:zh-tw
+neritic squid rice noodles	小卷米粉	s	dish	A	wikidata:Q108296002:zh-tw
+ngiu vun sui	牛搵水	s	dish	A	wikidata:Q130541856:zh-tw
+nougat	牛軋糖	x	dish	A	wikidata:Q208729:zh-tw
+Nutella	能多益	x	dish	A	wikidata:Q212193:zh-tw
+Nutritious sandwich	營養三明治	s	dish	A	wikidata:Q7220675:zh-tw
+oden	關東煮	x	dish	A	wikidata:Q655040:zh-tw
+okchundang	玉春糖	x	dish	A	wikidata:Q28701751:zh-tw
+Oliang	烏涼咖啡	x	drink	A	wikidata:Q4919047:zh-tw
+oolong	烏龍茶	x	drink	A	wikidata:Q231587:zh-tw
+ouzo	烏佐酒	x	drink	A	wikidata:Q337687:zh-tw
+oyakodon	親子丼	x	dish	A	wikidata:Q1304390:zh-tw
+oyster omelette	蚵仔煎	s	dish	A	wikidata:Q710618:zh-tw
+oyster vermicelli	蚵仔麵線	s	dish	A	wikidata:Q697951:zh-tw
+pale ale	艾爾淡啤酒	s	drink	A	wikidata:Q2271859:zh-tw
+panettone	義大利麵包	x	dish	A	wikidata:Q854342:zh-tw
+papaya milk	木瓜牛乳	s	drink	A	wikidata:Q7228045:zh-tw
+passito	風乾葡萄酒	x	drink	A	wikidata:Q1058490:zh-tw
+pasta	義大利麵食	x	dish	A	wikidata:Q178:zh-tw
+pastel de nata	葡式蛋塔	s	dish	A	wikidata:Q1421401:zh-tw
+pastry	糕點	x	dish	A	wikidata:Q477248:zh-tw
+pasty	康沃爾肉餡餅	x	dish	A	wikidata:Q126777:zh-tw
+peanut butter	花生醬	s	dish	A	wikidata:Q147651:zh-tw
+peixinhos da horta	花園魚	s	dish	A	wikidata:Q742173:zh-tw
+Peking duck	北京烤鴨	s	dish	A	wikidata:Q404973:zh-tw
+Pepsi	百事可樂	x	drink	A	wikidata:Q47719:zh-tw
+Phanaeng curry	濃紅咖哩	s	dish	A	wikidata:Q1509414:zh-tw
+pie	西式餡餅	x	dish	A	wikidata:Q13360264:zh-tw
+Pig's blood cake	米血糕	s	dish	A	wikidata:Q16242089:zh-tw
+pilk	百事牛奶	x	drink	A	wikidata:Q115871227:zh-tw
+pilsner	皮爾森啤酒	x	drink	A	wikidata:Q152281:zh-tw
+pineapple bun	菠蘿麵包	s	dish	A	wikidata:Q1140567:zh-tw
+pineapple tart	鳳梨酥	s	dish	A	wikidata:Q7195443:zh-tw
+pita	皮塔餅	x	dish	A	wikidata:Q211340:zh-tw
+popcorn	爆米花	x	dish	A	wikidata:Q165112:zh-tw
+popover	淡烤酥餅	x	dish	A	wikidata:Q1640426:zh-tw
+pork belly	五花肉	s	dish	A	wikidata:Q1365868:zh-tw
+pork floss	豬肉鬆	s	dish	A	wikidata:Q15909171:zh-tw
+porridge	餬	x	dish	A	wikidata:Q186817:zh-tw
+Port Wine	波特酒	s	drink	A	wikidata:Q191034:zh-tw
+pot roast	燒牛肉	s	dish	A	wikidata:Q11271477:zh-tw
+potato chip	洋芋片	s	dish	A	wikidata:Q173265:zh-tw
+pound cake	磅蛋糕	s	dish	A	wikidata:Q29443:zh-tw
+poutine	起司澆肉汁馬鈴薯條	x	dish	A	wikidata:Q396184:zh-tw
+pretzel	椒鹽卷餅	x	dish	A	wikidata:Q160525:zh-tw
+pudding	布丁	x	dish	A	wikidata:Q9053:zh-tw
+Pumpkin Spice Latte	南瓜拿鐵	s	drink	A	wikidata:Q18345746:zh-tw
+ramen	日本拉麵	x	dish	A	wikidata:Q234646:zh-tw
+ratatouille	普羅旺斯雜燴	x	dish	A	wikidata:Q183095:zh-tw
+red vermouth	紅香艾酒	s	drink	A	wikidata:Q26877308:zh-tw
+rice burger	米漢堡	s	dish	A	wikidata:Q5369868:zh-tw
+rice noodle roll	腸粉	s	dish	A	wikidata:Q3275558:zh-tw
+risotto	義大利燉飯	x	dish	A	wikidata:Q208105:zh-tw
+roasted sweet potatoes	烤地瓜	s	dish	A	wikidata:Q711053:zh-tw
+rock candy	冰糖	s	dish	A	wikidata:Q849816:zh-tw
+roujiamo	肉夾饃	x	dish	A	wikidata:Q5690018:zh-tw
+rum	蘭姆酒	x	drink	A	wikidata:Q83376:zh-tw
+Sachertorte	薩赫蛋糕	x	dish	A	wikidata:Q131442:zh-tw
+sachima	沙琪瑪	x	dish	A	wikidata:Q3273854:zh-tw
+sacramental bread	聖體	s	dish	A	wikidata:Q207104:zh-tw
+salad	沙拉	x	dish	A	wikidata:Q9266:zh-tw
+sandwich bread	三明治吐司	s	dish	A	wikidata:Q21080963:zh-tw
+Sangsang	薩克桑	x	dish	A	wikidata:Q4205456:zh-tw
+sashimi	生魚片	x	dish	A	wikidata:Q190715:zh-tw
+Satsuma-age	薩摩炸魚餅	x	dish	A	wikidata:Q2421871:zh-tw
+Sauternes	索甸	x	drink	A	wikidata:Q771636:zh-tw
+Savory rice pudding	碗粿	s	dish	A	wikidata:Q10442304:zh-tw
+scallion pancake	蔥油餅	s	dish	A	wikidata:Q711328:zh-tw
+Schoggitaler	塔勒巧克力	x	dish	A	wikidata:Q2248563:zh-tw
+Scotch egg	蘇格蘭蛋	s	dish	A	wikidata:Q1568296:zh-tw
+Scotch whisky	蘇格蘭威士忌	s	drink	A	wikidata:Q382947:zh-tw
+senbei	煎餅	x	dish	A	wikidata:Q198788:zh-tw
+Sesame oil chicken	麻油雞	s	dish	A	wikidata:Q10567133:zh-tw
+shakshuka	夏修卡	x	dish	A	wikidata:Q2474644:zh-tw
+Shark Fin Soup	魚翅湯	s	dish	A	wikidata:Q26081:zh-tw
+shawarma	沙威瑪	x	dish	A	wikidata:Q3412448:zh-tw
+shengjian mantou	生煎饅頭	s	dish	A	wikidata:Q1052204:zh-tw
+silaw	喜烙	x	dish	A	wikidata:Q137270440:zh-tw
+Skol	獅威	x	drink	A	wikidata:Q152532:zh-tw
+sliced bread	吐司	s	dish	A	wikidata:Q27645375:zh-tw
+smetana	斯美塔那酸奶油	x	drink	A	wikidata:Q326061:zh-tw
+soft drink	軟性飲料	s	drink	A	wikidata:Q147538:zh-tw
+sorbet	雪酪	x	dish	A	wikidata:Q13302:zh-tw
+soup soy sauce	湯醬油	s	dish	A	wikidata:Q4216325:zh-tw
+soy milk	豆奶	s	dish	A	wikidata:Q192199:zh-tw
+soy sauce	醬油	s	dish	A	wikidata:Q229385:zh-tw
+sparkling wine	氣泡酒	s	drink	A	wikidata:Q321263:zh-tw
+sponge cake	海綿蛋糕	s	dish	A	wikidata:Q1049852:zh-tw
+Stamppot	燉羽衣甘藍	x	dish	A	wikidata:Q1346373:zh-tw
+steak and eggs	牛排蛋	s	dish	A	wikidata:Q18392972:zh-tw
+steam beer	蒸氣啤酒	s	drink	A	wikidata:Q1158765:zh-tw
+Stella Artois	時代啤酒	s	drink	A	wikidata:Q929276:zh-tw
+stew	燉煮	x	dish	A	wikidata:Q2920963:zh-tw
+suancaiyu	酸菜魚	x	dish	A	wikidata:Q11644451:zh-tw
+submarine sandwich	潛艇三明治	s	dish	A	wikidata:Q776904:zh-tw
+surf and turf	海陸大餐	s	dish	A	wikidata:Q1781099:zh-tw
+sushi	壽司	x	dish	A	wikidata:Q46383:zh-tw
+sweet red vermouth	甜紅香艾酒	s	drink	A	wikidata:Q26878973:zh-tw
+Swiss chocolate	瑞士巧克力	s	dish	A	wikidata:Q869700:zh-tw
+Swiss roll	卷蛋糕	s	dish	A	wikidata:Q320657:zh-tw
+Ta-a noodles	擔仔麵	s	dish	A	wikidata:Q712031:zh-tw
+taco	塔可餅	x	dish	A	wikidata:Q191655:zh-tw
+Taiwanese tea	臺灣茶	s	drink	A	wikidata:Q10915378:zh-tw
+tajine	尖蓋鍋燴肉	x	dish	A	wikidata:Q865004:zh-tw
+Taki no Yakimochi	瀧之燒餅	x	dish	A	wikidata:Q11565048:zh-tw
+tamagoyaki	玉子燒	x	dish	A	wikidata:Q747302:zh-tw
+Tangbao	灌湯包	x	dish	A	wikidata:Q3275270:zh-tw
+Tanghulu	糖葫蘆	x	dish	A	wikidata:Q2476688:zh-tw
+tangyuan	湯圓	x	dish	A	wikidata:Q115474:zh-tw
+taro ball	芋圓	s	dish	A	wikidata:Q7686514:zh-tw
+tea	茶	x	drink	A	wikidata:Q6097:zh-tw
+tea sandwich	茶點三明治	s	dish	A	wikidata:Q7691137:zh-tw
+tempura	天婦羅	x	dish	A	wikidata:Q328709:zh-tw
+tequila	龍舌蘭酒	x	drink	A	wikidata:Q122195:zh-tw
+Thai curry	泰國咖哩	s	dish	A	wikidata:Q1144927:zh-tw
+Tieguanyin	鐵觀音	x	drink	A	wikidata:Q1328947:zh-tw
+tiramisu	提拉米蘇	x	dish	A	wikidata:Q131582:zh-tw
+Tmmyan	得麼面	x	dish	A	wikidata:Q55708792:zh-tw
+toast sandwich	吐司三明治	s	dish	A	wikidata:Q7811415:zh-tw
+Toblerone	瑞士三角牌巧克力	x	dish	A	wikidata:Q215707:zh-tw
+tofu	豆腐	x	dish	A	wikidata:Q177378:zh-tw
+Tokushima ramen	德島拉麵	s	dish	A	wikidata:Q11489657:zh-tw
+Tong bat lat	糖不甩	s	dish	A	wikidata:Q17164196:zh-tw
+tonic water	通寧水	s	drink	A	wikidata:Q237315:zh-tw
+torte	德式蛋糕	x	dish	A	wikidata:Q130186:zh-tw
+Turkish delight	土耳其軟糖	s	dish	A	wikidata:Q182339:zh-tw
+ube ice cream	參薯冰淇淋	s	dish	A	wikidata:Q64149140:zh-tw
+unadon	鰻魚飯	x	dish	A	wikidata:Q1352897:zh-tw
+vermouth	香艾酒	x	drink	A	wikidata:Q231088:zh-tw
+waffle	格子鬆餅	x	dish	A	wikidata:Q375:zh-tw
+Welsh cake	威爾斯蛋糕	s	dish	A	wikidata:Q1078202:zh-tw
+wheat beer	小麥啤酒	s	drink	A	wikidata:Q131413:zh-tw
+Whisbih	維士比	x	drink	A	wikidata:Q22101254:zh-tw
+white tea	白茶	s	drink	A	wikidata:Q238306:zh-tw
+Worcestershire sauce	伍斯特醬	s	dish	A	wikidata:Q842618:zh-tw
+yaki udon	炒烏龍麵	s	dish	A	wikidata:Q1188380:zh-tw
+yakisobapan	炒麵麵包	x	dish	A	wikidata:Q4246304:zh-tw
+yeot	韓菓子糖	x	dish	A	wikidata:Q1144106:zh-tw
+yong tau foo	客家釀豆腐	s	dish	A	wikidata:Q713892:zh-tw
+youtiao	油條	x	dish	A	wikidata:Q713879:zh-tw
+Yusheng	七彩魚生	x	dish	A	wikidata:Q2609461:zh-tw
+yuxiang qiezi	魚香茄子	s	dish	A	wikidata:Q11172515:zh-tw
+zongzi	糉	x	dish	A	wikidata:Q713466:zh-tw
+Acheta domestica	家蟋蟀	s	food	A	wikidata:Q27711:zh-tw
+Aesculus indica	印度七葉樹	s	food	A	wikidata:Q573132:zh-tw
+agar	洋菜	x	food	A	wikidata:Q177998:zh-tw
+Agaricus arvensis	田野蘑菇	s	food	A	wikidata:Q690801:zh-tw
+Agaricus bisporus	雙孢蘑菇	s	food	A	wikidata:Q227690:zh-tw
+Agaricus campestris	高溫洋菇	s	food	A	wikidata:Q234529:zh-tw
+Agaricus subrufescens	姬松茸	s	food	A	wikidata:Q764068:zh-tw
+airline meal	飛機餐	s	food	A	wikidata:Q980035:zh-tw
+Aiyu jelly	愛玉凍	s	food	A	wikidata:Q5147092:zh-tw
+albacore	長鰭鮪	x	food	A	wikidata:Q239977:zh-tw
+Aleppo pepper	阿勒坡辣椒	s	food	A	wikidata:Q486606:zh-tw
+Aleurites moluccanus	石慄	s	food	A	wikidata:Q1160961:zh-tw
+Alkanna tinctoria	紫朱草	s	food	A	wikidata:Q856964:zh-tw
+Allium chinense	薤	s	food	A	wikidata:Q422240:zh-tw
+Allium monanthum	單花韭	s	food	A	wikidata:Q846916:zh-tw
+Allium sativum	大蒜	s	food	A	wikidata:Q23400:zh-tw
+Allium ursinum	熊蔥	s	food	A	wikidata:Q130882:zh-tw
+Allium victorialis	茖蔥	s	food	A	wikidata:Q162924:zh-tw
+allspice	多香果	x	food	A	wikidata:Q158468:zh-tw
+Alphitobius diaperinus	外米擬步行蟲	s	food	A	wikidata:Q14809702:zh-tw
+Alpinia galanga	高良薑	s	food	A	wikidata:Q402971:zh-tw
+Anethum graveolens	蒔蘿	s	food	A	wikidata:Q26686:zh-tw
+Angelica sinensis	當歸	s	food	A	wikidata:Q2051387:zh-tw
+antioxidant	抗氧化劑	x	food	A	wikidata:Q133948:zh-tw
+Apium graveolens	旱芹	s	food	A	wikidata:Q28298:zh-tw
+Appenzeller cheese	亞本塞乳酪	s	food	A	wikidata:Q620951:zh-tw
+apricot kernel	杏仁	s	food	A	wikidata:Q165527:zh-tw
+Archidendron pauciflorum	臭豆果	s	food	A	wikidata:Q3503085:zh-tw
+Arenga pinnata	桄榔	s	food	A	wikidata:Q227984:zh-tw
+argan oil	阿甘油	s	food	A	wikidata:Q45418:zh-tw
+Artocarpus heterophyllus	波羅蜜	s	food	A	wikidata:Q45757:zh-tw
+Asparagus bean	長豇豆	s	food	A	wikidata:Q1323455:zh-tw
+Atlantic salmon	大西洋鮭	s	food	A	wikidata:Q188879:zh-tw
+Atractylodes macrocephala	白朮	s	food	A	wikidata:Q8208640:zh-tw
+Auricularia cornea	角質木耳	s	food	A	wikidata:Q10422716:zh-tw
+Avena sativa	燕麥	s	food	A	wikidata:Q12104:zh-tw
+Azadirachta indica	印度苦楝樹	s	food	A	wikidata:Q170461:zh-tw
+balsamic vinegar	義大利香醋	s	food	A	wikidata:Q170037:zh-tw
+bamboo shoots	筍	s	food	A	wikidata:Q2157176:zh-tw
+banana	蕉	x	food	A	wikidata:Q503:zh-tw
+barley malt syrup	麥芽糖	s	food	A	wikidata:Q3485291:zh-tw
+Barramundi	尖吻鱸	x	food	A	wikidata:Q74411:zh-tw
+basa fish	巴沙魚	s	food	A	wikidata:Q139576:zh-tw
+basil	羅勒	x	food	A	wikidata:Q38859:zh-tw
+bat meat	食用蝙蝠	s	food	A	wikidata:Q17067753:zh-tw
+bean	豆類	x	food	A	wikidata:Q379813:zh-tw
+bee pollen	蜂花粉	s	food	A	wikidata:Q169822:zh-tw
+beef	牛肉	x	food	A	wikidata:Q192628:zh-tw
+beef tongue	牛舌	s	food	A	wikidata:Q1558649:zh-tw
+beeswax	蜂蠟	x	food	A	wikidata:Q143739:zh-tw
+bell pepper	甜椒	s	food	A	wikidata:Q1548030:zh-tw
+bento	日式便當	x	food	A	wikidata:Q380532:zh-tw
+Berberis vulgaris	刺檗	s	food	A	wikidata:Q158563:zh-tw
+berry	莓果	x	food	A	wikidata:Q16128920:zh-tw
+Black Pearl pepper	黑珍珠辣椒	s	food	A	wikidata:Q4922414:zh-tw
+Bonchester cheese	邦切斯特乾酪	s	food	A	wikidata:Q135178:zh-tw
+bran	麩	x	food	A	wikidata:Q188672:zh-tw
+Bridelia stipularis	土蜜藤	s	food	A	wikidata:Q8876908:zh-tw
+brie	布利乾酪	x	food	A	wikidata:Q193411:zh-tw
+Brillat-Savarin cheese	布里亞·薩瓦蘭乾酪	s	food	A	wikidata:Q724855:zh-tw
+brisket	牛腩	x	food	A	wikidata:Q1324342:zh-tw
+broccoli	青花菜	x	food	A	wikidata:Q47722:zh-tw
+broccolini	青花筍	x	food	A	wikidata:Q2229726:zh-tw
+broth	清湯	x	food	A	wikidata:Q275068:zh-tw
+Bullet tuna	圓花鰹	s	food	A	wikidata:Q2451879:zh-tw
+butter	奶油	x	food	A	wikidata:Q34172:zh-tw
+byeonggyul	瓶橘	x	food	A	wikidata:Q21247842:zh-tw
+Cabrales cheese	卡伯瑞勒斯乾酪	s	food	A	wikidata:Q1246822:zh-tw
+calcium DL-lactate	乳酸鈣	s	food	A	wikidata:Q419693:zh-tw
+Camellia sinensis	茶樹	s	food	A	wikidata:Q101815:zh-tw
+Camembert	卡芒貝爾乾酪	x	food	A	wikidata:Q131480:zh-tw
+cane sugar	蔗糖	s	food	A	wikidata:Q18012503:zh-tw
+Cannabis sativa	大麻	s	food	A	wikidata:Q26726:zh-tw
+canola oil	菜籽油	s	food	A	wikidata:Q98841400:zh-tw
+capelin	毛鱗魚	x	food	A	wikidata:Q143359:zh-tw
+carrageenan	卡拉膠	x	food	A	wikidata:Q421991:zh-tw
+Carum carvi	葛縷子	s	food	A	wikidata:Q26811:zh-tw
+cassava	樹薯	x	food	A	wikidata:Q83124:zh-tw
+Castanea mollissima	中國板栗	s	food	A	wikidata:Q699584:zh-tw
+castor oil	蓖麻油	s	food	A	wikidata:Q337492:zh-tw
+cat food	貓糧	s	food	A	wikidata:Q1736906:zh-tw
+cellulases	纖維素酶	x	food	A	wikidata:Q410324:zh-tw
+Celtis australis	南歐樸	s	food	A	wikidata:Q255375:zh-tw
+Centaurea cyanus	矢車菊	s	food	A	wikidata:Q156921:zh-tw
+Cheddar cheese	切達起司	s	food	A	wikidata:Q217525:zh-tw
+cheese	起司	x	food	A	wikidata:Q10943:zh-tw
+cheese analogue	模擬乾酪	s	food	A	wikidata:Q1568226:zh-tw
+Cheesy Garlic Bread	香蒜起司麵包	s	food	A	wikidata:Q133884319:zh-tw
+Chenopodium album	藜	s	food	A	wikidata:Q158610:zh-tw
+chhek-a-mi	摵仔麵	x	food	A	wikidata:Q11078498:zh-tw
+chicken egg	雞蛋	s	food	A	wikidata:Q15260613:zh-tw
+chicken fillet	雞排	s	food	A	wikidata:Q4525851:zh-tw
+chicken wing	雞翅	s	food	A	wikidata:Q7196602:zh-tw
+Chinese cabbage	白菜	s	food	A	wikidata:Q18968514:zh-tw
+Chinese pickles	中國醃菜	s	food	A	wikidata:Q3407390:zh-tw
+Chinese sturgeon	中華鱘	s	food	A	wikidata:Q1074259:zh-tw
+Chinook salmon	帝王鮭	s	food	A	wikidata:Q833503:zh-tw
+chocolate fondue	巧克力火鍋	s	food	A	wikidata:Q2267273:zh-tw
+Chuanr	中式烤串	x	food	A	wikidata:Q519761:zh-tw
+chub mackerel	白腹鯖	s	food	A	wikidata:Q815837:zh-tw
+chum salmon	大馬哈魚	s	food	A	wikidata:Q475211:zh-tw
+Cichorium intybus	菊苣	s	food	A	wikidata:Q2544599:zh-tw
+Cicuta virosa	毒芹	s	food	A	wikidata:Q27609:zh-tw
+cinnamon	肉桂	x	food	A	wikidata:Q28165:zh-tw
+Citrus hystrix	箭葉橙	s	food	A	wikidata:Q465934:zh-tw
+Citrus tachibana	橘柑	s	food	A	wikidata:Q11121938:zh-tw
+cocoa bean	可可豆	s	food	A	wikidata:Q208008:zh-tw
+coconut	椰子	x	food	A	wikidata:Q3342808:zh-tw
+coconut oil	椰子油	s	food	A	wikidata:Q216235:zh-tw
+coffee bean	咖啡豆	s	food	A	wikidata:Q153697:zh-tw
+coho salmon	銀鮭	s	food	A	wikidata:Q934874:zh-tw
+Colby cheese	考爾比起司	s	food	A	wikidata:Q1056769:zh-tw
+Colocasia esculenta	芋	s	food	A	wikidata:Q227997:zh-tw
+common sunflower	向日葵	s	food	A	wikidata:Q171497:zh-tw
+cooking banana	大蕉	s	food	A	wikidata:Q165449:zh-tw
+Coprinus comatus	毛頭鬼傘	s	food	A	wikidata:Q275125:zh-tw
+Coriandrum sativum	芫荽	s	food	A	wikidata:Q41611:zh-tw
+corn flakes	玉米片	s	food	A	wikidata:Q327115:zh-tw
+corn smut	玉蜀黍黑穗菌	s	food	A	wikidata:Q1430040:zh-tw
+Crassinarke dormitor	堅皮單鰭電鱝	s	food	A	wikidata:Q18231634:zh-tw
+Cream of Wheat	麥乳	s	food	A	wikidata:Q10752167:zh-tw
+Cronartium conigenum	松球果銹病菌	s	food	A	wikidata:Q10461908:zh-tw
+cuccidati	庫奇達餅	x	food	A	wikidata:Q5192318:zh-tw
+Cucumis sativus	胡瓜	s	food	A	wikidata:Q23425:zh-tw
+Cucurbita pepo	美國南瓜	s	food	A	wikidata:Q7229863:zh-tw
+cumquat	金橘	x	food	A	wikidata:Q5122903:zh-tw
+Cupressus sempervirens	地中海柏木	s	food	A	wikidata:Q147513:zh-tw
+curd snack	思酪可	s	food	A	wikidata:Q2622681:zh-tw
+Cyclocybe aegerita	柱狀田頭菇	s	food	A	wikidata:Q27668537:zh-tw
+Dangyuja	唐柚子	x	food	A	wikidata:Q27908040:zh-tw
+Danish Blue	丹麥藍起司	s	food	A	wikidata:Q165855:zh-tw
+diastase	澱粉酶	x	food	A	wikidata:Q609677:zh-tw
+Dioscorea polystachya	長山藥	s	food	A	wikidata:Q5279593:zh-tw
+Diospyros lotus	君遷子	s	food	A	wikidata:Q771101:zh-tw
+dish	菜餚	x	food	A	wikidata:Q746549:zh-tw
+dog food	犬糧	s	food	A	wikidata:Q38420:zh-tw
+dried meat	乾燥肉	s	food	A	wikidata:Q1753272:zh-tw
+dried persimmon	柿餅	s	food	A	wikidata:Q5929611:zh-tw
+drink	飲料	x	food	A	wikidata:Q40050:zh-tw
+drinking straw	吸管	s	food	A	wikidata:Q189211:zh-tw
+durian	榴槤	x	food	A	wikidata:Q134185:zh-tw
+easter egg	復活節彩蛋	s	food	A	wikidata:Q163886:zh-tw
+edible seaweed	紫菜	s	food	A	wikidata:Q796185:zh-tw
+egg yolk	蛋黃	s	food	A	wikidata:Q181409:zh-tw
+Elephantopus scaber	燈豎朽	s	food	A	wikidata:Q1039719:zh-tw
+Emilia sonchifolia	紫背草	s	food	A	wikidata:Q3595665:zh-tw
+Emmental	艾曼塔乳酪	x	food	A	wikidata:Q932214:zh-tw
+Entada phaseoloides	榼藤子	s	food	A	wikidata:Q3281753:zh-tw
+essential oil	精油	s	food	A	wikidata:Q170885:zh-tw
+eucalyptus oil	桉葉油	s	food	A	wikidata:Q511687:zh-tw
+European sprat	黍鯡	s	food	A	wikidata:Q506823:zh-tw
+false banana	阿比西尼亞紅脈蕉	s	food	A	wikidata:Q104664642:zh-tw
+fat spread	脂肪抹醬	s	food	A	wikidata:Q1727434:zh-tw
+fatty meat	肥肉	s	food	A	wikidata:Q107262066:zh-tw
+fig	無花果	x	food	A	wikidata:Q2746643:zh-tw
+Flammulina filiformis	金針菇	s	food	A	wikidata:Q25416839:zh-tw
+Flammulina velutipes	毛腿冬菇	s	food	A	wikidata:Q372893:zh-tw
+flat peach	蟠桃	s	food	A	wikidata:Q2702783:zh-tw
+Foeniculum vulgare	茴香	s	food	A	wikidata:Q43511:zh-tw
+fondue	融漿火鍋	x	food	A	wikidata:Q190531:zh-tw
+food	食物	x	food	A	wikidata:Q2095:zh-tw
+food additive	食品添加物	s	food	A	wikidata:Q189567:zh-tw
+fourme d'Ambert	昂貝爾起司	s	food	A	wikidata:Q1245530:zh-tw
+Fragaria ananassa	草莓	s	food	A	wikidata:Q107028807:zh-tw
+fructooligosaccharide	果寡糖	x	food	A	wikidata:Q418945:zh-tw
+fruit	水果	x	food	A	wikidata:Q3314483:zh-tw
+genetically modified food	基因改造食品	s	food	A	wikidata:Q394222:zh-tw
+Giant snakehead	小盾鱧	s	food	A	wikidata:Q628790:zh-tw
+ginseng	人蔘	x	food	A	wikidata:Q20817212:zh-tw
+glutinous rice	糯稻	s	food	A	wikidata:Q115443:zh-tw
+Glycyrrhiza uralensis	甘草	s	food	A	wikidata:Q1196166:zh-tw
+Gorgonzola	古岡左拉起司	x	food	A	wikidata:Q209044:zh-tw
+Grana Padano PDO	格拉納帕達諾起司	s	food	A	wikidata:Q940319:zh-tw
+grape	葡萄	x	food	A	wikidata:Q10978:zh-tw
+Grifola frondosa	灰樹花菌	s	food	A	wikidata:Q1165686:zh-tw
+guacamole	酪梨醬	x	food	A	wikidata:Q207968:zh-tw
+guava	芭樂	x	food	A	wikidata:Q3181909:zh-tw
+haddock	黑線鱈	x	food	A	wikidata:Q202406:zh-tw
+Happy Meal	快樂兒童餐	s	food	A	wikidata:Q1321593:zh-tw
+hashish	哈希什	x	food	A	wikidata:Q151980:zh-tw
+Hele	餄餎	x	food	A	wikidata:Q10566296:zh-tw
+Hericium erinaceus	猴頭菇	s	food	A	wikidata:Q19737:zh-tw
+high fructose corn syrup	高果糖玉米糖漿	s	food	A	wikidata:Q11422173:zh-tw
+hoisin sauce	海鮮醬	s	food	A	wikidata:Q404114:zh-tw
+hot dry noodles	熱乾麵	s	food	A	wikidata:Q832338:zh-tw
+hot sauce	辣醬	s	food	A	wikidata:Q522171:zh-tw
+Humulus lupulus	蛇麻	s	food	A	wikidata:Q104212:zh-tw
+hydroxypropyl distarch phosphate	羥丙基磷酸二澱粉	s	food	A	wikidata:Q10528966:zh-tw
+Hypsizygus tessulatus	鴻喜菇	s	food	A	wikidata:Q10530825:zh-tw
+Idiazabal cheese	伊迪亞薩瓦爾芝士	s	food	A	wikidata:Q1235795:zh-tw
+inulin	菊粉	x	food	A	wikidata:Q201552:zh-tw
+Italian cheese	義大利起司	s	food	A	wikidata:Q17315191:zh-tw
+Japanese sleeper ray	日本單鰭電鱝	s	food	A	wikidata:Q4668667:zh-tw
+jerky	肉乾	x	food	A	wikidata:Q1072897:zh-tw
+Kefalotyri	凱發羅特里起司	x	food	A	wikidata:Q1361289:zh-tw
+kiwifruit	奇異果	x	food	A	wikidata:Q13194:zh-tw
+KOLOKO Crispy Pea Snacks	可樂果	s	food	A	wikidata:Q133082568:zh-tw
+Kuehneromyces mutabilis	庫恩菇	s	food	A	wikidata:Q732640:zh-tw
+Lactuca sativa	萵苣	s	food	A	wikidata:Q83193:zh-tw
+Lagenaria siceraria	扁蒲	s	food	A	wikidata:Q1277255:zh-tw
+Lagerstroemia indica	紫薇	s	food	A	wikidata:Q1148692:zh-tw
+Lancashire cheese	蘭開夏起司	s	food	A	wikidata:Q1244290:zh-tw
+Langres cheese	朗格勒起司	s	food	A	wikidata:Q1240158:zh-tw
+lean meat	瘦肉	s	food	A	wikidata:Q107262071:zh-tw
+Leccinum scabrum	褐疣柄牛肝菌	s	food	A	wikidata:Q628977:zh-tw
+leek	韭蔥	x	food	A	wikidata:Q1807269:zh-tw
+legume	莢果	x	food	A	wikidata:Q145909:zh-tw
+Lentinula edodes	香菇	s	food	A	wikidata:Q320999:zh-tw
+Lepista nuda	紫丁香蘑	s	food	A	wikidata:Q29362:zh-tw
+livarot	裏伐羅特起司	x	food	A	wikidata:Q1144668:zh-tw
+Locusta migratoria	飛蝗	s	food	A	wikidata:Q1059580:zh-tw
+lou mei	滷味	s	food	A	wikidata:Q6685836:zh-tw
+mahi-mahi	鬼頭刀	x	food	A	wikidata:Q14443:zh-tw
+maize	玉蜀黍	x	food	A	wikidata:Q11575:zh-tw
+malt	麥芽	x	food	A	wikidata:Q152024:zh-tw
+mango	芒果	x	food	A	wikidata:Q169:zh-tw
+mascarpone	馬斯卡彭起司	x	food	A	wikidata:Q209889:zh-tw
+master stock	滷水	s	food	A	wikidata:Q856453:zh-tw
+Matteuccia struthiopteris	莢果蕨	s	food	A	wikidata:Q1130386:zh-tw
+mayonnaise	美乃滋	x	food	A	wikidata:Q167893:zh-tw
+Maytag Blue cheese	梅塔格藍起司	s	food	A	wikidata:Q1057555:zh-tw
+medicinal food	藥膳	s	food	A	wikidata:Q107754261:zh-tw
+Melaleuca leucadendra	白千層	s	food	A	wikidata:Q310876:zh-tw
+Melia azedarach	楝	s	food	A	wikidata:Q162171:zh-tw
+Mentha spicata	留蘭香	s	food	A	wikidata:Q160114:zh-tw
+Millettia pinnata	水黃皮	s	food	A	wikidata:Q1973585:zh-tw
+Misua	線麵	x	food	A	wikidata:Q3545084:zh-tw
+Moist food for cats	貓用濕糧	s	food	A	wikidata:Q42950959:zh-tw
+Moist food for dogs	狗濕糧	s	food	A	wikidata:Q42950965:zh-tw
+molasses	糖蜜	x	food	A	wikidata:Q154389:zh-tw
+momo	饃饃	x	food	A	wikidata:Q134092:zh-tw
+Monterey Jack	傑克起司	s	food	A	wikidata:Q1056415:zh-tw
+Morchella esculenta	美味羊肚菌	s	food	A	wikidata:Q1129282:zh-tw
+mortadella	義式肉腸	x	food	A	wikidata:Q169757:zh-tw
+Morus alba	白桑	s	food	A	wikidata:Q157307:zh-tw
+mulberry	桑葚	x	food	A	wikidata:Q3916883:zh-tw
+Mytilus edulis	紫殼菜蛤	s	food	A	wikidata:Q27855:zh-tw
+natural food	天然食品	s	food	A	wikidata:Q6980681:zh-tw
+nectar	花蜜	x	food	A	wikidata:Q171934:zh-tw
+Nemophila menziesii	幌菊	s	food	A	wikidata:Q4838435:zh-tw
+non-nutritive sweetener	代糖	x	food	A	wikidata:Q626292:zh-tw
+noodle	麵條	x	food	A	wikidata:Q192874:zh-tw
+northern snakehead	烏鱧	s	food	A	wikidata:Q1156826:zh-tw
+nut butter	堅果醬	s	food	A	wikidata:Q10752679:zh-tw
+nutmeg	肉豆蔻	x	food	A	wikidata:Q83165:zh-tw
+Oblaat	糯米紙	x	food	A	wikidata:Q7075129:zh-tw
+olive oil	橄欖油	s	food	A	wikidata:Q93165:zh-tw
+organic food	有機食品	s	food	A	wikidata:Q380778:zh-tw
+Origanum vulgare	野薄荷	s	food	A	wikidata:Q134283:zh-tw
+Oryza sativa japonica	粳稻	s	food	A	wikidata:Q1147035:zh-tw
+oyster	牡蠣	x	food	A	wikidata:Q107411:zh-tw
+Paeonia lactiflora	芍藥	s	food	A	wikidata:Q163076:zh-tw
+palm oil	棕櫚油	s	food	A	wikidata:Q231458:zh-tw
+Pandanus amaryllifolius	七葉蘭	s	food	A	wikidata:Q311090:zh-tw
+Parmesan	帕馬森起司	x	food	A	wikidata:Q155922:zh-tw
+passionfruit	百香果	x	food	A	wikidata:Q2224510:zh-tw
+pear	梨	x	food	A	wikidata:Q13099586:zh-tw
+Penaeus monodon	斑節對蝦	s	food	A	wikidata:Q578204:zh-tw
+Phallus indusiatus	長裙竹蓀	s	food	A	wikidata:Q2701671:zh-tw
+Phoenix sylvestris	銀海棗	s	food	A	wikidata:Q2285767:zh-tw
+Pholiota nameko	光滑環銹傘	s	food	A	wikidata:Q555787:zh-tw
+Picodon	比考頓起司	x	food	A	wikidata:Q1245576:zh-tw
+pine nut	松子	s	food	A	wikidata:Q212933:zh-tw
+pineapple	鳳梨	x	food	A	wikidata:Q10817602:zh-tw
+pink salmon	粉紅馬哈魚	s	food	A	wikidata:Q673380:zh-tw
+Piper umbellatum	臺灣胡椒	s	food	A	wikidata:Q3015026:zh-tw
+pitahaya	火龍果	x	food	A	wikidata:Q232755:zh-tw
+Plantanus orientalis	法桐	s	food	A	wikidata:Q161105:zh-tw
+Pleurotus citrinopileatus	金頂側耳	s	food	A	wikidata:Q206502:zh-tw
+Pleurotus cornucopiae	白黃側耳	s	food	A	wikidata:Q834124:zh-tw
+Pleurotus eryngii	刺芹側耳	s	food	A	wikidata:Q901105:zh-tw
+Pleurotus ostreatus	糙皮側耳	s	food	A	wikidata:Q186451:zh-tw
+pomelo	柚子	x	food	A	wikidata:Q80024:zh-tw
+pork	豬肉	x	food	A	wikidata:Q191768:zh-tw
+pork large intestine	豬大腸	s	food	A	wikidata:Q20894847:zh-tw
+pork ribs	排骨	s	food	A	wikidata:Q1526944:zh-tw
+Port Salut	救贖港起司	s	food	A	wikidata:Q1854615:zh-tw
+potato	馬鈴薯	x	food	A	wikidata:Q16587531:zh-tw
+powdered sugar	糖粉	s	food	A	wikidata:Q151070:zh-tw
+processed food	加工食品	s	food	A	wikidata:Q12582288:zh-tw
+Prunus domestica	歐洲李	s	food	A	wikidata:Q44120:zh-tw
+Prunus dulcis	八擔杏	s	food	A	wikidata:Q39918:zh-tw
+puffed rice	米香	s	food	A	wikidata:Q154092:zh-tw
+pumpkin	南瓜	x	food	A	wikidata:Q165308:zh-tw
+quail egg	鵪鶉蛋	s	food	A	wikidata:Q1572135:zh-tw
+Quercus infectoria	阿勒頗櫟	s	food	A	wikidata:Q3565069:zh-tw
+Raclette du Valais	拉克萊特起司	s	food	A	wikidata:Q12901724:zh-tw
+red abalone	紅鮑	s	food	A	wikidata:Q123631:zh-tw
+Red Leicester	萊斯特起司	s	food	A	wikidata:Q1892828:zh-tw
+red yeast rice	紅麴米	s	food	A	wikidata:Q1135788:zh-tw
+Rehmannia glutinosa	地黃	s	food	A	wikidata:Q1071605:zh-tw
+rennet	凝乳酶	x	food	A	wikidata:Q326900:zh-tw
+Reynoutria japonica	虎杖	s	food	A	wikidata:Q18421053:zh-tw
+rice hulls	稻殼	s	food	A	wikidata:Q286388:zh-tw
+Rice of Yuli	玉里米	s	food	A	wikidata:Q96179816:zh-tw
+ricotta	里科塔奶酪	x	food	A	wikidata:Q216781:zh-tw
+Riesling	雷司令	x	food	A	wikidata:Q456471:zh-tw
+Roquefort cheese	羅克福乾酪	s	food	A	wikidata:Q189221:zh-tw
+rose hip	薔薇果	s	food	A	wikidata:Q46740:zh-tw
+rose oil	薔薇花油	s	food	A	wikidata:Q83054:zh-tw
+royal jelly	蜂王漿	s	food	A	wikidata:Q202501:zh-tw
+Russula cremeoavellanea	淺榛色紅菇	s	food	A	wikidata:Q2166513:zh-tw
+Saccharomyces cerevisiae	釀酒酵母	s	food	A	wikidata:Q719725:zh-tw
+Saccharum officinarum	秀貴甘蔗	s	food	A	wikidata:Q3391243:zh-tw
+sago	西米	x	food	A	wikidata:Q218778:zh-tw
+salami	莎樂美腸	x	food	A	wikidata:Q188655:zh-tw
+sambal	叄巴醬	x	food	A	wikidata:Q1056554:zh-tw
+Sanuki udon	讚岐烏龍	s	food	A	wikidata:Q1185324:zh-tw
+sara udon	皿烏龍麵	s	food	A	wikidata:Q873032:zh-tw
+satay	沙嗲	x	food	A	wikidata:Q209253:zh-tw
+sauerkraut	德國酸菜	x	food	A	wikidata:Q154166:zh-tw
+sausage	香腸	x	food	A	wikidata:Q131419:zh-tw
+seafood	海鮮	x	food	A	wikidata:Q192935:zh-tw
+Sepia esculenta	真烏賊	s	food	A	wikidata:Q2129566:zh-tw
+sesame oil	芝麻油	s	food	A	wikidata:Q212317:zh-tw
+shacha sauce	沙茶醬	s	food	A	wikidata:Q60365:zh-tw
+shark fin	魚翅	s	food	A	wikidata:Q46711094:zh-tw
+Shaxian delicacies	沙縣小喫	s	food	A	wikidata:Q19840758:zh-tw
+shrimp	蝦	x	food	A	wikidata:Q1517781:zh-tw
+Slate Barbecue	石板烤肉	s	food	A	wikidata:Q137303325:zh-tw
+sockeye salmon	紅鮭	s	food	A	wikidata:Q44064:zh-tw
+Sophora tomentosa	毛苦參	s	food	A	wikidata:Q3206158:zh-tw
+soursop	刺果番荔枝	x	food	A	wikidata:Q192147:zh-tw
+southern flounder	漠斑牙鮃	s	food	A	wikidata:Q7134909:zh-tw
+soybean oil	大豆油	s	food	A	wikidata:Q926892:zh-tw
+soybean sprout	黃豆芽	s	food	A	wikidata:Q1036741:zh-tw
+Sparassis crispa	繡球菌	s	food	A	wikidata:Q36992:zh-tw
+Sparus aurata	金頭鯛	s	food	A	wikidata:Q237046:zh-tw
+spice	香辛料	x	food	A	wikidata:Q42527:zh-tw
+Spinacia oleracea	菠菜	s	food	A	wikidata:Q81464:zh-tw
+starch	澱粉	x	food	A	wikidata:Q41534:zh-tw
+Stilton cheese	斯蒂爾頓芝士	s	food	A	wikidata:Q466749:zh-tw
+straw mushroom	草菇	s	food	A	wikidata:Q641656:zh-tw
+Stropharia rugosoannulata	皺環球蓋菇	s	food	A	wikidata:Q1236980:zh-tw
+Styrax japonicus	野茉莉	s	food	A	wikidata:Q910419:zh-tw
+suan cai	酸菜	s	food	A	wikidata:Q3269753:zh-tw
+sucrose	蔗糖	x	food	A	wikidata:Q4027534:zh-tw
+summer truffle	夏季黑松露	s	food	A	wikidata:Q74692:zh-tw
+superoxide dismutase	超氧化物歧化酶	s	food	A	wikidata:Q410776:zh-tw
+Sweet potato	甘藷	s	food	A	wikidata:Q37937:zh-tw
+sweet potato ball	地瓜球	s	food	A	wikidata:Q125072181:zh-tw
+Swiss cheese	瑞士乳酪	s	food	A	wikidata:Q4117114:zh-tw
+Symplocarpus foetidus	臭菘	s	food	A	wikidata:Q1195489:zh-tw
+Tabasco sauce	塔巴斯科辣椒醬	s	food	A	wikidata:Q335016:zh-tw
+table salt	食鹽	s	food	A	wikidata:Q11254:zh-tw
+Takanotsume	鷹爪椒	x	food	A	wikidata:Q11676312:zh-tw
+Tamarindus indica	羅望子	s	food	A	wikidata:Q80235:zh-tw
+tapioca	樹薯澱粉	x	food	A	wikidata:Q873761:zh-tw
+tarragon	龍蒿	x	food	A	wikidata:Q155814:zh-tw
+tartar sauce	塔塔醬	s	food	A	wikidata:Q348947:zh-tw
+Theobroma cacao	可可樹	s	food	A	wikidata:Q42385:zh-tw
+Thunnus tonggol	長腰鮪	s	food	A	wikidata:Q1411265:zh-tw
+tofu skin	豆腐皮	s	food	A	wikidata:Q2141977:zh-tw
+TR Bento	臺鐵便當	s	food	A	wikidata:Q15914808:zh-tw
+Tremella fuciformis	銀耳	s	food	A	wikidata:Q1309195:zh-tw
+Triticum spelta	斯佩耳特小麥	s	food	A	wikidata:Q158767:zh-tw
+Tropaeolum majus	金蓮花	s	food	A	wikidata:Q156288:zh-tw
+tropical fruit	熱帶水果	s	food	A	wikidata:Q844144:zh-tw
+trout	鱒魚	x	food	A	wikidata:Q2258881:zh-tw
+Tuber magnatum	義大利白松露	s	food	A	wikidata:Q2360313:zh-tw
+Tuber melanosporum	黑松露	s	food	A	wikidata:Q1093314:zh-tw
+turbot	瘤棘鮃	x	food	A	wikidata:Q217329:zh-tw
+udon	烏龍麵	x	food	A	wikidata:Q471861:zh-tw
+ultra-processed food	超加工食品	s	food	A	wikidata:Q48931140:zh-tw
+vegetable	蔬菜	x	food	A	wikidata:Q11004:zh-tw
+vegetable oil	植物油	s	food	A	wikidata:Q4739805:zh-tw
+walnut	胡桃	x	food	A	wikidata:Q208021:zh-tw
+watermelon	西瓜	x	food	A	wikidata:Q38645:zh-tw
+Welsh onion	蔥	s	food	A	wikidata:Q27938:zh-tw
+wheat flour	麵粉	s	food	A	wikidata:Q2249305:zh-tw
+wheat starch	小麥澱粉	s	food	A	wikidata:Q18235005:zh-tw
+whey	乳清	x	food	A	wikidata:Q185009:zh-tw
+whey protein	乳清蛋白	s	food	A	wikidata:Q424430:zh-tw
+Winter salami	冬季莎樂美腸	s	food	A	wikidata:Q148052:zh-tw
+Wolfiporia extensa	茯苓	s	food	A	wikidata:Q3115198:zh-tw
+xiaochi	中式小喫	x	food	A	wikidata:Q8044248:zh-tw
+yeast	酵母	x	food	A	wikidata:Q45422:zh-tw
+yellowfin tuna	黃鰭鮪	s	food	A	wikidata:Q269781:zh-tw
+yerba mate	巴拉圭冬青	s	food	A	wikidata:Q117068:zh-tw
+Zailai rice	在來米	s	food	A	wikidata:Q123561865:zh-tw
+zucchini	西葫蘆	x	food	A	wikidata:Q7533:zh-tw
+Accent Color	強調色	x	ui	B	l10n:gnome+kde+lo:4/4
+Activities	活動	x	ui	B	l10n:gnome+kde:3/4
+Add to Bookmarks	加入書籤	x	ui	B	l10n:gnome+lo:3/3
+Add-ons	附加元件	x	ui	B	l10n:gnome+kde+moz:3/3
+Administrator	管理員	x	ui	B	l10n:gnome+kde:4/4
+Advanced Options	進階選項	x	ui	B	l10n:gnome+kde+moz:3/4
+Advanced settings	進階設定	x	ui	B	l10n:kde+lo+moz:3/3
+Album	專輯	x	ui	B	l10n:gnome+kde:5/5
+Alignment	對齊	x	ui	B	l10n:gnome+kde+lo:4/4
+All Applications	所有應用程式	x	ui	B	l10n:kde+lo:3/3
+All Devices	所有裝置	x	ui	B	l10n:kde+moz:3/3
+All Documents	所有文件	x	ui	B	l10n:gnome+kde+lo:3/3
+All Folders	所有資料夾	x	ui	B	l10n:gnome+kde:3/3
+Animations	動畫	x	ui	B	l10n:gnome+kde+lo:3/3
+Arrow	箭頭	x	ui	B	l10n:kde+lo:3/3
+Artist	演出者	x	ui	B	l10n:gnome+kde:3/4
+Auto	自動	x	ui	B	l10n:gnome+lo+moz:3/3
+Available actions	可用的動作	x	ui	B	l10n:gnome+kde:3/3
+Behavior	行為	x	ui	B	l10n:gnome+kde:7/7
+Binary	二進位	x	ui	B	l10n:gnome+kde+lo:3/4
+Black	黑色	x	ui	B	l10n:gnome+kde+lo:3/4
+Bopomofo	注音符號	x	ui	B	l10n:kde+lo:3/3
+Border	邊框	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Brown	棕色	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Browsing	瀏覽	x	ui	B	l10n:gnome+kde+moz:3/3
+Busy	忙碌	x	ui	B	l10n:gnome+lo+moz:3/3
+Button	按鈕	x	ui	B	l10n:gnome+kde+lo:3/3
+Bytes	位元組	x	ui	B	l10n:gnome+moz:6/6
+Calculate	計算	x	ui	B	l10n:gnome+kde+lo:3/3
+Cancelled	已取消	x	ui	B	l10n:gnome+moz:4/4
+Centered	置中	x	ui	B	l10n:kde+lo:3/3
+Change Password	變更密碼	x	ui	B	l10n:gnome+kde+lo:3/3
+Chat	聊天	x	ui	B	l10n:gnome+kde:3/3
+Check Spelling	檢查拼字	x	ui	B	l10n:gnome+kde+moz:3/4
+Circle	圓形	x	ui	B	l10n:gnome+kde+lo:4/4
+CJK Compatibility Ideographs	中日韓相容表意文字	x	ui	B	l10n:kde+lo:3/3
+CJK Unified Ideographs	中日韓統一表意文字	x	ui	B	l10n:kde+lo:3/3
+Clear List	清除清單	x	ui	B	l10n:kde+lo:4/4
+Clipboard	剪貼簿	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Close All	全部關閉	x	ui	B	l10n:gnome+kde:3/3
+Close All Tabs	關閉所有分頁	x	ui	B	l10n:gnome+kde+moz:3/3
+Close Current Tab	關閉目前分頁	x	ui	B	l10n:gnome+kde+moz:3/4
+Close Tabs	關閉分頁	x	ui	B	l10n:gnome+kde+moz:3/3
+Column	欄	x	ui	B	l10n:gnome+kde+lo:4/4
+Compress	壓縮	x	ui	B	l10n:gnome+kde:3/3
+Compression	壓縮	x	ui	B	l10n:gnome+kde+lo:3/3
+Computer	電腦	x	ui	B	l10n:gnome+kde:6/6
+Confidential	機密	x	ui	B	l10n:gnome+kde+lo:4/4
+Configure	設定	x	ui	B	l10n:kde+lo:12/12
+Constants	常數	x	ui	B	l10n:gnome+kde+lo:3/3
+Content	內容	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Continuous	連續	x	ui	B	l10n:gnome+kde+lo:3/3
+Copy Link Address	複製連結位址	x	ui	B	l10n:gnome+kde:9/9
+Copy Location	複製位置	x	ui	B	l10n:gnome+kde:9/10
+Copy Text	複製文字	x	ui	B	l10n:gnome+kde:3/3
+Country	國家	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Create Folder	建立資料夾	x	ui	B	l10n:gnome+kde:7/7
+Creation Date	建立日期	x	ui	B	l10n:gnome+kde+moz:3/3
+Currency	貨幣	x	ui	B	l10n:gnome+kde+lo:3/3
+Currency Symbols	貨幣符號	x	ui	B	l10n:kde+lo:3/3
+Cursor	游標	x	ui	B	l10n:gnome+kde+moz:3/3
+Custom Font	自訂字型	x	ui	B	l10n:gnome+kde:3/3
+Custom Format	自訂格式	x	ui	B	l10n:gnome+lo:3/3
+Customize	自訂	x	ui	B	l10n:gnome+lo+moz:3/3
+Customize Toolbar	自訂工具列	x	ui	B	l10n:gnome+lo+moz:3/3
+Cyan	青色	x	ui	B	l10n:kde+lo+moz:4/4
+Daily	每天	x	ui	B	l10n:gnome+kde:4/5
+Data	資料	x	ui	B	l10n:gnome+lo+moz:4/4
+Database	資料庫	x	ui	B	l10n:gnome+kde+lo:3/3
+Day	日	x	ui	B	l10n:gnome+lo+moz:4/5
+Default Settings	預設設定	x	ui	B	l10n:kde+lo+moz:3/3
+Defaults	預設值	x	ui	B	l10n:gnome+kde+lo:4/4
+Delay	延遲	x	ui	B	l10n:gnome+kde+lo:5/5
+Delete all	全部刪除	x	ui	B	l10n:gnome+lo+moz:3/3
+Delete Bookmark	刪除書籤	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Delete Permanently	永久刪除	x	ui	B	l10n:gnome+kde:3/3
+Denominators	分母	x	ui	B	l10n:gnome+lo:3/3
+Desktop folder	桌面資料夾	x	ui	B	l10n:gnome+kde:3/3
+Device name	裝置名稱	x	ui	B	l10n:gnome+kde+moz:4/4
+Devices	裝置	x	ui	B	l10n:gnome+kde:4/4
+Diagnostics	診斷	x	ui	B	l10n:gnome+kde+moz:3/3
+Dingbats	裝飾符號	x	ui	B	l10n:kde+lo:3/3
+Direction	方向	x	ui	B	l10n:gnome+kde+lo:3/3
+Display Name	顯示名稱	x	ui	B	l10n:gnome+lo:3/3
+Do Not Delete	不要刪除	x	ui	B	l10n:gnome+kde+lo:3/3
+Double-click	點兩下	x	ui	B	l10n:gnome+kde:3/3
+Edit Location	編輯位置	x	ui	B	l10n:gnome+kde:3/3
+Education	教育	x	ui	B	l10n:kde+moz:3/3
+Eject	退出	x	ui	B	l10n:gnome+kde:6/7
+Encrypt	加密	x	ui	B	l10n:gnome+lo:3/3
+Encryption	加密	x	ui	B	l10n:gnome+kde:4/4
+Enter password	輸入密碼	x	ui	B	l10n:gnome+lo+moz:4/4
+Environment	環境	x	ui	B	l10n:gnome+kde+lo:3/3
+Error Message	錯誤訊息	x	ui	B	l10n:gnome+lo:3/3
+Errors	錯誤	x	ui	B	l10n:kde+lo+moz:3/3
+Ethiopic	衣索比亞文	x	ui	B	l10n:kde+lo+moz:3/4
+Every day	每天	x	ui	B	l10n:gnome+lo:3/3
+Execute	執行	x	ui	B	l10n:kde+lo:3/3
+Experimental	實驗性	x	ui	B	l10n:kde+lo:3/3
+Exponent	指數	x	ui	B	l10n:kde+lo+moz:3/3
+Extensions	擴充套件	x	ui	B	l10n:gnome+lo+moz:4/4
+Fax	傳真	x	ui	B	l10n:gnome+lo:3/3
+Features	功能	x	ui	B	l10n:gnome+lo+moz:3/3
+File Path	檔案路徑	x	ui	B	l10n:gnome+kde:3/3
+Filename	檔案名稱	x	ui	B	l10n:gnome+kde:7/7
+Find text	尋找文字	x	ui	B	l10n:gnome+kde+lo:3/3
+Finished	已完成	x	ui	B	l10n:gnome+kde:4/4
+First Name	名字	x	ui	B	l10n:gnome+lo:3/3
+Focal Length	焦距	x	ui	B	l10n:gnome+lo:4/4
+Folder Name	資料夾名稱	x	ui	B	l10n:gnome+kde+lo:5/5
+Font Name	字型名稱	x	ui	B	l10n:gnome+lo:3/3
+Font Style	字型樣式	x	ui	B	l10n:gnome+kde:3/3
+Forever	永遠	x	ui	B	l10n:gnome+kde:5/6
+Form	表單	x	ui	B	l10n:gnome+kde+lo:3/3
+Full Widths	全形	x	ui	B	l10n:gnome+lo:3/3
+Geometric Shapes	幾何形狀	x	ui	B	l10n:kde+lo:3/3
+Global	全域	x	ui	B	l10n:gnome+kde:3/3
+Gray	灰色	x	ui	B	l10n:kde+lo+moz:3/3
+Hangul Compatibility Jamo	韓文相容字母	x	ui	B	l10n:kde+lo:3/3
+Hexadecimal	十六進位	x	ui	B	l10n:gnome+kde+lo:3/3
+Hibernate	休眠	x	ui	B	l10n:gnome+kde:4/4
+Hide Password	隱藏密碼	x	ui	B	l10n:gnome+kde+moz:3/3
+Hide sidebar	隱藏側邊欄	x	ui	B	l10n:gnome+kde+moz:3/3
+Hiragana	平假名	x	ui	B	l10n:kde+lo:3/3
+Hostname	主機名稱	x	ui	B	l10n:gnome+kde+moz:3/3
+Icons	圖示	x	ui	B	l10n:kde+lo:5/5
+Image Quality	影像品質	x	ui	B	l10n:gnome+kde:3/3
+Images	影像	x	ui	B	l10n:gnome+kde+lo:4/5
+Import from file	從檔案匯入	x	ui	B	l10n:gnome+moz:3/3
+Inches	英吋	x	ui	B	l10n:gnome+kde+lo:3/4
+Interface	介面	x	ui	B	l10n:gnome+kde+lo:4/4
+Invalid	無效	x	ui	B	l10n:gnome+lo+moz:3/3
+Kangxi Radicals	康熙部首	x	ui	B	l10n:kde+lo:3/3
+Katakana	片假名	x	ui	B	l10n:kde+lo:3/3
+Keep	保留	x	ui	B	l10n:gnome+kde:3/3
+Keep Open	保持開啟	x	ui	B	l10n:kde+moz:3/3
+Layers	圖層	x	ui	B	l10n:gnome+kde+moz:4/4
+Left Bounds	左邊界	x	ui	B	l10n:gnome+lo:3/3
+Length	長度	x	ui	B	l10n:gnome+kde+lo:5/5
+Load	載入	x	ui	B	l10n:kde+lo+moz:3/3
+Locations	位置	x	ui	B	l10n:gnome+kde:3/3
+Magnifier	放大鏡	x	ui	B	l10n:gnome+kde:3/3
+Main	主要	x	ui	B	l10n:gnome+kde+moz:4/4
+Maximize	最大化	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Median	中位數	x	ui	B	l10n:gnome+kde+lo:3/3
+Memory	記憶體	x	ui	B	l10n:gnome+kde+moz:5/5
+Merge	合併	x	ui	B	l10n:gnome+lo:3/3
+Method	方法	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Microphone	麥克風	x	ui	B	l10n:gnome+moz:3/3
+Minimize	最小化	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Minimum font size	最小字型大小	x	ui	B	l10n:gnome+moz:3/3
+Model	型號	x	ui	B	l10n:gnome+kde:4/4
+More Information	更多資訊	x	ui	B	l10n:gnome+moz:7/7
+Mount	掛載	x	ui	B	l10n:gnome+kde:5/5
+Move Left	左移	x	ui	B	l10n:gnome+kde:3/4
+Move Right	右移	x	ui	B	l10n:gnome+kde:3/4
+ms	毫秒	x	ui	B	l10n:kde+lo:3/3
+Music folder	音樂資料夾	x	ui	B	l10n:gnome+kde:3/3
+Music Player	音樂播放器	x	ui	B	l10n:gnome+kde:3/3
+New Password	新密碼	x	ui	B	l10n:gnome+lo:3/3
+New Profile	新增設定檔	x	ui	B	l10n:gnome+moz:3/3
+New Tai Lue	新傣仂文	x	ui	B	l10n:kde+lo:3/3
+Next Week	下週	x	ui	B	l10n:gnome+kde+lo:3/4
+No error	沒有錯誤	x	ui	B	l10n:gnome+lo:3/3
+No Recent Documents	沒有最近的文件	x	ui	B	l10n:gnome+kde:3/4
+Numbers	數字	x	ui	B	l10n:gnome+kde+lo:4/4
+Numerators	分子	x	ui	B	l10n:gnome+lo:3/3
+Objects	物件	x	ui	B	l10n:gnome+kde+lo:3/3
+Oldstyle Figures	舊式數字	x	ui	B	l10n:gnome+lo:3/3
+Open Document	開啟文件	x	ui	B	l10n:gnome+kde+lo:3/3
+Open Folder	開啟資料夾	x	ui	B	l10n:gnome+kde:4/4
+Open Image	開啟影像	x	ui	B	l10n:gnome+kde:4/4
+Open Main Menu	開啟主選單	x	ui	B	l10n:gnome+kde:4/4
+Open Terminal	開啟終端機	x	ui	B	l10n:gnome+kde:3/3
+Operating System	作業系統	x	ui	B	l10n:gnome+kde+moz:4/4
+Or	或	x	ui	B	l10n:kde+lo:3/3
+Original	原始	x	ui	B	l10n:gnome+lo+moz:3/3
+OS	作業系統	x	ui	B	l10n:kde+lo+moz:3/3
+Others	其他	x	ui	B	l10n:gnome+kde+lo:4/4
+Page Size	頁面大小	x	ui	B	l10n:gnome+kde+moz:3/3
+Pages	頁面	x	ui	B	l10n:gnome+kde+lo+moz:4/4
+Passwords do not match	密碼不相符	x	ui	B	l10n:gnome+lo:4/4
+Paused	已暫停	x	ui	B	l10n:gnome+lo:3/3
+Percent	百分比	x	ui	B	l10n:kde+lo:3/3
+Performance	效能	x	ui	B	l10n:gnome+kde+moz:5/5
+Phone	電話	x	ui	B	l10n:gnome+lo:4/4
+Pink	粉紅色	x	ui	B	l10n:gnome+lo+moz:4/4
+Presentation Mode	簡報模式	x	ui	B	l10n:gnome+lo+moz:3/3
+Print Document	列印文件	x	ui	B	l10n:gnome+kde+lo:4/4
+Profiles	設定檔	x	ui	B	l10n:gnome+kde+moz:3/3
+Proportional Kana	比例假名	x	ui	B	l10n:gnome+lo:3/3
+Proportional Widths	比例寬度	x	ui	B	l10n:gnome+lo:3/3
+Purple	紫色	x	ui	B	l10n:gnome+lo+moz:5/5
+Random	隨機	x	ui	B	l10n:gnome+kde+lo:4/4
+Recently used	最近使用	x	ui	B	l10n:kde+lo:3/3
+Rectangle	矩形	x	ui	B	l10n:kde+lo:3/3
+Remember password	記住密碼	x	ui	B	l10n:gnome+kde+lo:5/5
+Remote Control	遠端控制	x	ui	B	l10n:gnome+kde+lo:3/3
+Remove Bookmark	移除書籤	x	ui	B	l10n:gnome+kde+moz:4/4
+Remove Folder	移除資料夾	x	ui	B	l10n:gnome+kde:3/3
+Replace with	取代為	x	ui	B	l10n:gnome+kde+moz:4/4
+Reset Zoom	重設縮放	x	ui	B	l10n:gnome+kde:3/4
+Resolution	解析度	x	ui	B	l10n:gnome+lo:4/4
+Result	結果	x	ui	B	l10n:kde+lo:3/3
+Right Bounds	右邊界	x	ui	B	l10n:gnome+lo:3/3
+Rotate	旋轉	x	ui	B	l10n:gnome+lo:3/3
+Rotate Left	向左旋轉	x	ui	B	l10n:gnome+kde:5/5
+Rotate Right	向右旋轉	x	ui	B	l10n:gnome+kde:5/5
+Rotation	旋轉	x	ui	B	l10n:gnome+lo:3/3
+Row	列	x	ui	B	l10n:gnome+lo:3/3
+Save document	儲存文件	x	ui	B	l10n:kde+lo:3/3
+Save Image	儲存影像	x	ui	B	l10n:gnome+kde+lo:5/5
+Screen Reader	螢幕閱讀器	x	ui	B	l10n:gnome+kde:3/3
+Search Options	搜尋選項	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Search Settings	搜尋設定	x	ui	B	l10n:gnome+moz:3/3
+Search Tabs	搜尋分頁	x	ui	B	l10n:gnome+kde+moz:3/3
+Select certificate	選取憑證	x	ui	B	l10n:gnome+lo:3/3
+Select Folder	選擇資料夾	x	ui	B	l10n:gnome+kde:4/4
+Selected	已選取	x	ui	B	l10n:kde+lo+moz:3/3
+Serial Number	序號	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Server	伺服器	x	ui	B	l10n:gnome+kde+lo:4/4
+Session	工作階段	x	ui	B	l10n:gnome+kde:5/5
+Set as Wallpaper	設為桌布	x	ui	B	l10n:gnome+kde:3/3
+Set Password	設定密碼	x	ui	B	l10n:gnome+kde+lo:4/4
+Shape	形狀	x	ui	B	l10n:kde+lo:3/3
+Show All Tabs	顯示所有分頁	x	ui	B	l10n:gnome+moz:3/3
+Show Password	顯示密碼	x	ui	B	l10n:gnome+kde+moz:3/3
+Show Text	顯示文字	x	ui	B	l10n:gnome+kde:3/3
+Show Toolbar	顯示工具列	x	ui	B	l10n:gnome+kde+lo:5/5
+Small Capitals	小型大寫字母	x	ui	B	l10n:gnome+lo:3/3
+Software	軟體	x	ui	B	l10n:gnome+kde:4/5
+Spreadsheet	試算表	x	ui	B	l10n:gnome+lo:3/3
+Spreadsheets	試算表	x	ui	B	l10n:gnome+kde+lo:3/3
+Standard	標準	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+Stopped	已停止	x	ui	B	l10n:gnome+kde:3/3
+Subscript	下標	x	ui	B	l10n:gnome+kde+lo:5/5
+Success	成功	x	ui	B	l10n:gnome+kde+moz:3/3
+Superscript	上標	x	ui	B	l10n:gnome+kde+lo:5/5
+Supported	支援	x	ui	B	l10n:gnome+kde+moz:3/3
+Suspend	暫停	x	ui	B	l10n:gnome+kde:4/4
+System Information	系統資訊	x	ui	B	l10n:gnome+kde:3/3
+System Services	系統服務	x	ui	B	l10n:gnome+kde:3/3
+Target	目標	x	ui	B	l10n:gnome+kde+lo:3/3
+Text editor	文字編輯器	x	ui	B	l10n:gnome+kde+moz:4/4
+Thumbnails	縮圖	x	ui	B	l10n:gnome+kde:4/4
+Timer	計時器	x	ui	B	l10n:gnome+moz:3/3
+To Do	待辦事項	x	ui	B	l10n:gnome+lo:3/3
+Toggle	切換	x	ui	B	l10n:gnome+lo+moz:3/3
+Toggle Sidebar	切換側邊欄	x	ui	B	l10n:gnome+moz:5/5
+Total	總計	x	ui	B	l10n:gnome+lo:4/4
+Transparent	透明	x	ui	B	l10n:gnome+kde+lo:3/3
+Trigger	觸發	x	ui	B	l10n:gnome+kde+lo:3/3
+Type to search	輸入以搜尋	x	ui	B	l10n:gnome+kde+lo:4/4
+Typing	輸入	x	ui	B	l10n:gnome+lo:3/3
+Unmount	卸載	x	ui	B	l10n:gnome+kde:5/5
+Unsupported	不支援	x	ui	B	l10n:gnome+kde+moz:3/3
+Updates	更新	x	ui	B	l10n:gnome+kde:3/3
+URL	網址	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+View Certificate	檢視憑證	x	ui	B	l10n:gnome+kde+lo+moz:5/5
+View Mode	檢視模式	x	ui	B	l10n:kde+lo:6/6
+Warnings	警告	x	ui	B	l10n:kde+lo:3/3
+Web Browser	網頁瀏覽器	x	ui	B	l10n:gnome+kde+moz:3/3
+Week	週	x	ui	B	l10n:gnome+lo:3/3
+Weekly	每週	x	ui	B	l10n:gnome+kde:4/4
+Years	年	x	ui	B	l10n:gnome+kde+lo:4/4
+Zero	零	x	ui	B	l10n:kde+lo:3/3
+ZIP Code	郵遞區號	x	ui	B	l10n:gnome+lo+moz:3/3

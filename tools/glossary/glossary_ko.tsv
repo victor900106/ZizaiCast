@@ -1,0 +1,2433 @@
+# ko -> zh-Hant (Taiwan). Built by build_glossary.py; sources and licences: SOURCES.md.
+src	zh	mode	kind	conf	source
+1일 영양성분 기준치	每日營養素參考值	x	nutrition	A	curated
+VAT 별도	稅另計	x	sign	A	curated
+VAT 포함	含稅	x	sign	A	curated
+갈매기살	豬橫膈膜肉	s	dish	A	curated
+갈아타는 곳	轉乘處	x	sign	A	curated
+갈아타는곳	轉乘處	x	sign	A	curated
+갈치조림	燉白帶魚	s	dish	A	curated
+감자탕	馬鈴薯排骨湯	s	dish	A	curated
+계단	樓梯	x	sign	A	curated
+계란말이	雞蛋捲	s	dish	A	curated
+계란찜	蒸蛋	s	dish	A	curated
+계산대	收銀台	x	sign	A	curated
+고등어구이	烤鯖魚	s	dish	A	curated
+고추장	辣椒醬	s	ingredient	A	curated
+곰탕	牛骨湯	s	dish	A	curated
+곱빼기	大碗	x	menu	A	curated
+곱창	烤腸	s	dish	A	curated
+공깃밥	白飯	s	dish	A	curated
+관계자 외 출입금지	非相關人員禁止進入	x	sign	A	curated
+관계자외 출입금지	非相關人員禁止進入	x	sign	A	curated
+관광 안내소	觀光服務處	x	sign	A	curated
+관광안내소	觀光服務處	x	sign	A	curated
+교통카드	交通卡	s	word	A	curated
+국내산	韓國國產	x	menu	A	curated
+국밥	湯飯	s	dish	A	curated
+국산	韓國國產	x	menu	A	curated
+군만두	煎餃	s	dish	A	curated
+금연	禁菸	x	sign	A	curated
+금연 구역	禁菸區	x	sign	A	curated
+금연구역	禁菸區	x	sign	A	curated
+김말이	炸海苔捲	s	dish	A	curated
+김치	泡菜	s	dish	A	curated
+김치볶음밥	泡菜炒飯	s	dish	A	curated
+김치전	泡菜煎餅	s	dish	A	curated
+깍두기	蘿蔔泡菜	s	dish	A	curated
+깻잎	紫蘇葉	s	ingredient	A	curated
+나가는 곳	出口	x	sign	A	curated
+나가는곳	出口	x	sign	A	curated
+남자 화장실	男廁	x	sign	A	curated
+남자화장실	男廁	x	sign	A	curated
+녹차	綠茶	s	drink	A	curated
+달걀	雞蛋	s	ingredient	A	curated
+닭갈비	辣炒雞排	s	dish	A	curated
+닭꼬치	雞肉串	s	dish	A	curated
+닭볶음탕	辣燉雞	s	dish	A	curated
+돈가스	炸豬排	s	dish	A	curated
+돈까스	炸豬排	s	dish	A	curated
+돼지갈비	豬排骨	s	dish	A	curated
+돼지국밥	豬肉湯飯	s	dish	A	curated
+된장	大醬	s	ingredient	A	curated
+두부	豆腐	s	ingredient	A	curated
+떡국	年糕湯	s	dish	A	curated
+떡꼬치	年糕串	s	dish	A	curated
+라볶이	拉麵炒年糕	s	dish	A	curated
+막창	烤大腸	s	dish	A	curated
+만두	餃子	s	dish	A	curated
+만지지 마세요	請勿觸摸	x	sign	A	curated
+매운맛	辣味	x	menu	A	curated
+매진	售完	x	sign	A	curated
+매표소	售票處	x	sign	A	curated
+머리 조심	小心碰頭	x	sign	A	curated
+목살	豬頸肉	s	dish	A	curated
+무료	免費	x	sign	A	curated
+무한리필	無限續點	x	menu	A	curated
+물냉면	水冷麵	s	dish	A	curated
+물만두	水餃	s	dish	A	curated
+물은 셀프	水請自取	x	menu	A	curated
+물은 셀프입니다	水請自取	x	menu	A	curated
+물티슈	濕紙巾	x	menu	A	curated
+물회	冷湯生魚片	s	dish	A	curated
+미국산	美國產	x	menu	A	curated
+미끄럼 주의	小心地滑	x	sign	A	curated
+미끄럼주의	小心地滑	x	sign	A	curated
+미역국	海帶湯	s	dish	A	curated
+반려동물 출입금지	禁止攜帶寵物	x	sign	A	curated
+반찬	小菜	x	menu	A	curated
+반찬 셀프	小菜請自取	x	menu	A	curated
+반찬은 셀프	小菜請自取	x	menu	A	curated
+발밑 조심	小心腳下	x	sign	A	curated
+발밑주의	小心腳下	x	sign	A	curated
+배달	外送	x	menu	A	curated
+배달 가능	可外送	x	menu	A	curated
+별도	另計	x	sign	A	curated
+보쌈	菜包肉	s	dish	A	curated
+볶음밥	炒飯	s	dish	A	curated
+부가세 별도	稅另計	x	sign	A	curated
+부가세 포함	含稅	x	sign	A	curated
+부가세별도	稅另計	x	sign	A	curated
+붕어빵	鯛魚燒	s	dish	A	curated
+브레이크 타임	休息時間	x	sign	A	curated
+브레이크타임	休息時間	x	sign	A	curated
+비빔국수	拌麵	s	dish	A	curated
+비빔냉면	拌冷麵	s	dish	A	curated
+비상구	緊急出口	x	sign	A	curated
+빈대떡	綠豆煎餅	s	dish	A	curated
+빙수	刨冰	s	dish	A	curated
+사리 추가	加麵	x	menu	A	curated
+사이다	汽水	s	drink	A	curated
+사이드 메뉴	附餐	x	menu	A	curated
+사이드메뉴	附餐	x	menu	A	curated
+사진촬영금지	禁止拍照	x	sign	A	curated
+상추	生菜	s	ingredient	A	curated
+생맥주	生啤酒	s	drink	A	curated
+생선구이	烤魚	s	dish	A	curated
+생수	礦泉水	s	drink	A	curated
+설렁탕	雪濃湯	s	dish	A	curated
+세트 메뉴	套餐	x	menu	A	curated
+세트메뉴	套餐	x	menu	A	curated
+셀프	自助	x	menu	A	curated
+셀프 서비스	自助服務	x	menu	A	curated
+셀프서비스	自助服務	x	menu	A	curated
+소갈비	牛排骨	s	dish	A	curated
+소고기	牛肉	s	ingredient	A	curated
+소맥	燒啤	x	drink	A	curated
+손대지 마세요	請勿觸摸	x	sign	A	curated
+수입산	進口	x	menu	A	curated
+수제비	麵疙瘩	s	dish	A	curated
+순대	血腸	s	dish	A	curated
+순대국	血腸湯	s	dish	A	curated
+순대국밥	血腸湯飯	s	dish	A	curated
+순두부	嫩豆腐	s	ingredient	A	curated
+순한맛	小辣	x	menu	A	curated
+식사	餐點	x	menu	A	curated
+식사류	餐點類	x	menu	A	curated
+식이섬유	膳食纖維	x	nutrition	A	curated
+식혜	甜米露	s	drink	A	curated
+신메뉴	新菜單	x	menu	A	curated
+쌈장	包飯醬	s	ingredient	A	curated
+아귀찜	燉鮟鱇魚	s	dish	A	curated
+아메리카노	美式咖啡	s	drink	A	curated
+아주 매운맛	特辣	x	menu	A	curated
+아황산류	亞硫酸鹽	x	allergen	A	curated
+안내소	服務處	x	sign	A	curated
+안동찜닭	安東燉雞	s	dish	A	curated
+안주	下酒菜	x	menu	A	curated
+안주류	下酒菜類	x	menu	A	curated
+알레르기 유발 물질	過敏原	x	allergen	A	curated
+알레르기 유발물질	過敏原	x	allergen	A	curated
+알레르기유발물질	過敏原	x	allergen	A	curated
+양념갈비	調味排骨	s	dish	A	curated
+양념치킨	韓式調味炸雞	s	dish	A	curated
+어묵	魚板	s	dish	A	curated
+에스컬레이터	手扶梯	x	sign	A	curated
+엘리베이터	電梯	x	sign	A	curated
+여자 화장실	女廁	x	sign	A	curated
+여자화장실	女廁	x	sign	A	curated
+영양 정보	營養資訊	x	nutrition	A	curated
+영양성분	營養成分	x	nutrition	A	curated
+영양정보	營養資訊	x	nutrition	A	curated
+영업 중	營業中	x	sign	A	curated
+영업중	營業中	x	sign	A	curated
+예약석	預約席	x	sign	A	curated
+오늘 휴무	今日公休	x	sign	A	curated
+오늘의 메뉴	今日菜單	x	menu	A	curated
+오뎅	魚板	s	dish	A	curated
+오므라이스	蛋包飯	s	dish	A	curated
+오징어	魷魚	s	allergen	A	curated
+우동	烏龍麵	s	dish	A	curated
+원산지	原產地	x	menu	A	curated
+원산지 표시	原產地標示	x	menu	A	curated
+원산지표시	原產地標示	x	menu	A	curated
+위험	危險	x	sign	A	curated
+유료	收費	x	sign	A	curated
+유자차	柚子茶	s	drink	A	curated
+육개장	辣牛肉湯	s	dish	A	curated
+육회	生拌牛肉	s	dish	A	curated
+음료	飲料	x	menu	A	curated
+음료 별도	飲料另計	x	sign	A	curated
+음료류	飲料類	x	menu	A	curated
+음료수	飲料	x	menu	A	curated
+음식물 반입금지	禁止攜帶外食	x	sign	A	curated
+인기 메뉴	人氣菜單	x	menu	A	curated
+인기메뉴	人氣菜單	x	menu	A	curated
+임시휴무	臨時公休	x	sign	A	curated
+입구	入口	x	sign	A	curated
+자장면	炸醬麵	s	dish	A	curated
+잔치국수	喜麵	s	dish	A	curated
+전복	鮑魚	s	allergen	A	curated
+점심 특선	午間特餐	x	menu	A	curated
+점심특선	午間特餐	x	menu	A	curated
+정기휴무	定期公休	x	sign	A	curated
+조개류	貝類	x	allergen	A	curated
+족발	豬腳	s	dish	A	curated
+주류	酒類	x	menu	A	curated
+주류 별도	酒類另計	x	sign	A	curated
+주정차 금지	禁止停車	x	sign	A	curated
+주정차금지	禁止停車	x	sign	A	curated
+주차 금지	禁止停車	x	sign	A	curated
+주차금지	禁止停車	x	sign	A	curated
+준비 중	準備中	x	sign	A	curated
+준비중	準備中	x	sign	A	curated
+중국산	中國產	x	menu	A	curated
+짜장면	炸醬麵	s	dish	A	curated
+짬뽕	炒碼麵	s	dish	A	curated
+쫄면	韓式辣拌麵	s	dish	A	curated
+찜닭	燉雞	s	dish	A	curated
+차돌박이	牛五花薄片	s	dish	A	curated
+촬영 금지	禁止攝影	x	sign	A	curated
+촬영금지	禁止攝影	x	sign	A	curated
+추천 메뉴	推薦菜單	x	menu	A	curated
+추천메뉴	推薦菜單	x	menu	A	curated
+출구	出口	x	sign	A	curated
+출입 금지	禁止進入	x	sign	A	curated
+출입구	出入口	x	sign	A	curated
+출입금지	禁止進入	x	sign	A	curated
+충전	儲值	x	word	A	curated
+카드 가능	可刷卡	x	sign	A	curated
+카드결제 가능	可刷卡	x	sign	A	curated
+카레	咖哩	s	dish	A	curated
+카페 라떼	拿鐵	s	drink	A	curated
+카페라떼	拿鐵	s	drink	A	curated
+칼국수	韓式刀切麵	s	dish	A	curated
+칼슘	鈣	x	nutrition	A	curated
+커피	咖啡	s	drink	A	curated
+콜라	可樂	s	drink	A	curated
+타는 곳	乘車處	x	sign	A	curated
+타는곳	乘車處	x	sign	A	curated
+탕수육	糖醋肉	s	dish	A	curated
+튀김	炸物	s	dish	A	curated
+파전	蔥煎餅	s	dish	A	curated
+팥빙수	紅豆刨冰	s	dish	A	curated
+품절	售完	x	sign	A	curated
+프라이드치킨	原味炸雞	s	dish	A	curated
+한우	韓牛	s	ingredient	A	curated
+항정살	松阪豬	s	dish	A	curated
+해물탕	海鮮湯	s	dish	A	curated
+해장국	解酒湯	s	dish	A	curated
+허니버터	蜂蜜奶油	s	food	A	curated
+현금만 가능	僅收現金	x	sign	A	curated
+호떡	糖餅	s	dish	A	curated
+호주산	澳洲產	x	menu	A	curated
+홍합	淡菜	s	allergen	A	curated
+화기엄금	嚴禁煙火	x	sign	A	curated
+화장실	洗手間	x	sign	A	curated
+환승	轉乘	x	sign	A	curated
+후라이드 치킨	原味炸雞	s	dish	A	curated
+후라이드치킨	原味炸雞	s	dish	A	curated
+휴무	公休	x	sign	A	curated
+흡연 구역	吸菸區	x	sign	A	curated
+흡연구역	吸菸區	x	sign	A	curated
+흡연실	吸菸室	x	sign	A	curated
+가나메초역	要町車站	s	station	A	wikidata:Q128296:zh-tw
+가락시장역	可樂市場站	s	station	A	wikidata:Q49096:zh-tw
+가사이역	葛西站	s	station	A	wikidata:Q126762:zh-tw
+가산디지털단지역	加山數碼團地站	s	station	A	wikidata:Q54328:zh-tw
+가와사키역	川崎車站	s	station	A	wikidata:Q80562:zh-tw
+가천대역	嘉泉大站	s	station	A	wikidata:Q46176:zh-tw
+가치도키역	勝鬨車站	s	station	A	wikidata:Q246191:zh-tw
+개포동역	开浦洞站	s	station	A	wikidata:Q46331:zh-tw
+게이한 전기 철도 가타노 선	交野線	x	line	A	wikidata:Q126015:zh-tw
+경부선	京釜線	s	line	A	wikidata:Q17200:zh-tw
+경의선	京義線	s	line	A	wikidata:Q17488:zh-tw
+고타케무카이하라역	小竹向原車站	s	station	A	wikidata:Q93684:zh-tw
+교대역	教大站	s	station	A	wikidata:Q49099:zh-tw
+교토쿠역	行德站	s	station	A	wikidata:Q128806:zh-tw
+구라마에역	藏前車站	s	station	A	wikidata:Q112348:zh-tw
+구성역	驹城站	s	station	A	wikidata:Q46207:zh-tw
+기바역	木場站	s	station	A	wikidata:Q126770:zh-tw
+기타산도역	北參道車站	s	station	A	wikidata:Q128322:zh-tw
+기흥역	器興站	s	station	A	wikidata:Q16273:zh-tw
+나가타역	長田車站	s	station	A	wikidata:Q126064:zh-tw
+나오에쓰역	直江津車站	s	station	A	wikidata:Q130065:zh-tw
+나카후토역	中埠頭車站	s	station	A	wikidata:Q180450:zh-tw
+난코구치역	南港口車站	s	station	A	wikidata:Q180437:zh-tw
+난코히가시역	南港東車站	s	station	A	wikidata:Q180517:zh-tw
+니시가하라역	西原車站	s	station	A	wikidata:Q151561:zh-tw
+니시신주쿠역	西新宿車站	s	station	A	wikidata:Q138555:zh-tw
+니시오사키역	西大崎車站	s	station	A	wikidata:Q247570:zh-tw
+니시와세다역	西早稻田車站	s	station	A	wikidata:Q128305:zh-tw
+니시우메다역	西梅田車站	s	station	A	wikidata:Q126023:zh-tw
+니시카사이역	西葛西站	s	station	A	wikidata:Q126768:zh-tw
+니시후나바시역	西船橋車站	s	station	A	wikidata:Q128803:zh-tw
+다이몬역	大門車站	s	station	A	wikidata:Q247129:zh-tw
+다카이다역	高井田車站	s	station	A	wikidata:Q126027:zh-tw
+단바구치역	丹波口車站	s	station	A	wikidata:Q129977:zh-tw
+대모산입구역	大母山入口站	s	station	A	wikidata:Q46196:zh-tw
+도곡역	道谷站	s	station	A	wikidata:Q46133:zh-tw
+도요초역	東陽町站	s	station	A	wikidata:Q126765:zh-tw
+도청 앞역	都廳前車站	x	station	A	wikidata:Q246186:zh-tw
+도쿄 임해고속철도 린카이선	臨海線	x	line	A	wikidata:Q225095:zh-tw
+동대문역사문화공원역	東大門歷史文化公園站	s	station	A	wikidata:Q129579:zh-tw
+망포역	網浦站	s	station	A	wikidata:Q218358:zh-tw
+모란역	牡丹站	s	station	A	wikidata:Q46184:zh-tw
+모리시타역	森下車站	s	station	A	wikidata:Q112723:zh-tw
+묘덴역	妙典站	s	station	A	wikidata:Q128795:zh-tw
+무사시사카이역	武藏境車站	s	station	A	wikidata:Q137550:zh-tw
+미금역	美金站	s	station	A	wikidata:Q46193:zh-tw
+미나미교토쿠역	南行德車站	s	station	A	wikidata:Q128797:zh-tw
+미나미스나마치역	南砂町站	s	station	A	wikidata:Q126760:zh-tw
+바라키나카야마역	原木中山站	s	station	A	wikidata:Q128808:zh-tw
+바쿠로요코야마역	馬喰橫山站	s	station	A	wikidata:Q128303:zh-tw
+병점기지선	餅店基地線	s	line	A	wikidata:Q54312:zh-tw
+병점역	餅店站	s	station	A	wikidata:Q54309:zh-tw
+보정역	宝亭站	s	station	A	wikidata:Q46203:zh-tw
+복정역	福井站	s	station	A	wikidata:Q46170:zh-tw
+부천역	富川站	s	station	A	wikidata:Q246638:zh-tw
+사당역	舍堂站	s	station	A	wikidata:Q49098:zh-tw
+사쿠라가와역	櫻川站	s	station	A	wikidata:Q126339:zh-tw
+서동탄역	西東灘站	s	station	A	wikidata:Q54310:zh-tw
+서울 지하철 2호선	首爾地鐵2號線	x	line	A	wikidata:Q17501:zh-tw
+서울 지하철 6호선	首爾地鐵6號線	x	line	A	wikidata:Q92549:zh-tw
+서울 지하철 7호선	首爾地鐵5號線	x	line	A	wikidata:Q22910:zh-tw
+서울 지하철 9호선	首爾地鐵9號線	x	line	A	wikidata:Q17503:zh-tw
+서울역	首爾站	s	station	A	wikidata:Q20415:zh-tw
+서현역	書峴站	s	station	A	wikidata:Q46190:zh-tw
+세류역	細柳站	s	station	A	wikidata:Q54308:zh-tw
+세마역	洗馬站	s	station	A	wikidata:Q137240:zh-tw
+세이부 철도 신주쿠 선	新宿線	x	line	A	wikidata:Q195685:zh-tw
+세이부 철도 이케부쿠로 선	池袋線	x	line	A	wikidata:Q93546:zh-tw
+세이부 철도 하이지마 선	拜島線	x	line	A	wikidata:Q211575:zh-tw
+세이부신주쿠역	西武新宿站	s	station	A	wikidata:Q167299:zh-tw
+센카와역	千川車站	s	station	A	wikidata:Q128304:zh-tw
+수내역	薮内站	s	station	A	wikidata:Q46201:zh-tw
+수도권 전철 1호선	首都圈電鐵1號線	x	line	A	wikidata:Q20280:zh-tw
+수도권 전철 5호선	首爾地鐵5號線	x	line	A	wikidata:Q92530:zh-tw
+수도권 전철 8호선	首爾地鐵8號線	x	line	A	wikidata:Q45086:zh-tw
+수서역	水西站	s	station	A	wikidata:Q46157:zh-tw
+스미노에코엔역	住之江公園車站	s	station	A	wikidata:Q126046:zh-tw
+스이타역	吹田車站	s	station	A	wikidata:Q59351:zh-tw
+시기노역	鴫野車站	s	station	A	wikidata:Q180485:zh-tw
+시로카네다이역	白金台車站	s	station	A	wikidata:Q112357:zh-tw
+시로카네타카나와역	白金高輪站	s	station	A	wikidata:Q112323:zh-tw
+시모역	志茂車站	s	station	A	wikidata:Q151416:zh-tw
+시청역	市廳站	s	station	A	wikidata:Q246660:zh-tw
+신갈역	新葛站	s	station	A	wikidata:Q46209:zh-tw
+신도림역	新道林站	s	station	A	wikidata:Q43298:zh-tw
+신린코엔역	森林公園車站	s	station	A	wikidata:Q128527:zh-tw
+신주쿠니시구치역	新宿西口車站	s	station	A	wikidata:Q246198:zh-tw
+신코야스역	新子安車站	s	station	A	wikidata:Q128314:zh-tw
+신후카에역	新深江站	s	station	A	wikidata:Q126056:zh-tw
+쓰루미역	鶴見車站	s	station	A	wikidata:Q128164:zh-tw
+쓰키시마역	月島車站	s	station	A	wikidata:Q112337:zh-tw
+쓰키지시조역	築地市場車站	s	station	A	wikidata:Q246180:zh-tw
+아사마역	朝熊站	s	station	A	wikidata:Q94676:zh-tw
+아쓰베쓰역	厚別車站	s	station	A	wikidata:Q128528:zh-tw
+아자부주반역	麻布十番車站	s	station	A	wikidata:Q112382:zh-tw
+아카바네바시역	赤羽橋車站	s	station	A	wikidata:Q246176:zh-tw
+아카바네이와부치역	赤羽岩淵車站	s	station	A	wikidata:Q151409:zh-tw
+아케보노바시역	曙橋站	s	station	A	wikidata:Q128308:zh-tw
+암사역	岩寺站	s	station	A	wikidata:Q49093:zh-tw
+애오개역	兒嶺站	s	station	A	wikidata:Q128804:zh-tw
+야탑역	野塔站	s	station	A	wikidata:Q46186:zh-tw
+염창역	鹽倉站	s	station	A	wikidata:Q59993:zh-tw
+오금역	梧琴站	s	station	A	wikidata:Q49095:zh-tw
+오다큐 전철 오다와라 선	小田原線	x	line	A	wikidata:Q135176:zh-tw
+오지카미야역	王子神谷車站	s	station	A	wikidata:Q151406:zh-tw
+옥수역	玉水站	s	station	A	wikidata:Q34696:zh-tw
+와카마쓰카와다역	若松河田車站	s	station	A	wikidata:Q246173:zh-tw
+와코시역	和光市車站	s	station	A	wikidata:Q128298:zh-tw
+용산역	龍山站	s	station	A	wikidata:Q20416:zh-tw
+우시고메야나기초역	牛込柳町車站	s	station	A	wikidata:Q247099:zh-tw
+우시고메카구라자카역	牛込神樂坂車站	s	station	A	wikidata:Q246195:zh-tw
+우오누마큐료역	魚沼丘陵車站	s	station	A	wikidata:Q128916:zh-tw
+유비칸역	有備館車站	s	station	A	wikidata:Q247618:zh-tw
+이매역	二梅站	s	station	A	wikidata:Q46188:zh-tw
+이수역	梨水站	s	station	A	wikidata:Q46351:zh-tw
+이와데야마역	岩出山車站	s	station	A	wikidata:Q247559:zh-tw
+이와모토초역	岩本町站	s	station	A	wikidata:Q128319:zh-tw
+이케부쿠로역	池袋車站	s	station	A	wikidata:Q173919:zh-tw
+장지역	長旨站	s	station	A	wikidata:Q75348:zh-tw
+조시가야역	雜司谷車站	s	station	A	wikidata:Q128312:zh-tw
+종각역	鐘閣站	s	station	A	wikidata:Q246645:zh-tw
+종로3가역	鍾路3街站	s	station	A	wikidata:Q79977:zh-tw
+종로5가역	鍾路5街站	s	station	A	wikidata:Q79979:zh-tw
+즈이코 4초메역	瑞光四丁目車站	x	station	A	wikidata:Q180497:zh-tw
+천호역	千户站	s	station	A	wikidata:Q49094:zh-tw
+태평역	太平站	s	station	A	wikidata:Q46180:zh-tw
+트레이드 센터마에역	貿易中心前車站	x	station	A	wikidata:Q180469:zh-tw
+페리 터미널역	渡船大樓車站	x	station	A	wikidata:Q180477:zh-tw
+포트 타운 니시역	港城西車站	x	station	A	wikidata:Q180510:zh-tw
+포트 타운 히가시역	港城東車站	x	station	A	wikidata:Q180504:zh-tw
+하마초역	濱町站	s	station	A	wikidata:Q128403:zh-tw
+학동역	鶴洞站	s	station	A	wikidata:Q68914:zh-tw
+한큐 전철 미노오 선	箕面線	x	line	A	wikidata:Q246334:zh-tw
+한티역	漢堤站	s	station	A	wikidata:Q46122:zh-tw
+호즈쿄역	保津峽車站	s	station	A	wikidata:Q130505:zh-tw
+혼코마고메역	本駒込車站	s	station	A	wikidata:Q151419:zh-tw
+홍대입구역	弘大入口站	s	station	A	wikidata:Q54267:zh-tw
+후카에바시역	深江橋車站	s	station	A	wikidata:Q126032:zh-tw
+히가시신주쿠역	東新宿車站	s	station	A	wikidata:Q112503:zh-tw
+히가시오사키역	東大崎車站	s	station	A	wikidata:Q247576:zh-tw
+히가시카나가와역	東神奈川車站	s	station	A	wikidata:Q128205:zh-tw
+히라노역	平野車站	s	station	A	wikidata:Q135184:zh-tw
+히라바야시역	平林車站	s	station	A	wikidata:Q180457:zh-tw
+히카와다이역	冰川台站	s	station	A	wikidata:Q93680:zh-tw
+간사이 국제공항	關西國際機場	x	landmark	A	wikidata:Q193682:zh-tw
+강동구	江東區	s	place	A	wikidata:Q50348:zh-tw
+강북구	江北區	s	place	A	wikidata:Q50349:zh-tw
+강서구	江西區	s	place	A	wikidata:Q50191:zh-tw
+계양구	桂陽區	s	place	A	wikidata:Q50352:zh-tw
+고토히라궁	金刀比羅宮	s	landmark	A	wikidata:Q94760:zh-tw
+관악구	冠岳區	s	place	A	wikidata:Q50353:zh-tw
+광산구	光山區	s	place	A	wikidata:Q50354:zh-tw
+광진구	廣津區	s	place	A	wikidata:Q50355:zh-tw
+교토 국립박물관	京都國立博物館	x	landmark	A	wikidata:Q147286:zh-tw
+구라바엔	哥拉巴園	s	landmark	A	wikidata:Q63465:zh-tw
+구로구	九老區	s	place	A	wikidata:Q50356:zh-tw
+권선구	勸善區	s	place	A	wikidata:Q50357:zh-tw
+금정구	金井區	s	place	A	wikidata:Q50358:zh-tw
+금천구	衿川區	s	place	A	wikidata:Q50359:zh-tw
+나가사키 공항	長崎機場	x	landmark	A	wikidata:Q133796:zh-tw
+나가사키 역사문화박물관	長崎歷史文化博物館	x	landmark	A	wikidata:Q73613:zh-tw
+남구	南區	s	place	A	wikidata:Q50361:zh-tw
+남동구	南洞區	s	place	A	wikidata:Q50367:zh-tw
+노원구	蘆原區	s	place	A	wikidata:Q50368:zh-tw
+달서구	達西區	s	place	A	wikidata:Q50370:zh-tw
+대덕구	大德區	s	place	A	wikidata:Q50371:zh-tw
+도봉구	道峰區	s	place	A	wikidata:Q50374:zh-tw
+도쿄 국제공항	羽田機場	x	landmark	A	wikidata:Q204853:zh-tw
+도쿄 스카이트리	東京晴空塔	x	landmark	A	wikidata:Q57965:zh-tw
+도쿄 타워	東京鐵塔	x	landmark	A	wikidata:Q183536:zh-tw
+동구	東區	s	place	A	wikidata:Q50375:zh-tw
+동대문구	東大門區	s	place	A	wikidata:Q50382:zh-tw
+동래구	東萊區	s	place	A	wikidata:Q50383:zh-tw
+동안구	東安區	s	place	A	wikidata:Q50384:zh-tw
+동작구	銅雀區	s	place	A	wikidata:Q50385:zh-tw
+마루가메성	丸龜城	s	landmark	A	wikidata:Q250658:zh-tw
+마포구	麻浦區	s	place	A	wikidata:Q50388:zh-tw
+부산진구	釜山鎮區	s	place	A	wikidata:Q50390:zh-tw
+부평구	富平區	s	place	A	wikidata:Q50391:zh-tw
+북구	北區	s	place	A	wikidata:Q50392:zh-tw
+분당구	盆唐區	s	place	A	wikidata:Q50397:zh-tw
+사상구	沙上區	s	place	A	wikidata:Q50398:zh-tw
+사하구	沙下區	s	place	A	wikidata:Q50400:zh-tw
+서구	西區	s	place	A	wikidata:Q50403:zh-tw
+서대문구	西大門區	s	place	A	wikidata:Q50408:zh-tw
+서초구	瑞草區	s	place	A	wikidata:Q20395:zh-tw
+성동구	城東區	s	place	A	wikidata:Q50411:zh-tw
+성북구	城北區	s	place	A	wikidata:Q50412:zh-tw
+송파구	松坡區	s	place	A	wikidata:Q50415:zh-tw
+수성구	壽城區	s	place	A	wikidata:Q50416:zh-tw
+수영구	水營區	s	place	A	wikidata:Q50417:zh-tw
+수정구	壽井區	s	place	A	wikidata:Q50418:zh-tw
+스와 대사	諏訪大社	x	landmark	A	wikidata:Q218813:zh-tw
+스와 신사	鎮西大社諏訪神社	x	landmark	A	wikidata:Q84028:zh-tw
+시미즈구	清水區	s	place	A	wikidata:Q79385:zh-tw
+야스쿠니 신사	靖國神社	x	landmark	A	wikidata:Q242803:zh-tw
+양천구	陽川區	s	place	A	wikidata:Q50420:zh-tw
+연수구	延壽區	s	place	A	wikidata:Q50421:zh-tw
+연제구	蓮堤區	s	place	A	wikidata:Q50422:zh-tw
+영도구	影島區	s	place	A	wikidata:Q50423:zh-tw
+영등포구	永登浦區	s	place	A	wikidata:Q50190:zh-tw
+영통구	靈通區	s	place	A	wikidata:Q50425:zh-tw
+오미야구	大宮區	s	place	A	wikidata:Q153629:zh-tw
+오사카성 공원	大阪城公園	x	landmark	A	wikidata:Q150118:zh-tw
+용산구	龍山區	s	place	A	wikidata:Q50429:zh-tw
+유성구	儒城區	s	place	A	wikidata:Q50431:zh-tw
+은평구	恩平區	s	place	A	wikidata:Q50432:zh-tw
+이쓰쿠시마 신사	嚴島神社	x	landmark	A	wikidata:Q191763:zh-tw
+이야히코 신사	彌彥神社	x	landmark	A	wikidata:Q195684:zh-tw
+일본 26 성인 기념관	日本二十六聖人紀念館	x	landmark	A	wikidata:Q84029:zh-tw
+장안구	長安區	s	place	A	wikidata:Q50436:zh-tw
+종로구	鐘路區	s	place	A	wikidata:Q36929:zh-tw
+주오구	中央區	s	place	A	wikidata:Q137716:zh-tw
+중구	中區	s	place	A	wikidata:Q50438:zh-tw
+중랑구	中浪區	s	place	A	wikidata:Q50444:zh-tw
+중원구	中院區	s	place	A	wikidata:Q50445:zh-tw
+즈이호덴	瑞鳳殿	s	landmark	A	wikidata:Q115856:zh-tw
+진해구	鎮海區	s	place	A	wikidata:Q50446:zh-tw
+처인구	處仁區	s	place	A	wikidata:Q50447:zh-tw
+팔달구	八達區	s	place	A	wikidata:Q50448:zh-tw
+해운대구	海雲臺區	s	place	A	wikidata:Q50449:zh-tw
+헤이조궁	平城宮	s	landmark	A	wikidata:Q211585:zh-tw
+히로시마성	廣島城	s	landmark	A	wikidata:Q41977:zh-tw
+히메지성	姬路城	s	landmark	A	wikidata:Q188754:zh-tw
+가도가도	加多加多	s	dish	A	wikidata:Q209304:zh-tw
+가스파초	西班牙凍湯	s	dish	A	wikidata:Q202677:zh-tw
+가쓰오부시	柴魚	s	dish	A	wikidata:Q113739:zh-tw
+간장	醬油	s	dish	A	wikidata:Q229385:zh-tw
+감자칩	洋芋片	s	dish	A	wikidata:Q173265:zh-tw
+감자튀김	馬鈴薯條	s	dish	A	wikidata:Q152088:zh-tw
+과일 샐러드	雜果沙律	x	dish	A	wikidata:Q152834:zh-tw
+구겔후프	奶油圓蛋糕	s	dish	A	wikidata:Q159754:zh-tw
+구야시	匈牙利湯	s	dish	A	wikidata:Q205762:zh-tw
+기네스	健力士	s	drink	A	wikidata:Q194297:zh-tw
+꿀술	蜂蜜酒	s	drink	A	wikidata:Q184442:zh-tw
+누가	牛軋糖	s	dish	A	wikidata:Q208729:zh-tw
+누텔라	能多益	s	dish	A	wikidata:Q212193:zh-tw
+당근	胡蘿蔔	s	dish	A	wikidata:Q81:zh-tw
+도넛	甜甜圈	s	dish	A	wikidata:Q192783:zh-tw
+돈두르마	土耳其冰淇淋	s	dish	A	wikidata:Q141293:zh-tw
+두유	豆奶	s	dish	A	wikidata:Q192199:zh-tw
+땅콩버터	花生醬	s	dish	A	wikidata:Q147651:zh-tw
+라멘	日本拉麵	s	dish	A	wikidata:Q234646:zh-tw
+라타투유	普羅旺斯雜燴	s	dish	A	wikidata:Q183095:zh-tw
+레드 와인	紅葡萄酒	x	drink	A	wikidata:Q1827:zh-tw
+레드불	紅牛	s	drink	A	wikidata:Q51482:zh-tw
+로쿰	土耳其軟糖	s	dish	A	wikidata:Q182339:zh-tw
+리소토	義大利燉飯	s	dish	A	wikidata:Q208105:zh-tw
+리큐어	利口酒	s	drink	A	wikidata:Q178780:zh-tw
+마테	瑪黛	s	drink	A	wikidata:Q203540:zh-tw
+막대사탕	棒棒糖	s	dish	A	wikidata:Q217446:zh-tw
+머핀	瑪芬	s	dish	A	wikidata:Q207220:zh-tw
+메를로	梅洛葡萄	s	drink	A	wikidata:Q213338:zh-tw
+무사카	木莎卡	s	dish	A	wikidata:Q206918:zh-tw
+미소	味噌	s	dish	A	wikidata:Q235169:zh-tw
+밀맥주	小麥啤酒	s	drink	A	wikidata:Q131413:zh-tw
+밀크셰이크	奶昔	s	drink	A	wikidata:Q37159:zh-tw
+바게트	法式長棍麵包	s	dish	A	wikidata:Q208172:zh-tw
+바나나 스플릿	香蕉船	x	dish	A	wikidata:Q245752:zh-tw
+바클라와	果仁蜜餅	s	dish	A	wikidata:Q187495:zh-tw
+백차	白茶	s	drink	A	wikidata:Q238306:zh-tw
+뱡뱡몐	𰻞𰻞麵	s	dish	A	wikidata:Q213105:zh-tw
+베르무트	香艾酒	s	drink	A	wikidata:Q231088:zh-tw
+브랜디	白蘭地	s	drink	A	wikidata:Q146470:zh-tw
+브레첼	椒鹽卷餅	s	dish	A	wikidata:Q160525:zh-tw
+비스킷	餅乾	s	dish	A	wikidata:Q13270:zh-tw
+사과주	蘋果酒	s	drink	A	wikidata:Q167296:zh-tw
+사시미	生魚片	s	dish	A	wikidata:Q190715:zh-tw
+사케	日本酒	s	drink	A	wikidata:Q170219:zh-tw
+사탕	糖果	s	dish	A	wikidata:Q185583:zh-tw
+샌드위치	三明治	s	dish	A	wikidata:Q28803:zh-tw
+샐러드	沙拉	s	dish	A	wikidata:Q9266:zh-tw
+샴페인	香檳酒	s	drink	A	wikidata:Q134862:zh-tw
+센베이	煎餅	s	dish	A	wikidata:Q198788:zh-tw
+소르베	雪酪	s	dish	A	wikidata:Q13302:zh-tw
+스시	壽司	s	dish	A	wikidata:Q46383:zh-tw
+스콜	獅威	s	drink	A	wikidata:Q152532:zh-tw
+스타우트	司陶特啤酒	s	drink	A	wikidata:Q217825:zh-tw
+스프라이트	雪碧	s	drink	A	wikidata:Q206978:zh-tw
+아이스크림	冰淇淋	s	dish	A	wikidata:Q13233:zh-tw
+압생트	苦艾酒	s	drink	A	wikidata:Q170210:zh-tw
+얼 그레이	格雷伯爵茶	x	drink	A	wikidata:Q207788:zh-tw
+에너지 음료	能量飲料	x	drink	A	wikidata:Q215754:zh-tw
+에스프레소	濃縮咖啡	s	drink	A	wikidata:Q180289:zh-tw
+에일	艾爾啤酒	s	drink	A	wikidata:Q208385:zh-tw
+오렌지 주스	柳橙汁	x	drink	A	wikidata:Q219059:zh-tw
+와플	格子鬆餅	s	dish	A	wikidata:Q375:zh-tw
+우락유	酪漿	s	drink	A	wikidata:Q106612:zh-tw
+우롱차	烏龍茶	s	drink	A	wikidata:Q231587:zh-tw
+월병	月餅	s	dish	A	wikidata:Q197969:zh-tw
+위츠탕	魚翅湯	s	dish	A	wikidata:Q26081:zh-tw
+자허토르테	薩赫蛋糕	s	dish	A	wikidata:Q131442:zh-tw
+제병	聖體	s	dish	A	wikidata:Q207104:zh-tw
+증류주	蒸餾酒	s	drink	A	wikidata:Q56139:zh-tw
+청량 음료	軟性飲料	x	drink	A	wikidata:Q147538:zh-tw
+초유	牛初乳	s	drink	A	wikidata:Q192746:zh-tw
+초콜릿	巧克力	s	dish	A	wikidata:Q195:zh-tw
+치즈케이크	乳酪蛋糕	s	dish	A	wikidata:Q215348:zh-tw
+치킨 맥너겟	麥克雞塊	x	dish	A	wikidata:Q135888:zh-tw
+카야	咖央醬	s	dish	A	wikidata:Q94835:zh-tw
+카푸치노	卡布奇諾	s	drink	A	wikidata:Q159774:zh-tw
+칵테일	雞尾酒	s	drink	A	wikidata:Q134768:zh-tw
+캐러멜	焦糖	s	dish	A	wikidata:Q183440:zh-tw
+캐비아	魚子醬	s	dish	A	wikidata:Q186385:zh-tw
+커리	咖哩	s	dish	A	wikidata:Q164606:zh-tw
+케밥	卡博串	s	dish	A	wikidata:Q179010:zh-tw
+케이크	蛋糕	s	dish	A	wikidata:Q13276:zh-tw
+케첩	番茄醬	s	dish	A	wikidata:Q178143:zh-tw
+케피르	克非爾	s	drink	A	wikidata:Q185749:zh-tw
+코카콜라	可口可樂	s	drink	A	wikidata:Q2813:zh-tw
+코피 루왁	麝香貓咖啡	x	drink	A	wikidata:Q213908:zh-tw
+쿠키	曲奇餅	s	dish	A	wikidata:Q13266:zh-tw
+크나페	庫納法	s	dish	A	wikidata:Q219123:zh-tw
+크레프	可麗餅	s	dish	A	wikidata:Q12200:zh-tw
+크로켓	可樂餅	s	dish	A	wikidata:Q70125:zh-tw
+크루아상	牛角麵包	s	dish	A	wikidata:Q207832:zh-tw
+크바스	克瓦斯	s	drink	A	wikidata:Q173773:zh-tw
+타코	塔可餅	s	dish	A	wikidata:Q191655:zh-tw
+탕원	湯圓	s	dish	A	wikidata:Q115474:zh-tw
+테킬라	龍舌蘭酒	s	drink	A	wikidata:Q122195:zh-tw
+토닉 워터	通寧水	x	drink	A	wikidata:Q237315:zh-tw
+토르테	德式蛋糕	s	dish	A	wikidata:Q130186:zh-tw
+토블론	瑞士三角牌巧克力	s	dish	A	wikidata:Q215707:zh-tw
+토스트	烤吐司	s	dish	A	wikidata:Q6128:zh-tw
+티라미수	提拉米蘇	s	dish	A	wikidata:Q131582:zh-tw
+파스타	義大利麵食	s	dish	A	wikidata:Q178:zh-tw
+파에야	西班牙大鍋飯	s	dish	A	wikidata:Q212121:zh-tw
+파운드 케이크	磅蛋糕	x	dish	A	wikidata:Q29443:zh-tw
+팔라펠	中東蔬菜球	s	dish	A	wikidata:Q188788:zh-tw
+팝콘	爆米花	s	dish	A	wikidata:Q165112:zh-tw
+패스트 푸드	速食	x	dish	A	wikidata:Q81799:zh-tw
+패스티	康沃爾肉餡餅	s	dish	A	wikidata:Q126777:zh-tw
+페더바이서	德國羽毛白酒	s	drink	A	wikidata:Q22996:zh-tw
+페투치네	緞帶麵	s	dish	A	wikidata:Q20032:zh-tw
+펩시	百事可樂	s	drink	A	wikidata:Q47719:zh-tw
+포르투 포도주	波特酒	x	drink	A	wikidata:Q191034:zh-tw
+포리지	餬	s	dish	A	wikidata:Q186817:zh-tw
+폴렌타	波倫塔	s	dish	A	wikidata:Q131607:zh-tw
+푸딩	布丁	s	dish	A	wikidata:Q9053:zh-tw
+프렌치 토스트	法式吐司	x	dish	A	wikidata:Q197973:zh-tw
+피시 앤드 칩스	炸魚薯條	x	dish	A	wikidata:Q203925:zh-tw
+피자	披薩	s	dish	A	wikidata:Q177:zh-tw
+피타	皮塔餅	s	dish	A	wikidata:Q211340:zh-tw
+필스너	皮爾森啤酒	s	drink	A	wikidata:Q152281:zh-tw
+할와	哈爾瓦甜食	s	dish	A	wikidata:Q183599:zh-tw
+핫도그	熱狗	s	dish	A	wikidata:Q181055:zh-tw
+해기스	肉餡羊肚	s	dish	A	wikidata:Q209500:zh-tw
+햄버거	漢堡	s	dish	A	wikidata:Q6663:zh-tw
+홍차	紅茶	s	drink	A	wikidata:Q203415:zh-tw
+환타	芬達	s	drink	A	wikidata:Q9935:zh-tw
+후식	甜點	s	dish	A	wikidata:Q182940:zh-tw
+가루 설탕	糖粉	x	food	A	wikidata:Q151070:zh-tw
+개 먹이	犬糧	x	food	A	wikidata:Q38420:zh-tw
+계피	肉桂	x	food	A	wikidata:Q28165:zh-tw
+고구마	甘藷	s	food	A	wikidata:Q37937:zh-tw
+고르곤졸라	古岡左拉起司	s	food	A	wikidata:Q209044:zh-tw
+고수	芫荽	x	food	A	wikidata:Q41611:zh-tw
+과카몰레	酪梨醬	s	food	A	wikidata:Q207968:zh-tw
+국수	麵條	x	food	A	wikidata:Q192874:zh-tw
+귀리	燕麥	x	food	A	wikidata:Q12104:zh-tw
+귤속	柑橘屬	x	food	A	wikidata:Q81513:zh-tw
+까치밥나무속	茶藨子屬	s	food	A	wikidata:Q22691:zh-tw
+꽃꿀	花蜜	x	food	A	wikidata:Q171934:zh-tw
+노른자	蛋黃	s	food	A	wikidata:Q181409:zh-tw
+녹말	澱粉	x	food	A	wikidata:Q41534:zh-tw
+느타리	糙皮側耳	s	food	A	wikidata:Q186451:zh-tw
+다나블루	丹麥藍起司	s	food	A	wikidata:Q165855:zh-tw
+당밀	糖蜜	x	food	A	wikidata:Q154389:zh-tw
+대구과	鱈科	s	food	A	wikidata:Q208028:zh-tw
+대문짝넙치	瘤棘鮃	s	food	A	wikidata:Q217329:zh-tw
+대서양연어	大西洋鮭	s	food	A	wikidata:Q188879:zh-tw
+돼지고기	豬肉	s	food	A	wikidata:Q191768:zh-tw
+두리안	榴槤	s	food	A	wikidata:Q134185:zh-tw
+램슨	熊蔥	x	food	A	wikidata:Q130882:zh-tw
+로열젤리	蜂王漿	s	food	A	wikidata:Q202501:zh-tw
+로크포르	羅克福乾酪	s	food	A	wikidata:Q189221:zh-tw
+리코타	里科塔奶酪	s	food	A	wikidata:Q216781:zh-tw
+마늘	大蒜	x	food	A	wikidata:Q23400:zh-tw
+마스카르포네	馬斯卡彭起司	s	food	A	wikidata:Q209889:zh-tw
+마요네즈	美乃滋	s	food	A	wikidata:Q167893:zh-tw
+만나	嗎哪	x	food	A	wikidata:Q241156:zh-tw
+망고	芒果	x	food	A	wikidata:Q169:zh-tw
+머스터드	芥末醬	s	food	A	wikidata:Q131748:zh-tw
+먹이	飼料	x	food	A	wikidata:Q211439:zh-tw
+모르타델라	義式肉腸	s	food	A	wikidata:Q169757:zh-tw
+모모	饃饃	x	food	A	wikidata:Q134092:zh-tw
+미식	美食學	x	food	A	wikidata:Q171141:zh-tw
+밀랍	蜂蠟	x	food	A	wikidata:Q143739:zh-tw
+바나나	蕉	s	food	A	wikidata:Q503:zh-tw
+바질	羅勒	x	food	A	wikidata:Q38859:zh-tw
+반죽	生麵團	x	food	A	wikidata:Q178024:zh-tw
+발사믹 식초	義大利香醋	x	food	A	wikidata:Q170037:zh-tw
+방향유	精油	s	food	A	wikidata:Q170885:zh-tw
+버터	奶油	x	food	A	wikidata:Q34172:zh-tw
+베샤멜 소스	白汁	x	food	A	wikidata:Q209974:zh-tw
+부속 고기	下水	x	food	A	wikidata:Q157484:zh-tw
+부활절 달걀	復活節彩蛋	x	food	A	wikidata:Q163886:zh-tw
+브로콜리	青花菜	s	food	A	wikidata:Q47722:zh-tw
+브리	布利乾酪	x	food	A	wikidata:Q193411:zh-tw
+빨대	吸管	x	food	A	wikidata:Q189211:zh-tw
+사테	沙嗲	x	food	A	wikidata:Q209253:zh-tw
+살구씨	杏仁	s	food	A	wikidata:Q165527:zh-tw
+살라미	莎樂美腸	s	food	A	wikidata:Q188655:zh-tw
+살사	莎莎醬	x	food	A	wikidata:Q249114:zh-tw
+상어	鯊總目	x	food	A	wikidata:Q7372:zh-tw
+서양자두나무	歐洲李	s	food	A	wikidata:Q44120:zh-tw
+섭조개	紫殼菜蛤	s	food	A	wikidata:Q27855:zh-tw
+소금	食鹽	x	food	A	wikidata:Q11254:zh-tw
+소스	醬	x	food	A	wikidata:Q178359:zh-tw
+소시지	香腸	s	food	A	wikidata:Q131419:zh-tw
+속겨	麩	x	food	A	wikidata:Q188672:zh-tw
+쇠고기	牛肉	s	food	A	wikidata:Q192628:zh-tw
+수박	西瓜	x	food	A	wikidata:Q38645:zh-tw
+스테이크	肉排	s	food	A	wikidata:Q213062:zh-tw
+스펠트밀	斯佩耳特小麥	s	food	A	wikidata:Q158767:zh-tw
+시금치	菠菜	s	food	A	wikidata:Q81464:zh-tw
+식이 섬유	膳食纖維	x	food	A	wikidata:Q215210:zh-tw
+식품 첨가물	食品添加物	x	food	A	wikidata:Q189567:zh-tw
+아르간기름	阿甘油	s	food	A	wikidata:Q45418:zh-tw
+양배추	結球甘藍	s	food	A	wikidata:Q35051:zh-tw
+양송이	雙孢蘑菇	s	food	A	wikidata:Q227690:zh-tw
+엿기름	麥芽	s	food	A	wikidata:Q152024:zh-tw
+오렌지	橙	s	food	A	wikidata:Q13191:zh-tw
+오이	胡瓜	x	food	A	wikidata:Q23425:zh-tw
+올리브기름	橄欖油	s	food	A	wikidata:Q93165:zh-tw
+올스파이스나무	多香果	s	food	A	wikidata:Q158468:zh-tw
+완충 용액	緩衝溶液	x	food	A	wikidata:Q208465:zh-tw
+원추리속	萱草屬	s	food	A	wikidata:Q156275:zh-tw
+유제품	奶製品	s	food	A	wikidata:Q185217:zh-tw
+유청	乳清	x	food	A	wikidata:Q185009:zh-tw
+음식	食物	x	food	A	wikidata:Q2095:zh-tw
+이눌린	菊粉	s	food	A	wikidata:Q201552:zh-tw
+자몽	柚子	x	food	A	wikidata:Q80024:zh-tw
+자우어크라우트	德國酸菜	s	food	A	wikidata:Q154166:zh-tw
+장미	薔薇屬	x	food	A	wikidata:Q34687:zh-tw
+적작약	芍藥	s	food	A	wikidata:Q163076:zh-tw
+주키니호박	西葫蘆	s	food	A	wikidata:Q7533:zh-tw
+차나무	茶樹	s	food	A	wikidata:Q101815:zh-tw
+참기름	芝麻油	s	food	A	wikidata:Q212317:zh-tw
+참다래	奇異果	s	food	A	wikidata:Q13194:zh-tw
+찹쌀	糯稻	x	food	A	wikidata:Q115443:zh-tw
+채소	蔬菜	x	food	A	wikidata:Q11004:zh-tw
+청경채	青江菜	s	food	A	wikidata:Q165178:zh-tw
+청어	鯡屬	x	food	A	wikidata:Q209907:zh-tw
+체다 치즈	切達起司	x	food	A	wikidata:Q217525:zh-tw
+치즈	起司	x	food	A	wikidata:Q10943:zh-tw
+카망베르	卡芒貝爾乾酪	s	food	A	wikidata:Q131480:zh-tw
+카사바	樹薯	s	food	A	wikidata:Q83124:zh-tw
+커피콩	咖啡豆	s	food	A	wikidata:Q153697:zh-tw
+코코넛기름	椰子油	s	food	A	wikidata:Q216235:zh-tw
+코코아	可可豆	s	food	A	wikidata:Q208008:zh-tw
+크림	鮮奶油	x	food	A	wikidata:Q13228:zh-tw
+클로스	馬鈴薯丸子	s	food	A	wikidata:Q158382:zh-tw
+토란	芋	x	food	A	wikidata:Q227997:zh-tw
+튀밥	米香	x	food	A	wikidata:Q154092:zh-tw
+파르미자노 레자노	帕馬森起司	x	food	A	wikidata:Q155922:zh-tw
+파인애플속	鳳梨屬	s	food	A	wikidata:Q147316:zh-tw
+팜유	棕櫚油	x	food	A	wikidata:Q231458:zh-tw
+포도	葡萄	x	food	A	wikidata:Q10978:zh-tw
+포장	外賣	x	food	A	wikidata:Q154383:zh-tw
+퐁뒤	融漿火鍋	x	food	A	wikidata:Q190531:zh-tw
+플랜테인	大蕉	s	food	A	wikidata:Q165449:zh-tw
+피타야	火龍果	s	food	A	wikidata:Q232755:zh-tw
+하시시	哈希什	s	food	A	wikidata:Q151980:zh-tw
+한련	金蓮花	x	food	A	wikidata:Q156288:zh-tw
+항산화 물질	抗氧化劑	x	food	A	wikidata:Q133948:zh-tw
+해덕대구	黑線鱈	s	food	A	wikidata:Q202406:zh-tw
+해산물	海鮮	s	food	A	wikidata:Q192935:zh-tw
+향신료	香辛料	s	food	A	wikidata:Q42527:zh-tw
+협과	莢果	x	food	A	wikidata:Q145909:zh-tw
+호두	胡桃	x	food	A	wikidata:Q208021:zh-tw
+호박	南瓜	x	food	A	wikidata:Q165308:zh-tw
+홍연어	紅鮭	s	food	A	wikidata:Q44064:zh-tw
+회향	茴香	x	food	A	wikidata:Q43511:zh-tw
+효모	酵母	x	food	A	wikidata:Q45422:zh-tw
+밀속	小麥屬	x	ingredient	A	wikidata:Q12106:zh-tw
+사고	西米	x	ingredient	A	wikidata:Q218778:zh-tw
+사탕야자	桄榔	s	ingredient	A	wikidata:Q227984:zh-tw
+설탕	糖	x	ingredient	A	wikidata:Q11002:zh-tw
+옥수수	玉蜀黍	s	ingredient	A	wikidata:Q11575:zh-tw
+우무	洋菜	x	ingredient	A	wikidata:Q177998:zh-tw
+육두구	肉豆蔻	s	ingredient	A	wikidata:Q83165:zh-tw
+장미유	薔薇花油	s	ingredient	A	wikidata:Q83054:zh-tw
+잭프루트	波羅蜜	s	fruit	A	wikidata:Q45757:zh-tw
+철갑상어류	鱘科	s	ingredient	A	wikidata:Q181871:zh-tw
+타마린드	羅望子	s	ingredient	A	wikidata:Q80235:zh-tw
+홍조식물	紅藻門	s	ingredient	A	wikidata:Q103169:zh-tw
+갈비	排骨	s	builtin	A	builtin
+갈비탕	排骨湯	s	builtin	A	builtin
+공기밥	白飯	s	builtin	A	builtin
+공기밥 별도	白飯另計	x	builtin	A	builtin
+공기밥 추가	加點白飯	x	builtin	A	builtin
+김밥	韓式海苔飯捲	s	builtin	A	builtin
+김치찌개	泡菜鍋	s	builtin	A	builtin
+냉면	冷麵	s	builtin	A	builtin
+돌솥비빔밥	石鍋拌飯	s	builtin	A	builtin
+된장찌개	大醬湯	s	builtin	A	builtin
+떡볶이	辣炒年糕	s	builtin	A	builtin
+막걸리	馬格利米酒	s	builtin	A	builtin
+맥주	啤酒	s	builtin	A	builtin
+부대찌개	部隊鍋	s	builtin	A	builtin
+불고기	韓式烤牛肉	s	builtin	A	builtin
+불고기 정식	韓式烤牛肉套餐	x	builtin	A	builtin
+비빔밥	拌飯	s	builtin	A	builtin
+삼겹살	烤五花肉	s	builtin	A	builtin
+삼계탕	人蔘雞湯	s	builtin	A	builtin
+소주	燒酒	s	builtin	A	builtin
+순두부찌개	嫩豆腐鍋	s	builtin	A	builtin
+잡채	韓式炒冬粉	s	builtin	A	builtin
+제육볶음	辣炒豬肉	s	builtin	A	builtin
+치킨	炸雞	s	builtin	A	builtin
+포장 가능	可外帶	x	builtin	A	builtin
+포장 불가	不可外帶	x	builtin	A	builtin
+해물파전	海鮮煎餅	s	builtin	A	builtin
+가나메초	要町車	s	station	B	wikidata:Q128296:zh-tw:derived
+가락시장	可樂市場	s	station	B	wikidata:Q49096:zh-tw:derived
+가사이	葛西	s	station	B	wikidata:Q126762:zh-tw:derived
+가산디지털단지	加山數碼團地	s	station	B	wikidata:Q54328:zh-tw:derived
+가와사키	川崎車	s	station	B	wikidata:Q80562:zh-tw:derived
+가천대	嘉泉大	s	station	B	wikidata:Q46176:zh-tw:derived
+가치도키	勝鬨車	s	station	B	wikidata:Q246191:zh-tw:derived
+가평역	加平站	s	station	B	wikidata:Q49982:zh-hant
+갈매역	葛梅站	s	station	B	wikidata:Q49992:zh-hant
+개포동	开浦洞	s	station	B	wikidata:Q46331:zh-tw:derived
+검암역	黔巖站	s	station	B	wikidata:Q54257:zh-hant
+경인선	京仁線	s	line	B	wikidata:Q20998:zh-hant
+고난역	江南站	s	station	B	wikidata:Q201473:zh-hant
+고속터미널역	高速巴士客運站	s	station	B	wikidata:Q20941:zh-hant
+고타케무카이하라	小竹向原車	s	station	B	wikidata:Q93684:zh-tw:derived
+광명역	光明站	s	station	B	wikidata:Q20950:zh-hant
+교토쿠	行德	s	station	B	wikidata:Q128806:zh-tw:derived
+구라마에	藏前車	s	station	B	wikidata:Q112348:zh-tw:derived
+구성	驹城	x	station	B	wikidata:Q46207:zh-tw:derived
+기바	木場	x	station	B	wikidata:Q126770:zh-tw:derived
+기타산도	北參道車	s	station	B	wikidata:Q128322:zh-tw:derived
+기흥	器興	x	station	B	wikidata:Q16273:zh-tw:derived
+나가타	長田車	s	station	B	wikidata:Q126064:zh-tw:derived
+나가하라역	長原站	s	station	B	wikidata:Q151508:zh-hant
+나고야역	名古屋站	s	station	B	wikidata:Q49381:zh-hant
+나오에쓰	直江津車	s	station	B	wikidata:Q130065:zh-tw:derived
+나카후토	中埠頭車	s	station	B	wikidata:Q180450:zh-tw:derived
+낙성대역	落星垈站	s	station	B	wikidata:Q50010:zh-hant
+난코구치	南港口車	s	station	B	wikidata:Q180437:zh-tw:derived
+난코히가시	南港東車	s	station	B	wikidata:Q180517:zh-tw:derived
+남영역	南營站	s	station	B	wikidata:Q137143:zh-hant
+내판역	內板訊號場	s	station	B	wikidata:Q188827:zh-hant
+니시가하라	西原車	s	station	B	wikidata:Q151561:zh-tw:derived
+니시신주쿠	西新宿車	s	station	B	wikidata:Q138555:zh-tw:derived
+니시오사키	西大崎車	s	station	B	wikidata:Q247570:zh-tw:derived
+니시와세다	西早稻田車	s	station	B	wikidata:Q128305:zh-tw:derived
+니시우메다	西梅田車	s	station	B	wikidata:Q126023:zh-tw:derived
+니시카사이	西葛西	s	station	B	wikidata:Q126768:zh-tw:derived
+니시후나바시	西船橋車	s	station	B	wikidata:Q128803:zh-tw:derived
+다이몬	大門車	s	station	B	wikidata:Q247129:zh-tw:derived
+다카이다	高井田車	s	station	B	wikidata:Q126027:zh-tw:derived
+단바구치	丹波口車	s	station	B	wikidata:Q129977:zh-tw:derived
+대모산입구	大母山入口	s	station	B	wikidata:Q46196:zh-tw:derived
+대성리역	大成裡站	s	station	B	wikidata:Q49973:zh-hant
+대전역	大田站	s	station	B	wikidata:Q20919:zh-hant
+도곡	道谷	x	station	B	wikidata:Q46133:zh-tw:derived
+도라산역	都羅山站	s	station	B	wikidata:Q50011:zh-hant
+도부 철도 노다 선	野田線	x	line	B	wikidata:Q76804:zh-hant
+도요초	東陽町	s	station	B	wikidata:Q126765:zh-tw:derived
+도청 앞	都廳前車	x	station	B	wikidata:Q246186:zh-tw:derived
+동대구역	東大邱站	s	station	B	wikidata:Q54288:zh-hant
+동대문역사문화공원	東大門歷史文化公園	s	station	B	wikidata:Q129579:zh-tw:derived
+마석역	磨石站	s	station	B	wikidata:Q49978:zh-hant
+마쓰시타역	松下站	s	station	B	wikidata:Q93433:zh-hant
+마쓰야마치역	松屋町站	s	station	B	wikidata:Q126080:zh-hant
+망우역	忘憂站	s	station	B	wikidata:Q49994:zh-hant
+망포	網浦	x	station	B	wikidata:Q218358:zh-tw:derived
+메구미노역	惠野站	s	station	B	wikidata:Q59340:zh-hant
+모란	牡丹	x	station	B	wikidata:Q46184:zh-tw:derived
+모리시타	森下車	s	station	B	wikidata:Q112723:zh-tw:derived
+묘덴	妙典	x	station	B	wikidata:Q128795:zh-tw:derived
+무사시사카이	武藏境車	s	station	B	wikidata:Q137550:zh-tw:derived
+미금	美金	x	station	B	wikidata:Q46193:zh-tw:derived
+미나미교토쿠	南行德車	s	station	B	wikidata:Q128797:zh-tw:derived
+미나미스나마치	南砂町	s	station	B	wikidata:Q126760:zh-tw:derived
+바라키나카야마	原木中山	s	station	B	wikidata:Q128808:zh-tw:derived
+바쿠로요코야마	馬喰橫山	s	station	B	wikidata:Q128303:zh-tw:derived
+병점	餅店	x	station	B	wikidata:Q54309:zh-tw:derived
+보정	宝亭	x	station	B	wikidata:Q46203:zh-tw:derived
+복정	福井	x	station	B	wikidata:Q46170:zh-tw:derived
+부산-김해 경전철	釜山-金海輕軌電鐵	x	line	B	wikidata:Q87056:zh-hant
+부산역	釜山站	s	station	B	wikidata:Q53118:zh-hant
+부천	富川	x	station	B	wikidata:Q246638:zh-tw:derived
+사당	舍堂	x	station	B	wikidata:Q49098:zh-tw:derived
+사릉역	思陵站	s	station	B	wikidata:Q49986:zh-hant
+사쿠라가와	櫻川	s	station	B	wikidata:Q126339:zh-tw:derived
+상봉역	上鳳站	s	station	B	wikidata:Q49995:zh-hant
+서동탄	西東灘	s	station	B	wikidata:Q54310:zh-tw:derived
+서울	首爾	x	station	B	wikidata:Q20415:zh-tw:derived
+서울 지하철 3호선	首爾地鐵3號線	x	line	B	wikidata:Q20391:zh-hant
+서울 지하철 4호선	首爾地鐵4號線	x	line	B	wikidata:Q92502:zh-hant
+서울숲역	首爾森林站	s	station	B	wikidata:Q24058:zh-hant
+서현	書峴	x	station	B	wikidata:Q46190:zh-tw:derived
+선릉역	宣陵站	s	station	B	wikidata:Q20204:zh-hant
+선바위역	禪巖站	s	station	B	wikidata:Q50007:zh-hant
+세류	細柳	x	station	B	wikidata:Q54308:zh-tw:derived
+세마	洗馬	x	station	B	wikidata:Q137240:zh-tw:derived
+세이부 철도 다마코 선	多摩湖線	x	line	B	wikidata:Q218649:zh-hant
+세이부신주쿠	西武新宿	s	station	B	wikidata:Q167299:zh-tw:derived
+센카와	千川車	s	station	B	wikidata:Q128304:zh-tw:derived
+수내	薮内	x	station	B	wikidata:Q46201:zh-tw:derived
+수도권 전철 3호선	首都圈電鐵3號線	x	line	B	wikidata:Q20393:zh-hant
+수락산역	水落山站	s	station	B	wikidata:Q68660:zh-hant
+수서	水西	x	station	B	wikidata:Q46157:zh-tw:derived
+스미노에코엔	住之江公園車	s	station	B	wikidata:Q126046:zh-tw:derived
+스이타	吹田車	s	station	B	wikidata:Q59351:zh-tw:derived
+시기노	鴫野車	s	station	B	wikidata:Q180485:zh-tw:derived
+시로카네다이	白金台車	s	station	B	wikidata:Q112357:zh-tw:derived
+시로카네타카나와	白金高輪	s	station	B	wikidata:Q112323:zh-tw:derived
+시마마쓰역	島松站	s	station	B	wikidata:Q59338:zh-hant
+시모	志茂車	x	station	B	wikidata:Q151416:zh-tw:derived
+신갈	新葛	x	station	B	wikidata:Q46209:zh-tw:derived
+신도림	新道林	s	station	B	wikidata:Q43298:zh-tw:derived
+신린코엔	森林公園車	s	station	B	wikidata:Q128527:zh-tw:derived
+신분당선	新盆唐線	s	line	B	wikidata:Q20388:zh-hant
+신주쿠니시구치	新宿西口車	s	station	B	wikidata:Q246198:zh-tw:derived
+신창역	新昌站	s	station	B	wikidata:Q167613:zh-hant
+신코야스	新子安車	s	station	B	wikidata:Q128314:zh-tw:derived
+신후카에	新深江	s	station	B	wikidata:Q126056:zh-tw:derived
+쓰가루선	津輕線	s	line	B	wikidata:Q59514:zh-hant
+쓰루미	鶴見車	s	station	B	wikidata:Q128164:zh-tw:derived
+쓰키시마	月島車	s	station	B	wikidata:Q112337:zh-tw:derived
+쓰키지시조	築地市場車	s	station	B	wikidata:Q246180:zh-tw:derived
+아사마	朝熊	s	station	B	wikidata:Q94676:zh-tw:derived
+아쓰베쓰	厚別車	s	station	B	wikidata:Q128528:zh-tw:derived
+아자부주반	麻布十番車	s	station	B	wikidata:Q112382:zh-tw:derived
+아카바네바시	赤羽橋車	s	station	B	wikidata:Q246176:zh-tw:derived
+아카바네이와부치	赤羽岩淵車	s	station	B	wikidata:Q151409:zh-tw:derived
+아케보노바시	曙橋	s	station	B	wikidata:Q128308:zh-tw:derived
+암사	岩寺	x	station	B	wikidata:Q49093:zh-tw:derived
+압구정로데오역	狎鷗亭羅德奧站	s	station	B	wikidata:Q46073:zh-hant
+애오개	兒嶺	s	station	B	wikidata:Q128804:zh-tw:derived
+야탑	野塔	x	station	B	wikidata:Q46186:zh-tw:derived
+에니와역	惠庭站	s	station	B	wikidata:Q59452:zh-hant
+연신내역	延新川站	s	station	B	wikidata:Q79956:zh-hant
+염창	鹽倉	x	station	B	wikidata:Q59993:zh-tw:derived
+오금	梧琴	x	station	B	wikidata:Q49095:zh-tw:derived
+오지카미야	王子神谷車	s	station	B	wikidata:Q151406:zh-tw:derived
+옥수	玉水	x	station	B	wikidata:Q34696:zh-tw:derived
+와카마쓰카와다	若松河田車	s	station	B	wikidata:Q246173:zh-tw:derived
+와코시	和光市車	s	station	B	wikidata:Q128298:zh-tw:derived
+용산	龍山	x	station	B	wikidata:Q20416:zh-tw:derived
+우시고메야나기초	牛込柳町車	s	station	B	wikidata:Q247099:zh-tw:derived
+우시고메카구라자카	牛込神樂坂車	s	station	B	wikidata:Q246195:zh-tw:derived
+우오누마큐료	魚沼丘陵車	s	station	B	wikidata:Q128916:zh-tw:derived
+유비칸	有備館車	s	station	B	wikidata:Q247618:zh-tw:derived
+이매	二梅	x	station	B	wikidata:Q46188:zh-tw:derived
+이수	梨水	x	station	B	wikidata:Q46351:zh-tw:derived
+이와데야마	岩出山車	s	station	B	wikidata:Q247559:zh-tw:derived
+이와모토초	岩本町	s	station	B	wikidata:Q128319:zh-tw:derived
+이케부쿠로	池袋車	s	station	B	wikidata:Q173919:zh-tw:derived
+장지	長旨	x	station	B	wikidata:Q75348:zh-tw:derived
+조시가야	雜司谷車	s	station	B	wikidata:Q128312:zh-tw:derived
+종각	鐘閣	x	station	B	wikidata:Q246645:zh-tw:derived
+종로3가	鍾路3街	s	station	B	wikidata:Q79977:zh-tw:derived
+종로5가	鍾路5街	s	station	B	wikidata:Q79979:zh-tw:derived
+중곡역	中谷站	s	station	B	wikidata:Q68817:zh-hant
+중랑역	中浪站	s	station	B	wikidata:Q50004:zh-hant
+즈이코 4초메	瑞光四丁目車	x	station	B	wikidata:Q180497:zh-tw:derived
+천호	千户	x	station	B	wikidata:Q49094:zh-tw:derived
+철산역	鐵山站	s	station	B	wikidata:Q69018:zh-hant
+청량리역	清涼裡站	s	station	B	wikidata:Q20417:zh-hant
+청평역	清平站	s	station	B	wikidata:Q49972:zh-hant
+충주역	忠州站	s	station	B	wikidata:Q50014:zh-hant
+태평	太平	x	station	B	wikidata:Q46180:zh-tw:derived
+퇴계원역	退溪院站	s	station	B	wikidata:Q49990:zh-hant
+트레이드 센터마에	貿易中心前車	x	station	B	wikidata:Q180469:zh-tw:derived
+페리 터미널	渡船大樓車	x	station	B	wikidata:Q180477:zh-tw:derived
+평내호평역	坪內好坪站	s	station	B	wikidata:Q49980:zh-hant
+포트 타운 니시	港城西車	x	station	B	wikidata:Q180510:zh-tw:derived
+포트 타운 히가시	港城東車	x	station	B	wikidata:Q180504:zh-tw:derived
+하마초	濱町	s	station	B	wikidata:Q128403:zh-tw:derived
+하시오카역	端岡車站	s	station	B	wikidata:Q98825:zh-hant
+학동	鶴洞	x	station	B	wikidata:Q68914:zh-tw:derived
+한티	漢堤	x	station	B	wikidata:Q46122:zh-tw:derived
+호남선	湖南線	s	line	B	wikidata:Q53119:zh-hant
+호즈쿄	保津峽車	s	station	B	wikidata:Q130505:zh-tw:derived
+혼코마고메	本駒込車	s	station	B	wikidata:Q151419:zh-tw:derived
+홍대입구	弘大入口	s	station	B	wikidata:Q54267:zh-tw:derived
+후카에바시	深江橋車	s	station	B	wikidata:Q126032:zh-tw:derived
+히가시신주쿠	東新宿車	s	station	B	wikidata:Q112503:zh-tw:derived
+히가시오사키	東大崎車	s	station	B	wikidata:Q247576:zh-tw:derived
+히가시카나가와	東神奈川車	s	station	B	wikidata:Q128205:zh-tw:derived
+히라노	平野車	s	station	B	wikidata:Q135184:zh-tw:derived
+히라바야시	平林車	s	station	B	wikidata:Q180457:zh-tw:derived
+히카와다이	冰川台	s	station	B	wikidata:Q93680:zh-tw:derived
+히타치타가역	常陸多賀車站	s	station	B	wikidata:Q40081:zh-hant
+가와치군	河內郡	s	place	B	wikidata:Q44611:zh-hant
+강남구	江南區	s	place	B	wikidata:Q20398:zh-hant
+강동	江東	x	place	B	wikidata:Q50348:zh-tw:derived
+강북	江北	x	place	B	wikidata:Q50349:zh-tw:derived
+강서	江西	x	place	B	wikidata:Q50191:zh-tw:derived
+계양	桂陽	x	place	B	wikidata:Q50352:zh-tw:derived
+관악	冠岳	x	place	B	wikidata:Q50353:zh-tw:derived
+광산	光山	x	place	B	wikidata:Q50354:zh-tw:derived
+광진	廣津	x	place	B	wikidata:Q50355:zh-tw:derived
+구로	九老	x	place	B	wikidata:Q50356:zh-tw:derived
+권선	勸善	x	place	B	wikidata:Q50357:zh-tw:derived
+금정	金井	x	place	B	wikidata:Q50358:zh-tw:derived
+금천	衿川	x	place	B	wikidata:Q50359:zh-tw:derived
+나리타 국제공항	成田國際機場	x	landmark	B	wikidata:Q36454:zh-hant
+남동	南洞	x	place	B	wikidata:Q50367:zh-tw:derived
+노원	蘆原	x	place	B	wikidata:Q50368:zh-tw:derived
+단원구	檀園區	s	place	B	wikidata:Q50369:zh-hant
+달서	達西	x	place	B	wikidata:Q50370:zh-tw:derived
+대덕	大德	x	place	B	wikidata:Q50371:zh-tw:derived
+도봉	道峰	x	place	B	wikidata:Q50374:zh-tw:derived
+동대문	東大門	s	place	B	wikidata:Q50382:zh-tw:derived
+동래	東萊	x	place	B	wikidata:Q50383:zh-tw:derived
+동안	東安	x	place	B	wikidata:Q50384:zh-tw:derived
+동작	銅雀	x	place	B	wikidata:Q50385:zh-tw:derived
+마포	麻浦	x	place	B	wikidata:Q50388:zh-tw:derived
+미나미구	南區	s	place	B	wikidata:Q63442:zh-hant
+미추홀구	彌鄒忽區	s	place	B	wikidata:Q50365:zh-hant
+부산진	釜山鎮	s	place	B	wikidata:Q50390:zh-tw:derived
+부평	富平	x	place	B	wikidata:Q50391:zh-tw:derived
+사상	沙上	x	place	B	wikidata:Q50398:zh-tw:derived
+사하	沙下	x	place	B	wikidata:Q50400:zh-tw:derived
+서대문	西大門	s	place	B	wikidata:Q50408:zh-tw:derived
+서초	瑞草	x	place	B	wikidata:Q20395:zh-tw:derived
+성동	城東	x	place	B	wikidata:Q50411:zh-tw:derived
+성북	城北	x	place	B	wikidata:Q50412:zh-tw:derived
+성산구	城山區	s	place	B	wikidata:Q50413:zh-hant
+송파	松坡	x	place	B	wikidata:Q50415:zh-tw:derived
+수성	壽城	x	place	B	wikidata:Q50416:zh-tw:derived
+수영	水營	x	place	B	wikidata:Q50417:zh-tw:derived
+수정	壽井	x	place	B	wikidata:Q50418:zh-tw:derived
+시미즈	清水	s	place	B	wikidata:Q79385:zh-tw:derived
+양천	陽川	x	place	B	wikidata:Q50420:zh-tw:derived
+연수	延壽	x	place	B	wikidata:Q50421:zh-tw:derived
+연제	蓮堤	x	place	B	wikidata:Q50422:zh-tw:derived
+영도	影島	x	place	B	wikidata:Q50423:zh-tw:derived
+영등포	永登浦	s	place	B	wikidata:Q50190:zh-tw:derived
+영통	靈通	x	place	B	wikidata:Q50425:zh-tw:derived
+오미야	大宮	s	place	B	wikidata:Q153629:zh-tw:derived
+유성	儒城	x	place	B	wikidata:Q50431:zh-tw:derived
+은평	恩平	x	place	B	wikidata:Q50432:zh-tw:derived
+인천국제공항	仁川國際機場	s	landmark	B	wikidata:Q20932:zh-hant
+장안	長安	x	place	B	wikidata:Q50436:zh-tw:derived
+종로	鐘路	x	place	B	wikidata:Q36929:zh-tw:derived
+주오	中央	x	place	B	wikidata:Q137716:zh-tw:derived
+중랑	中浪	x	place	B	wikidata:Q50444:zh-tw:derived
+중원	中院	x	place	B	wikidata:Q50445:zh-tw:derived
+진해	鎮海	x	place	B	wikidata:Q50446:zh-tw:derived
+처인	處仁	x	place	B	wikidata:Q50447:zh-tw:derived
+팔달	八達	x	place	B	wikidata:Q50448:zh-tw:derived
+해운대	海雲臺	s	place	B	wikidata:Q50449:zh-tw:derived
+히라오카 신사	枚岡神社	x	landmark	B	wikidata:Q32422:zh-hant
+히로시마 공항	廣島機場	x	landmark	B	wikidata:Q82240:zh-hant
+가다랑어포	柴魚	s	dish	B	wikidata:Q113739:zh-tw:alias
+가다랭이포	柴魚	s	dish	B	wikidata:Q113739:zh-tw:alias
+가락지빵	甜甜圈	s	dish	B	wikidata:Q192783:zh-tw:alias
+가쯔오부시	柴魚	s	dish	B	wikidata:Q113739:zh-tw:alias
+가츠오부시	柴魚	s	dish	B	wikidata:Q113739:zh-tw:alias
+감자 튀기	馬鈴薯條	x	dish	B	wikidata:Q152088:zh-tw:alias
+감자튀기	馬鈴薯條	s	dish	B	wikidata:Q152088:zh-tw:alias
+굴라시	匈牙利湯	s	dish	B	wikidata:Q205762:zh-tw:alias
+기름사탕	焦糖	s	dish	B	wikidata:Q183440:zh-tw:alias
+기무치	韓式泡菜	s	dish	B	wikidata:Q141898:zh-tw:alias
+뇨키	玉棋	s	dish	B	wikidata:Q20063:zh-hant
+다진 고기와 빵	漢堡	x	dish	B	wikidata:Q6663:zh-tw:alias
+단탓	蛋撻	s	dish	B	wikidata:Q22404:zh-hant
+데킬라	龍舌蘭酒	s	drink	B	wikidata:Q122195:zh-tw:alias
+데킬러	龍舌蘭酒	s	drink	B	wikidata:Q122195:zh-tw:alias
+도너츠	甜甜圈	s	dish	B	wikidata:Q192783:zh-tw:alias
+독일의 맥주	德國啤酒	x	drink	B	wikidata:Q220275:zh-hant
+되네르	土耳其烤肉	s	dish	B	wikidata:Q20734:zh-hant
+드링크제	能量飲料	s	drink	B	wikidata:Q215754:zh-tw:alias
+땅콩잼	花生醬	s	dish	B	wikidata:Q147651:zh-tw:alias
+라비올리	義大利餃	s	dish	B	wikidata:Q20053:zh-hant
+라사녜 알 포르노	千層麵	x	dish	B	wikidata:Q20034:zh-hant
+라타투이	普羅旺斯雜燴	s	dish	B	wikidata:Q183095:zh-tw:alias
+럼주	蘭姆酒	s	drink	B	wikidata:Q83376:zh-tw:alias
+레모네이드	檸檬水	s	drink	B	wikidata:Q893:zh-hant
+로제 와인	桃紅葡萄酒	x	drink	B	wikidata:Q12979:zh-hant
+롤리팝	棒棒糖	s	dish	B	wikidata:Q217446:zh-tw:alias
+롤빵	圓麵包	s	dish	B	wikidata:Q23004:zh-hant
+리조또	義大利燉飯	s	dish	B	wikidata:Q208105:zh-tw:alias
+리조토	義大利燉飯	s	dish	B	wikidata:Q208105:zh-tw:alias
+마운틴 듀	激浪	x	drink	B	wikidata:Q896:zh-hant
+마울타셰	德國餛飩	s	dish	B	wikidata:Q20055:zh-hant
+마카로니	通心粉	s	dish	B	wikidata:Q20019:zh-hant
+마카롱	馬卡龍	s	dish	B	wikidata:Q12478:zh-hant
+메사아	木莎卡	s	dish	B	wikidata:Q206918:zh-tw:alias
+면병	聖體	s	dish	B	wikidata:Q207104:zh-tw:alias
+무사카스	木莎卡	s	dish	B	wikidata:Q206918:zh-tw:alias
+무삭까아	木莎卡	s	dish	B	wikidata:Q206918:zh-tw:alias
+밀주	蜂蜜酒	s	drink	B	wikidata:Q184442:zh-tw:alias
+밀크	奶	s	drink	B	wikidata:Q8495:zh-tw:alias
+밀크 셰이크	奶昔	x	drink	B	wikidata:Q37159:zh-tw:alias
+밀크 쉐이크	奶昔	x	drink	B	wikidata:Q37159:zh-tw:alias
+밀크쉐이크	奶昔	s	drink	B	wikidata:Q37159:zh-tw:alias
+밀푀유	法式千層酥	s	dish	B	wikidata:Q12491:zh-hant
+바게트빵	法式長棍麵包	s	dish	B	wikidata:Q208172:zh-tw:alias
+바이스비어	小麥啤酒	s	drink	B	wikidata:Q131413:zh-tw:alias
+바이첸비어	小麥啤酒	s	drink	B	wikidata:Q131413:zh-tw:alias
+바크라와	果仁蜜餅	s	dish	B	wikidata:Q187495:zh-tw:alias
+백맥주	小麥啤酒	s	drink	B	wikidata:Q131413:zh-tw:alias
+뱡뱡면	𰻞𰻞麵	s	dish	B	wikidata:Q213105:zh-tw:alias
+버터밀크	酪漿	s	drink	B	wikidata:Q106612:zh-tw:alias
+벌꿀	蜂蜜	s	dish	B	wikidata:Q10987:zh-hant
+베르미첼리	線麵	s	dish	B	wikidata:Q20027:zh-hant
+보그라치구야시	匈牙利湯	s	dish	B	wikidata:Q205762:zh-tw:alias
+보드카	伏特加	s	drink	B	wikidata:Q374:zh-hant
+보르시	羅宋湯	s	dish	B	wikidata:Q4551:zh-hant
+복어	河魨	s	dish	B	wikidata:Q134385:zh-hant
+봉밀주	蜂蜜酒	s	drink	B	wikidata:Q184442:zh-tw:alias
+생선회	生魚片	s	dish	B	wikidata:Q190715:zh-tw:alias
+샤를로트	夏洛緹	s	dish	B	wikidata:Q12502:zh-hant
+샴팡	香檳酒	s	drink	B	wikidata:Q134862:zh-tw:alias
+선지 소시지	血腸	x	dish	B	wikidata:Q154482:zh-hant
+설탕 졸임	焦糖	x	dish	B	wikidata:Q183440:zh-tw:alias
+설탕 졸임 과자	焦糖	x	dish	B	wikidata:Q183440:zh-tw:alias
+소다수	軟性飲料	s	drink	B	wikidata:Q147538:zh-tw:alias
+소프트 드링크	軟性飲料	x	drink	B	wikidata:Q147538:zh-tw:alias
+속성음식	速食	s	dish	B	wikidata:Q81799:zh-tw:alias
+수블라키	索瓦蘭吉	s	dish	B	wikidata:Q240923:zh-hant
+슈톨렌	德式聖誕蛋糕	s	dish	B	wikidata:Q57223:zh-hant
+스파게티	義大利粉	s	dish	B	wikidata:Q20026:zh-hant
+시마항	瑪黛	s	drink	B	wikidata:Q203540:zh-tw:alias
+시벳 커피	麝香貓咖啡	x	drink	B	wikidata:Q213908:zh-tw:alias
+썬키스트	新奇士	s	drink	B	wikidata:Q9929:zh-hant
+아랍빵	皮塔餅	s	dish	B	wikidata:Q211340:zh-tw:alias
+아이란	愛蘭	s	dish	B	wikidata:Q192892:zh-hant
+양탕	咖啡	s	drink	B	wikidata:Q8486:zh-tw:alias
+양탕국	咖啡	s	drink	B	wikidata:Q8486:zh-tw:alias
+양파 수프	法式洋蔥湯	x	dish	B	wikidata:Q244617:zh-hant
+얼 그레이 차	格雷伯爵茶	x	drink	B	wikidata:Q207788:zh-tw:alias
+얼 그레이 티	格雷伯爵茶	x	drink	B	wikidata:Q207788:zh-tw:alias
+얼그레이	格雷伯爵茶	s	drink	B	wikidata:Q207788:zh-tw:alias
+에너지 드링크	能量飲料	x	drink	B	wikidata:Q215754:zh-tw:alias
+에너지드링크	能量飲料	s	drink	B	wikidata:Q215754:zh-tw:alias
+에너지음료	能量飲料	s	drink	B	wikidata:Q215754:zh-tw:alias
+에스칼로프	香雞排	s	dish	B	wikidata:Q6099:zh-hant
+에스프레소 커피	濃縮咖啡	x	drink	B	wikidata:Q180289:zh-tw:alias
+영양 음료	能量飲料	x	drink	B	wikidata:Q215754:zh-tw:alias
+영양음료	能量飲料	s	drink	B	wikidata:Q215754:zh-tw:alias
+오레키에테	貓耳朵	s	dish	B	wikidata:Q19969:zh-hant
+오렌지 쥬스	柳橙汁	x	drink	B	wikidata:Q219059:zh-tw:alias
+오룡차	烏龍茶	s	drink	B	wikidata:Q231587:zh-tw:alias
+오믈렛	歐姆蛋	s	dish	B	wikidata:Q20129:zh-hant
+올리볼	甜甜圈	s	dish	B	wikidata:Q152536:zh-hant
+왜된장	味噌	s	dish	B	wikidata:Q235169:zh-tw:alias
+요구르트	優格	s	drink	B	wikidata:Q13317:zh-hant
+원소	湯圓	s	dish	B	wikidata:Q115474:zh-tw:alias
+위스키	威士忌	s	drink	B	wikidata:Q281:zh-hant
+유에삥	月餅	s	dish	B	wikidata:Q197969:zh-tw:alias
+유즙	奶	s	drink	B	wikidata:Q8495:zh-tw:alias
+잉글리시 브렉퍼스트	英式早餐	x	dish	B	wikidata:Q73989:zh-hant
+자장몐	炸醬麵	s	dish	B	wikidata:Q44737:zh-hant
+전병 과자	煎餅	x	dish	B	wikidata:Q198788:zh-tw:alias
+정종	日本酒	s	drink	B	wikidata:Q170219:zh-tw:alias
+주스	果汁	s	drink	B	wikidata:Q8492:zh-hant
+즉석식	速食	s	dish	B	wikidata:Q81799:zh-tw:alias
+즉석식당	速食	s	dish	B	wikidata:Q81799:zh-tw:alias
+진저브레드	薑餅	s	dish	B	wikidata:Q178600:zh-hant
+착향탄산음료	軟性飲料	s	drink	B	wikidata:Q147538:zh-tw:alias
+천사의 날개	比涅甜餅	x	dish	B	wikidata:Q35056:zh-hant
+청량음료수	軟性飲料	s	drink	B	wikidata:Q147538:zh-tw:alias
+청차	烏龍茶	s	drink	B	wikidata:Q231587:zh-tw:alias
+초밥	壽司	s	dish	B	wikidata:Q46383:zh-tw:alias
+추잉검	口香糖	s	dish	B	wikidata:Q130878:zh-tw:alias
+츄잉껌	口香糖	s	dish	B	wikidata:Q130878:zh-tw:alias
+칩스	馬鈴薯條	s	dish	B	wikidata:Q152088:zh-tw:alias
+카라멜	焦糖	s	dish	B	wikidata:Q183440:zh-tw:alias
+카아으	瑪黛	s	drink	B	wikidata:Q203540:zh-tw:alias
+카페 콘 판나	濃縮康保藍	x	drink	B	wikidata:Q70408:zh-hant
+캐러맬	焦糖	s	dish	B	wikidata:Q183440:zh-tw:alias
+캐비어	魚子醬	s	dish	B	wikidata:Q186385:zh-tw:alias
+캬라멜	焦糖	s	dish	B	wikidata:Q183440:zh-tw:alias
+케찹	番茄醬	s	dish	B	wikidata:Q178143:zh-tw:alias
+케챱	番茄醬	s	dish	B	wikidata:Q178143:zh-tw:alias
+케챺	番茄醬	s	dish	B	wikidata:Q178143:zh-tw:alias
+케쳡	番茄醬	s	dish	B	wikidata:Q178143:zh-tw:alias
+코냑	干邑白蘭地	s	drink	B	wikidata:Q284:zh-hant
+쿠나파	庫納法	s	dish	B	wikidata:Q219123:zh-tw:alias
+퀴네페	庫納法	s	dish	B	wikidata:Q219123:zh-tw:alias
+퀴라소 리큐어	庫拉索酒	x	drink	B	wikidata:Q10223:zh-hant
+크라상	牛角麵包	s	dish	B	wikidata:Q207832:zh-tw:alias
+크레이프	可麗餅	s	dish	B	wikidata:Q12200:zh-tw:alias
+크레페	可麗餅	s	dish	B	wikidata:Q12200:zh-tw:alias
+크로와상	牛角麵包	s	dish	B	wikidata:Q207832:zh-tw:alias
+크로크므시외	火腿乾酪三明治	s	dish	B	wikidata:Q738:zh-hant
+킨델 서프라이즈	健達出奇蛋	x	dish	B	wikidata:Q181042:zh-hant
+타아메야	中東蔬菜球	s	dish	B	wikidata:Q188788:zh-tw:alias
+타이야키	鯛魚燒	s	dish	B	wikidata:Q181195:zh-hant
+탄산 음료	軟性飲料	x	drink	B	wikidata:Q147538:zh-tw:alias
+탄산음료	軟性飲料	s	drink	B	wikidata:Q147538:zh-tw:alias
+테킬러	龍舌蘭酒	s	drink	B	wikidata:Q122195:zh-tw:alias
+토르텔리니	義大利餛飩	s	dish	B	wikidata:Q20057:zh-hant
+토마토 케찹	番茄醬	x	dish	B	wikidata:Q178143:zh-tw:alias
+토마토 케챱	番茄醬	x	dish	B	wikidata:Q178143:zh-tw:alias
+토마토 케첩	番茄醬	x	dish	B	wikidata:Q178143:zh-tw:alias
+토마토케첩	番茄醬	s	dish	B	wikidata:Q178143:zh-tw:alias
+토블레로네	瑞士三角牌巧克力	s	dish	B	wikidata:Q215707:zh-tw:alias
+티라미스	提拉米蘇	s	dish	B	wikidata:Q131582:zh-tw:alias
+파라타	印度油餅	s	dish	B	wikidata:Q59707:zh-hant
+파엘랴	西班牙大鍋飯	s	dish	B	wikidata:Q212121:zh-tw:alias
+파엘랴 다로스	西班牙大鍋飯	x	dish	B	wikidata:Q212121:zh-tw:alias
+파운드 케익	磅蛋糕	x	dish	B	wikidata:Q29443:zh-tw:alias
+파운드 케잌	磅蛋糕	x	dish	B	wikidata:Q29443:zh-tw:alias
+팔라필	中東蔬菜球	s	dish	B	wikidata:Q188788:zh-tw:alias
+패스트 푸드 레스토랑	速食	x	dish	B	wikidata:Q81799:zh-tw:alias
+패스트푸드	速食	s	dish	B	wikidata:Q81799:zh-tw:alias
+패스트푸드 레스토랑	速食	x	dish	B	wikidata:Q81799:zh-tw:alias
+팬케이크	薄烤餅	s	dish	B	wikidata:Q44541:zh-hant
+페미컨	肉糜餅	s	dish	B	wikidata:Q130097:zh-hant
+페투치나	緞帶麵	s	dish	B	wikidata:Q20032:zh-tw:alias
+펩시콜라	百事可樂	s	drink	B	wikidata:Q47719:zh-tw:alias
+포도주	葡萄酒	s	drink	B	wikidata:Q282:zh-hant
+포테이토 칩	洋芋片	x	dish	B	wikidata:Q173265:zh-tw:alias
+포트 와인	波特酒	x	drink	B	wikidata:Q191034:zh-tw:alias
+푸실리	螺旋粉	s	dish	B	wikidata:Q19966:zh-hant
+프레츨	椒鹽卷餅	s	dish	B	wikidata:Q160525:zh-tw:alias
+프렌치 프라이	馬鈴薯條	x	dish	B	wikidata:Q152088:zh-tw:alias
+프렌치 프라이즈	馬鈴薯條	x	dish	B	wikidata:Q152088:zh-tw:alias
+프렌치프라이	馬鈴薯條	s	dish	B	wikidata:Q152088:zh-tw:alias
+피쉬 앤드 칩스	炸魚薯條	x	dish	B	wikidata:Q203925:zh-tw:alias
+피쉬앤드칩스	炸魚薯條	s	dish	B	wikidata:Q203925:zh-tw:alias
+피쉬앤칩스	炸魚薯條	s	dish	B	wikidata:Q203925:zh-tw:alias
+피시 앤 칩스	炸魚薯條	x	dish	B	wikidata:Q203925:zh-tw:alias
+피시앤드 칩스	炸魚薯條	x	dish	B	wikidata:Q203925:zh-tw:alias
+피시앤칩스	炸魚薯條	s	dish	B	wikidata:Q203925:zh-tw:alias
+핫 도그	熱狗	x	dish	B	wikidata:Q181055:zh-tw:alias
+핫독	熱狗	s	dish	B	wikidata:Q181055:zh-tw:alias
+홍당무	胡蘿蔔	s	dish	B	wikidata:Q81:zh-tw:alias
+후렌치 후라이	馬鈴薯條	x	dish	B	wikidata:Q152088:zh-tw:alias
+훈제생선	薰魚	s	dish	B	wikidata:Q70608:zh-hant
+가두배추	結球甘藍	s	food	B	wikidata:Q35051:zh-tw:alias
+가람 마살라	葛拉姆馬薩拉	x	food	B	wikidata:Q14624:zh-hant
+감성 유청	乳清	x	food	B	wikidata:Q185009:zh-tw:alias
+건과	果乾	x	food	B	wikidata:Q234901:zh-hant
+건락	起司	x	food	B	wikidata:Q10943:zh-tw:alias
+겨자 소스	芥末醬	x	food	B	wikidata:Q131748:zh-tw:alias
+계란 노른자	蛋黃	x	food	B	wikidata:Q181409:zh-tw:alias
+계란노른자	蛋黃	s	food	B	wikidata:Q181409:zh-tw:alias
+고기	肉品	x	food	B	wikidata:Q10990:zh-hant
+고기순대	香腸	s	food	B	wikidata:Q131419:zh-tw:alias
+고르곤촐라	古岡左拉起司	s	food	B	wikidata:Q209044:zh-tw:alias
+곡류	穀物	x	food	B	wikidata:Q12117:zh-hant
+곡분	穀粉	x	food	B	wikidata:Q36465:zh-hant
+과카몰리	酪梨醬	s	food	B	wikidata:Q207968:zh-tw:alias
+구아카몰	酪梨醬	s	food	B	wikidata:Q207968:zh-tw:alias
+구아카몰레	酪梨醬	s	food	B	wikidata:Q207968:zh-tw:alias
+국수 요리	麵條	x	food	B	wikidata:Q192874:zh-tw:alias
+굵은파	蔥	s	food	B	wikidata:Q27938:zh-tw:alias
+그래놀라	穀麥棒	s	food	B	wikidata:Q119203:zh-hant
+금련화	金蓮花	s	food	B	wikidata:Q156288:zh-tw:alias
+기울	麩	x	food	B	wikidata:Q188672:zh-tw:alias
+까망베르 치즈	卡芒貝爾乾酪	x	food	B	wikidata:Q131480:zh-tw:alias
+꼬투리열매	莢果	s	food	B	wikidata:Q145909:zh-tw:alias
+나륵풀	羅勒	s	food	B	wikidata:Q38859:zh-tw:alias
+낙농품	奶製品	s	food	B	wikidata:Q185217:zh-tw:alias
+낙제품	奶製品	s	food	B	wikidata:Q185217:zh-tw:alias
+넥타	花蜜	x	food	B	wikidata:Q171934:zh-tw:alias
+노른자위	蛋黃	s	food	B	wikidata:Q181409:zh-tw:alias
+농마	澱粉	x	food	B	wikidata:Q41534:zh-tw:alias
+느타리버섯	糙皮側耳	s	food	B	wikidata:Q186451:zh-tw:alias
+달걀 노른자	蛋黃	x	food	B	wikidata:Q181409:zh-tw:alias
+달걀노른자	蛋黃	s	food	B	wikidata:Q181409:zh-tw:alias
+당밀 시럽	糖蜜	x	food	B	wikidata:Q154389:zh-tw:alias
+대마초	大麻	s	food	B	wikidata:Q2845:zh-hant
+대파	蔥	x	food	B	wikidata:Q27938:zh-tw:alias
+돗괴기	豬肉	s	food	B	wikidata:Q191768:zh-tw:alias
+돼지 고기	豬肉	x	food	B	wikidata:Q191768:zh-tw:alias
+돼지호박	西葫蘆	s	food	B	wikidata:Q7533:zh-tw:alias
+드래곤 후르츠	火龍果	x	food	B	wikidata:Q232755:zh-tw:alias
+뜸팡이	酵母	s	food	B	wikidata:Q45422:zh-tw:alias
+라임	萊姆	x	food	B	wikidata:Q13195:zh-hant
+라즈베리	覆盆子	s	food	B	wikidata:Q13179:zh-hant
+로얄 제리	蜂王漿	x	food	B	wikidata:Q202501:zh-tw:alias
+로얄 젤리	蜂王漿	x	food	B	wikidata:Q202501:zh-tw:alias
+로얄제리	蜂王漿	s	food	B	wikidata:Q202501:zh-tw:alias
+로얄젤리	蜂王漿	s	food	B	wikidata:Q202501:zh-tw:alias
+로열제리	蜂王漿	s	food	B	wikidata:Q202501:zh-tw:alias
+마니옥	樹薯	s	food	B	wikidata:Q83124:zh-tw:alias
+마요네스	美乃滋	s	food	B	wikidata:Q167893:zh-tw:alias
+만디오카	樹薯	s	food	B	wikidata:Q83124:zh-tw:alias
+매니옥	樹薯	s	food	B	wikidata:Q83124:zh-tw:alias
+맥아	麥芽	x	food	B	wikidata:Q152024:zh-tw:alias
+맥얼	麥芽	x	food	B	wikidata:Q152024:zh-tw:alias
+머스터드 소스	芥末醬	x	food	B	wikidata:Q131748:zh-tw:alias
+모차렐라	莫札瑞拉起司	s	food	B	wikidata:Q14088:zh-hant
+발사믹	義大利香醋	s	food	B	wikidata:Q170037:zh-tw:alias
+발삼 식초	義大利香醋	x	food	B	wikidata:Q170037:zh-tw:alias
+배추	青江菜	x	food	B	wikidata:Q165178:zh-tw:alias
+배추꽃	青江菜	s	food	B	wikidata:Q165178:zh-tw:alias
+베이컨	培根肉	s	food	B	wikidata:Q11106:zh-hant
+부루	萵苣	x	food	B	wikidata:Q83193:zh-tw:alias
+부활 계란	復活節彩蛋	x	food	B	wikidata:Q163886:zh-tw:alias
+부활 달걀	復活節彩蛋	x	food	B	wikidata:Q163886:zh-tw:alias
+부활계란	復活節彩蛋	s	food	B	wikidata:Q163886:zh-tw:alias
+부활달걀	復活節彩蛋	s	food	B	wikidata:Q163886:zh-tw:alias
+부활절 계란	復活節彩蛋	x	food	B	wikidata:Q163886:zh-tw:alias
+부활절계란	復活節彩蛋	s	food	B	wikidata:Q163886:zh-tw:alias
+부활절달걀	復活節彩蛋	s	food	B	wikidata:Q163886:zh-tw:alias
+브로컬리	青花菜	s	food	B	wikidata:Q47722:zh-tw:alias
+블루베리	祖愉莓	s	food	B	wikidata:Q13178:zh-hant
+빈파	蘋果	x	food	B	wikidata:Q89:zh-tw:alias
+빠다	奶油	x	food	B	wikidata:Q34172:zh-tw:alias
+뿌리채소	根菜	s	food	B	wikidata:Q20136:zh-hant
+사료	飼料	x	food	B	wikidata:Q211439:zh-tw:alias
+사테이	沙嗲	s	food	B	wikidata:Q209253:zh-tw:alias
+산성 유청	乳清	x	food	B	wikidata:Q185009:zh-tw:alias
+산화 방지제	抗氧化劑	x	food	B	wikidata:Q133948:zh-tw:alias
+산화방지제	抗氧化劑	s	food	B	wikidata:Q133948:zh-tw:alias
+살라미 소시지	莎樂美腸	x	food	B	wikidata:Q188655:zh-tw:alias
+살사 소스	莎莎醬	x	food	B	wikidata:Q249114:zh-tw:alias
+상어상목	鯊總目	s	food	B	wikidata:Q7372:zh-tw:alias
+새알	蛋	x	food	B	wikidata:Q93189:zh-tw:alias
+생크림	鮮奶油	s	food	B	wikidata:Q13228:zh-tw:alias
+서양호박	西葫蘆	s	food	B	wikidata:Q7533:zh-tw:alias
+석화	牡蠣	x	food	B	wikidata:Q107411:zh-tw:alias
+소세지	香腸	s	food	B	wikidata:Q131419:zh-tw:alias
+수박속	西瓜	s	food	B	wikidata:Q38645:zh-tw:alias
+슈크루트	阿爾薩斯酸菜	s	food	B	wikidata:Q12699:zh-hant
+스펠트 밀	斯佩耳特小麥	x	food	B	wikidata:Q158767:zh-tw:alias
+시나몬	肉桂	s	food	B	wikidata:Q28165:zh-tw:alias
+식란	蛋	x	food	B	wikidata:Q93189:zh-tw:alias
+식이섬유소	膳食纖維	s	food	B	wikidata:Q215210:zh-tw:alias
+식품첨가물	食品添加物	s	food	B	wikidata:Q189567:zh-tw:alias
+실파	蔥	x	food	B	wikidata:Q27938:zh-tw:alias
+쌀라미	莎樂美腸	s	food	B	wikidata:Q188655:zh-tw:alias
+씨앗	種子	x	food	B	wikidata:Q40763:zh-tw:alias
+야채	蔬菜	x	food	B	wikidata:Q11004:zh-tw:alias
+양상추	萵苣	s	food	B	wikidata:Q83193:zh-tw:alias
+에그	蛋	x	food	B	wikidata:Q93189:zh-tw:alias
+에머밀	二粒小麥	s	food	B	wikidata:Q167339:zh-hant
+엿길금	麥芽	s	food	B	wikidata:Q152024:zh-tw:alias
+오이꽃	胡瓜	s	food	B	wikidata:Q23425:zh-tw:alias
+올리브 기름	橄欖油	x	food	B	wikidata:Q93165:zh-tw:alias
+올리브 오일	橄欖油	x	food	B	wikidata:Q93165:zh-tw:alias
+올리브오일	橄欖油	s	food	B	wikidata:Q93165:zh-tw:alias
+올리브유	橄欖油	s	food	B	wikidata:Q93165:zh-tw:alias
+올스파이스	多香果	s	food	B	wikidata:Q158468:zh-tw:alias
+완충용액	緩衝溶液	s	food	B	wikidata:Q208465:zh-tw:alias
+왕벌젖	蜂王漿	s	food	B	wikidata:Q202501:zh-tw:alias
+용과	火龍果	x	food	B	wikidata:Q232755:zh-tw:alias
+우육	牛肉	x	food	B	wikidata:Q192628:zh-tw:alias
+유카	樹薯	x	food	B	wikidata:Q83124:zh-tw:alias
+유크림	鮮奶油	s	food	B	wikidata:Q13228:zh-tw:alias
+잎채소	綠葉蔬菜	s	food	B	wikidata:Q20134:zh-hant
+자우어콜	德國酸菜	s	food	B	wikidata:Q154166:zh-tw:alias
+장미속	薔薇屬	s	food	B	wikidata:Q34687:zh-tw:alias
+전분	澱粉	x	food	B	wikidata:Q41534:zh-tw:alias
+젖제품	奶製品	s	food	B	wikidata:Q185217:zh-tw:alias
+종자	種子	x	food	B	wikidata:Q40763:zh-tw:alias
+주키니	西葫蘆	s	food	B	wikidata:Q7533:zh-tw:alias
+지중해 식단	地中海飲食	x	food	B	wikidata:Q47564:zh-hant
+진주담치	紫殼菜蛤	s	food	B	wikidata:Q27855:zh-tw:alias
+체더 치즈	切達起司	x	food	B	wikidata:Q217525:zh-tw:alias
+초리소	口利左香腸	s	food	B	wikidata:Q23374:zh-hant
+카마	卡馬	x	food	B	wikidata:Q134213:zh-hant
+카망베르 치즈	卡芒貝爾乾酪	x	food	B	wikidata:Q131480:zh-tw:alias
+칼파스	香腸	s	food	B	wikidata:Q131419:zh-tw:alias
+코코넛 오일	椰子油	x	food	B	wikidata:Q216235:zh-tw:alias
+코코넛유	椰子油	s	food	B	wikidata:Q216235:zh-tw:alias
+크넬	肉丸子	x	food	B	wikidata:Q12958:zh-hant
+크뇌델	馬鈴薯丸子	s	food	B	wikidata:Q158382:zh-tw:alias
+타프나드	橄欖醬	s	food	B	wikidata:Q129031:zh-hant
+털격판담치	紫殼菜蛤	s	food	B	wikidata:Q27855:zh-tw:alias
+테이크아웃	外賣	s	food	B	wikidata:Q154383:zh-tw:alias
+토르티야칩	墨西哥玉米片	s	food	B	wikidata:Q175641:zh-hant
+트케말리 소스	特克馬裡	x	food	B	wikidata:Q65028:zh-hant
+파마산 치즈	帕馬森起司	x	food	B	wikidata:Q155922:zh-tw:alias
+페스토	青醬	s	food	B	wikidata:Q9896:zh-hant
+페타	菲達芝士	x	food	B	wikidata:Q182760:zh-hant
+평과	蘋果	x	food	B	wikidata:Q89:zh-tw:alias
+한련화	金蓮花	s	food	B	wikidata:Q156288:zh-tw:alias
+항산화	抗氧化劑	s	food	B	wikidata:Q133948:zh-tw:alias
+항산화제	抗氧化劑	s	food	B	wikidata:Q133948:zh-tw:alias
+해물	海鮮	x	food	B	wikidata:Q192935:zh-tw:alias
+해바라기 기름	葵花籽油	x	food	B	wikidata:Q94787:zh-hant
+해시시	哈希什	s	food	B	wikidata:Q151980:zh-tw:alias
+행인	杏仁	x	food	B	wikidata:Q165527:zh-tw:alias
+화밀	花蜜	x	food	B	wikidata:Q171934:zh-tw:alias
+효모균	酵母	s	food	B	wikidata:Q45422:zh-tw:alias
+훼이	乳清	x	food	B	wikidata:Q185009:zh-tw:alias
+휘발성 기름	精油	x	food	B	wikidata:Q170885:zh-tw:alias
+강내미	玉蜀黍	s	ingredient	B	wikidata:Q11575:zh-tw:alias
+강냉이	玉蜀黍	s	ingredient	B	wikidata:Q11575:zh-tw:alias
+옥수꾸	玉蜀黍	s	ingredient	B	wikidata:Q11575:zh-tw:alias
+옥시기	玉蜀黍	s	ingredient	B	wikidata:Q11575:zh-tw:alias
+우무묵	洋菜	s	ingredient	B	wikidata:Q177998:zh-tw:alias
+잭프룻	波羅蜜	s	fruit	B	wikidata:Q45757:zh-tw:alias
+철갑상어	鱘科	s	ingredient	B	wikidata:Q181871:zh-tw:alias
+철갑상어과	鱘科	s	ingredient	B	wikidata:Q181871:zh-tw:alias
+한천	洋菜	x	ingredient	B	wikidata:Q177998:zh-tw:alias
+홍조강	紅藻門	s	ingredient	B	wikidata:Q103169:zh-tw:alias
+홍조류	紅藻門	s	ingredient	B	wikidata:Q103169:zh-tw:alias
+홍조식물문	紅藻門	s	ingredient	B	wikidata:Q103169:zh-tw:alias
+가구라자카	神樂坂	s	station	C	wikidata:Q80573:zh>s2twp:derived
+가구라자카역	神樂坂站	s	station	C	wikidata:Q80573:zh>s2twp
+가도마미나미	門真南	s	station	C	wikidata:Q135207:zh>s2twp:derived
+가도마미나미역	門真南站	s	station	C	wikidata:Q135207:zh>s2twp
+가미지마	上島	s	station	C	wikidata:Q169614:zh>s2twp:derived
+가미지마역	上島站	s	station	C	wikidata:Q169614:zh>s2twp
+가야바초	茅場町	s	station	C	wikidata:Q80566:zh>s2twp:derived
+가야바초역	茅場町站	s	station	C	wikidata:Q80566:zh>s2twp
+가양	加陽	x	station	C	wikidata:Q59987:zh>s2twp:derived
+가양역	加陽站	s	station	C	wikidata:Q59987:zh>s2twp
+가좌	加佐	x	station	C	wikidata:Q54346:zh>s2twp:derived
+가좌역	加佐站	s	station	C	wikidata:Q54346:zh>s2twp
+가평	加平	x	station	C	wikidata:Q49982:zh-hant:derived
+갈매	葛梅	x	station	C	wikidata:Q49992:zh-hant:derived
+강남	江南	x	station	C	wikidata:Q17469:zh>s2twp:derived
+강남구청	江南區廳	s	station	C	wikidata:Q46072:zh>s2twp:derived
+강남구청역	江南區廳站	s	station	C	wikidata:Q46072:zh>s2twp
+강남역	江南站	s	station	C	wikidata:Q17469:zh>s2twp
+강동구청	江東區廳	s	station	C	wikidata:Q75325:zh>s2twp:derived
+강동구청역	江東區廳站	s	station	C	wikidata:Q75325:zh>s2twp
+강촌	江村	x	station	C	wikidata:Q49956:zh>s2twp:derived
+강촌역	江村站	s	station	C	wikidata:Q49956:zh>s2twp
+개화	開花	x	station	C	wikidata:Q54275:zh>s2twp:derived
+개화역	開花站	s	station	C	wikidata:Q54275:zh>s2twp
+건국대	建大入口	s	station	C	wikidata:Q68859:zh>s2twp:derived
+건국대역	建大入口站	s	station	C	wikidata:Q68859:zh>s2twp
+검암	黔巖	x	station	C	wikidata:Q54257:zh-hant:derived
+게이오 신선	京王新線	x	line	C	wikidata:Q32388:zh>s2twp
+게이오 전철 다카오 선	高尾線	x	line	C	wikidata:Q29663:zh>s2twp
+게이한 전기 철도 나카노시마 선	中之島線	x	line	C	wikidata:Q126331:zh>s2twp
+경복궁	景福宮	s	station	C	wikidata:Q79971:zh>s2twp:derived
+경복궁역	景福宮站	s	station	C	wikidata:Q79971:zh>s2twp
+경주	慶州	x	station	C	wikidata:Q54294:zh>s2twp:derived
+경주역	慶州站	s	station	C	wikidata:Q54294:zh>s2twp
+경찰병원	警察醫院	s	station	C	wikidata:Q54938:zh>s2twp:derived
+경찰병원역	警察醫院站	s	station	C	wikidata:Q54938:zh>s2twp
+계양역	桂陽站	s	station	C	wikidata:Q54261:zh>s2twp
+고난	江南	x	station	C	wikidata:Q201473:zh-hant:derived
+고마가와나카노	駒川中野	s	station	C	wikidata:Q135198:zh>s2twp:derived
+고마가와나카노역	駒川中野站	s	station	C	wikidata:Q135198:zh>s2twp
+고속터미널	高速巴士客運	s	station	C	wikidata:Q20941:zh-hant:derived
+고쿠도	國道	s	station	C	wikidata:Q77872:zh>s2twp:derived
+고쿠도역	國道站	s	station	C	wikidata:Q77872:zh>s2twp
+곡산	谷山	x	station	C	wikidata:Q59861:zh>s2twp:derived
+곡산역	谷山站	s	station	C	wikidata:Q59861:zh>s2twp
+공덕	孔德	x	station	C	wikidata:Q54272:zh>s2twp:derived
+공덕역	孔德站	s	station	C	wikidata:Q54272:zh>s2twp
+공릉	孔陵	x	station	C	wikidata:Q68708:zh>s2twp:derived
+공릉역	孔陵站	s	station	C	wikidata:Q68708:zh>s2twp
+공항시장	機場市場	s	station	C	wikidata:Q59980:zh>s2twp:derived
+공항시장역	機場市場站	s	station	C	wikidata:Q59980:zh>s2twp
+공항화물청사	機場貨物辦公樓	s	station	C	wikidata:Q54256:zh>s2twp:derived
+공항화물청사역	機場貨物辦公樓站	s	station	C	wikidata:Q54256:zh>s2twp
+관악역	冠嶽站	s	station	C	wikidata:Q137184:zh>s2twp
+광명	光明	x	station	C	wikidata:Q20950:zh-hant:derived
+광명사거리	光明四叉路口	s	station	C	wikidata:Q69027:zh>s2twp:derived
+광명사거리역	光明四叉路口站	s	station	C	wikidata:Q69027:zh>s2twp
+교토세이카다이마에	京都精華大前車	s	station	C	wikidata:Q27298:zh>s2twp:derived
+교토세이카다이마에역	京都精華大前車站	s	station	C	wikidata:Q27298:zh>s2twp
+구단시타	九段下	s	station	C	wikidata:Q76899:zh>s2twp:derived
+구단시타역	九段下站	s	station	C	wikidata:Q76899:zh>s2twp
+구리	九里	x	station	C	wikidata:Q58948:zh>s2twp:derived
+구리역	九里站	s	station	C	wikidata:Q58948:zh>s2twp
+구반포	舊盤浦	s	station	C	wikidata:Q60054:zh>s2twp:derived
+구반포역	舊盤浦站	s	station	C	wikidata:Q60054:zh>s2twp
+구파발	舊把撥	s	station	C	wikidata:Q79949:zh>s2twp:derived
+구파발역	舊把撥站	s	station	C	wikidata:Q79949:zh>s2twp
+국수역	菊秀站	s	station	C	wikidata:Q58934:zh>s2twp
+국회의사당	國會議事堂	s	station	C	wikidata:Q59998:zh>s2twp:derived
+국회의사당역	國會議事堂站	s	station	C	wikidata:Q59998:zh>s2twp
+군자	君子	x	station	C	wikidata:Q68841:zh>s2twp:derived
+군자역	君子站	s	station	C	wikidata:Q68841:zh>s2twp
+군포	軍浦	x	station	C	wikidata:Q137221:zh>s2twp:derived
+군포역	軍浦站	s	station	C	wikidata:Q137221:zh>s2twp
+굴봉산	屈峰山	s	station	C	wikidata:Q49966:zh>s2twp:derived
+굴봉산역	屈峰山站	s	station	C	wikidata:Q49966:zh>s2twp
+굴포천	掘浦川	s	station	C	wikidata:Q69082:zh>s2twp:derived
+굴포천역	掘浦川站	s	station	C	wikidata:Q69082:zh>s2twp
+금련산	金蓮山	s	station	C	wikidata:Q107399:zh>s2twp:derived
+금련산역	金蓮山站	s	station	C	wikidata:Q107399:zh>s2twp
+금릉	金陵	x	station	C	wikidata:Q59873:zh>s2twp:derived
+금릉역	金陵站	s	station	C	wikidata:Q59873:zh>s2twp
+금정역	衿井站	s	station	C	wikidata:Q54303:zh>s2twp
+금천구청	衿川區廳	s	station	C	wikidata:Q54299:zh>s2twp:derived
+금천구청역	衿川區廳站	s	station	C	wikidata:Q54299:zh>s2twp
+금촌	金村	x	station	C	wikidata:Q59875:zh>s2twp:derived
+금촌역	金村站	s	station	C	wikidata:Q59875:zh>s2twp
+금호	金湖	x	station	C	wikidata:Q100830:zh>s2twp:derived
+금호역	金湖站	s	station	C	wikidata:Q100830:zh>s2twp
+기레우리와리	喜連瓜破	s	station	C	wikidata:Q151539:zh>s2twp:derived
+기레우리와리역	喜連瓜破站	s	station	C	wikidata:Q151539:zh>s2twp
+기시노사토	岸裡	s	station	C	wikidata:Q126082:zh>s2twp:derived
+기시노사토역	岸裡站	s	station	C	wikidata:Q126082:zh>s2twp
+기시베	岸邊	s	station	C	wikidata:Q59515:zh>s2twp:derived
+기시베역	岸邊站	s	station	C	wikidata:Q59515:zh>s2twp
+기요스미시라카와	清澄白河	s	station	C	wikidata:Q80542:zh>s2twp:derived
+기요스미시라카와역	清澄白河站	s	station	C	wikidata:Q80542:zh>s2twp
+기코나이	木古內車	s	station	C	wikidata:Q59510:zh>s2twp:derived
+기코나이역	木古內車站	s	station	C	wikidata:Q59510:zh>s2twp
+기타카가야	北加賀屋	s	station	C	wikidata:Q126335:zh>s2twp:derived
+기타카가야역	北加賀屋站	s	station	C	wikidata:Q126335:zh>s2twp
+기타타쓰미	北巽	s	station	C	wikidata:Q126096:zh>s2twp:derived
+기타타쓰미역	北巽站	s	station	C	wikidata:Q126096:zh>s2twp
+김유정	金裕貞	s	station	C	wikidata:Q49954:zh>s2twp:derived
+김유정역	金裕貞站	s	station	C	wikidata:Q49954:zh>s2twp
+김천	金泉	x	station	C	wikidata:Q54286:zh>s2twp:derived
+김천역	金泉站	s	station	C	wikidata:Q54286:zh>s2twp
+김포공항	金浦機場	s	station	C	wikidata:Q54263:zh>s2twp:derived
+김포공항역	金浦機場站	s	station	C	wikidata:Q54263:zh>s2twp
+까치울	鵲洞	s	station	C	wikidata:Q69046:zh>s2twp:derived
+까치울역	鵲洞站	s	station	C	wikidata:Q69046:zh>s2twp
+나가하라	長原	s	station	C	wikidata:Q151508:zh-hant:derived
+나고야	名古屋	s	station	C	wikidata:Q49381:zh-hant:derived
+나카자키초	中崎町	s	station	C	wikidata:Q83601:zh>s2twp:derived
+나카자키초역	中崎町站	s	station	C	wikidata:Q83601:zh>s2twp
+낙성대	落星垈	s	station	C	wikidata:Q50010:zh-hant:derived
+난카이 전기 철도 가다 선	加太線	x	line	C	wikidata:Q76809:zh>s2twp
+난카이 전기 철도 고야선	高野線	x	line	C	wikidata:Q71986:zh>s2twp
+난카이 전기 철도 난카이 본선	南海本線	x	line	C	wikidata:Q59453:zh>s2twp
+남구로	南九老	s	station	C	wikidata:Q69012:zh>s2twp:derived
+남구로역	南九老站	s	station	C	wikidata:Q69012:zh>s2twp
+남부터미널	南部巴士總	s	station	C	wikidata:Q100848:zh>s2twp:derived
+남부터미널역	南部巴士總站	s	station	C	wikidata:Q100848:zh>s2twp
+남성	南城	x	station	C	wikidata:Q68944:zh>s2twp:derived
+남성역	南城站	s	station	C	wikidata:Q68944:zh>s2twp
+남영	南營	x	station	C	wikidata:Q137143:zh-hant:derived
+남춘천	南春川	s	station	C	wikidata:Q49952:zh>s2twp:derived
+남춘천역	南春川站	s	station	C	wikidata:Q49952:zh>s2twp
+남한산성입구	南漢山城入口	s	station	C	wikidata:Q75354:zh>s2twp:derived
+남한산성입구역	南漢山城入口站	s	station	C	wikidata:Q75354:zh>s2twp
+내방	內方	x	station	C	wikidata:Q68937:zh>s2twp:derived
+내방역	內方站	s	station	C	wikidata:Q68937:zh>s2twp
+노다한신	野田阪神	s	station	C	wikidata:Q126087:zh>s2twp:derived
+노다한신역	野田阪神站	s	station	C	wikidata:Q126087:zh>s2twp
+노들	鷺得	x	station	C	wikidata:Q60049:zh>s2twp:derived
+노들역	鷺得站	s	station	C	wikidata:Q60049:zh>s2twp
+노량진	鷺梁津	s	station	C	wikidata:Q60001:zh>s2twp:derived
+노량진역	鷺梁津站	s	station	C	wikidata:Q60001:zh>s2twp
+노에우친다이	野江內代	s	station	C	wikidata:Q83607:zh>s2twp:derived
+노에우친다이역	野江內代站	s	station	C	wikidata:Q83607:zh>s2twp
+노원역	蘆原站	s	station	C	wikidata:Q68681:zh>s2twp
+녹번	碌磻	x	station	C	wikidata:Q79964:zh>s2twp:derived
+녹번역	碌磻站	s	station	C	wikidata:Q79964:zh>s2twp
+논현	論峴	x	station	C	wikidata:Q68920:zh>s2twp:derived
+논현역	論峴站	s	station	C	wikidata:Q68920:zh>s2twp
+능곡	陵谷	x	station	C	wikidata:Q59852:zh>s2twp:derived
+능곡역	陵谷站	s	station	C	wikidata:Q59852:zh>s2twp
+니시에이후쿠	西永福	s	station	C	wikidata:Q31589:zh>s2twp:derived
+니시에이후쿠역	西永福站	s	station	C	wikidata:Q31589:zh>s2twp
+니시오하시	西大橋	s	station	C	wikidata:Q112719:zh>s2twp:derived
+니시오하시역	西大橋站	s	station	C	wikidata:Q112719:zh>s2twp
+니켄차야	二軒茶屋車	s	station	C	wikidata:Q27288:zh>s2twp:derived
+니켄차야역	二軒茶屋車站	s	station	C	wikidata:Q27288:zh>s2twp
+다나베	田邊	s	station	C	wikidata:Q135203:zh>s2twp:derived
+다나베역	田邊站	s	station	C	wikidata:Q135203:zh>s2twp
+다마가와	玉川	s	station	C	wikidata:Q126069:zh>s2twp:derived
+다마가와역	玉川站	s	station	C	wikidata:Q126069:zh>s2twp
+다마데	玉出	s	station	C	wikidata:Q125822:zh>s2twp:derived
+다마데역	玉出站	s	station	C	wikidata:Q125822:zh>s2twp
+다마루	田丸	s	station	C	wikidata:Q117533:zh>s2twp:derived
+다마루역	田丸站	s	station	C	wikidata:Q117533:zh>s2twp
+다이도토요사토	大桐豐裡	s	station	C	wikidata:Q180979:zh>s2twp:derived
+다이도토요사토역	大桐豐裡站	s	station	C	wikidata:Q180979:zh>s2twp
+다카이도	高井戶	s	station	C	wikidata:Q31309:zh>s2twp:derived
+다카이도역	高井戶站	s	station	C	wikidata:Q31309:zh>s2twp
+다케바시	竹橋	s	station	C	wikidata:Q80564:zh>s2twp:derived
+다케바시역	竹橋站	s	station	C	wikidata:Q80564:zh>s2twp
+단대오거리	丹岱五叉路口	s	station	C	wikidata:Q75355:zh>s2twp:derived
+단대오거리역	丹岱五叉路口站	s	station	C	wikidata:Q75355:zh>s2twp
+당산	堂山	x	station	C	wikidata:Q59997:zh>s2twp:derived
+당산역	堂山站	s	station	C	wikidata:Q59997:zh>s2twp
+당정	堂井	x	station	C	wikidata:Q137229:zh>s2twp:derived
+당정역	堂井站	s	station	C	wikidata:Q137229:zh>s2twp
+대곡	大谷	x	station	C	wikidata:Q59856:zh>s2twp:derived
+대곡역	大谷站	s	station	C	wikidata:Q59856:zh>s2twp
+대구	大邱	x	station	C	wikidata:Q54291:zh>s2twp:derived
+대구 도시철도 1호선	大邱都市鐵道1號線	x	line	C	wikidata:Q200331:zh>s2twp
+대구 도시철도 2호선	大邱都市鐵道2號線	x	line	C	wikidata:Q200332:zh>s2twp
+대구역	大邱站	s	station	C	wikidata:Q54291:zh>s2twp
+대림	大林	x	station	C	wikidata:Q69008:zh>s2twp:derived
+대림역	大林站	s	station	C	wikidata:Q69008:zh>s2twp
+대방	大方	x	station	C	wikidata:Q137162:zh>s2twp:derived
+대방역	大方站	s	station	C	wikidata:Q137162:zh>s2twp
+대성리	大成裡	s	station	C	wikidata:Q49973:zh-hant:derived
+대전	大田	x	station	C	wikidata:Q20919:zh-hant:derived
+대전 도시철도 1호선	大田都市鐵道1號線	x	line	C	wikidata:Q200310:zh>s2twp
+대전조차장역	大田操車場	s	station	C	wikidata:Q188837:zh>s2twp
+대청	大清	x	station	C	wikidata:Q100867:zh>s2twp:derived
+대청역	大清站	s	station	C	wikidata:Q100867:zh>s2twp
+대치	大峙	x	station	C	wikidata:Q100860:zh>s2twp:derived
+대치역	大峙站	s	station	C	wikidata:Q100860:zh>s2twp
+대화	大化	x	station	C	wikidata:Q79799:zh>s2twp:derived
+대화역	大化站	s	station	C	wikidata:Q79799:zh>s2twp
+덕소	德沼	x	station	C	wikidata:Q58944:zh>s2twp:derived
+덕소역	德沼站	s	station	C	wikidata:Q58944:zh>s2twp
+데토	出戶	x	station	C	wikidata:Q151413:zh>s2twp:derived
+데토역	出戶站	s	station	C	wikidata:Q151413:zh>s2twp
+도농	陶農	x	station	C	wikidata:Q58946:zh>s2twp:derived
+도농역	陶農站	s	station	C	wikidata:Q58946:zh>s2twp
+도라산	都羅山	s	station	C	wikidata:Q50011:zh-hant:derived
+도봉산	道峰山	s	station	C	wikidata:Q68633:zh>s2twp:derived
+도봉산역	道峰山站	s	station	C	wikidata:Q68633:zh>s2twp
+도심	陶深	x	station	C	wikidata:Q58943:zh>s2twp:derived
+도심역	陶深站	s	station	C	wikidata:Q58943:zh>s2twp
+독립문	獨立門	s	station	C	wikidata:Q79970:zh>s2twp:derived
+독립문역	獨立門站	s	station	C	wikidata:Q79970:zh>s2twp
+독산	禿山	x	station	C	wikidata:Q137175:zh>s2twp:derived
+독산역	禿山站	s	station	C	wikidata:Q137175:zh>s2twp
+동대구	東大邱	s	station	C	wikidata:Q54288:zh-hant:derived
+동대입구	東大入口	s	station	C	wikidata:Q100817:zh>s2twp:derived
+동대입구역	東大入口站	s	station	C	wikidata:Q100817:zh>s2twp
+동작역	銅雀站	s	station	C	wikidata:Q60053:zh>s2twp
+두정	鬥井	x	station	C	wikidata:Q167556:zh>s2twp:derived
+두정역	鬥井站	s	station	C	wikidata:Q167556:zh>s2twp
+등촌	登村	x	station	C	wikidata:Q59992:zh>s2twp:derived
+등촌역	登村站	s	station	C	wikidata:Q59992:zh>s2twp
+디지털미디어시티	數碼媒體城	s	station	C	wikidata:Q54265:zh>s2twp:derived
+디지털미디어시티역	數碼媒體城站	s	station	C	wikidata:Q54265:zh>s2twp
+료쿠치코엔	綠地公園	s	station	C	wikidata:Q59455:zh>s2twp:derived
+료쿠치코엔역	綠地公園站	s	station	C	wikidata:Q59455:zh>s2twp
+마곡나루	麻谷津	s	station	C	wikidata:Q59984:zh>s2twp:derived
+마곡나루역	麻谷津站	s	station	C	wikidata:Q59984:zh>s2twp
+마두	馬頭	x	station	C	wikidata:Q79830:zh>s2twp:derived
+마두역	馬頭站	s	station	C	wikidata:Q79830:zh>s2twp
+마들	馬得	x	station	C	wikidata:Q68672:zh>s2twp:derived
+마들역	馬得站	s	station	C	wikidata:Q68672:zh>s2twp
+마석	磨石	x	station	C	wikidata:Q49978:zh-hant:derived
+마쓰시타	松下	s	station	C	wikidata:Q93433:zh-hant:derived
+마쓰야마치	松屋町	s	station	C	wikidata:Q126080:zh-hant:derived
+망우	忘憂	x	station	C	wikidata:Q49994:zh-hant:derived
+매봉	梅峰	x	station	C	wikidata:Q100856:zh>s2twp:derived
+매봉역	梅峰站	s	station	C	wikidata:Q100856:zh>s2twp
+먹골	墨洞	x	station	C	wikidata:Q68781:zh>s2twp:derived
+먹골역	墨洞站	s	station	C	wikidata:Q68781:zh>s2twp
+메구미노	惠野	s	station	C	wikidata:Q59340:zh-hant:derived
+메이지진구마에	明治神宮前	s	station	C	wikidata:Q80429:zh>s2twp:derived
+메이지진구마에역	明治神宮前站	s	station	C	wikidata:Q80429:zh>s2twp
+면목	面牧	x	station	C	wikidata:Q68797:zh>s2twp:derived
+면목역	面牧站	s	station	C	wikidata:Q68797:zh>s2twp
+명학	鳴鶴	x	station	C	wikidata:Q137202:zh>s2twp:derived
+명학역	鳴鶴站	s	station	C	wikidata:Q137202:zh>s2twp
+모리구치	守口	s	station	C	wikidata:Q83608:zh>s2twp:derived
+모리구치역	守口站	s	station	C	wikidata:Q83608:zh>s2twp
+모모야마다이	桃山臺	s	station	C	wikidata:Q59341:zh>s2twp:derived
+모모야마다이역	桃山臺站	s	station	C	wikidata:Q59341:zh>s2twp
+모토마치	元町	s	station	C	wikidata:Q59520:zh>s2twp:derived
+모토마치역	元町站	s	station	C	wikidata:Q59520:zh>s2twp
+목포	木浦	x	station	C	wikidata:Q69113:zh>s2twp:derived
+목포역	木浦站	s	station	C	wikidata:Q69113:zh>s2twp
+몬젠나카초	門前仲町	s	station	C	wikidata:Q80576:zh>s2twp:derived
+몬젠나카초역	門前仲町站	s	station	C	wikidata:Q80576:zh>s2twp
+몽촌토성	夢村土城	s	station	C	wikidata:Q75328:zh>s2twp:derived
+몽촌토성역	夢村土城站	s	station	C	wikidata:Q75328:zh>s2twp
+무악재	母嶽齋	s	station	C	wikidata:Q79968:zh>s2twp:derived
+무악재역	母嶽齋站	s	station	C	wikidata:Q79968:zh>s2twp
+문산	汶山	x	station	C	wikidata:Q59880:zh>s2twp:derived
+문산역	汶山站	s	station	C	wikidata:Q59880:zh>s2twp
+문정	文井	x	station	C	wikidata:Q75346:zh>s2twp:derived
+문정역	文井站	s	station	C	wikidata:Q75346:zh>s2twp
+미나미센주	南千住	s	station	C	wikidata:Q80570:zh>s2twp:derived
+미나미센주역	南千住站	s	station	C	wikidata:Q80570:zh>s2twp
+미나미타쓰미	南巽	s	station	C	wikidata:Q126112:zh>s2twp:derived
+미나미타쓰미역	南巽站	s	station	C	wikidata:Q126112:zh>s2twp
+미노부선	身延線	s	line	C	wikidata:Q162747:zh>s2twp
+미쓰코시마에	三越前	s	station	C	wikidata:Q76898:zh>s2twp:derived
+미쓰코시마에역	三越前站	s	station	C	wikidata:Q76898:zh>s2twp
+미야가와	宮川	s	station	C	wikidata:Q117381:zh>s2twp:derived
+미야가와역	宮川站	s	station	C	wikidata:Q117381:zh>s2twp
+미야코지마	都島	s	station	C	wikidata:Q83604:zh>s2twp:derived
+미야코지마역	都島站	s	station	C	wikidata:Q83604:zh>s2twp
+반포	盤浦	x	station	C	wikidata:Q68927:zh>s2twp:derived
+반포역	盤浦站	s	station	C	wikidata:Q68927:zh>s2twp
+배방	排芳	x	station	C	wikidata:Q167606:zh>s2twp:derived
+배방역	排芳站	s	station	C	wikidata:Q167606:zh>s2twp
+백마	白馬	x	station	C	wikidata:Q59865:zh>s2twp:derived
+백마역	白馬站	s	station	C	wikidata:Q59865:zh>s2twp
+백석	白石	x	station	C	wikidata:Q79832:zh>s2twp:derived
+백석역	白石站	s	station	C	wikidata:Q79832:zh>s2twp
+백양리	白楊裡	s	station	C	wikidata:Q49962:zh>s2twp:derived
+백양리역	白楊裡站	s	station	C	wikidata:Q49962:zh>s2twp
+보라매	獵鷹	s	station	C	wikidata:Q68988:zh>s2twp:derived
+보라매역	獵鷹站	s	station	C	wikidata:Q68988:zh>s2twp
+봉명	鳳鳴	x	station	C	wikidata:Q167590:zh>s2twp:derived
+봉명역	鳳鳴站	s	station	C	wikidata:Q167590:zh>s2twp
+부강	芙江	x	station	C	wikidata:Q188829:zh>s2twp:derived
+부강역	芙江站	s	station	C	wikidata:Q188829:zh>s2twp
+부산	釜山	x	station	C	wikidata:Q53118:zh-hant:derived
+부산 도시철도 1호선	釜山都市鐵道1號線	x	line	C	wikidata:Q86356:zh>s2twp
+부산 도시철도 2호선	釜山都市鐵道2號線	x	line	C	wikidata:Q86467:zh>s2twp
+부산 도시철도 3호선	釜山都市鐵道3號線	x	line	C	wikidata:Q86468:zh>s2twp
+부산 도시철도 4호선	釜山都市鐵道4號線	x	line	C	wikidata:Q86469:zh>s2twp
+부천시청	富川市廳	s	station	C	wikidata:Q69067:zh>s2twp:derived
+부천시청역	富川市廳站	s	station	C	wikidata:Q69067:zh>s2twp
+부천종합운동장	富川綜合運動場	s	station	C	wikidata:Q69052:zh>s2twp:derived
+부천종합운동장역	富川綜合運動場站	s	station	C	wikidata:Q69052:zh>s2twp
+부평구청	富平區廳	s	station	C	wikidata:Q20301:zh>s2twp:derived
+부평구청역	富平區廳站	s	station	C	wikidata:Q20301:zh>s2twp
+분고나카무라	豐後中村	s	station	C	wikidata:Q251216:zh>s2twp:derived
+분고나카무라역	豐後中村站	s	station	C	wikidata:Q251216:zh>s2twp
+분당선	盆唐線	s	line	C	wikidata:Q16266:zh>s2twp
+불광	佛光	x	station	C	wikidata:Q79960:zh>s2twp:derived
+불광역	佛光站	s	station	C	wikidata:Q79960:zh>s2twp
+불암산	佛巖山	s	station	C	wikidata:Q49942:zh>s2twp:derived
+불암산역	佛巖山站	s	station	C	wikidata:Q49942:zh>s2twp
+사가정	四佳亭	s	station	C	wikidata:Q68804:zh>s2twp:derived
+사가정역	四佳亭站	s	station	C	wikidata:Q68804:zh>s2twp
+사릉	思陵	x	station	C	wikidata:Q49986:zh-hant:derived
+사평	砂平	x	station	C	wikidata:Q60071:zh>s2twp:derived
+사평역	砂平站	s	station	C	wikidata:Q60071:zh>s2twp
+산성	山城	x	station	C	wikidata:Q75351:zh>s2twp:derived
+산성역	山城站	s	station	C	wikidata:Q75351:zh>s2twp
+삼산체육관	三山體育館	s	station	C	wikidata:Q69077:zh>s2twp:derived
+삼산체육관역	三山體育館站	s	station	C	wikidata:Q69077:zh>s2twp
+삼송	三松	x	station	C	wikidata:Q79839:zh>s2twp:derived
+삼송역	三松站	s	station	C	wikidata:Q79839:zh>s2twp
+상갈	上葛	x	station	C	wikidata:Q218337:zh>s2twp:derived
+상갈역	上葛站	s	station	C	wikidata:Q218337:zh>s2twp
+상도	上道	x	station	C	wikidata:Q68961:zh>s2twp:derived
+상도역	上道站	s	station	C	wikidata:Q68961:zh>s2twp
+상동	上洞	x	station	C	wikidata:Q69073:zh>s2twp:derived
+상동역	上洞站	s	station	C	wikidata:Q69073:zh>s2twp
+상봉	上鳳	x	station	C	wikidata:Q49995:zh-hant:derived
+상천	上泉	x	station	C	wikidata:Q49968:zh>s2twp:derived
+상천역	上泉站	s	station	C	wikidata:Q49968:zh>s2twp
+샛강	賽江	x	station	C	wikidata:Q60000:zh>s2twp:derived
+샛강역	賽江站	s	station	C	wikidata:Q60000:zh>s2twp
+서경주	西慶州	s	station	C	wikidata:Q58977:zh>s2twp:derived
+서경주역	西慶州站	s	station	C	wikidata:Q58977:zh>s2twp
+서대전	西大田	s	station	C	wikidata:Q54293:zh>s2twp:derived
+서대전역	西大田站	s	station	C	wikidata:Q54293:zh>s2twp
+서빙고	西冰庫	s	station	C	wikidata:Q58956:zh>s2twp:derived
+서빙고역	西冰庫站	s	station	C	wikidata:Q58956:zh>s2twp
+서울 지하철 1호선	首爾地鐵1號線	x	line	C	wikidata:Q92501:zh>s2twp
+서울숲	首爾森林	s	station	C	wikidata:Q24058:zh-hant:derived
+서정리	西井裡	s	station	C	wikidata:Q167500:zh>s2twp:derived
+서정리역	西井裡站	s	station	C	wikidata:Q167500:zh>s2twp
+서창역	瑞倉訊號場	s	station	C	wikidata:Q188310:zh>s2twp
+석수	石水	x	station	C	wikidata:Q137181:zh>s2twp:derived
+석수역	石水站	s	station	C	wikidata:Q137181:zh>s2twp
+석촌	石村	x	station	C	wikidata:Q75339:zh>s2twp:derived
+석촌역	石村站	s	station	C	wikidata:Q75339:zh>s2twp
+선릉	宣陵	x	station	C	wikidata:Q20204:zh-hant:derived
+선바위	禪巖	s	station	C	wikidata:Q50007:zh-hant:derived
+선유도	仙遊島	s	station	C	wikidata:Q59995:zh>s2twp:derived
+선유도역	仙遊島站	s	station	C	wikidata:Q59995:zh>s2twp
+선정릉	宣靖陵	s	station	C	wikidata:Q46111:zh>s2twp:derived
+선정릉역	宣靖陵站	s	station	C	wikidata:Q46111:zh>s2twp
+성균관대	成均館大	s	station	C	wikidata:Q137235:zh>s2twp:derived
+성균관대역	成均館大站	s	station	C	wikidata:Q137235:zh>s2twp
+성환	成歡	x	station	C	wikidata:Q167550:zh>s2twp:derived
+성환역	成歡站	s	station	C	wikidata:Q167550:zh>s2twp
+세이부 철도 다마가와 선	多摩川線	x	line	C	wikidata:Q133620:zh>s2twp
+세이부 철도 도시마 선	豐島線	x	line	C	wikidata:Q177444:zh>s2twp
+세천	細川	x	station	C	wikidata:Q188855:zh>s2twp:derived
+세천역	細川站	s	station	C	wikidata:Q188855:zh>s2twp
+세키메세이쿠 	關目成育	x	station	C	wikidata:Q180511:zh>s2twp:derived
+세키메세이쿠 역	關目成育站	x	station	C	wikidata:Q180511:zh>s2twp
+세키메타카도노	關目高殿	s	station	C	wikidata:Q83606:zh>s2twp:derived
+세키메타카도노역	關目高殿站	s	station	C	wikidata:Q83606:zh>s2twp
+센리오카	千里丘	s	station	C	wikidata:Q59511:zh>s2twp:derived
+센리오카역	千里丘站	s	station	C	wikidata:Q59511:zh>s2twp
+센바야시오미야	千林大宮	s	station	C	wikidata:Q83605:zh>s2twp:derived
+센바야시오미야역	千林大宮站	s	station	C	wikidata:Q83605:zh>s2twp
+셋쓰톤다	攝津富田	s	station	C	wikidata:Q59513:zh>s2twp:derived
+셋쓰톤다역	攝津富田站	s	station	C	wikidata:Q59513:zh>s2twp
+소요산	逍遙山	s	station	C	wikidata:Q55633:zh>s2twp:derived
+소요산역	逍遙山站	s	station	C	wikidata:Q55633:zh>s2twp
+소정리	小井裡	s	station	C	wikidata:Q188090:zh>s2twp:derived
+소정리역	小井裡站	s	station	C	wikidata:Q188090:zh>s2twp
+송도	松島	x	station	C	wikidata:Q20400:zh>s2twp:derived
+송도역	松島站	s	station	C	wikidata:Q20400:zh>s2twp
+송탄	松炭	x	station	C	wikidata:Q167497:zh>s2twp:derived
+송탄역	松炭站	s	station	C	wikidata:Q167497:zh>s2twp
+송파역	松坡站	s	station	C	wikidata:Q75341:zh>s2twp
+쇼지	小路	x	station	C	wikidata:Q126040:zh>s2twp:derived
+쇼지역	小路站	s	station	C	wikidata:Q126040:zh>s2twp
+수락산	水落山	s	station	C	wikidata:Q68660:zh-hant:derived
+수색	水色	x	station	C	wikidata:Q59845:zh>s2twp:derived
+수색역	水色站	s	station	C	wikidata:Q59845:zh>s2twp
+수원	水原	x	station	C	wikidata:Q54306:zh>s2twp:derived
+수원역	水原站	s	station	C	wikidata:Q54306:zh>s2twp
+수인선	水仁線	s	line	C	wikidata:Q16948:zh>s2twp
+수진	壽進	x	station	C	wikidata:Q75360:zh>s2twp:derived
+수진역	壽進站	s	station	C	wikidata:Q75360:zh>s2twp
+숭실대입구	崇實大入口	s	station	C	wikidata:Q68957:zh>s2twp:derived
+숭실대입구역	崇實大入口站	s	station	C	wikidata:Q68957:zh>s2twp
+스미요시	住吉	s	station	C	wikidata:Q80536:zh>s2twp:derived
+스미요시역	住吉站	s	station	C	wikidata:Q80536:zh>s2twp
+스이텐구마에	水天宮前	s	station	C	wikidata:Q80546:zh>s2twp:derived
+스이텐구마에역	水天宮前站	s	station	C	wikidata:Q80546:zh>s2twp
+시가	志賀	x	station	C	wikidata:Q86873:zh>s2twp:derived
+시가역	志賀站	s	station	C	wikidata:Q86873:zh>s2twp
+시마마쓰	島松	s	station	C	wikidata:Q59338:zh-hant:derived
+시미즈역	清水站	s	station	C	wikidata:Q180473:zh>s2twp
+시텐노지마에유히가오카	四天王寺前夕陽丘	s	station	C	wikidata:Q83603:zh>s2twp:derived
+시텐노지마에유히가오카역	四天王寺前夕陽丘站	s	station	C	wikidata:Q83603:zh>s2twp
+신길	新吉	x	station	C	wikidata:Q137168:zh>s2twp:derived
+신길역	新吉站	s	station	C	wikidata:Q137168:zh>s2twp
+신논현	新論峴	s	station	C	wikidata:Q53000:zh>s2twp:derived
+신논현역	新論峴站	s	station	C	wikidata:Q53000:zh>s2twp
+신대방삼거리	新大方三叉路口	s	station	C	wikidata:Q68981:zh>s2twp:derived
+신대방삼거리역	新大方三叉路口站	s	station	C	wikidata:Q68981:zh>s2twp
+신모리후루이치	新森古市	s	station	C	wikidata:Q180443:zh>s2twp:derived
+신모리후루이치역	新森古市站	s	station	C	wikidata:Q180443:zh>s2twp
+신목동	新木洞	s	station	C	wikidata:Q59994:zh>s2twp:derived
+신목동역	新木洞站	s	station	C	wikidata:Q59994:zh>s2twp
+신반포	新盤浦	s	station	C	wikidata:Q60056:zh>s2twp:derived
+신반포역	新盤浦站	s	station	C	wikidata:Q60056:zh>s2twp
+신방화	新傍花	s	station	C	wikidata:Q59982:zh>s2twp:derived
+신방화역	新傍花站	s	station	C	wikidata:Q59982:zh>s2twp
+신사역	新沙站	s	station	C	wikidata:Q100839:zh>s2twp
+신오차노미즈	新御茶之水	s	station	C	wikidata:Q80433:zh>s2twp:derived
+신오차노미즈역	新御茶之水站	s	station	C	wikidata:Q80433:zh>s2twp
+신오카치마치	新御徒町	s	station	C	wikidata:Q80540:zh>s2twp:derived
+신오카치마치역	新御徒町站	s	station	C	wikidata:Q80540:zh>s2twp
+신원	新院	x	station	C	wikidata:Q58935:zh>s2twp:derived
+신원역	新院站	s	station	C	wikidata:Q58935:zh>s2twp
+신이마미야	新今宮車	s	station	C	wikidata:Q59349:zh>s2twp:derived
+신이마미야역	新今宮車站	s	station	C	wikidata:Q59349:zh>s2twp
+신중동	新中洞	s	station	C	wikidata:Q69061:zh>s2twp:derived
+신중동역	新中洞站	s	station	C	wikidata:Q69061:zh>s2twp
+신창	新昌	x	station	C	wikidata:Q167613:zh-hant:derived
+신촌	新村	x	station	C	wikidata:Q59840:zh>s2twp:derived
+신촌역	新村站	s	station	C	wikidata:Q59840:zh>s2twp
+신카와	新川車	s	station	C	wikidata:Q128203:zh>s2twp:derived
+신카와역	新川車站	s	station	C	wikidata:Q128203:zh>s2twp
+신코토니	新琴似車	s	station	C	wikidata:Q128201:zh>s2twp:derived
+신코토니역	新琴似車站	s	station	C	wikidata:Q128201:zh>s2twp
+신탄리	新炭裡	s	station	C	wikidata:Q55632:zh>s2twp:derived
+신탄리역	新炭裡站	s	station	C	wikidata:Q55632:zh>s2twp
+신탄진	新灘津	s	station	C	wikidata:Q188831:zh>s2twp:derived
+신탄진역	新灘津站	s	station	C	wikidata:Q188831:zh>s2twp
+신풍	新豐	x	station	C	wikidata:Q69002:zh>s2twp:derived
+신풍역	新豐站	s	station	C	wikidata:Q69002:zh>s2twp
+신흥	新興	x	station	C	wikidata:Q75586:zh>s2twp:derived
+신흥역	新興站	s	station	C	wikidata:Q75586:zh>s2twp
+쌍용	雙龍	x	station	C	wikidata:Q167598:zh>s2twp:derived
+쌍용역	雙龍站	s	station	C	wikidata:Q167598:zh>s2twp
+쓰다야마	津田山車	s	station	C	wikidata:Q211015:zh>s2twp:derived
+쓰다야마역	津田山車站	s	station	C	wikidata:Q211015:zh>s2twp
+쓰루미료쿠치	鶴見綠地	s	station	C	wikidata:Q135181:zh>s2twp:derived
+쓰루미료쿠치역	鶴見綠地站	s	station	C	wikidata:Q135181:zh>s2twp
+아리아케	有明	s	station	C	wikidata:Q17719:zh>s2twp:derived
+아리아케역	有明站	s	station	C	wikidata:Q17719:zh>s2twp
+아베노	阿倍野	s	station	C	wikidata:Q135196:zh>s2twp:derived
+아베노역	阿倍野站	s	station	C	wikidata:Q135196:zh>s2twp
+아산	牙山	x	station	C	wikidata:Q167603:zh>s2twp:derived
+아산역	牙山站	s	station	C	wikidata:Q167603:zh>s2twp
+아신	我新	x	station	C	wikidata:Q58933:zh>s2twp:derived
+아신역	我新站	s	station	C	wikidata:Q58933:zh>s2twp
+아오모리	青森	s	station	C	wikidata:Q59516:zh>s2twp:derived
+아오모리역	青森站	s	station	C	wikidata:Q59516:zh>s2twp
+아차산	峨嵯山	s	station	C	wikidata:Q107408:zh>s2twp:derived
+아차산역	峨嵯山站	s	station	C	wikidata:Q107408:zh>s2twp
+안국	安國	x	station	C	wikidata:Q79974:zh>s2twp:derived
+안국역	安國站	s	station	C	wikidata:Q79974:zh>s2twp
+안양	安養	x	station	C	wikidata:Q54301:zh>s2twp:derived
+안양역	安養站	s	station	C	wikidata:Q54301:zh>s2twp
+압구정	狎鷗亭	s	station	C	wikidata:Q100834:zh>s2twp:derived
+압구정로데오	狎鷗亭羅德奧	s	station	C	wikidata:Q46073:zh-hant:derived
+압구정역	狎鷗亭站	s	station	C	wikidata:Q100834:zh>s2twp
+야마다카미구치	山田上口車	s	station	C	wikidata:Q93446:zh>s2twp:derived
+야마다카미구치역	山田上口車站	s	station	C	wikidata:Q93446:zh>s2twp
+야오미나미	八尾南	s	station	C	wikidata:Q151767:zh>s2twp:derived
+야오미나미역	八尾南站	s	station	C	wikidata:Q151767:zh>s2twp
+약수	藥水	x	station	C	wikidata:Q100822:zh>s2twp:derived
+약수역	藥水站	s	station	C	wikidata:Q100822:zh>s2twp
+양수	兩水	x	station	C	wikidata:Q58939:zh>s2twp:derived
+양수역	兩水站	s	station	C	wikidata:Q58939:zh>s2twp
+양재	良才	x	station	C	wikidata:Q100852:zh>s2twp:derived
+양재역	良才站	s	station	C	wikidata:Q100852:zh>s2twp
+양천향교	陽川鄉校	s	station	C	wikidata:Q59985:zh>s2twp:derived
+양천향교역	陽川鄉校站	s	station	C	wikidata:Q59985:zh>s2twp
+어린이대공원	兒童大公園	s	station	C	wikidata:Q68853:zh>s2twp:derived
+어린이대공원역	兒童大公園站	s	station	C	wikidata:Q68853:zh>s2twp
+에니와	惠庭	s	station	C	wikidata:Q59452:zh-hant:derived
+에치고선	越後線	s	line	C	wikidata:Q188250:zh>s2twp
+연신내	延新川	s	station	C	wikidata:Q79956:zh-hant:derived
+영등포역	永登浦站	s	station	C	wikidata:Q43311:zh>s2twp
+영주	榮州	x	station	C	wikidata:Q58919:zh>s2twp:derived
+영주역	榮州站	s	station	C	wikidata:Q58919:zh>s2twp
+영통역	靈通站	s	station	C	wikidata:Q218354:zh>s2twp
+오모리	大森車	s	station	C	wikidata:Q80420:zh>s2twp:derived
+오모리역	大森車站	s	station	C	wikidata:Q80420:zh>s2twp
+오미카	大甕車	s	station	C	wikidata:Q39951:zh>s2twp:derived
+오미카역	大甕車站	s	station	C	wikidata:Q39951:zh>s2twp
+오빈	梧濱	x	station	C	wikidata:Q58930:zh>s2twp:derived
+오빈역	梧濱站	s	station	C	wikidata:Q58930:zh>s2twp
+오사카 비즈니스파크	大阪商務園區	x	station	C	wikidata:Q135205:zh>s2twp:derived
+오사카 비즈니스파크역	大阪商務園區站	x	station	C	wikidata:Q135205:zh>s2twp
+오산	烏山	x	station	C	wikidata:Q137232:zh>s2twp:derived
+오산대	烏山大	s	station	C	wikidata:Q137238:zh>s2twp:derived
+오산대역	烏山大站	s	station	C	wikidata:Q137238:zh>s2twp
+오산역	烏山站	s	station	C	wikidata:Q137232:zh>s2twp
+오송	五松	x	station	C	wikidata:Q54285:zh>s2twp:derived
+오송역	五松站	s	station	C	wikidata:Q54285:zh>s2twp
+오시아게	押上	s	station	C	wikidata:Q80545:zh>s2twp:derived
+오시아게역	押上站	s	station	C	wikidata:Q80545:zh>s2twp
+오치아이	落合	s	station	C	wikidata:Q80579:zh>s2twp:derived
+오치아이역	落合站	s	station	C	wikidata:Q80579:zh>s2twp
+오쿠보	大久保	s	station	C	wikidata:Q116259:zh>s2twp:derived
+오쿠보역	大久保站	s	station	C	wikidata:Q116259:zh>s2twp
+온수	溫水	x	station	C	wikidata:Q69040:zh>s2twp:derived
+온수역	溫水站	s	station	C	wikidata:Q69040:zh>s2twp
+온양온천	溫陽溫泉	s	station	C	wikidata:Q167611:zh>s2twp:derived
+온양온천역	溫陽溫泉站	s	station	C	wikidata:Q167611:zh>s2twp
+왕십리	往十里	s	station	C	wikidata:Q17184:zh>s2twp:derived
+왕십리역	往十里站	s	station	C	wikidata:Q17184:zh>s2twp
+요코즈쓰미	橫堤	s	station	C	wikidata:Q135186:zh>s2twp:derived
+요코즈쓰미역	橫堤站	s	station	C	wikidata:Q135186:zh>s2twp
+용마산	龍馬山	s	station	C	wikidata:Q68811:zh>s2twp:derived
+용마산역	龍馬山站	s	station	C	wikidata:Q68811:zh>s2twp
+우에노시	上野市	s	station	C	wikidata:Q195404:zh>s2twp:derived
+우에노시역	上野市站	s	station	C	wikidata:Q195404:zh>s2twp
+우에노오카치마치	上野御徒町	s	station	C	wikidata:Q80555:zh>s2twp:derived
+우에노오카치마치역	上野御徒町站	s	station	C	wikidata:Q80555:zh>s2twp
+운길산	雲吉山	s	station	C	wikidata:Q58941:zh>s2twp:derived
+운길산역	雲吉山站	s	station	C	wikidata:Q58941:zh>s2twp
+운서	雲西	x	station	C	wikidata:Q58999:zh>s2twp:derived
+운서역	雲西站	s	station	C	wikidata:Q58999:zh>s2twp
+운정	雲井	x	station	C	wikidata:Q59871:zh>s2twp:derived
+운정역	雲井站	s	station	C	wikidata:Q59871:zh>s2twp
+울산	蔚山	x	station	C	wikidata:Q54295:zh>s2twp:derived
+울산역	蔚山站	s	station	C	wikidata:Q54295:zh>s2twp
+원당	元堂	x	station	C	wikidata:Q79837:zh>s2twp:derived
+원당역	元堂站	s	station	C	wikidata:Q79837:zh>s2twp
+원인재	源仁齋	s	station	C	wikidata:Q20399:zh>s2twp:derived
+원인재역	源仁齋站	s	station	C	wikidata:Q20399:zh>s2twp
+월롱	月籠	x	station	C	wikidata:Q59877:zh>s2twp:derived
+월롱역	月籠站	s	station	C	wikidata:Q59877:zh>s2twp
+을지로3가	乙支路3街	s	station	C	wikidata:Q79981:zh>s2twp:derived
+을지로3가역	乙支路3街站	s	station	C	wikidata:Q79981:zh>s2twp
+응봉	鷹峰	x	station	C	wikidata:Q58953:zh>s2twp:derived
+응봉역	鷹峰站	s	station	C	wikidata:Q58953:zh>s2twp
+의왕	義王	x	station	C	wikidata:Q54302:zh>s2twp:derived
+의왕역	義王站	s	station	C	wikidata:Q54302:zh>s2twp
+이마후쿠쓰루미	今福鶴見	s	station	C	wikidata:Q135348:zh>s2twp:derived
+이마후쿠쓰루미역	今福鶴見站	s	station	C	wikidata:Q135348:zh>s2twp
+이소고	磯子車	s	station	C	wikidata:Q79378:zh>s2twp:derived
+이소고역	磯子車站	s	station	C	wikidata:Q79378:zh>s2twp
+이촌	二村	x	station	C	wikidata:Q58957:zh>s2twp:derived
+이촌역	二村站	s	station	C	wikidata:Q58957:zh>s2twp
+이케노우라시사이드	池之浦海岸	s	station	C	wikidata:Q117538:zh>s2twp:derived
+이케노우라시사이드역	池之浦海岸站	s	station	C	wikidata:Q117538:zh>s2twp
+이타카노	井高野	s	station	C	wikidata:Q180463:zh>s2twp:derived
+이타카노역	井高野站	s	station	C	wikidata:Q180463:zh>s2twp
+익산	益山	x	station	C	wikidata:Q100882:zh>s2twp:derived
+익산역	益山站	s	station	C	wikidata:Q100882:zh>s2twp
+인천공항1터미널	仁川國際機場1號航站樓	s	station	C	wikidata:Q54255:zh>s2twp:derived
+인천공항1터미널역	仁川國際機場1號航站樓站	s	station	C	wikidata:Q54255:zh>s2twp
+일산	一山	x	station	C	wikidata:Q59868:zh>s2twp:derived
+일산역	一山站	s	station	C	wikidata:Q59868:zh>s2twp
+일원	逸院	x	station	C	wikidata:Q100870:zh>s2twp:derived
+일원역	逸院站	s	station	C	wikidata:Q100870:zh>s2twp
+임진강	臨津江	s	station	C	wikidata:Q54345:zh>s2twp:derived
+임진강역	臨津江站	s	station	C	wikidata:Q54345:zh>s2twp
+잠실	蠶室	x	station	C	wikidata:Q75330:zh>s2twp:derived
+잠실역	蠶室站	s	station	C	wikidata:Q75330:zh>s2twp
+잠원	蠶院	x	station	C	wikidata:Q100842:zh>s2twp:derived
+잠원역	蠶院站	s	station	C	wikidata:Q100842:zh>s2twp
+장승배기	長承背齊	s	station	C	wikidata:Q68970:zh>s2twp:derived
+장승배기역	長承背齊站	s	station	C	wikidata:Q68970:zh>s2twp
+장암	長巖	x	station	C	wikidata:Q68611:zh>s2twp:derived
+장암역	長巖站	s	station	C	wikidata:Q68611:zh>s2twp
+장항선	長項線	s	line	C	wikidata:Q167708:zh>s2twp
+전동역	全東訊號場	s	station	C	wikidata:Q188308:zh>s2twp
+전의	全義	x	station	C	wikidata:Q188305:zh>s2twp:derived
+전의역	全義站	s	station	C	wikidata:Q188305:zh>s2twp
+정발산	鼎缽山	s	station	C	wikidata:Q79827:zh>s2twp:derived
+정발산역	鼎缽山站	s	station	C	wikidata:Q79827:zh>s2twp
+정자	亭子	x	station	C	wikidata:Q31038:zh>s2twp:derived
+정자역	亭子站	s	station	C	wikidata:Q31038:zh>s2twp
+조다	造田	x	station	C	wikidata:Q81401:zh>s2twp:derived
+조다역	造田站	s	station	C	wikidata:Q81401:zh>s2twp
+조치원	鳥致院	s	station	C	wikidata:Q188312:zh>s2twp:derived
+조치원역	鳥致院站	s	station	C	wikidata:Q188312:zh>s2twp
+주엽	注葉	x	station	C	wikidata:Q79805:zh>s2twp:derived
+주엽역	注葉站	s	station	C	wikidata:Q79805:zh>s2twp
+죽전	竹田	x	station	C	wikidata:Q17226:zh>s2twp:derived
+죽전역	竹田站	s	station	C	wikidata:Q17226:zh>s2twp
+중계	中溪	x	station	C	wikidata:Q68696:zh>s2twp:derived
+중계역	中溪站	s	station	C	wikidata:Q68696:zh>s2twp
+중곡	中谷	x	station	C	wikidata:Q68817:zh-hant:derived
+중앙선	中央線	s	line	C	wikidata:Q32713:zh>s2twp
+중화	中和	x	station	C	wikidata:Q68790:zh>s2twp:derived
+중화역	中和站	s	station	C	wikidata:Q68790:zh>s2twp
+증미	曾米	x	station	C	wikidata:Q59989:zh>s2twp:derived
+증미역	曾米站	s	station	C	wikidata:Q59989:zh>s2twp
+지축	紙杻	x	station	C	wikidata:Q79841:zh>s2twp:derived
+지축역	紙杻站	s	station	C	wikidata:Q79841:zh>s2twp
+지카테쓰나리마스	地下鐵成增	s	station	C	wikidata:Q80506:zh>s2twp:derived
+지카테쓰나리마스역	地下鐵成增站	s	station	C	wikidata:Q80506:zh>s2twp
+지카테쓰아카쓰카	地下鐵赤塚	s	station	C	wikidata:Q80412:zh>s2twp:derived
+지카테쓰아카쓰카역	地下鐵赤塚站	s	station	C	wikidata:Q80412:zh>s2twp
+직산	稷山	x	station	C	wikidata:Q167552:zh>s2twp:derived
+직산역	稷山站	s	station	C	wikidata:Q167552:zh>s2twp
+진보초	神保町	s	station	C	wikidata:Q76805:zh>s2twp:derived
+진보초역	神保町站	s	station	C	wikidata:Q76805:zh>s2twp
+진위	振威	x	station	C	wikidata:Q167493:zh>s2twp:derived
+진위역	振威站	s	station	C	wikidata:Q167493:zh>s2twp
+천안	天安	x	station	C	wikidata:Q54298:zh>s2twp:derived
+천안아산	天安牙山	s	station	C	wikidata:Q54282:zh>s2twp:derived
+천안아산역	天安牙山站	s	station	C	wikidata:Q54282:zh>s2twp
+천안역	天安站	s	station	C	wikidata:Q54298:zh>s2twp
+천왕	天旺	x	station	C	wikidata:Q69034:zh>s2twp:derived
+천왕역	天旺站	s	station	C	wikidata:Q69034:zh>s2twp
+철산	鐵山	x	station	C	wikidata:Q69018:zh-hant:derived
+청담	清潭	x	station	C	wikidata:Q68897:zh>s2twp:derived
+청담역	清潭站	s	station	C	wikidata:Q68897:zh>s2twp
+청량리	清涼裡	s	station	C	wikidata:Q20417:zh-hant:derived
+청명	清明	x	station	C	wikidata:Q218343:zh>s2twp:derived
+청명역	清明站	s	station	C	wikidata:Q218343:zh>s2twp
+청평	清平	x	station	C	wikidata:Q49972:zh-hant:derived
+춘의	春衣	x	station	C	wikidata:Q69056:zh>s2twp:derived
+춘의역	春衣站	s	station	C	wikidata:Q69056:zh>s2twp
+춘천	春川	x	station	C	wikidata:Q49948:zh>s2twp:derived
+춘천역	春川站	s	station	C	wikidata:Q49948:zh>s2twp
+충무로	忠武路	s	station	C	wikidata:Q100804:zh>s2twp:derived
+충무로역	忠武路站	s	station	C	wikidata:Q100804:zh>s2twp
+충주	忠州	x	station	C	wikidata:Q50014:zh-hant:derived
+탄현	炭峴	x	station	C	wikidata:Q59869:zh>s2twp:derived
+탄현역	炭峴站	s	station	C	wikidata:Q59869:zh>s2twp
+태릉입구	泰陵入口	s	station	C	wikidata:Q68716:zh>s2twp:derived
+태릉입구역	泰陵入口站	s	station	C	wikidata:Q68716:zh>s2twp
+퇴계원	退溪院	s	station	C	wikidata:Q49990:zh-hant:derived
+파주	坡州	x	station	C	wikidata:Q59878:zh>s2twp:derived
+파주역	坡州站	s	station	C	wikidata:Q59878:zh>s2twp
+팔당	八堂	x	station	C	wikidata:Q58942:zh>s2twp:derived
+팔당역	八堂站	s	station	C	wikidata:Q58942:zh>s2twp
+평내호평	坪內好坪	s	station	C	wikidata:Q49980:zh-hant:derived
+평택	平澤	x	station	C	wikidata:Q137313:zh>s2twp:derived
+평택역	平澤站	s	station	C	wikidata:Q137313:zh>s2twp
+평택지제	平澤芝制	s	station	C	wikidata:Q167502:zh>s2twp:derived
+평택지제역	平澤芝制站	s	station	C	wikidata:Q167502:zh>s2twp
+풍산	楓山	x	station	C	wikidata:Q59866:zh>s2twp:derived
+풍산역	楓山站	s	station	C	wikidata:Q59866:zh>s2twp
+하계	下溪	x	station	C	wikidata:Q68702:zh>s2twp:derived
+하계역	下溪站	s	station	C	wikidata:Q68702:zh>s2twp
+하나조노초	花園町	s	station	C	wikidata:Q126102:zh>s2twp:derived
+하나조노초역	花園町站	s	station	C	wikidata:Q126102:zh>s2twp
+하마다야마	濱田山	s	station	C	wikidata:Q27101:zh>s2twp:derived
+하마다야마역	濱田山站	s	station	C	wikidata:Q27101:zh>s2twp
+하시오카	端岡車	s	station	C	wikidata:Q98825:zh-hant:derived
+하치켄	八軒車	s	station	C	wikidata:Q128199:zh>s2twp:derived
+하치켄역	八軒車站	s	station	C	wikidata:Q128199:zh>s2twp
+학여울	鶴灘	s	station	C	wikidata:Q100864:zh>s2twp:derived
+학여울역	鶴灘站	s	station	C	wikidata:Q100864:zh>s2twp
+한국항공대	韓國航空大	s	station	C	wikidata:Q59848:zh>s2twp:derived
+한국항공대역	韓國航空大站	s	station	C	wikidata:Q59848:zh>s2twp
+한남	漢南	x	station	C	wikidata:Q58955:zh>s2twp:derived
+한남역	漢南站	s	station	C	wikidata:Q58955:zh>s2twp
+한조몬	半藏門	s	station	C	wikidata:Q80551:zh>s2twp:derived
+한조몬역	半藏門站	s	station	C	wikidata:Q80551:zh>s2twp
+행신	幸信	x	station	C	wikidata:Q59850:zh>s2twp:derived
+행신역	幸信站	s	station	C	wikidata:Q59850:zh>s2twp
+헤이와다이	平和臺	s	station	C	wikidata:Q80427:zh>s2twp:derived
+헤이와다이역	平和臺站	s	station	C	wikidata:Q80427:zh>s2twp
+혼고 3초메 	本鄉三丁目	x	station	C	wikidata:Q80774:zh>s2twp:derived
+혼고 3초메 역	本鄉三丁目站	x	station	C	wikidata:Q80774:zh>s2twp
+홍제	弘濟	x	station	C	wikidata:Q79966:zh>s2twp:derived
+홍제역	弘濟站	s	station	C	wikidata:Q79966:zh>s2twp
+화서	華西	x	station	C	wikidata:Q54305:zh>s2twp:derived
+화서역	華西站	s	station	C	wikidata:Q54305:zh>s2twp
+화정	花井	x	station	C	wikidata:Q79836:zh>s2twp:derived
+화정역	花井站	s	station	C	wikidata:Q79836:zh>s2twp
+회기	回基	x	station	C	wikidata:Q58951:zh>s2twp:derived
+회기역	回基站	s	station	C	wikidata:Q58951:zh>s2twp
+회덕	懷德	x	station	C	wikidata:Q188835:zh>s2twp:derived
+회덕역	懷德站	s	station	C	wikidata:Q188835:zh>s2twp
+효고	兵庫	x	station	C	wikidata:Q59517:zh>s2twp:derived
+효고역	兵庫站	s	station	C	wikidata:Q59517:zh>s2twp
+후미노사토	文之裡車	s	station	C	wikidata:Q29457:zh>s2twp:derived
+후미노사토역	文之裡車站	s	station	C	wikidata:Q29457:zh>s2twp
+후쓰카이치	二日市	s	station	C	wikidata:Q154366:zh>s2twp:derived
+후쓰카이치역	二日市站	s	station	C	wikidata:Q154366:zh>s2twp
+후지미가오카	富士見丘	s	station	C	wikidata:Q27285:zh>s2twp:derived
+후지미가오카역	富士見丘站	s	station	C	wikidata:Q27285:zh>s2twp
+후타미노우라	二見浦	s	station	C	wikidata:Q117376:zh>s2twp:derived
+후타미노우라역	二見浦站	s	station	C	wikidata:Q117376:zh>s2twp
+흑석	黑石	x	station	C	wikidata:Q52307:zh>s2twp:derived
+흑석역	黑石站	s	station	C	wikidata:Q52307:zh>s2twp
+히가시우메다	東梅田	s	station	C	wikidata:Q83600:zh>s2twp:derived
+히가시우메다역	東梅田站	s	station	C	wikidata:Q83600:zh>s2twp
+히고바시	肥後橋	s	station	C	wikidata:Q126343:zh>s2twp:derived
+히고바시역	肥後橋站	s	station	C	wikidata:Q126343:zh>s2twp
+히메지	姬路車	s	station	C	wikidata:Q119301:zh>s2twp:derived
+히메지역	姬路車站	s	station	C	wikidata:Q119301:zh>s2twp
+히쿠마	曳馬	s	station	C	wikidata:Q169414:zh>s2twp:derived
+히쿠마역	曳馬站	s	station	C	wikidata:Q169414:zh>s2twp
+히타치	日立	s	station	C	wikidata:Q39929:zh>s2twp:derived
+히타치역	日立站	s	station	C	wikidata:Q39929:zh>s2twp
+히타치타가	常陸多賀車	s	station	C	wikidata:Q40081:zh-hant:derived
+국립 나가사키 원폭사망자 추도 평화기념관	國立長崎原爆死歿者追悼和平祈念館	x	landmark	C	wikidata:Q133628:zh>s2twp
+국립과학박물관	國立科學博物館	s	landmark	C	wikidata:Q74940:zh>s2twp
+국립민족학박물관	國立民族學博物館	s	landmark	C	wikidata:Q147157:zh>s2twp
+규슈 국립박물관	九州國立博物館	x	landmark	C	wikidata:Q148543:zh>s2twp
+기흥구	器興區	s	place	C	wikidata:Q50360:zh>s2twp
+나라 국립박물관	奈良國立博物館	x	landmark	C	wikidata:Q147312:zh>s2twp
+니시	西	x	place	C	wikidata:Q73729:zh>s2twp:derived
+니시구	西區	s	place	C	wikidata:Q73729:zh>s2twp
+단원	檀園	x	place	C	wikidata:Q50369:zh-hant:derived
+덕양	德陽	x	place	C	wikidata:Q50372:zh>s2twp:derived
+덕양구	德陽區	s	place	C	wikidata:Q50372:zh>s2twp
+덕진	德津	x	place	C	wikidata:Q50373:zh>s2twp:derived
+덕진구	德津區	s	place	C	wikidata:Q50373:zh>s2twp
+동남	東南	x	place	C	wikidata:Q50381:zh>s2twp:derived
+동남구	東南區	s	place	C	wikidata:Q50381:zh>s2twp
+마산합포	馬山合浦	s	place	C	wikidata:Q50386:zh>s2twp:derived
+마산합포구	馬山合浦區	s	place	C	wikidata:Q50386:zh>s2twp
+마산회원	馬山會原	s	place	C	wikidata:Q50387:zh>s2twp:derived
+마산회원구	馬山會原區	s	place	C	wikidata:Q50387:zh>s2twp
+만안	萬安	x	place	C	wikidata:Q50389:zh>s2twp:derived
+만안구	萬安區	s	place	C	wikidata:Q50389:zh>s2twp
+모리오카성	盛岡城	s	landmark	C	wikidata:Q251650:zh>s2twp
+미나미	南	s	place	C	wikidata:Q63442:zh-hant:derived
+미야코 공항	宮古機場	x	landmark	C	wikidata:Q116725:zh>s2twp
+미추홀	彌鄒忽	s	place	C	wikidata:Q50365:zh-hant:derived
+사에키	佐伯	s	place	C	wikidata:Q73718:zh>s2twp:derived
+사에키구	佐伯區	s	place	C	wikidata:Q73718:zh>s2twp
+상당	上黨	x	place	C	wikidata:Q50401:zh>s2twp:derived
+상당구	上黨區	s	place	C	wikidata:Q50401:zh>s2twp
+상록	常綠	x	place	C	wikidata:Q50402:zh>s2twp:derived
+상록구	常綠區	s	place	C	wikidata:Q50402:zh>s2twp
+서북	西北	x	place	C	wikidata:Q50409:zh>s2twp:derived
+서북구	西北區	s	place	C	wikidata:Q50409:zh>s2twp
+성산	城山	x	place	C	wikidata:Q50413:zh-hant:derived
+소사	素砂	x	place	C	wikidata:Q50414:zh>s2twp:derived
+소사구	素砂區	s	place	C	wikidata:Q50414:zh>s2twp
+수지	水枝	x	place	C	wikidata:Q50419:zh>s2twp:derived
+수지구	水枝區	s	place	C	wikidata:Q50419:zh>s2twp
+아사미나미	安佐南	s	place	C	wikidata:Q63440:zh>s2twp:derived
+아사미나미구	安佐南區	s	place	C	wikidata:Q63440:zh>s2twp
+아사키타	安佐北	s	place	C	wikidata:Q63444:zh>s2twp:derived
+아사키타구	安佐北區	s	place	C	wikidata:Q63444:zh>s2twp
+아키	安藝	x	place	C	wikidata:Q63446:zh>s2twp:derived
+아키구	安藝區	s	place	C	wikidata:Q63446:zh>s2twp
+야마가타 공항	山形機場	x	landmark	C	wikidata:Q176187:zh>s2twp
+오노군	大野郡	s	place	C	wikidata:Q31671:zh>s2twp
+오정	梧亭	x	place	C	wikidata:Q50426:zh>s2twp:derived
+오정구	梧亭區	s	place	C	wikidata:Q50426:zh>s2twp
+오치군	大內郡	s	place	C	wikidata:Q31478:zh>s2twp
+완산	完山	x	place	C	wikidata:Q50428:zh>s2twp:derived
+완산구	完山區	s	place	C	wikidata:Q50428:zh>s2twp
+우에노 동물원	上野動物園	x	landmark	C	wikidata:Q162722:zh>s2twp
+원미	遠美	x	place	C	wikidata:Q50430:zh>s2twp:derived
+원미구	遠美區	s	place	C	wikidata:Q50430:zh>s2twp
+의창	義昌	x	place	C	wikidata:Q50433:zh>s2twp:derived
+의창구	義昌區	s	place	C	wikidata:Q50433:zh>s2twp
+일산동	一山東	s	place	C	wikidata:Q50434:zh>s2twp:derived
+일산동구	一山東區	s	place	C	wikidata:Q50434:zh>s2twp
+일산서	一山西	s	place	C	wikidata:Q50435:zh>s2twp:derived
+일산서구	一山西區	s	place	C	wikidata:Q50435:zh>s2twp
+정석비행장	靜石飛行場	s	landmark	C	wikidata:Q27301:zh>s2twp
+후쿠시마 공항	福島機場	x	landmark	C	wikidata:Q177473:zh>s2twp
+흥덕	興德	x	place	C	wikidata:Q50450:zh>s2twp:derived
+흥덕구	興德區	s	place	C	wikidata:Q50450:zh>s2twp
+히가시	東	s	place	C	wikidata:Q73724:zh>s2twp:derived
+히가시구	東區	s	place	C	wikidata:Q73724:zh>s2twp
+히로시마 미술관	廣島美術館	x	landmark	C	wikidata:Q63828:zh>s2twp
+히로시마시 현대미술관	廣島市現代美術館	x	landmark	C	wikidata:Q93425:zh>s2twp
+가마보코	蒲鉾	s	dish	C	wikidata:Q166204:zh>s2twp
+가이세키	懷石料理	s	dish	C	wikidata:Q175595:zh>s2twp
+간납	煎	s	dish	C	wikidata:Q133817:zh>s2twp:alias
+갈레트	脆皮蛋糕	s	dish	C	wikidata:Q242003:zh>s2twp
+감자 부침	馬鈴薯煎餅	x	dish	C	wikidata:Q152981:zh>s2twp
+감자 샐러드	馬鈴薯沙拉	x	dish	C	wikidata:Q152964:zh>s2twp
+감초사탕	甘草糖	s	dish	C	wikidata:Q138811:zh>s2twp
+거위구이	燒鵝	s	dish	C	wikidata:Q36415:zh>s2twp
+과정류	韓菓	s	dish	C	wikidata:Q27103:zh>s2twp:alias
+규돈	牛丼	s	dish	C	wikidata:Q203176:zh>s2twp
+규히	求肥	s	dish	C	wikidata:Q109866:zh>s2twp
+그리스 샐러드	希臘沙拉	x	dish	C	wikidata:Q240801:zh>s2twp
+근대 뿌리 수프	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+글뤼바인	香料酒	s	dish	C	wikidata:Q6584:zh>s2twp:alias
+나스와즈	尼斯沙拉	s	dish	C	wikidata:Q209486:zh>s2twp:alias
+남 응이아우	泰式辣湯麵	x	dish	C	wikidata:Q130194:zh>s2twp
+뇨코	玉棋	s	dish	C	wikidata:Q20063:zh-hant:alias
+뉴코크	新可口可樂	s	drink	C	wikidata:Q41084:zh>s2twp
+니수아즈	尼斯沙拉	s	dish	C	wikidata:Q209486:zh>s2twp:alias
+니수아즈 샐러드	尼斯沙拉	x	dish	C	wikidata:Q209486:zh>s2twp
+니스와스 샐러드	尼斯沙拉	x	dish	C	wikidata:Q209486:zh>s2twp:alias
+달 마카니	奶油扁豆咖哩	x	dish	C	wikidata:Q58610:zh>s2twp
+달 마크니	奶油扁豆咖哩	x	dish	C	wikidata:Q58610:zh>s2twp:alias
+닭발	鳳爪	s	dish	C	wikidata:Q41384:zh>s2twp
+담프누델	德式饅頭	s	dish	C	wikidata:Q22976:zh>s2twp
+데빌스 푸드 케이크	惡魔蛋糕	x	dish	C	wikidata:Q29477:zh>s2twp
+도미노슈타인	多米諾巧克力	s	dish	C	wikidata:Q32977:zh>s2twp
+되네르 케바프	土耳其烤肉	x	dish	C	wikidata:Q20734:zh-hant:alias
+되네르 케밥	土耳其烤肉	x	dish	C	wikidata:Q20734:zh-hant:alias
+두그	愛蘭	s	dish	C	wikidata:Q192892:zh-hant:alias
+딸기 파이	草莓派	x	dish	C	wikidata:Q149766:zh>s2twp
+라떼 마끼아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+라떼 마키아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+라사냐	千層麵	s	dish	C	wikidata:Q20034:zh-hant:alias
+라사냐 알 포르노	千層麵	x	dish	C	wikidata:Q20034:zh-hant:alias
+라사녜	千層麵	s	dish	C	wikidata:Q20034:zh-hant:alias
+라이스 푸딩	米布丁	x	dish	C	wikidata:Q19029:zh>s2twp
+라테 마끼아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+라테 마키아또	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+라테 마키아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp
+라테마키아토	拿鐵馬奇朵	s	drink	C	wikidata:Q22929:zh>s2twp:alias
+루트 비어	根汁汽水	x	drink	C	wikidata:Q36275:zh>s2twp
+리스트레토	芮斯崔朵	s	drink	C	wikidata:Q59047:zh>s2twp
+리포비탄D	力保美達	s	drink	C	wikidata:Q175919:zh>s2twp
+린구이나	扁意粉	s	dish	C	wikidata:Q20035:zh>s2twp:alias
+린구이네	扁意粉	s	dish	C	wikidata:Q20035:zh>s2twp:alias
+링귀니	扁意粉	s	dish	C	wikidata:Q20035:zh>s2twp
+마데이라 와인	馬德拉酒	x	drink	C	wikidata:Q27697:zh>s2twp:alias
+마데이라 포도주	馬德拉酒	x	drink	C	wikidata:Q27697:zh>s2twp
+마데이라와인	馬德拉酒	s	drink	C	wikidata:Q27697:zh>s2twp:alias
+마데이라포도주	馬德拉酒	s	drink	C	wikidata:Q27697:zh>s2twp:alias
+마시는 물	飲用水	x	drink	C	wikidata:Q7892:zh>s2twp:alias
+마유주	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+마지팬	扁桃仁膏	s	dish	C	wikidata:Q106252:zh>s2twp
+마차	猶太逾越節薄餅	s	dish	C	wikidata:Q211361:zh>s2twp
+마케로네	通心粉	s	dish	C	wikidata:Q20019:zh-hant:alias
+마케로니	通心粉	s	dish	C	wikidata:Q20019:zh-hant:alias
+말리부 럼	馬利寶朗姆酒	x	drink	C	wikidata:Q177092:zh>s2twp
+먹는 물	飲用水	x	drink	C	wikidata:Q7892:zh>s2twp:alias
+모유	母乳	s	drink	C	wikidata:Q22728:zh>s2twp
+몬자야키	文字燒	s	dish	C	wikidata:Q167692:zh>s2twp
+무교병	猶太逾越節薄餅	s	dish	C	wikidata:Q211361:zh>s2twp:alias
+무효병	猶太逾越節薄餅	s	dish	C	wikidata:Q211361:zh>s2twp:alias
+뮈슬리	木斯里	s	dish	C	wikidata:Q52406:zh>s2twp
+밀 토르티야	麵粉薄餅	x	dish	C	wikidata:Q204251:zh>s2twp
+바르샤이	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+바르슈츠	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+바르슈츠 체르위니	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+바인 꾸온	越南粉卷	x	dish	C	wikidata:Q50622:zh>s2twp
+바인 므엇	越南粉卷	x	dish	C	wikidata:Q50622:zh>s2twp:alias
+바인 쌔오	越南煎餅	x	dish	C	wikidata:Q50633:zh>s2twp
+바인 으엇	越南粉卷	x	dish	C	wikidata:Q50622:zh>s2twp:alias
+바흐마 카토플잘라	馬鈴薯沙拉	x	dish	C	wikidata:Q152964:zh>s2twp:alias
+배턴버그 게이크	巴滕伯格蛋糕	x	dish	C	wikidata:Q167309:zh>s2twp
+버미셀리	線麵	s	dish	C	wikidata:Q20027:zh-hant:alias
+베르미첼로	線麵	s	dish	C	wikidata:Q20027:zh-hant:alias
+베를리너	柏林甜圈	s	dish	C	wikidata:Q152526:zh>s2twp
+베를리너 팡쿠헨	柏林甜圈	x	dish	C	wikidata:Q152526:zh>s2twp:alias
+보르쉬	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+보르쉬츠	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+보리차	大麥茶	s	drink	C	wikidata:Q31625:zh>s2twp
+부카티노	吸管麵	s	dish	C	wikidata:Q20007:zh>s2twp:alias
+부카티니	吸管麵	s	dish	C	wikidata:Q20007:zh>s2twp
+분 짜	烤肉米粉	x	dish	C	wikidata:Q50634:zh>s2twp
+블랑 드 누아	黑中白	x	drink	C	wikidata:Q180239:zh>s2twp
+블러디 메리	血腥瑪麗	x	drink	C	wikidata:Q207711:zh>s2twp
+비노 데 헤레스	雪利酒	x	drink	C	wikidata:Q16398:zh>s2twp:alias
+비터	苦啤酒	s	drink	C	wikidata:Q27201:zh>s2twp
+사람의 젖	母乳	x	drink	C	wikidata:Q22728:zh>s2twp:alias
+사바용	薩巴雍	s	dish	C	wikidata:Q136701:zh>s2twp:alias
+사오싱주	紹興酒	s	drink	C	wikidata:Q175245:zh>s2twp
+살티바르슈치아이	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+살티바르시아이	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+삼바르	桑巴湯	s	dish	C	wikidata:Q188420:zh>s2twp
+샤실리크	俄羅斯烤肉	s	dish	C	wikidata:Q15181:zh>s2twp
+서이시가이익	瑞士雞翼	s	dish	C	wikidata:Q46208:zh>s2twp
+셰리	雪利酒	s	drink	C	wikidata:Q16398:zh>s2twp
+소마	蘇摩	s	drink	C	wikidata:Q64897:zh>s2twp
+솔즈베리 스테이크	梳士巴利漢堡扒	x	dish	C	wikidata:Q200527:zh>s2twp
+솜사탕	棉花糖	s	dish	C	wikidata:Q49737:zh>s2twp
+수정과	水正果	s	drink	C	wikidata:Q39553:zh>s2twp
+수플리	羅馬炸飯糰	s	dish	C	wikidata:Q250966:zh>s2twp
+슈바르츠발트 케이크	黑森林蛋糕	x	dish	C	wikidata:Q19028:zh>s2twp:alias
+슈바르츠벨더 키르슈토르테	黑森林蛋糕	x	dish	C	wikidata:Q19028:zh>s2twp
+슈바르츠벨데르토르테	黑森林蛋糕	s	dish	C	wikidata:Q19028:zh>s2twp:alias
+슈트루델	果餡卷	s	dish	C	wikidata:Q59170:zh>s2twp
+슈페츨레	德國麵疙瘩	s	dish	C	wikidata:Q20065:zh>s2twp
+스무디	冰沙	s	drink	C	wikidata:Q13290:zh>s2twp
+스토플레이스	啤酒烤肉	s	dish	C	wikidata:Q138553:zh>s2twp
+스트리케토	蝴蝶麵	s	dish	C	wikidata:Q19952:zh>s2twp:alias
+스트리케티	蝴蝶麵	s	dish	C	wikidata:Q19952:zh>s2twp:alias
+스파게토	義大利粉	s	dish	C	wikidata:Q20026:zh-hant:alias
+스페퀼라스	焦糖餅乾	s	dish	C	wikidata:Q6591:zh>s2twp
+스페퀼로스	焦糖餅乾	s	dish	C	wikidata:Q6591:zh>s2twp:alias
+스프링클	巧克力米	s	dish	C	wikidata:Q152547:zh>s2twp
+슬러시	冰沙	s	drink	C	wikidata:Q13296:zh>s2twp
+시시그	鐵板豬內臟	s	dish	C	wikidata:Q152288:zh>s2twp
+시오르바 데 스페클라	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+식빵	長條麵包	s	dish	C	wikidata:Q134152:zh>s2twp
+식수	飲用水	s	drink	C	wikidata:Q7892:zh>s2twp
+식전주	餐前酒	s	drink	C	wikidata:Q192150:zh>s2twp
+아르헨티나 포도주	阿根廷葡萄酒	x	drink	C	wikidata:Q238914:zh>s2twp
+아슈레	阿舒拉粥	s	dish	C	wikidata:Q136922:zh>s2twp
+아이라그	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+아카시야키	明石燒	s	dish	C	wikidata:Q116327:zh>s2twp
+아쿠아비트	阿誇維特	s	drink	C	wikidata:Q178899:zh>s2twp
+아페리티프	餐前酒	s	drink	C	wikidata:Q192150:zh>s2twp:alias
+아포가토	阿芙佳朵	s	dish	C	wikidata:Q59059:zh>s2twp
+알트비어	老啤酒	s	drink	C	wikidata:Q44924:zh>s2twp
+암파우	米餅	s	dish	C	wikidata:Q122154:zh>s2twp
+애저	葡萄牙仔豬肉	s	dish	C	wikidata:Q23015:zh>s2twp
+어니언 링	洋蔥圈	x	dish	C	wikidata:Q244611:zh>s2twp
+어미젖	母乳	s	drink	C	wikidata:Q22728:zh>s2twp:alias
+엄마젖	母乳	s	drink	C	wikidata:Q22728:zh>s2twp:alias
+에그 베네딕트	火腿蛋鬆餅	x	dish	C	wikidata:Q58263:zh>s2twp
+에그 타르트	蛋撻	x	dish	C	wikidata:Q22404:zh-hant:alias
+에스프레소 콘 판나	濃縮康保藍	x	drink	C	wikidata:Q70408:zh-hant:alias
+에인절 푸드 케이크	天使蛋糕	x	dish	C	wikidata:Q29415:zh>s2twp
+예너버르	仁內華	s	drink	C	wikidata:Q80680:zh>s2twp:alias
+예네버르	仁內華	s	drink	C	wikidata:Q80680:zh>s2twp
+오니기리	御握	s	dish	C	wikidata:Q13393:zh>s2twp
+오레오	奧利奧	s	dish	C	wikidata:Q138585:zh>s2twp
+오레키에타	貓耳朵	s	dish	C	wikidata:Q19969:zh-hant:alias
+온포도주	香料酒	s	dish	C	wikidata:Q6584:zh>s2twp
+올라디이	俄羅斯煎餅	s	dish	C	wikidata:Q130395:zh>s2twp
+왕 케이크	國王餅	x	dish	C	wikidata:Q177166:zh>s2twp
+음용수	飲用水	s	drink	C	wikidata:Q7892:zh>s2twp:alias
+인도미	營多麵	s	dish	C	wikidata:Q27859:zh>s2twp
+인유	母乳	s	drink	C	wikidata:Q22728:zh>s2twp:alias
+자바이오네	薩巴雍	s	dish	C	wikidata:Q136701:zh>s2twp
+자우어브라텐	酸味燉牛肉	s	dish	C	wikidata:Q153352:zh>s2twp
+자피에칸카	波蘭披薩	s	dish	C	wikidata:Q147372:zh>s2twp
+작장면	炸醬麵	s	dish	C	wikidata:Q44737:zh-hant:alias
+잘레비	炸糖漿甜麵圈	s	dish	C	wikidata:Q59139:zh>s2twp
+재스민차	茉莉花茶	s	drink	C	wikidata:Q60855:zh>s2twp
+저냐	煎	s	dish	C	wikidata:Q133817:zh>s2twp:alias
+전유	煎	s	dish	C	wikidata:Q133817:zh>s2twp:alias
+전유어	煎	s	dish	C	wikidata:Q133817:zh>s2twp:alias
+전유화	煎	s	dish	C	wikidata:Q133817:zh>s2twp:alias
+제임슨	詹森愛爾蘭威士忌	s	drink	C	wikidata:Q2482:zh>s2twp
+조과	韓菓	s	dish	C	wikidata:Q27103:zh>s2twp:alias
+조니	雜煮	s	dish	C	wikidata:Q249169:zh>s2twp
+좀비	殭屍	s	drink	C	wikidata:Q219141:zh>s2twp
+주필러	瑞皮萊爾	s	drink	C	wikidata:Q153960:zh>s2twp
+중국식 자장면	炸醬麵	x	dish	C	wikidata:Q44737:zh-hant:alias
+즌다모찌	毛豆麻糬	s	dish	C	wikidata:Q229777:zh>s2twp
+지굴룝스코예	日古利啤酒	s	drink	C	wikidata:Q134899:zh>s2twp
+진 빔	佔邊威士忌	x	drink	C	wikidata:Q222787:zh>s2twp
+차가운 비트 수프	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+초코 우유	巧克力牛奶	x	drink	C	wikidata:Q13253:zh>s2twp:alias
+초코우유	巧克力牛奶	s	drink	C	wikidata:Q13253:zh>s2twp:alias
+초콜릿 우유	巧克力牛奶	x	drink	C	wikidata:Q13253:zh>s2twp
+초콜릿 케이크	巧克力蛋糕	x	dish	C	wikidata:Q30186:zh>s2twp
+초프	辮子麵包	s	dish	C	wikidata:Q220406:zh>s2twp
+쵸코 우유	巧克力牛奶	x	drink	C	wikidata:Q13253:zh>s2twp:alias
+쵸코우유	巧克力牛奶	s	drink	C	wikidata:Q13253:zh>s2twp:alias
+추코토	義大利圓頂蛋糕	s	dish	C	wikidata:Q227658:zh>s2twp
+치아바타	拖鞋麵包	s	dish	C	wikidata:Q246703:zh>s2twp
+치오르바 데 스페클라	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+치킨 수블라키	索瓦蘭吉	x	dish	C	wikidata:Q240923:zh-hant:alias
+카라멜 마끼아또	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+카라멜 마끼아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+카라멜 마키아또	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+카라멜 마키아토	拿鐵馬奇朵	x	drink	C	wikidata:Q22929:zh>s2twp:alias
+카라히요	卡拉希略	s	drink	C	wikidata:Q25620:zh>s2twp
+카마보코	蒲鉾	s	dish	C	wikidata:Q166204:zh>s2twp:alias
+카술레	卡酥萊	s	dish	C	wikidata:Q3039:zh>s2twp
+카스텔라	卡斯提拉	s	dish	C	wikidata:Q87590:zh>s2twp
+카페 코레토	卡瑞託咖啡	x	drink	C	wikidata:Q62451:zh>s2twp
+칸넬로네	加乃隆	s	dish	C	wikidata:Q20010:zh>s2twp:alias
+칸넬로니	加乃隆	s	dish	C	wikidata:Q20010:zh>s2twp
+칼리모초	紅酒可樂	s	drink	C	wikidata:Q179660:zh>s2twp
+칼바도스	卡爾瓦多斯白蘭地	s	drink	C	wikidata:Q3268:zh>s2twp
+캐러멜마끼아토	拿鐵馬奇朵	s	drink	C	wikidata:Q22929:zh>s2twp:alias
+커리부르스트	德國咖哩香腸	s	dish	C	wikidata:Q176063:zh>s2twp
+코르타도	告爾多	s	drink	C	wikidata:Q59072:zh>s2twp
+코톨레타 알라 밀라네세	米蘭炸肉排	x	dish	C	wikidata:Q12821:zh>s2twp
+콘킬리아	貝殼麵	s	dish	C	wikidata:Q19962:zh>s2twp:alias
+콘킬리에	貝殼麵	s	dish	C	wikidata:Q19962:zh>s2twp
+콜드 보르시	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+콩소	豆沙	s	dish	C	wikidata:Q29340:zh>s2twp
+쾰슈	科隆啤酒	s	drink	C	wikidata:Q4626:zh>s2twp
+쿠므스	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+쿠앵트로	君度	s	drink	C	wikidata:Q10227:zh>s2twp
+쿠이 라피스	印尼九層糕	x	dish	C	wikidata:Q159290:zh>s2twp
+크라펜	柏林甜圈	s	dish	C	wikidata:Q152526:zh>s2twp:alias
+크므드	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+크므스	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+크므즈	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp
+클로드닉	羅宋湯	s	dish	C	wikidata:Q4551:zh-hant:alias
+키르	梯兒	s	dish	C	wikidata:Q59134:zh>s2twp
+키르 로열	皇家基爾	x	drink	C	wikidata:Q176764:zh>s2twp
+타파	塔帕斯	s	dish	C	wikidata:Q220964:zh>s2twp
+타파스	塔帕斯	s	dish	C	wikidata:Q220964:zh>s2twp:alias
+탈리아텔라	鳥巢麵	s	dish	C	wikidata:Q20044:zh>s2twp:alias
+탈리아텔레	鳥巢麵	s	dish	C	wikidata:Q20044:zh>s2twp
+터키 커피	土耳其咖啡	x	drink	C	wikidata:Q43022:zh>s2twp:alias
+템페	丹貝	s	dish	C	wikidata:Q120096:zh>s2twp
+토르텔리노	義大利餛飩	s	dish	C	wikidata:Q20057:zh-hant:alias
+튀르키예 커피	土耳其咖啡	x	drink	C	wikidata:Q43022:zh>s2twp
+티본	丁骨牛排	s	dish	C	wikidata:Q114924:zh>s2twp
+팀빗	天趣球	s	dish	C	wikidata:Q141:zh>s2twp
+파르팔라	蝴蝶麵	s	dish	C	wikidata:Q19952:zh>s2twp:alias
+파르팔레	蝴蝶麵	s	dish	C	wikidata:Q19952:zh>s2twp
+파르페	芭菲	s	dish	C	wikidata:Q13314:zh>s2twp
+파스카	帕斯卡	s	dish	C	wikidata:Q201120:zh>s2twp
+파스티스	法國茴香酒	s	drink	C	wikidata:Q16976:zh>s2twp
+펑리수	鳳梨酥	s	dish	C	wikidata:Q55167:zh>s2twp
+페미칸	肉糜餅	s	dish	C	wikidata:Q130097:zh-hant:alias
+포와그라	鵝肝	s	dish	C	wikidata:Q34807:zh>s2twp:alias
+포터하우스	丁骨牛排	s	dish	C	wikidata:Q114924:zh>s2twp:alias
+포테이토 샐러드	馬鈴薯沙拉	x	dish	C	wikidata:Q152964:zh>s2twp:alias
+포토푀	火上鍋	s	dish	C	wikidata:Q10398:zh>s2twp
+푸실로	螺旋粉	s	dish	C	wikidata:Q19966:zh-hant:alias
+푸아그라	鵝肝	s	dish	C	wikidata:Q34807:zh>s2twp
+푸와그라	鵝肝	s	dish	C	wikidata:Q34807:zh>s2twp:alias
+프란세지냐	葡式三明治	s	dish	C	wikidata:Q732:zh>s2twp
+프로요	霜凍優格	s	dish	C	wikidata:Q13319:zh>s2twp:alias
+프로즌 요거트	霜凍優格	x	dish	C	wikidata:Q13319:zh>s2twp
+프리덤 프라이	自由薯條	x	dish	C	wikidata:Q138213:zh>s2twp
+프아그라	鵝肝	s	dish	C	wikidata:Q34807:zh>s2twp:alias
+플랫 화이트	馥芮白	x	drink	C	wikidata:Q62449:zh>s2twp
+피 소시지	血腸	x	dish	C	wikidata:Q154482:zh-hant:alias
+피코 데 가요	雞喙醬	x	dish	C	wikidata:Q177564:zh>s2twp
+한과	韓菓	s	dish	C	wikidata:Q27103:zh>s2twp
+핫 보르시	羅宋湯	x	dish	C	wikidata:Q4551:zh-hant:alias
+핫초코	熱巧克力	s	drink	C	wikidata:Q13261:zh>s2twp:alias
+핫초콜릿	熱巧克力	s	drink	C	wikidata:Q13261:zh>s2twp
+허머스	鷹嘴豆泥	s	dish	C	wikidata:Q241987:zh>s2twp:alias
+호리아티키	希臘沙拉	s	dish	C	wikidata:Q240801:zh>s2twp:alias
+호리아티키 살라타	希臘沙拉	x	dish	C	wikidata:Q240801:zh>s2twp:alias
+호리아티키 샐러드	希臘沙拉	x	dish	C	wikidata:Q240801:zh>s2twp:alias
+홍콩 밀크티	絲襪奶茶	x	drink	C	wikidata:Q41356:zh>s2twp
+화이트 와인	白葡萄酒	x	drink	C	wikidata:Q10210:zh>s2twp
+후머스	鷹嘴豆泥	s	dish	C	wikidata:Q241987:zh>s2twp:alias
+후무스	鷹嘴豆泥	s	dish	C	wikidata:Q241987:zh>s2twp:alias
+훔무스	鷹嘴豆泥	s	dish	C	wikidata:Q241987:zh>s2twp
+흐므즈	馬奶酒	s	drink	C	wikidata:Q61081:zh>s2twp:alias
+가니시	飾菜	s	food	C	wikidata:Q59541:zh>s2twp:alias
+가말로스트	挪威青黴芝士	s	food	C	wikidata:Q176017:zh>s2twp
+감말로스트	挪威青黴芝士	s	food	C	wikidata:Q176017:zh>s2twp:alias
+감멜로스트	挪威青黴芝士	s	food	C	wikidata:Q176017:zh>s2twp:alias
+건대구	魚乾	s	food	C	wikidata:Q213725:zh>s2twp
+건포도	葡萄乾	s	food	C	wikidata:Q13186:zh>s2twp
+겨기름	米糠油	s	food	C	wikidata:Q175933:zh>s2twp
+고명	飾菜	x	food	C	wikidata:Q59541:zh>s2twp
+고베 비프	神戶牛	x	food	C	wikidata:Q42085:zh>s2twp
+고양이고기	貓肉	s	food	C	wikidata:Q18226:zh>s2twp
+곡물가루	穀粉	s	food	C	wikidata:Q36465:zh-hant:alias
+곡식	穀物	x	food	C	wikidata:Q12117:zh-hant:alias
+골든 딜리셔스	金冠蘋果	x	food	C	wikidata:Q201996:zh>s2twp
+관찰레	風乾豬面頰肉	s	food	C	wikidata:Q194632:zh>s2twp:alias
+구안찰레	風乾豬面頰肉	s	food	C	wikidata:Q194632:zh>s2twp
+글로스터	格洛斯特芝士	s	food	C	wikidata:Q174539:zh>s2twp
+까리냥	佳利釀	s	food	C	wikidata:Q251054:zh>s2twp
+넌출월귤아속	小紅莓	s	food	C	wikidata:Q13181:zh>s2twp
+뒤캉 다이어트	杜坎纖食法	x	food	C	wikidata:Q24386:zh>s2twp
+디종 머스터드	法式芥末醬	x	food	C	wikidata:Q204226:zh>s2twp
+라드	豬油	x	food	C	wikidata:Q72827:zh>s2twp
+런천미트	拉米拼盤	s	food	C	wikidata:Q10426:zh>s2twp
+마가린	植物牛油	s	food	C	wikidata:Q4287:zh>s2twp
+마리화나	大麻	s	food	C	wikidata:Q2845:zh-hant:alias
+마리후아나	大麻	s	food	C	wikidata:Q2845:zh-hant:alias
+마아가린	植物牛油	s	food	C	wikidata:Q4287:zh>s2twp:alias
+만체고 치즈	曼徹格芝士	x	food	C	wikidata:Q72305:zh>s2twp
+모르비에	莫爾比耶乾酪	s	food	C	wikidata:Q177727:zh>s2twp
+모짜렐라	莫札瑞拉起司	s	food	C	wikidata:Q14088:zh-hant:alias
+미강유	米糠油	s	food	C	wikidata:Q175933:zh>s2twp:alias
+바닐라	香草	s	food	C	wikidata:Q13241:zh>s2twp
+반죽물	麵糊	s	food	C	wikidata:Q29493:zh>s2twp
+베아르네즈 소스	貝阿恩醬	x	food	C	wikidata:Q58265:zh>s2twp
+베이킹 파우더	復配膨鬆劑	x	food	C	wikidata:Q29476:zh>s2twp:alias
+베이킹파우더	復配膨鬆劑	s	food	C	wikidata:Q29476:zh>s2twp
+보티파라	米血糕	s	food	C	wikidata:Q7046:zh>s2twp
+불구르	布格麥	s	food	C	wikidata:Q250432:zh>s2twp
+블루테 소스	絲絨醬	x	food	C	wikidata:Q58261:zh>s2twp
+비트	甜菜頭	x	food	C	wikidata:Q165437:zh>s2twp
+사프란	番紅花	s	food	C	wikidata:Q25434:zh>s2twp
+사프론	番紅花	s	food	C	wikidata:Q25434:zh>s2twp:alias
+샤프란	番紅花	s	food	C	wikidata:Q25434:zh>s2twp:alias
+설탕봉	塔糖	s	food	C	wikidata:Q227864:zh>s2twp
+셰브르 치즈	山羊乳酪	x	food	C	wikidata:Q198815:zh>s2twp:alias
+쇼리수	口利左香腸	s	food	C	wikidata:Q23374:zh-hant:alias
+스위트브레드	牛胸腺	s	food	C	wikidata:Q49951:zh>s2twp
+스카모르차	斯卡摸扎	s	food	C	wikidata:Q248149:zh>s2twp
+스톡피시	魚乾	s	food	C	wikidata:Q213725:zh>s2twp:alias
+식초	醋	x	food	C	wikidata:Q41354:zh>s2twp
+쌀겨기름	米糠油	s	food	C	wikidata:Q175933:zh>s2twp:alias
+야크 버터	酥油	x	food	C	wikidata:Q200430:zh>s2twp
+염소 치즈	山羊乳酪	x	food	C	wikidata:Q198815:zh>s2twp:alias
+염소젖 치즈	山羊乳酪	x	food	C	wikidata:Q198815:zh>s2twp
+올랑데즈 소스	荷蘭醬	x	food	C	wikidata:Q58259:zh>s2twp
+위스카스	偉嘉	s	food	C	wikidata:Q163355:zh>s2twp
+제로식품	減肥食品	s	food	C	wikidata:Q250459:zh>s2twp
+제스트	果皮削片	s	food	C	wikidata:Q196819:zh>s2twp
+종합비타민	複合維生素	s	food	C	wikidata:Q172395:zh>s2twp
+초리조	口利左香腸	s	food	C	wikidata:Q23374:zh-hant:alias
+카나비스	大麻	s	food	C	wikidata:Q2845:zh-hant:alias
+카옌고추	牛角椒	s	food	C	wikidata:Q6598:zh>s2twp
+카카오버터	可可脂	s	food	C	wikidata:Q251106:zh>s2twp
+케일	羽衣甘藍	x	food	C	wikidata:Q45989:zh>s2twp
+콩테	孔泰乳酪	x	food	C	wikidata:Q249310:zh>s2twp
+쿠스쿠스	古斯米	s	food	C	wikidata:Q76605:zh>s2twp
+크랜베리	小紅莓	s	food	C	wikidata:Q13181:zh>s2twp:alias
+탈칸	卡馬	x	food	C	wikidata:Q134213:zh-hant:alias
+테레빈유	松節油	s	food	C	wikidata:Q201382:zh>s2twp
+파인베리	菠蘿莓	s	food	C	wikidata:Q45824:zh>s2twp
+퍼프 페이스트리	酥皮	x	food	C	wikidata:Q29221:zh>s2twp
+페스토 알라 제노베세	青醬	x	food	C	wikidata:Q9896:zh-hant:alias
+표백제	漂白劑	s	food	C	wikidata:Q11587:zh>s2twp
+한국의 국수	朝鮮麵條	x	food	C	wikidata:Q34156:zh>s2twp
+햄 혹	豬肘	x	food	C	wikidata:Q153976:zh>s2twp
+허니듀 멜론	蜜露甜瓜	x	food	C	wikidata:Q47801:zh>s2twp
+불화의 사과	金蘋果事件	x	fruit	C	wikidata:Q146970:zh>s2twp
+캐러멜 색소	焦糖色素	x	ingredient	C	wikidata:Q227816:zh>s2twp
