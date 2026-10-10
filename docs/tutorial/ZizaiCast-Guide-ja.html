@@ -197,7 +197,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <li><a href="#features">機能とショートカット</a></li>
     <li><a href="#faq">よくある質問</a></li>
   </ol>
-  <div class="side-foot">ミラーリング中の画面にマウスを乗せるとツールバーが出ます。<kbd>Ctrl</kbd><kbd>D</kbd> で接続を解除。そのほかの機能はすべて右クリック メニューにあります（Android の画面ではツールバーの「その他」）。</div>
+  <div class="side-foot">ミラーリング中の画面にマウスを乗せるとツールバーが出ます。<kbd>Ctrl</kbd><kbd>D</kbd> で接続を解除。そのほかの機能はすべて右クリック メニューにあります（Android の画面は既定で右クリック＝戻るなので、<kbd>Shift</kbd>＋右クリックかツールバーの「その他」）。<kbd>F1</kbd> で「キーボード ショートカット一覧」。</div>
 </nav>
 
 <main id="top">
@@ -266,8 +266,17 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <div class="note">
   <span class="t">画面に見当たらないときは？</span>
-  ウィンドウを閉じてもアプリは終了しません。タスクバーの通知領域（時計の横の小さなアイコン）に入って接続を待ち続け、スマホが接続するとウィンドウが自動で表示されます。
+  ウィンドウを閉じてもアプリは終了しません。バックグラウンドで待機（タスクバーの通知領域、時計の横の小さなアイコン）して接続を待ち続け、スマホが接続するとウィンドウが自動で表示されます。
 </div>
+<h3 id="idle">待機画面：お使いのスマホを選んでください</h3>
+<p>スマホがまだ接続されていないとき、ウィンドウには<span class="ui">お使いのスマホを選んでください</span>と表示され、3 枚のカードが並びます。お使いのスマホに合うカードのボタンを押してください。</p>
+<div class="tbl"><table>
+  <tr><th>カード</th><th>こんな人向け</th><th>ボタン</th></tr>
+  <tr><td>iPhone / iPad</td><td>コントロールセンターの画面ミラーリングから Zizai Cast を選びます。</td><td><span class="ui">手順を見る</span>（<a href="#iphone">2 章</a>を開く）</td></tr>
+  <tr><td>Android 見るだけ</td><td>スマホのキャスト / Smart View で表示。見るだけで、PC からは操作できません（Miracast）。</td><td><span class="ui">手順を見る</span>（<a href="#miracast">3 章</a>を開く）</td></tr>
+  <tr><td>Android PC から操作</td><td>ワイヤレス デバッグを使い、PC のマウスとキーボードでスマホを操作します。</td><td><span class="ui">QR を表示</span>（QR をスキャンしてペア設定。<a href="#adb">4 章</a>）</td></tr>
+</table></div>
+<p>カードの横に「再起動後に使えます」などのグレーの小さな文字が出ているときは、その方法が今は使えない理由です。<span class="ui">接続方法は？</span>を押すとこのガイドが開きます。</p>
 </section>
 
 <!-- ============ 2 ============ -->
@@ -288,8 +297,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <h3>PIN とスマホが複数あるとき</h3>
 <ul>
-  <li>待機画面の<span class="ui">接続に PIN を要求</span>をオンにすると、<strong>初めての</strong> iPhone は PC に表示される 4 桁の PIN を入力しないとミラーリングできません。一度成功した iPhone は記憶されます。</li>
-  <li>別の iPhone も Zizai Cast を選んだときの動作は、右クリック メニュー → 設定 → <span class="ui">新しいスマホが接続したとき</span>で選べます：<span class="ui">切り替える</span>（新しいスマホを表示）／<span class="ui">今のまま</span>（先に接続したスマホを継続）。</li>
+  <li>右クリック メニュー → <span class="ui">設定</span>（通知領域のメニューにもあります）の<span class="ui">新しいスマホは PIN で接続</span>をオンにすると、<strong>初めての</strong> iPhone は PC に表示される 4 桁の PIN を入力しないとミラーリングできません。一度成功した iPhone は記憶されます。</li>
+  <li>別の iPhone も Zizai Cast を選んだときの動作は、右クリック メニュー → 設定 → <span class="ui">2 台目のスマホが接続したとき</span>で選べます：<span class="ui">新しいスマホに切り替える</span>（新しいスマホを表示）／<span class="ui">今のスマホのまま</span>（先に接続したスマホを継続）。</li>
   <li>iPhone の画面がオフになるとミラーリングは一時停止し、<strong>ロックを解除すると自動で再開</strong>します。</li>
   <li>iPhone の音量ボタンで PC から出る音量を調節できます。</li>
 </ul>
@@ -331,7 +340,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <h3>ステップ 2：ペア設定（最初の 1 回だけ）</h3>
 <ol class="steps">
   <li>スマホ：<span class="ui">開発者向けオプション</span> → <span class="ui">ワイヤレス デバッグ</span>のスイッチをオン（初回は「このネットワークでワイヤレス デバッグを許可しますか？」と聞かれるので<span class="ui">許可</span>）。</li>
-  <li>PC：Zizai Cast のウィンドウを右クリック → <span class="ui">Android を接続（QR をスキャン）</span>。QR コードが表示されます。</li>
+  <li>PC：Zizai Cast のウィンドウを右クリック → <span class="ui">スマホを接続</span> → <span class="ui">Android を接続（QR をスキャン）</span>（待機画面の「Android PC から操作」カードの<span class="ui">QR を表示</span>でも同じです）。QR コードが表示されます。</li>
   <li>スマホ：「ワイヤレス デバッグ」の文字をタップしてページを開き → <span class="ui">QR コードによるデバイスのペア設定</span> → PC の QR コードをスキャンします。</li>
   <li>ペア設定が終わるとウィンドウは自動で閉じ、スマホの画面が PC に映ります。</li>
 </ol>
@@ -355,7 +364,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </table></div>
 <div class="note">
   <span class="t">右クリックが「戻る」なら、メニューはどこ？</span>
-  Android の画面では右クリックがスマホの<strong>戻る</strong>になります。メニューを開くには、マウスを画面上部に動かしてツールバーの<span class="ui">その他（すべてのメニュー）</span>をクリックするか、<kbd>Shift</kbd> を押しながら右クリックします。
+  Android の画面では右クリックがスマホの<strong>戻る</strong>になります。メニューを開くには、マウスを画面上部に動かしてツールバーの<span class="ui">その他（すべてのメニュー）</span>をクリックするか、<kbd>Shift</kbd> を押しながら右クリックします（<kbd>Shift</kbd>＋右クリックなら常にメニューが開きます）。右クリックでメニューを開きたい場合は、設定 → <span class="ui">右クリックの動作</span>を<span class="ui">戻る</span>（既定）から<span class="ui">メニューを開く</span>に変えられます。
 </div>
 
 <div class="note warn">
@@ -367,10 +376,11 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <!-- ============ 5 ============ -->
 <section id="features">
 <h2><span class="num">5</span>機能とショートカット</h2>
-<p class="intro">ミラーリング中に画面へマウスを乗せると上部に<strong>ツールバー</strong>が出ます。ウィンドウを<strong>右クリック</strong>するとすべての機能が使えます（Android の画面ではツールバーの「その他」）。ショートカットはウィンドウを一度クリックしてから使います。表示言語は 設定 → <span class="ui">言語 / Language</span> で切り替えます：<span class="ui">自動（Windows に合わせる）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
+<p class="intro">ミラーリング中に画面へマウスを乗せると上部に<strong>ツールバー</strong>が出ます。ウィンドウを<strong>右クリック</strong>するとすべての機能が使えます（Android の画面は既定で右クリック＝戻るなので、ツールバーの「その他」か <kbd>Shift</kbd>＋右クリック。設定 → <span class="ui">右クリックの動作</span>で変更もできます）。<kbd>F1</kbd>（または ヘルプ → <span class="ui">キーボード ショートカット一覧</span>）で全ショートカットを確認できます。ショートカットはウィンドウを一度クリックしてから使います。表示言語は 設定 → <span class="ui">言語 / Language</span> で切り替えます：<span class="ui">自動（Windows に合わせる）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
 
 <h3>ツールバー</h3>
-<p>マウスを動かすと画面上部の中央に出て、2 秒ほど動かさないと隠れます。左から（Android のみ：戻る、ホーム、最近使ったアプリ）スクリーンショット、録画、スマホに送る、回転、全画面表示、拡大鏡、翻訳、画面を静止、その他、接続を解除。ボタンにマウスを乗せると名前とショートカットが表示されます。</p>
+<p>マウスを動かすと画面上部の中央に出て、2 秒ほど動かさないと隠れます。左から（Android のみ：戻る、ホーム、最近使ったアプリ）スクリーンショット、録画、スマホに送る、回転、全画面表示、拡大鏡、翻訳、画面を静止、その他、接続を解除。よく使うスクリーンショット、録画、翻訳、拡大鏡のボタンは文字の名前つきで表示され、そのほかはマウスを乗せると名前とショートカットが表示されます。初めて接続したときは、ツールバーの場所が一度だけ案内されます。</p>
+<p>スマホが接続されていないときも、右クリック メニューに<span class="ui">スクリーンショット</span>、<span class="ui">録画を開始</span>、<span class="ui">拡大鏡</span>などがグレーで表示され、右側に<span class="ui">スマホ接続後に使えます</span>と出ます。スマホが映ると押せるようになります。</p>
 
 <h3 id="disconnect">接続を解除する方法</h3>
 <p>iPhone、Android のキャスト、ワイヤレス デバッグのどれでも同じです。</p>
@@ -378,13 +388,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>ツールバー右端の赤い<span class="ui">接続を解除</span>ボタン。</li>
   <li><kbd>Ctrl</kbd><kbd>D</kbd> を押す。</li>
   <li>右クリック メニュー（またはツールバーの「その他」）のいちばん上の<span class="ui">接続を解除</span>。</li>
-  <li>通知領域のアイコンを右クリック → <span class="ui">接続を解除（スマホの名前）</span>。ウィンドウが隠れていても使えます。</li>
+  <li>通知領域のアイコンを右クリック → <span class="ui">接続を解除（スマホの名前）</span>。ウィンドウがバックグラウンドで待機中でも使えます。</li>
 </ol>
-<p>録画中なら先に停止して保存します。PC から解除した Android スマホは自動では再接続しません（<span class="ui">Android を接続（QR をスキャン）</span>でもう一度接続するか、Zizai Cast を再起動します）。</p>
+<p>録画中なら先に停止して保存します。PC から解除した Android スマホは自動では再接続しません（<span class="ui">スマホを接続</span> → <span class="ui">Android を接続（QR をスキャン）</span>でもう一度接続するか、Zizai Cast を再起動します）。</p>
 
 <div class="grid2">
   <div class="card"><h4>スクリーンショット <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
-    <p>インストール フォルダーの「截圖」（スクリーンショット）フォルダーに「ZizaiCast_日付_時刻.png」という名前で保存されます。</p></div>
+    <p>インストール フォルダーの「截圖」（スクリーンショット）フォルダーに「ZizaiCast_日付_時刻.png」という名前で保存されます。右クリック メニューの<span class="ui">スクリーンショットのフォルダーを開く</span>から開けます（録画は<span class="ui">録画のフォルダーを開く</span>）。</p></div>
   <div class="card"><h4>録画 <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
     <p>もう一度押すと停止。音声付き MP4 で「錄影」（録画）フォルダーに保存されます。</p></div>
   <div class="card"><h4>全画面表示 <span><kbd>F11</kbd></span></h4>
@@ -394,11 +404,11 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>回転・反転</h4>
     <p><kbd>Ctrl</kbd><kbd>→</kbd> / <kbd>Ctrl</kbd><kbd>←</kbd> で 90° 回転、<kbd>Ctrl</kbd><kbd>H</kbd> で左右反転、<kbd>Ctrl</kbd><kbd>0</kbd> でリセット。</p></div>
   <div class="card"><h4>テーマ・画質</h4>
-    <p>テーマ：さくら、ミント、夜空、ミルクティー。画質は 設定 → 画質（標準／高 · おすすめ／最高）。</p></div>
+    <p>テーマ：さくら、ミント、夜空、ミルクティー。テーマは 設定 → テーマ。画質は 設定 → 画質（<span class="ui">標準（なめらか）</span>／<span class="ui">高（おすすめ）</span>／<span class="ui">最高（通信量が多め）</span>）。高画質ほど Wi-Fi の負担が増えるので、カクつくときは「標準」に。変更は既定では次の接続から有効ですが、案内の横の<span class="ui">今すぐ再接続して適用</span>を押すとすぐ反映されます（iPhone はスマホで画面ミラーリングをもう一度選びます）。</p></div>
 </div>
 
 <h3 id="magnifier">拡大鏡・ハイコントラスト・画面を静止</h3>
-<p>スマホの文字が小さくて読みにくいときは、画面を右クリック（Android ではツールバーの「その他」）→ <span class="ui">拡大鏡</span>。スマホの画面が表示されているときに使えます。</p>
+<p>スマホの文字が小さくて読みにくいときは、画面を右クリック（Android ではツールバーの「その他」か <kbd>Shift</kbd>＋右クリック）→ <span class="ui">拡大鏡</span>。スマホの画面が表示されているときに使えます。</p>
 <div class="grid2">
   <div class="card"><h4>拡大・縮小 <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
     <p>最大 8 倍。<kbd>Ctrl</kbd> を押しながらマウス ホイールを回すと、マウスの位置を中心に拡大します。<span class="ui">1× に戻す</span>：<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>。</p></div>
@@ -413,15 +423,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </div>
 
 <h3 id="translate">画面の文字を翻訳する</h3>
-<p>読めない英語・韓国語・中国語などが表示されたら、画面を右クリック → <span class="ui">翻訳</span>、またはツールバーの翻訳ボタン。翻訳は元の文字の上に小さなカードで表示されます。</p>
+<p>読めない英語・韓国語・中国語などが表示されたら、画面を右クリック → <span class="ui">翻訳</span>、またはツールバーの<span class="ui">翻訳</span>ボタン。翻訳は元の文字の上に小さなカードで表示されます。</p>
 <div class="tbl"><table>
   <tr><th>メニュー</th><th>できること</th></tr>
   <tr><td>画面全体を翻訳 <kbd>Ctrl</kbd><kbd>L</kbd></td><td>表示中の画面全体を翻訳。もう一度 <kbd>Ctrl</kbd><kbd>L</kbd> で翻訳を閉じます。</td></tr>
   <tr><td>選択範囲を翻訳 <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>マウスで囲んだ部分だけを翻訳（<kbd>Esc</kbd> でキャンセル）。</td></tr>
-  <tr><td>原文を表示 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>翻訳を一時的に隠して元の文字を見ます。</td></tr>
-  <tr><td>翻訳し続ける（5 秒ごと）</td><td>画面が変わっても自動で翻訳し直します。スクロールしながら読むときに便利です。</td></tr>
-  <tr><td>翻訳先：</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> から選びます。</td></tr>
-  <tr><td>翻訳モデルの管理</td><td>ダウンロード済みの翻訳モデルを確認・削除します。</td></tr>
+  <tr><td>原文を表示 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>翻訳を一時的に隠して元の文字を見ます。翻訳前はグレーで、「先に「画面全体を翻訳」を押してください」と出ます。</td></tr>
+  <tr><td>リアルタイム翻訳</td><td>画面が変わっても自動で翻訳し直します。スクロールしながら読むときに便利です。</td></tr>
+  <tr><td>翻訳先</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> から選びます（翻訳メニューの最上位にあります）。</td></tr>
+  <tr><td>表示方法</td><td><span class="ui">自動（収まらないときは一覧）</span>、<span class="ui">元の位置に表示</span>（元の文字の上にカード）、<span class="ui">一覧で表示</span>から選びます。<span class="ui">濃い色の枠（読みやすい）</span>で文字を読みやすくもできます。</td></tr>
+  <tr><td>翻訳の詳細設定</td><td>ふだんは変更不要で、オフライン翻訳だけで使えます。中に<span class="ui">ローカル AI 翻訳…</span>、<span class="ui">オンライン翻訳（任意）…</span>、<span class="ui">翻訳モデルの管理</span>（ダウンロード済みの翻訳モデルを確認・削除）があります。</td></tr>
 </table></div>
 <div class="note">
   <span class="t">オフラインで翻訳。画面の文字はインターネットに送られません</span>
@@ -430,12 +441,15 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>韓国語などが翻訳されないときは、その文字を Windows がまだ読み取れない可能性があります。追加方法の案内と<span class="ui">言語の設定を開く</span>ボタンが表示されます（<a href="#faq-translate">よくある質問</a>）。</p>
 
 <h3 id="share">スマホに送る</h3>
-<p>スクリーンショットや録画のあと、画面の下に<span class="ui">スマホに送る</span>ボタンが出ます。クリックするとファイルをスマホに送れます。右クリック メニューの<span class="ui">最後のスクリーンショットをスマホに送る</span>、<span class="ui">最後の録画をスマホに送る</span>、<span class="ui">スマホに送る…</span>（ファイルを選ぶ）や、ツールバーのボタンからも送れます。</p>
+<p>スクリーンショットや録画のあと、画面の下に<span class="ui">スマホに送る</span>ボタンが出ます。クリックするとファイルをスマホに送れます。右クリック メニューの<span class="ui">スマホに送る</span> ▸ <span class="ui">最後のスクリーンショットをスマホに送る</span>、<span class="ui">最後の録画をスマホに送る</span>、<span class="ui">スマホに送る…</span>（ファイルを選ぶ）や、ツールバーのボタンからも送れます。</p>
 <ul>
   <li><strong>ワイヤレス デバッグで接続中の Android</strong>：スマホのギャラリーに直接保存されます。操作は不要です。</li>
   <li><strong>iPhone / iPad、Android のキャスト（Miracast）</strong>：PC に QR コードが表示されるので、<span class="ui">スマホのカメラでスキャン</span>します。スマホでページが開いたら、写真は長押し →「写真に保存」（iPhone）／「画像をダウンロード」（Android）、動画は「動画をダウンロード」をタップしてページの手順に従います。</li>
   <li>スマホは PC と<strong>同じ Wi-Fi</strong> に接続してください。リンクの有効期限は 10 分で、QR コードをスキャンした人だけが開けます。<span class="ui">共有を停止</span>で早めに終了できます。</li>
 </ul>
+
+<h3>バックグラウンド待機と通知領域</h3>
+<p>ウィンドウの右上の閉じるボタンを押すと、「終了しますか？それともバックグラウンドで待機しますか？」と聞かれます。<span class="ui">バックグラウンドで待機</span>を選ぶと右下の通知領域に入り、スマホの接続を待ち続けます（<span class="ui">この選択を記憶する</span>にチェックすると次回から聞かれません。あとで 設定 → <span class="ui">ウィンドウを閉じるとき</span>で変更できます）。Windows 11 では小さなアイコンが右下の「^」の中に隠れることがあります。タスクバーへドラッグすると常に表示されます。アイコンをクリックするとウィンドウが開き、右クリックで録画や設定、フォルダーを開く操作ができます。<strong>完全に終了</strong>するには、アイコンを右クリック → <span class="ui">終了</span>。</p>
 
 <h3 id="update">自動アップデート</h3>
 <p>Zizai Cast は起動するたびに新しいバージョンを確認します（起動中は 6 時間ごと）。メニューの<span class="ui">アップデートを確認</span>でも確認できます。インストール フォルダー内の「安裝檔」（インストーラー）フォルダーに置いた新しいインストーラーも自動で見つけます。</p>
@@ -467,7 +481,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <tr><td><kbd>Ctrl</kbd><kbd>L</kbd></td><td>画面全体を翻訳／翻訳を閉じる</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>選択範囲を翻訳</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>原文を表示</td></tr>
-  <tr><td><kbd>Shift</kbd>＋右クリック</td><td>Android の画面でメニューを開く</td></tr>
+  <tr><td><kbd>Shift</kbd>＋右クリック</td><td>Android の画面で常にメニューを開く（通常の右クリックは既定で戻る。設定 → 右クリックの動作で変更可）</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>キーボード ショートカット一覧（ヘルプ → キーボード ショートカット一覧）</td></tr>
 </table></div>
 </section>
 
@@ -478,7 +493,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <details id="faq-notfound"><summary>スマホの一覧に「Zizai Cast」が出てこない</summary><div>
 <ul>
-  <li>Zizai Cast が起動しているか（通知領域にアイコンがあるか）確認します。</li>
+  <li>Zizai Cast が起動しているか（通知領域にアイコンがあるか。Windows 11 では「^」の中にあることもあります）確認します。</li>
   <li>スマホと PC が<strong>同じ</strong> Wi-Fi（ゲスト ネットワークではない）につながっていて、スマホがモバイル データ通信になっていないか確認します。</li>
   <li>PC とスマホの VPN をオフにします。ファイアウォールで許可されているかも確認します（下の「ファイアウォール」）。</li>
   <li>AirServer や UxPlay など、ほかの AirPlay 受信アプリが動いていたら終了します。</li>
@@ -495,14 +510,14 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <details id="faq-lag"><summary>映像が遅れる・カクカクする</summary><div>
 <ul>
   <li>スマホも PC も <strong>5 GHz</strong> の Wi-Fi でルーターの近くに置くか、PC を有線接続にします。</li>
-  <li>画質を一時的に「標準」にします。大量のダウンロードをしているアプリも閉じます。</li>
+  <li>画質を一時的に「標準（なめらか）」にします。大量のダウンロードをしているアプリも閉じます。</li>
 </ul></div></details>
 
 <details id="faq-blur"><summary>映像がぼやける</summary><div>
-<p>右クリック メニュー → 設定 → <span class="ui">画質</span> で「高 · おすすめ」か「最高」を選びます。選べないときは Microsoft Store の「HEVC ビデオ拡張機能」をインストールしてください。変更は次の接続から有効です。</p></div></details>
+<p>右クリック メニュー → 設定 → <span class="ui">画質</span> で「高（おすすめ）」か「最高（通信量が多め）」を選びます。選べないときは Microsoft Store の「HEVC ビデオ拡張機能」をインストールしてください。変更は既定では次の接続から有効です。すぐ反映するには案内の横の<span class="ui">今すぐ再接続して適用</span>を押します。</p></div></details>
 
 <details id="faq-takeover"><summary>ミラーリング中にほかの人のスマホに切り替わった</summary><div>
-<p>右クリック メニュー → 設定 → <span class="ui">新しいスマホが接続したとき</span> → <span class="ui">今のまま</span>を選びます。<span class="ui">接続に PIN を要求</span>をオンにするのも効果的です。</p></div></details>
+<p>右クリック メニュー → 設定 → <span class="ui">2 台目のスマホが接続したとき</span> → <span class="ui">今のスマホのまま</span>を選びます。<span class="ui">新しいスマホは PIN で接続</span>をオンにするのも効果的です。</p></div></details>
 
 <details id="faq-fw"><summary>ファイアウォールの警告で「キャンセル」を押してしまった</summary><div>
 <ol>
@@ -526,17 +541,17 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <ul>
   <li>再起動や Wi-Fi の切り替えでワイヤレス デバッグがオフになることがあります。開発者向けオプションでオンに戻してください（ペア設定は不要）。</li>
   <li>スマホの省電力設定で画面オフ時に Wi-Fi が切れることがあります。</li>
-  <li>それでもだめなら、スマホの「ペア設定済みのデバイス」からこの PC を削除し、<span class="ui">Android を接続（QR をスキャン）</span>でペア設定し直します。</li>
+  <li>それでもだめなら、スマホの「ペア設定済みのデバイス」からこの PC を削除し、<span class="ui">スマホを接続</span> → <span class="ui">Android を接続（QR をスキャン）</span>でペア設定し直します。</li>
 </ul></div></details>
 
 <details id="faq-disconnect"><summary>「接続を解除」が見つからない</summary><div>
-<p>ミラーリング中の画面にマウスを乗せると上部中央にツールバーが出ます。右端の赤いボタンが<span class="ui">接続を解除</span>です。<kbd>Ctrl</kbd><kbd>D</kbd> でも解除できます。</p></div></details>
+<p>ミラーリング中の画面にマウスを乗せると上部中央にツールバーが出ます。右端の赤いボタンが<span class="ui">接続を解除</span>です。<kbd>Ctrl</kbd><kbd>D</kbd> でも解除できます。Android の画面は既定で右クリック＝戻るなので、メニューは <kbd>Shift</kbd>＋右クリックかツールバーの「その他」で開きます。</p></div></details>
 
 <details id="faq-translate"><summary>翻訳されない・韓国語や日本語の文字が読み取れない</summary><div>
 <ul>
   <li><strong>初めての翻訳では翻訳モデルのダウンロードが必要です</strong>：確認が出たら<span class="ui">ダウンロード</span>をクリックします（1 回だけ。1 方向あたり約 50 MB）。<span class="ui">今はしない</span>を選ぶと翻訳されず、次回もう一度確認します。</li>
   <li><strong>文字が読み取れない</strong>：Windows にその言語の「光学式文字認識」を追加します。案内の<span class="ui">言語の設定を開く</span>をクリックするか、Windows の設定 → 時刻と言語 → 言語と地域 → 言語を追加する → 韓国語（など）→ 次へ と進み、<strong>「光学式文字認識」だけ</strong>を選んで（表示言語や言語パックは不要）インストールします。終わったらもう一度翻訳してください。</li>
-  <li>ダウンロードした翻訳モデルは 翻訳 → <span class="ui">翻訳モデルの管理</span> で確認・削除できます。</li>
+  <li>ダウンロードした翻訳モデルは 翻訳 → <span class="ui">翻訳の詳細設定</span> → <span class="ui">翻訳モデルの管理</span> で確認・削除できます。</li>
 </ul></div></details>
 
 <div class="foot">

@@ -198,7 +198,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <li><a href="#features">功能與快捷鍵</a></li>
     <li><a href="#faq">常見問題</a></li>
   </ol>
-  <div class="side-foot">滑鼠移到投影畫面上方有工具列；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線。所有功能在右鍵選單（Android 畫面用工具列的「更多」）。</div>
+  <div class="side-foot">滑鼠移到投影畫面上方有工具列；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線。所有功能在右鍵選單（Android 畫面預設右鍵＝返回，要選單請按 <kbd>Shift</kbd>＋右鍵或用工具列的「更多」）。<kbd>F1</kbd> 開「快速鍵一覽」。</div>
 </nav>
 
 <main id="top">
@@ -271,8 +271,18 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <div class="note">
   <span class="t">自在投影平常在哪裡？</span>
-  關掉視窗並不會結束程式，它會縮到右下角的系統匣（時鐘旁邊的小圖示）繼續等待連線。手機一連上，視窗會自動跳出來。
+  關掉視窗並不會結束程式，它會在背景待命（縮到右下角的系統匣，時鐘旁邊的小圖示）繼續等待連線。手機一連上，視窗會自動跳出來。
 </div>
+
+<h3 id="idle">等待畫面：請選你的手機</h3>
+<p>還沒有手機連上時，視窗會顯示<span class="ui">請選你的手機</span>，下面有三張卡片。看你的手機是哪一種，點那張卡片上的按鈕就好：</p>
+<div class="tbl"><table>
+  <tr><th>卡片</th><th>適合誰</th><th>按鈕</th></tr>
+  <tr><td>iPhone / iPad</td><td>在手機的控制中心 → 螢幕鏡像選自在投影。</td><td><span class="ui">看步驟</span>（開啟<a href="#iphone">第 2 節</a>）</td></tr>
+  <tr><td>Android 只要看</td><td>用手機的投放／Smart View，只能看、不能操控（Miracast）。</td><td><span class="ui">看步驟</span>（開啟<a href="#miracast">第 3 節</a>）</td></tr>
+  <tr><td>Android 用電腦操控</td><td>用無線偵錯，電腦的滑鼠鍵盤可以操控手機。</td><td><span class="ui">顯示 QR</span>（掃 QR 碼配對，見<a href="#adb">第 4 節</a>）</td></tr>
+</table></div>
+<p>卡片旁若出現灰色小字，例如「重新開機後可用」，就是在說這個方式現在為什麼還不能用；卡片上的<span class="ui">怎麼連線？</span>會打開這份教學。</p>
 </section>
 
 <!-- ============ 2 ============ -->
@@ -355,7 +365,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>如果是 Wi-Fi 斷掉之類的意外中斷，畫面會先變暗並顯示「連線中斷，在 iPhone 重新選擇螢幕鏡像即可」，照著重新選一次就好。</p>
 
 <h3>PIN 碼模式</h3>
-<p>在等待畫面勾選<span class="ui">連線需要 PIN 碼</span>（或在右鍵選單 → 設定、系統匣選單裡切換）。開啟後，<strong>新的</strong> iPhone 選自在投影時，電腦會顯示 4 位數字，在 iPhone 上輸入才能投影。</p>
+<p>在右鍵選單 → <span class="ui">設定</span>（系統匣選單裡也有）勾選<span class="ui">連線要輸入 PIN（新手機）</span>。開啟後，<strong>新的</strong> iPhone 第一次選自在投影時，電腦會顯示 4 位數字，在 iPhone 上輸入才能投影；成功過的手機會被記住。</p>
 <ul>
   <li>每次嘗試的 PIN 都不一樣；輸錯了 iPhone 會再問一次。</li>
   <li>輸入成功過的 iPhone 會被記住，下次不用再輸入。</li>
@@ -363,13 +373,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </ul>
 
 <h3>多支 iPhone</h3>
-<p>同一時間只會顯示一支手機。另一支 iPhone 也選了自在投影時怎麼辦，可以在右鍵選單 → 設定 → <span class="ui">新手機連線時</span>選擇：</p>
+<p>同一時間只會顯示一支手機。另一支 iPhone 也選了自在投影時怎麼辦，可以在右鍵選單 → 設定 → <span class="ui">第二支手機連上時</span>選擇：</p>
 <div class="tbl"><table>
   <tr><th>選項</th><th>效果</th></tr>
-  <tr><td>接手（預設）</td><td>換新的那支投影，原本那支自動停止。畫面上會顯示「「某某」接手投影」。若正在錄影，原本那支的錄影會先儲存。</td></tr>
-  <tr><td>保持目前</td><td>正在投影的那支繼續，其他手機的連線會被拒絕。適合上課、簡報時避免被打斷。</td></tr>
+  <tr><td>換成新的（預設）</td><td>換新的那支投影，原本那支自動停止。畫面上會顯示「已換成「某某」投影」。若正在錄影，原本那支的錄影會先儲存。</td></tr>
+  <tr><td>維持原本的</td><td>正在投影的那支繼續，其他手機的連線會被拒絕。適合上課、簡報時避免被打斷。</td></tr>
 </table></div>
-<p>開啟 PIN 碼模式時，新手機也必須先輸入 PIN（或是曾經配對過）才能接手。</p>
+<p>開啟 PIN 碼模式時，新手機也必須先輸入 PIN（或是曾經配對過）才能換成它投影。</p>
 
 <h3>螢幕關閉時</h3>
 <p>iPhone 鎖定或螢幕關閉時，投影會暫停，電腦顯示「iPhone 螢幕已關閉」。<strong>解鎖 iPhone 後會自動繼續</strong>，不用重新連線。錄影中暫停也不會中斷錄影。</p>
@@ -566,13 +576,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <circle cx="190" cy="72" r="12" fill="#F5A7A7"/><text x="190" y="77" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">2</text>
   </g>
   <path d="M236 240 C 260 240 270 200 296 190" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-dasharray="5 6"/>
-  <text x="435" y="340" text-anchor="middle" fill="#9C8789" font-size="12">電腦：右鍵選單 →「連接 Android（掃 QR）」</text>
+  <text x="435" y="340" text-anchor="middle" fill="#9C8789" font-size="12">電腦：右鍵選單 → 連接手機 →「連接 Android（掃 QR）」</text>
 </svg>
 <figcaption>示意圖：手機的相機框對準電腦上的 QR 圖碼，配對成功後會自動開始投影。</figcaption>
 </figure>
 <ol class="steps">
   <li>手機：<span class="ui">開發人員選項</span> → 打開<span class="ui">無線偵錯</span>的開關（第一次會問「要允許在這個網路上使用無線偵錯嗎？」，選<span class="ui">允許</span>）。</li>
-  <li>電腦：在自在投影視窗按右鍵 → <span class="ui">連接 Android（掃 QR）</span>，畫面會出現 QR 圖碼。</li>
+  <li>電腦：在自在投影視窗按右鍵 → <span class="ui">連接手機</span> → <span class="ui">連接 Android（掃 QR）</span>（等待畫面上的「Android 用電腦操控」卡片也有<span class="ui">顯示 QR</span>按鈕），畫面會出現 QR 圖碼。</li>
   <li>手機：點「無線偵錯」這幾個字進入設定頁 → <span class="ui">使用 QR 圖碼配對裝置</span>，用跳出的相機框掃描電腦上的 QR 圖碼。</li>
   <li>配對成功後，配對視窗會自動關閉，電腦出現手機畫面，下方提示「已連線：手機名稱。滑鼠移到上方有工具列；右鍵＝返回」。</li>
 </ol>
@@ -623,14 +633,14 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>在手機畫面外的黑色區域按兩下，一樣可以切換全螢幕。</p>
 <div class="note">
   <span class="t">右鍵是「返回」，那選單在哪裡？</span>
-  在 Android 畫面上按右鍵會送到手機當成<strong>返回</strong>，所以不會跳出自在投影的選單。要打開選單：把滑鼠移到畫面上方，點工具列的<span class="ui">⋯ 更多</span>（或在工具列上按右鍵）；也可以在手機畫面外的黑色區域按右鍵，或按住 <kbd>Shift</kbd> 再按右鍵。<br>
+  在 Android 畫面上按右鍵會送到手機當成<strong>返回</strong>，所以不會跳出自在投影的選單。要打開選單：把滑鼠移到畫面上方，點工具列的<span class="ui">⋯ 更多</span>（或在工具列上按右鍵）；也可以在手機畫面外的黑色區域按右鍵，或按住 <kbd>Shift</kbd> 再按右鍵（<kbd>Shift</kbd>＋右鍵永遠會開選單）。習慣用右鍵開選單的話，可以到 設定 → <span class="ui">右鍵行為</span> 改成<span class="ui">開啟選單</span>（預設是<span class="ui">返回</span>）；改成開啟選單後，返回請用工具列的「返回」。<br>
   <kbd>Esc</kbd> 會送到手機（大多數 App 當成返回）；全螢幕時 <kbd>Esc</kbd> 則是離開全螢幕。<kbd>Ctrl</kbd> 組合鍵是自在投影的快捷鍵，不會送到手機（<kbd>Ctrl</kbd><kbd>C</kbd>／<kbd>V</kbd>／<kbd>X</kbd>／<kbd>A</kbd>／<kbd>Z</kbd> 除外）。
 </div>
 
 <h3>結束投影（中斷連線）</h3>
 <ul>
   <li>電腦：滑鼠移到畫面上 → 工具列最右邊的紅色<span class="ui">中斷連線</span>；或按 <kbd>Ctrl</kbd><kbd>D</kbd>；或在右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>。</li>
-  <li>從電腦中斷後，這支手機<strong>不會自動重新連上</strong>，直到下次用「連接 Android（掃 QR）」配對（或重新開啟自在投影）。</li>
+  <li>從電腦中斷後，這支手機<strong>不會自動重新連上</strong>，直到下次用「連接手機 → 連接 Android（掃 QR）」配對（或重新開啟自在投影）。</li>
   <li>手機：把<span class="ui">無線偵錯</span>關掉。手機關掉無線偵錯或離開 Wi‑Fi 時，電腦幾秒內就會回到等待畫面，顯示「Android 已中斷」。</li>
 </ul>
 
@@ -643,7 +653,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <!-- ============ 5 ============ -->
 <section id="features">
 <h2><span class="num">5</span>功能與快捷鍵</h2>
-<p class="intro">投影中把滑鼠移到畫面上，上方會出現<strong>工具列</strong>；在投影視窗上<strong>按右鍵</strong>可以打開所有功能（Android 畫面上右鍵是返回，請用工具列的「更多」）。快捷鍵要在視窗是作用中（點過一下）時才有效。介面語言可以在 設定 → <span class="ui">語言 / Language</span> 切換：<span class="ui">自動（跟隨 Windows）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
+<p class="intro">投影中把滑鼠移到畫面上，上方會出現<strong>工具列</strong>；在投影視窗上<strong>按右鍵</strong>可以打開所有功能（Android 畫面上右鍵預設是返回，請用工具列的「更多」或 <kbd>Shift</kbd>＋右鍵；也可以到 設定 → <span class="ui">右鍵行為</span> 改成開啟選單）。忘了快速鍵？按 <kbd>F1</kbd>（或 說明 → <span class="ui">快速鍵一覽</span>）會列出全部。快捷鍵要在視窗是作用中（點過一下）時才有效。介面語言可以在 設定 → <span class="ui">語言 / Language</span> 切換：<span class="ui">自動（跟隨 Windows）</span>、<span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span>。</p>
 
 <h3>投影中的工具列</h3>
 <figure>
@@ -673,14 +683,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <path d="M54 114 V120 H214 V114" stroke="#9C8789" fill="none"/>
   <text x="134" y="138" text-anchor="middle" fill="#9C8789" font-size="11.5">只有 Android（無線偵錯）</text>
 </svg>
-<figcaption>示意圖：滑鼠在投影畫面上移動時，畫面上方中央會出現這條工具列；約 2 秒不動就自動收起。</figcaption>
+<figcaption>示意圖：滑鼠在投影畫面上移動時，畫面上方中央會出現這條工具列。常用的幾顆（截圖、錄影、翻譯、放大）現在會直接顯示文字名稱，其他按鈕把滑鼠停上去會顯示名稱。</figcaption>
 </figure>
 <ul>
-  <li>滑鼠一移動就出現，停在工具列上不會收起；滑鼠離開視窗或 2 秒沒動就淡出。收起時不會擋到畫面，也不會攔住點擊。</li>
+  <li>滑鼠一移動就出現，停在工具列上不會收起；滑鼠離開視窗或在畫面上 2 秒沒動就淡出。收起時不會擋到畫面，也不會攔住點擊。第一次連線時會提示一次工具列在哪裡。</li>
   <li>把滑鼠停在按鈕上會顯示名稱和快捷鍵。點工具列<strong>不會</strong>傳到手機。</li>
   <li><span class="ui">錄影</span>在錄影中會變成紅色（再按一次停止）；<span class="ui">更多</span>打開完整的右鍵選單。</li>
-  <li>工具列還有<span class="ui">傳到手機</span>、<span class="ui">放大鏡</span>、<span class="ui">翻譯畫面</span>、<span class="ui">凍結畫面</span>按鈕（示意圖沒有畫出），用法見下面的<a href="#magnifier">放大鏡</a>、<a href="#translate">翻譯</a>、<a href="#share">傳到手機</a>。</li>
+  <li>工具列還有<span class="ui">傳到手機</span>、<span class="ui">凍結畫面</span>按鈕（示意圖沒有畫出）；<span class="ui">放大</span>就是放大鏡，<span class="ui">翻譯</span>就是翻譯畫面，用法見下面的<a href="#magnifier">放大鏡</a>、<a href="#translate">翻譯</a>、<a href="#share">傳到手機</a>。</li>
 </ul>
+
+<p>還沒有手機連上時，右鍵選單裡的<span class="ui">截圖</span>、<span class="ui">開始錄影</span>、<span class="ui">放大鏡</span>等項目也會顯示，只是呈灰色，右邊寫著<span class="ui">手機連上後可用</span>；手機連上後就能點了。</p>
 
 <h3 id="disconnect">怎麼中斷連線</h3>
 <p>iPhone、Android 投放、無線偵錯都一樣，任選一種：</p>
@@ -688,17 +700,17 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>工具列最右邊的紅色<span class="ui">中斷連線</span>。</li>
   <li>按 <kbd>Ctrl</kbd><kbd>D</kbd>。</li>
   <li>右鍵選單（或工具列的「更多」）最上面的<span class="ui">中斷連線</span>。</li>
-  <li>右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>，視窗縮到系統匣時也能用。</li>
+  <li>右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>，視窗在背景待命時也能用。</li>
 </ol>
 <p>正在錄影時會先停止並儲存。iPhone 被中斷後，手機上的螢幕鏡像會停止，要再投影就重新選一次自在投影。</p>
 
 <div class="grid2">
   <div class="card"><h4>截圖 <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
-    <p>存到安裝資料夾的「截圖」資料夾，檔名像「自在投影_日期_時間.png」。右鍵選單 → 開啟截圖資料夾。</p></div>
+    <p>存到安裝資料夾的「截圖」資料夾，檔名像「自在投影_日期_時間.png」。右鍵選單 → 開啟截圖資料夾（錄影則是 開啟錄影資料夾）。</p></div>
   <div class="card"><h4>中斷連線 <span><kbd>Ctrl</kbd><kbd>D</kbd></span></h4>
     <p>結束目前的投影，回到等待畫面。也在工具列（紅色按鈕）、右鍵選單與系統匣選單裡。</p></div>
   <div class="card"><h4>錄影 <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
-    <p>再按一次停止。存成含聲音的 MP4，放在「錄影」資料夾。手機中斷、被接手或關閉程式時會自動停止並儲存。磁碟剩不到 300 MB 時無法錄影。</p></div>
+    <p>再按一次停止。存成含聲音的 MP4，放在「錄影」資料夾。手機中斷、被換掉或關閉程式時會自動停止並儲存。磁碟剩不到 300 MB 時無法錄影。</p></div>
   <div class="card"><h4>全螢幕 <span><kbd>F11</kbd></span></h4>
     <p>或在畫面上按兩下。按 <kbd>Esc</kbd> 離開。</p></div>
   <div class="card"><h4>視窗置頂 <span><kbd>Ctrl</kbd><kbd>T</kbd></span></h4>
@@ -710,13 +722,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>iPhone 外框 <span><kbd>Ctrl</kbd><kbd>F</kbd></span></h4>
     <p>在畫面外加上手機外框；開著外框時，截圖也會帶外框（背景透明）。</p></div>
   <div class="card"><h4>主題</h4>
-    <p>櫻花粉、薄荷綠、夜空藍、奶茶。等待畫面和選單會一起換色。</p></div>
+    <p>櫻花粉、薄荷綠、夜空藍、奶茶。等待畫面和選單會一起換色。在 設定 → 主題。</p></div>
   <div class="card"><h4>開機自動啟動</h4>
-    <p>登入 Windows 後在背景待命，手機一連線視窗就出現。在等待畫面或系統匣選單勾選。</p></div>
+    <p>登入 Windows 後在背景待命，手機一連線視窗就出現。在 設定 → 開機自動啟動 勾選（系統匣選單裡也有）；選項下面的說明是「開機後在背景等手機連線」。</p></div>
 </div>
 
 <h3 id="magnifier">放大鏡、高對比、凍結畫面</h3>
-<p>手機上的字太小、看不清楚？在畫面上按右鍵（Android 請用工具列的「更多」）→ <span class="ui">放大鏡</span>。手機畫面出現後才能使用。</p>
+<p>手機上的字太小、看不清楚？在畫面上按右鍵（Android 請用工具列的「更多」，或 <kbd>Shift</kbd>＋右鍵）→ <span class="ui">放大鏡</span>。手機畫面出現後才能使用。</p>
 <div class="grid2">
   <div class="card"><h4>放大／縮小 <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
     <p>最多放大 8 倍。按住 <kbd>Ctrl</kbd> 轉滑鼠滾輪，會以滑鼠指著的地方放大。<span class="ui">還原 1×</span>：<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>。</p></div>
@@ -731,15 +743,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </div>
 
 <h3 id="translate">翻譯畫面上的文字</h3>
-<p>手機上是看不懂的英文、日文或韓文？在畫面上按右鍵 → <span class="ui">翻譯</span>，或點工具列的翻譯按鈕。翻好的中文會用小卡片直接蓋在原文上面。</p>
+<p>手機上是看不懂的英文、日文或韓文？在畫面上按右鍵 → <span class="ui">翻譯</span>，或點工具列的<span class="ui">翻譯</span>按鈕。翻好的中文會用小卡片直接蓋在原文上面。</p>
 <div class="tbl"><table>
   <tr><th>選單項目</th><th>做什麼</th></tr>
   <tr><td>翻譯整個畫面 <kbd>Ctrl</kbd><kbd>L</kbd></td><td>翻譯目前的整個畫面。再按一次 <kbd>Ctrl</kbd><kbd>L</kbd> 關閉翻譯。</td></tr>
   <tr><td>框選翻譯 <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>用滑鼠拖出一個框，只翻譯框裡的字（<kbd>Esc</kbd> 取消）。</td></tr>
-  <tr><td>顯示原文 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>暫時收起翻譯，看原本的字。</td></tr>
-  <tr><td>連續翻譯（每 5 秒）</td><td>畫面變了也會自動重新翻譯，適合一邊滑一邊看。</td></tr>
-  <tr><td>翻成：</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> 任選。</td></tr>
-  <tr><td>管理翻譯模型</td><td>看已經下載的翻譯模型，刪除用不到的。</td></tr>
+  <tr><td>顯示原文 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>暫時收起翻譯，看原本的字。還沒翻譯時是灰色，旁邊提示「先按「翻譯整個畫面」」。</td></tr>
+  <tr><td>即時翻譯</td><td>畫面變了也會自動重新翻譯，適合一邊滑一邊看。</td></tr>
+  <tr><td>翻成</td><td><span class="ui">繁體中文</span>、<span class="ui">English</span>、<span class="ui">日本語</span>、<span class="ui">한국어</span> 任選（直接在翻譯選單第一層）。</td></tr>
+  <tr><td>顯示方式</td><td><span class="ui">自動</span>、<span class="ui">原位顯示</span>（小卡片蓋在原文上）、<span class="ui">清單顯示</span>，另有<span class="ui">深色方框</span>讓字更好讀。</td></tr>
+  <tr><td>進階翻譯設定</td><td>平常不用改，離線翻譯就能用。裡面有<span class="ui">本機 AI 翻譯…</span>、<span class="ui">線上翻譯（選用）…</span>和<span class="ui">管理翻譯模型</span>（看已經下載的翻譯模型，刪除用不到的）。</td></tr>
 </table></div>
 <div class="note">
   <span class="t">不用連網翻譯，畫面上的字不會傳出去</span>
@@ -748,28 +761,29 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>日文或韓文翻不出來？可能是這台電腦還不能辨識那種文字，自在投影會說明怎麼加入，並提供<span class="ui">開啟語言設定</span>按鈕（見<a href="#faq-translate">常見問題</a>）。</p>
 
 <h3 id="share">傳到手機</h3>
-<p>截圖或錄影完成後，畫面下方會出現<span class="ui">傳到手機</span>小按鈕，點一下就能把檔案送回手機。也可以用右鍵選單的<span class="ui">把最後一張截圖傳到手機</span>、<span class="ui">把最後一段錄影傳到手機</span>、<span class="ui">傳到手機…</span>（自己挑檔案），或工具列的傳到手機按鈕。</p>
+<p>截圖或錄影完成後，畫面下方會出現一排小按鈕<span class="ui">開啟資料夾</span>·<span class="ui">傳到手機</span>（滑鼠停在上面不會消失，按 × 可關閉），點「傳到手機」就能把檔案送回手機。也可以用右鍵選單的<span class="ui">傳到手機</span> ▸ <span class="ui">把最後一張截圖傳到手機</span>、<span class="ui">把最後一段錄影傳到手機</span>、<span class="ui">傳到手機…</span>（自己挑檔案），或工具列的傳到手機按鈕。</p>
 <ul>
   <li><strong>Android 用無線偵錯連線時</strong>：直接存進手機的相簿，什麼都不用做。</li>
   <li><strong>iPhone / iPad、Android 投放（Miracast）</strong>：電腦上會出現 QR 碼，<span class="ui">用手機相機掃描</span>，手機會打開一個網頁。照片：長按圖片 →「加入照片」（iPhone）或「下載圖片」（Android）；影片：點「下載影片」，再照網頁上的步驟存到相簿。</li>
   <li>手機要和電腦連在<strong>同一個 Wi‑Fi</strong>。連結 10 分鐘後失效，只有掃到 QR 碼的人能打開；按<span class="ui">停止分享</span>可以提早結束。</li>
 </ul>
 
-<h3>畫質</h3>
-<p>右鍵選單 → 設定 → 畫質。數字越高越清楚，但網路和電腦的負擔也越大。</p>
+<h3>畫面清晰度</h3>
+<p>右鍵選單 → 設定 → 畫面清晰度。越清晰越吃 Wi‑Fi；畫面卡頓時選「標準」。</p>
 <div class="tbl"><table>
   <tr><th>選項</th><th>解析度</th><th>說明</th></tr>
-  <tr><td>標準</td><td>1080p</td><td>最省資源，網路不穩或電腦較舊時使用。</td></tr>
+  <tr><td>標準（順暢）</td><td>1080p</td><td>最省資源，網路不穩或電腦較舊時使用。</td></tr>
   <tr><td>高（建議，預設）</td><td>1440p</td><td>清楚又順暢的平衡點。</td></tr>
-  <tr><td>最高</td><td>4K</td><td>大螢幕、看細節時使用，需要穩定的 5 GHz Wi-Fi。</td></tr>
+  <tr><td>最高（較吃網路）</td><td>4K</td><td>大螢幕、看細節時使用，需要穩定的 5 GHz Wi-Fi。</td></tr>
 </table></div>
 <div class="note">
   <span class="t">「高」「最高」是灰色的？</span>
-  這兩種畫質使用 HEVC（H.265）格式，電腦要安裝 Microsoft Store 的「HEVC 影片延伸模組」才能播放。沒有安裝時會自動使用「標準」。安裝後重新開啟自在投影即可選擇。畫質目前主要套用在 iPhone / iPad 的投影。
+  這兩種畫質使用 HEVC（H.265）格式，電腦要安裝 Microsoft Store 的「HEVC 影片延伸模組」才能播放。沒有安裝時會自動使用「標準」。安裝後重新開啟自在投影即可選擇。畫面清晰度目前主要套用在 iPhone / iPad 的投影。
+  改了畫面清晰度或 PIN 後，預設要等這次投影結束才套用；提示旁的<span class="ui">現在重新連線套用</span>可以立刻斷線重連，馬上看到新設定（iPhone 要在手機上重新選一次螢幕鏡像）。
 </div>
 
-<h3>系統匣</h3>
-<p>按視窗右上角的關閉，自在投影會縮到右下角系統匣繼續待命（第一次會提示）。點系統匣圖示可以叫出視窗；在圖示上按右鍵可以錄影、切換設定、開啟資料夾，投影中還有<span class="ui">中斷連線（手機名稱）</span>。要<strong>真正結束</strong>：系統匣圖示按右鍵 → <span class="ui">結束</span>。</p>
+<h3>背景待命與系統匣</h3>
+<p>按視窗右上角的關閉，自在投影會問你「要結束，還是繼續在背景待命？」；選<span class="ui">背景待命</span>就會縮到右下角系統匣繼續等手機（可勾「記住我的選擇」，之後在 設定 → <span class="ui">關閉視窗時</span> 更改：每次詢問／背景待命／結束程式）。Windows 11 常把小圖示收進右下角的「^」裡，把它拖到工作列上就能固定顯示。點系統匣圖示可以叫出視窗；在圖示上按右鍵可以錄影、切換設定、開啟資料夾，投影中還有<span class="ui">中斷連線（手機名稱）</span>。要<strong>真正結束</strong>：系統匣圖示按右鍵 → <span class="ui">結束</span>。</p>
 
 <h3 id="update">自動更新</h3>
 <p>每次開啟自在投影，它都會自動檢查有沒有新版本（開著的時候每 6 小時再看一次），也可以在選單點<span class="ui">檢查更新</span>。放進安裝資料夾裡<span class="ui">安裝檔</span>資料夾的新版安裝程式，也會自動被發現。</p>
@@ -802,7 +816,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>框選翻譯</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>顯示原文</td></tr>
   <tr><td><kbd>Shift</kbd><kbd>F10</kbd></td><td>用鍵盤打開右鍵選單</td></tr>
-  <tr><td><kbd>Shift</kbd>＋右鍵</td><td>在 Android 畫面上打開選單（一般右鍵＝返回）</td></tr>
+  <tr><td><kbd>Shift</kbd>＋右鍵</td><td>在 Android 畫面上永遠打開選單（一般右鍵預設＝返回，可在 設定 → 右鍵行為 改成開啟選單）</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>快速鍵一覽（也在 說明 → 快速鍵一覽）</td></tr>
   <tr><td><kbd>Esc</kbd></td><td>全螢幕時：離開全螢幕；Android 投影時：送到手機（多半是返回）</td></tr>
 </table></div>
 </section>
@@ -834,22 +849,22 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <details id="faq-lag"><summary>畫面有延遲、會卡</summary><div>
 <ul>
   <li>Wi-Fi 訊號是最大的影響因素。手機和電腦都盡量連 <strong>5 GHz</strong> 的 Wi-Fi，靠近分享器，電腦可以改用網路線。</li>
-  <li>暫時把畫質調到「標準」。</li>
+  <li>暫時把畫面清晰度調到「標準」。</li>
   <li>關閉正在大量下載或上傳的程式（雲端同步、遊戲更新等）。</li>
   <li>一般操作會有很短的延遲是正常的；看影片時畫面和聲音都會一起傳送。</li>
 </ul></div></details>
 
 <details id="faq-blur"><summary>畫面糊糊的、不夠清楚</summary><div>
 <ul>
-  <li>右鍵選單 → 設定 → 畫質，改成「高」或「最高」。若是灰色無法選，請安裝 Microsoft Store 的「HEVC 影片延伸模組」。</li>
-  <li>變更畫質後，下一次連線才會生效（正在投影時會等手機中斷）。</li>
-  <li>網路不穩時，手機會自動降低畫質，畫面暫時變模糊是正常的。</li>
+  <li>右鍵選單 → 設定 → 畫面清晰度，改成「高」或「最高」。若是灰色無法選，請安裝 Microsoft Store 的「HEVC 影片延伸模組」。</li>
+  <li>變更畫面清晰度後，預設下一次連線才會生效（正在投影時會等手機中斷）；想立刻套用，按提示旁的「現在重新連線套用」。</li>
+  <li>網路不穩時，手機會自動降低畫質（解析度），畫面暫時變模糊是正常的。</li>
 </ul></div></details>
 
 <details id="faq-takeover"><summary>投影到一半被別人的手機接手了</summary><div>
 <ul>
-  <li>右鍵選單 → 設定 → 新手機連線時，改成「<strong>保持目前</strong>」，正在投影時其他手機就連不進來。</li>
-  <li>也可以同時開啟「連線需要 PIN 碼」，沒輸入過 PIN 的手機都無法投影。</li>
+  <li>右鍵選單 → 設定 → 第二支手機連上時，改成「<strong>維持原本的</strong>」，正在投影時其他手機就連不進來。</li>
+  <li>也可以同時開啟「連線要輸入 PIN（新手機）」，沒輸入過 PIN 的手機都無法投影。</li>
 </ul></div></details>
 
 <details id="faq-fw"><summary>防火牆：當初按了「取消」怎麼辦？</summary><div>
@@ -878,12 +893,12 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>手機重新開機或切換 Wi-Fi 後，無線偵錯常被系統自動關閉。回到開發人員選項把它重新打開即可，不用重新配對。</li>
   <li>手機的省電模式可能在螢幕關閉後中斷 Wi-Fi。可以在電池設定中把省電模式關掉，或把「設定」排除在電池最佳化之外。</li>
   <li>確認手機和電腦仍在同一個網路，且沒有開 VPN。</li>
-  <li>還是不行：在手機的「已配對的裝置」中移除這台電腦，再用「連接 Android（掃 QR）」重新配對一次。</li>
-  <li>用工具列或 <kbd>Ctrl</kbd><kbd>D</kbd> 中斷過的手機，不會自動重新連上；用「連接 Android（掃 QR）」再連一次，或重新開啟自在投影即可恢復。</li>
+  <li>還是不行：在手機的「已配對的裝置」中移除這台電腦，再用「連接手機 → 連接 Android（掃 QR）」重新配對一次。</li>
+  <li>用工具列或 <kbd>Ctrl</kbd><kbd>D</kbd> 中斷過的手機，不會自動重新連上；用「連接手機 → 連接 Android（掃 QR）」再連一次，或重新開啟自在投影即可恢復。</li>
 </ul></div></details>
 
 <details id="faq-disconnect"><summary>找不到「中斷連線」在哪裡</summary><div>
-<p>把滑鼠移到投影畫面上，上方中央會出現工具列，最右邊的紅色按鈕就是<span class="ui">中斷連線</span>。也可以按 <kbd>Ctrl</kbd><kbd>D</kbd>，或在右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>。Android 畫面上按右鍵是「返回」，所以右鍵不會出現選單；要選單請點工具列的「更多」。</p></div></details>
+<p>把滑鼠移到投影畫面上，上方中央會出現工具列，最右邊的紅色按鈕就是<span class="ui">中斷連線</span>。也可以按 <kbd>Ctrl</kbd><kbd>D</kbd>，或在右下角系統匣圖示按右鍵 →<span class="ui">中斷連線（手機名稱）</span>。Android 畫面上按右鍵預設是「返回」，所以右鍵不會出現選單；要選單請點工具列的「更多」、按 <kbd>Shift</kbd>＋右鍵，或把 設定 → 右鍵行為 改成「開啟選單」。</p></div></details>
 
 <details id="faq-translate"><summary>翻譯沒有反應，或日文、韓文翻不出來</summary><div>
 <ul>
@@ -893,7 +908,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </ul></div></details>
 
 <details><summary>關掉視窗後，程式還在執行嗎？</summary><div>
-<p>是的，它在右下角系統匣待命。要完全結束，請在系統匣圖示上按右鍵 → 結束。不想開機自動執行，可以取消「開機自動啟動」。</p></div></details>
+<p>是的，它在背景待命（右下角系統匣）。要完全結束，請在系統匣圖示上按右鍵 → 結束。不想開機自動執行，可以取消「開機自動啟動」。</p></div></details>
 
 <div class="foot">
   <i class="m foot-m"></i>

@@ -198,7 +198,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <li><a href="#features">Features &amp; shortcuts</a></li>
     <li><a href="#faq">FAQ</a></li>
   </ol>
-  <div class="side-foot">Move the mouse over the mirrored screen for the toolbar; <kbd>Ctrl</kbd><kbd>D</kbd> disconnects. Everything else is in the right-click menu (on an Android screen, use “More” in the toolbar).</div>
+  <div class="side-foot">Move the mouse over the mirrored screen for the toolbar; <kbd>Ctrl</kbd><kbd>D</kbd> disconnects. Everything else is in the right-click menu (on an Android screen right-click = Back by default; for the menu press <kbd>Shift</kbd> + right-click or use “More” in the toolbar). <kbd>F1</kbd> opens “Keyboard shortcuts”.</div>
 </nav>
 
 <main id="top">
@@ -271,8 +271,18 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <div class="note">
   <span class="t">Where is Zizai Cast when it’s not on screen?</span>
-  Closing the window doesn’t quit the app. It moves to the system tray (the small icons next to the clock) and keeps waiting for connections. As soon as a phone connects, the window pops up again.
+  Closing the window doesn’t quit the app. It stays in the background (in the system tray, the small icons next to the clock) and keeps waiting for connections. As soon as a phone connects, the window pops up again.
 </div>
+
+<h3 id="idle">The waiting screen: “Pick your phone”</h3>
+<p>When no phone is connected, the window shows <span class="ui">Pick your phone</span> with three cards. Find the kind of phone you have and click the button on its card:</p>
+<div class="tbl"><table>
+  <tr><th>Card</th><th>For whom</th><th>Button</th></tr>
+  <tr><td>iPhone / iPad</td><td>On the phone, open Control Center → Screen Mirroring and choose Zizai Cast.</td><td><span class="ui">Show steps</span> (opens <a href="#iphone">section 2</a>)</td></tr>
+  <tr><td>Android: view only</td><td>Use the phone’s Cast / Smart View; you can watch but not control (Miracast).</td><td><span class="ui">Show steps</span> (opens <a href="#miracast">section 3</a>)</td></tr>
+  <tr><td>Android: control from the PC</td><td>Uses wireless debugging, so the PC’s mouse and keyboard can control the phone.</td><td><span class="ui">Show QR</span> (scan the QR code to pair, see <a href="#adb">section 4</a>)</td></tr>
+</table></div>
+<p>If a card shows small grey text, for example “Available after a restart”, it explains why that way isn’t available right now; <span class="ui">How to connect?</span> on the card opens this guide.</p>
 </section>
 
 <!-- ============ 2 ============ -->
@@ -355,7 +365,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>If the connection drops unexpectedly (for example the Wi-Fi cuts out), the picture dims and shows “Connection lost. Choose Screen Mirroring on the iPhone again.” Just do that.</p>
 
 <h3>PIN mode</h3>
-<p>Tick <span class="ui">Require a PIN to connect</span> on the waiting screen (or switch it in right-click menu → Settings, or in the tray menu). With it on, when a <strong>new</strong> iPhone chooses Zizai Cast, the PC shows a 4-digit PIN (“Enter this PIN on your iPhone”); the iPhone can mirror only after you enter it.</p>
+<p>Tick <span class="ui">Ask new phones for a PIN</span> in right-click menu → <span class="ui">Settings</span> (it is in the tray menu too). With it on, when a <strong>new</strong> iPhone chooses Zizai Cast for the first time, the PC shows a 4-digit PIN (“Enter this PIN on your iPhone”); the iPhone can mirror only after you enter it, and phones that succeeded are remembered.</p>
 <ul>
   <li>Every attempt gets a different PIN; if you mistype it, the iPhone simply asks again.</li>
   <li>iPhones that entered the PIN correctly are remembered and won’t be asked again.</li>
@@ -363,11 +373,11 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </ul>
 
 <h3>Several iPhones</h3>
-<p>Only one phone is shown at a time. What happens when another iPhone also chooses Zizai Cast is set in right-click menu → Settings → <span class="ui">When a new phone connects</span>:</p>
+<p>Only one phone is shown at a time. What happens when another iPhone also chooses Zizai Cast is set in right-click menu → Settings → <span class="ui">When a second phone connects</span>:</p>
 <div class="tbl"><table>
   <tr><th>Option</th><th>What it does</th></tr>
-  <tr><td>Take over (default)</td><td>The new phone is shown and the previous one stops automatically. The screen shows “‘Name’ took over”. If a recording is running, the previous phone’s recording is saved first.</td></tr>
-  <tr><td>Keep current</td><td>The phone that is mirroring stays; other phones are refused. Good for classes and presentations where you don’t want interruptions.</td></tr>
+  <tr><td>Switch to the new one (default)</td><td>The new phone is shown and the previous one stops automatically. The screen shows “Switched to ‘Name’”. If a recording is running, the previous phone’s recording is saved first.</td></tr>
+  <tr><td>Keep the current one</td><td>The phone that is mirroring stays; other phones are refused. Good for classes and presentations where you don’t want interruptions.</td></tr>
 </table></div>
 <p>With PIN mode on, a new phone must also enter the PIN (or have been paired before) to take over.</p>
 
@@ -566,13 +576,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <circle cx="190" cy="72" r="12" fill="#F5A7A7"/><text x="190" y="77" text-anchor="middle" fill="#2A1A1C" font-size="13" font-weight="700">2</text>
   </g>
   <path d="M236 240 C 260 240 270 200 296 190" stroke="#F5A7A7" stroke-width="2" fill="none" stroke-dasharray="5 6"/>
-  <text x="435" y="340" text-anchor="middle" fill="#9C8789" font-size="12">PC: right-click menu → “Connect Android (scan QR)”</text>
+  <text x="435" y="340" text-anchor="middle" fill="#9C8789" font-size="12">PC: right-click menu → Connect a phone → “Connect Android (scan QR)”</text>
 </svg>
 <figcaption>Illustration: point the phone’s camera frame at the QR code on the PC; once paired, mirroring starts automatically.</figcaption>
 </figure>
 <ol class="steps">
   <li>Phone: <span class="ui">Developer options</span> → turn on the <span class="ui">Wireless debugging</span> switch (the first time it asks “Allow wireless debugging on this network?”; choose <span class="ui">Allow</span>).</li>
-  <li>PC: right-click the Zizai Cast window → <span class="ui">Connect Android (scan QR)</span>. A QR code appears.</li>
+  <li>PC: right-click the Zizai Cast window → <span class="ui">Connect a phone</span> → <span class="ui">Connect Android (scan QR)</span> (the “Android: control from the PC” card on the waiting screen also has a <span class="ui">Show QR</span> button). A QR code appears.</li>
   <li>Phone: tap the words “Wireless debugging” to open its page → <span class="ui">Pair device with QR code</span>, and scan the QR code on the PC with the camera frame that opens.</li>
   <li>Once paired, the pairing window closes by itself, the phone’s screen appears on the PC, and a message at the bottom says “Connected: phone name. Move the mouse to the top for the toolbar; right-click = Back”.</li>
 </ol>
@@ -623,14 +633,14 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>Double-clicking the black area outside the phone’s screen also toggles full screen.</p>
 <div class="note">
   <span class="t">Right-click is “Back”, so where is the menu?</span>
-  On an Android screen, right-click is sent to the phone as <strong>Back</strong>, so the Zizai Cast menu doesn’t open. To open the menu: move the mouse to the top of the screen and click <span class="ui">⋯ More</span> in the toolbar (or right-click the toolbar); you can also right-click the black area outside the phone’s screen, or hold <kbd>Shift</kbd> and right-click.<br>
+  On an Android screen, right-click is sent to the phone as <strong>Back</strong>, so the Zizai Cast menu doesn’t open. To open the menu: move the mouse to the top of the screen and click <span class="ui">⋯ More</span> in the toolbar (or right-click the toolbar); you can also right-click the black area outside the phone’s screen, or hold <kbd>Shift</kbd> and right-click (<kbd>Shift</kbd> + right-click always opens the menu). If you prefer right-click to open the menu, go to Settings → <span class="ui">Right-click action</span> and choose <span class="ui">Open menu</span> (the default is <span class="ui">Back (default)</span>); after that, use the toolbar’s Back button to go back.<br>
   <kbd>Esc</kbd> is sent to the phone (most apps treat it as Back); in full screen, <kbd>Esc</kbd> leaves full screen instead. <kbd>Ctrl</kbd> combinations are Zizai Cast shortcuts and aren’t sent to the phone (except <kbd>Ctrl</kbd><kbd>C</kbd> / <kbd>V</kbd> / <kbd>X</kbd> / <kbd>A</kbd> / <kbd>Z</kbd>).
 </div>
 
 <h3>Stop mirroring (disconnect)</h3>
 <ul>
   <li>PC: move the mouse over the screen → the red <span class="ui">Disconnect</span> button at the right end of the toolbar; or press <kbd>Ctrl</kbd><kbd>D</kbd>; or right-click the tray icon → <span class="ui">Disconnect (phone name)</span>.</li>
-  <li>After disconnecting from the PC, this phone <strong>won’t reconnect automatically</strong> until you pair it again with “Connect Android (scan QR)” (or restart Zizai Cast).</li>
+  <li>After disconnecting from the PC, this phone <strong>won’t reconnect automatically</strong> until you pair it again with “Connect a phone → Connect Android (scan QR)” (or restart Zizai Cast).</li>
   <li>Phone: turn off <span class="ui">Wireless debugging</span>. When the phone turns off wireless debugging or leaves the Wi‑Fi, the PC returns to the waiting screen within a few seconds and shows “Android disconnected”.</li>
 </ul>
 
@@ -643,7 +653,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <!-- ============ 5 ============ -->
 <section id="features">
 <h2><span class="num">5</span>Features &amp; shortcuts</h2>
-<p class="intro">While mirroring, move the mouse over the screen and a <strong>toolbar</strong> appears at the top; <strong>right-click</strong> the window for every feature (on an Android screen right-click is Back, so use “More” in the toolbar). Shortcuts work when the window is active (click it once). The app language can be switched in Settings → <span class="ui">Language / 語言</span>: <span class="ui">Automatic (Windows)</span>, <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span>.</p>
+<p class="intro">While mirroring, move the mouse over the screen and a <strong>toolbar</strong> appears at the top; <strong>right-click</strong> the window for every feature (on an Android screen right-click is Back by default, so use “More” in the toolbar or <kbd>Shift</kbd> + right-click; or set Settings → <span class="ui">Right-click action</span> to open the menu). Forgot a shortcut? Press <kbd>F1</kbd> (or Help → <span class="ui">Keyboard shortcuts</span>) to list them all. Shortcuts work when the window is active (click it once). The app language can be switched in Settings → <span class="ui">Language / 語言</span>: <span class="ui">Automatic (Windows)</span>, <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span>.</p>
 
 <h3>The toolbar while mirroring</h3>
 <figure>
@@ -673,14 +683,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <path d="M54 114 V120 H214 V114" stroke="#9C8789" fill="none"/>
   <text x="134" y="138" text-anchor="middle" fill="#9C8789" font-size="11.5">Android only (wireless debugging)</text>
 </svg>
-<figcaption>Illustration: this toolbar appears at the top centre when the mouse moves over the mirrored screen, and hides after about 2 seconds without movement.</figcaption>
+<figcaption>Illustration: this toolbar appears at the top centre when the mouse moves over the mirrored screen, The main buttons (Screenshot, Record, Translate, Zoom) now show text labels; for the other buttons, hover to see the name.</figcaption>
 </figure>
 <ul>
-  <li>It appears as soon as the mouse moves and stays while the pointer is on it; it fades out when the mouse leaves the window or stops for 2 seconds. When hidden it doesn’t cover the picture or catch clicks.</li>
+  <li>It appears as soon as the mouse moves and stays while the pointer is on it; it fades out when the mouse leaves the window or stops on the picture for 2 seconds. When hidden it doesn’t cover the picture or catch clicks. The first time you connect, a hint shows where the toolbar is.</li>
   <li>Hover over a button to see its name and shortcut. Clicks on the toolbar are <strong>not</strong> sent to the phone.</li>
   <li><span class="ui">Record</span> turns red while recording (click again to stop); <span class="ui">More</span> opens the full right-click menu.</li>
-  <li>The toolbar also has <span class="ui">Send to phone</span>, <span class="ui">Magnifier</span>, <span class="ui">Translate screen</span> and <span class="ui">Freeze picture</span> buttons (not shown in the illustration); see <a href="#magnifier">Magnifier</a>, <a href="#translate">Translate</a> and <a href="#share">Send to phone</a> below.</li>
+  <li>The toolbar also has <span class="ui">Send to phone</span> and <span class="ui">Freeze picture</span> buttons (not shown in the illustration); <span class="ui">Zoom</span> is the magnifier and <span class="ui">Translate</span> is translate screen; see <a href="#magnifier">Magnifier</a>, <a href="#translate">Translate</a> and <a href="#share">Send to phone</a> below.</li>
 </ul>
+
+<p>While no phone is connected, the right-click menu still lists <span class="ui">Screenshot</span>, <span class="ui">Start recording</span>, <span class="ui">Magnifier</span> and similar items, but greyed out with “Once a phone is connected” on the right; they become clickable when a phone connects.</p>
 
 <h3 id="disconnect">How to disconnect</h3>
 <p>The same for iPhone, Android casting and wireless debugging; use any of these:</p>
@@ -688,13 +700,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>The red <span class="ui">Disconnect</span> button at the right end of the toolbar.</li>
   <li>Press <kbd>Ctrl</kbd><kbd>D</kbd>.</li>
   <li><span class="ui">Disconnect</span> at the top of the right-click menu (or of “More” in the toolbar).</li>
-  <li>Right-click the tray icon → <span class="ui">Disconnect (phone name)</span>; this works even when the window is hidden in the tray.</li>
+  <li>Right-click the tray icon → <span class="ui">Disconnect (phone name)</span>; this works even when the app is waiting in the background.</li>
 </ol>
 <p>A running recording is stopped and saved first. After an iPhone is disconnected, Screen Mirroring stops on the phone; to mirror again, choose Zizai Cast again.</p>
 
 <div class="grid2">
   <div class="card"><h4>Screenshot <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
-    <p>Saved to the 截圖 (Screenshots) folder in the install folder, with names like “ZizaiCast_&lt;date&gt;_&lt;time&gt;.png”. Right-click menu → Open screenshots folder.</p></div>
+    <p>Saved to the 截圖 (Screenshots) folder in the install folder, with names like “ZizaiCast_&lt;date&gt;_&lt;time&gt;.png”. Right-click menu → Open screenshots folder (for recordings, Open recordings folder).</p></div>
   <div class="card"><h4>Disconnect <span><kbd>Ctrl</kbd><kbd>D</kbd></span></h4>
     <p>Ends the current mirroring and returns to the waiting screen. Also in the toolbar (red button), the right-click menu and the tray menu.</p></div>
   <div class="card"><h4>Record <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
@@ -710,13 +722,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>iPhone frame <span><kbd>Ctrl</kbd><kbd>F</kbd></span></h4>
     <p>Draws a phone frame around the picture; with the frame on, screenshots include it too (transparent background).</p></div>
   <div class="card"><h4>Theme</h4>
-    <p>Sakura, Mint, Night Sky, Milk Tea. The waiting screen and menus change colour together.</p></div>
+    <p>Sakura, Mint, Night Sky, Milk Tea. The waiting screen and menus change colour together. Found in Settings → Theme.</p></div>
   <div class="card"><h4>Start with Windows</h4>
-    <p>Waits in the background after you sign in to Windows; the window appears as soon as a phone connects. Tick it on the waiting screen or in the tray menu.</p></div>
+    <p>Waits in the background after you sign in to Windows; the window appears as soon as a phone connects. Tick it in Settings → Start with Windows (also in the tray menu); the note under the option says “Waits for phones in the background after Windows starts”.</p></div>
 </div>
 
 <h3 id="magnifier">Magnifier, high contrast, freeze</h3>
-<p>Text on the phone too small to read? Right-click the picture (on an Android screen use “More” in the toolbar) → <span class="ui">Magnifier</span>. It works while a phone picture is shown.</p>
+<p>Text on the phone too small to read? Right-click the picture (on an Android screen use “More” in the toolbar, or <kbd>Shift</kbd> + right-click) → <span class="ui">Magnifier</span>. It works while a phone picture is shown.</p>
 <div class="grid2">
   <div class="card"><h4>Zoom in / out <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
     <p>Up to 8×. Hold <kbd>Ctrl</kbd> and turn the mouse wheel to zoom in where the pointer is. <span class="ui">Back to 1×</span>: <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>.</p></div>
@@ -731,15 +743,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </div>
 
 <h3 id="translate">Translate the text on the screen</h3>
-<p>English, Japanese or Korean you can’t read on the phone? Right-click the picture → <span class="ui">Translate</span>, or click the translate button in the toolbar. The translation is drawn on small cards right over the original text.</p>
+<p>English, Japanese or Korean you can’t read on the phone? Right-click the picture → <span class="ui">Translate</span>, or click <span class="ui">Translate</span> in the toolbar. The translation is drawn on small cards right over the original text.</p>
 <div class="tbl"><table>
   <tr><th>Menu item</th><th>What it does</th></tr>
   <tr><td>Translate the whole screen <kbd>Ctrl</kbd><kbd>L</kbd></td><td>Translates everything on the screen. Press <kbd>Ctrl</kbd><kbd>L</kbd> again to close the translation.</td></tr>
   <tr><td>Translate a selected area <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>Drag a box with the mouse; only the text inside is translated (<kbd>Esc</kbd> cancels).</td></tr>
-  <tr><td>Show original <kbd>Ctrl</kbd><kbd>O</kbd></td><td>Hides the translation for a moment so you can see the original text.</td></tr>
-  <tr><td>Keep translating (every 5 s)</td><td>Translates again by itself when the screen changes, handy while you scroll.</td></tr>
-  <tr><td>Translate into:</td><td>Choose <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span> or <span class="ui">한국어</span>.</td></tr>
-  <tr><td>Manage translation models</td><td>See the downloaded translation models and delete the ones you don’t need.</td></tr>
+  <tr><td>Show original <kbd>Ctrl</kbd><kbd>O</kbd></td><td>Hides the translation for a moment so you can see the original text. Greyed out until you translate; the note beside it says “Translate the whole screen first”.</td></tr>
+  <tr><td>Live translation</td><td>Translates again by itself when the screen changes, handy while you scroll.</td></tr>
+  <tr><td>Translate into</td><td>Choose <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span> or <span class="ui">한국어</span> (right in the first level of the Translate menu).</td></tr>
+  <tr><td>Show translations</td><td><span class="ui">Automatic</span>, <span class="ui">Over the text</span> (small cards over the original) or <span class="ui">List</span>, plus <span class="ui">Dark boxes (easier to read)</span> to make the text easier to read.</td></tr>
+  <tr><td>Advanced translation settings</td><td>Not needed for everyday use: offline translation works without them. Inside are <span class="ui">Local AI translation…</span>, <span class="ui">Online translation (optional)…</span> and <span class="ui">Manage translation models</span> (see the downloaded translation models and delete the ones you don’t need).</td></tr>
 </table></div>
 <div class="note">
   <span class="t">Works offline: the text on your screen never leaves the PC</span>
@@ -748,28 +761,29 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>Japanese or Korean not translated? This PC may not be able to read that script yet. Zizai Cast then explains how to add it and offers an <span class="ui">Open language settings</span> button (see the <a href="#faq-translate">FAQ</a>).</p>
 
 <h3 id="share">Send to phone</h3>
-<p>After a screenshot or a recording, a small <span class="ui">Send to phone</span> button appears near the bottom of the picture; click it to send the file back to the phone. The right-click menu also has <span class="ui">Send the last screenshot to the phone</span>, <span class="ui">Send the last recording to the phone</span> and <span class="ui">Send to phone…</span> (pick files yourself), and the toolbar has a send-to-phone button.</p>
+<p>After a screenshot or a recording, a small <span class="ui">Send to phone</span> button appears near the bottom of the picture; click it to send the file back to the phone. The right-click menu also has <span class="ui">Send to phone</span> ▸ <span class="ui">Send the last screenshot to the phone</span>, <span class="ui">Send the last recording to the phone</span> and <span class="ui">Send to phone…</span> (pick files yourself), and the toolbar has a send-to-phone button.</p>
 <ul>
   <li><strong>Android connected by wireless debugging</strong>: the file goes straight into the phone’s gallery. Nothing else to do.</li>
   <li><strong>iPhone / iPad, or Android casting (Miracast)</strong>: a QR code appears on the PC. <span class="ui">Scan with the phone's camera</span> and a web page opens on the phone. Pictures: touch and hold the picture → “Save to Photos” (iPhone) or “Download image” (Android). Videos: tap “Download video” and follow the steps on the page.</li>
   <li>The phone must be on the <strong>same Wi‑Fi</strong> as the PC. The link works for 10 minutes and only for whoever scans the QR code; <span class="ui">Stop sharing</span> ends it early.</li>
 </ul>
 
-<h3>Quality</h3>
-<p>Right-click menu → Settings → Quality. Higher is sharper but puts more load on the network and the PC.</p>
+<h3>Picture quality</h3>
+<p>Right-click menu → Settings → Picture quality. Sharper needs a stronger Wi-Fi; choose Standard if it stutters.</p>
 <div class="tbl"><table>
   <tr><th>Option</th><th>Resolution</th><th>Notes</th></tr>
-  <tr><td>Standard</td><td>1080p</td><td>Lightest; use it on an unstable network or an older PC.</td></tr>
-  <tr><td>High · recommended (default)</td><td>1440p</td><td>The sweet spot between sharp and smooth.</td></tr>
-  <tr><td>Highest</td><td>4K</td><td>For big screens and fine detail; needs a stable 5 GHz Wi-Fi.</td></tr>
+  <tr><td>Standard (smoothest)</td><td>1080p</td><td>Lightest; use it on an unstable network or an older PC.</td></tr>
+  <tr><td>High (recommended, default)</td><td>1440p</td><td>The sweet spot between sharp and smooth.</td></tr>
+  <tr><td>Highest (needs strong Wi-Fi)</td><td>4K</td><td>For big screens and fine detail; needs a stable 5 GHz Wi-Fi.</td></tr>
 </table></div>
 <div class="note">
   <span class="t">“High” and “Highest” are greyed out?</span>
-  These two use the HEVC (H.265) format, which needs “HEVC Video Extensions” from the Microsoft Store to play. Without it, Standard is used automatically. After installing it, restart Zizai Cast to choose them. Quality currently applies mainly to iPhone / iPad mirroring.
+  These two use the HEVC (H.265) format, which needs “HEVC Video Extensions” from the Microsoft Store to play. Without it, Standard is used automatically. After installing it, restart Zizai Cast to choose them. Picture quality currently applies mainly to iPhone / iPad mirroring.
+  After changing Picture quality or the PIN setting, it normally applies when the current mirroring ends; <span class="ui">Reconnect now to apply</span> next to the hint reconnects immediately so you see the new setting right away (on an iPhone, choose Screen Mirroring again on the phone).
 </div>
 
-<h3>System tray</h3>
-<p>Clicking the close button at the top right sends Zizai Cast to the system tray, where it keeps waiting (you’ll get a hint the first time). Click the tray icon (or choose <span class="ui">Show window</span>) to bring the window back; right-click the icon to record, change settings or open folders, and while mirroring there’s also <span class="ui">Disconnect (phone name)</span>. To <strong>really quit</strong>: right-click the tray icon → <span class="ui">Quit</span>.</p>
+<h3>Background and system tray</h3>
+<p>Clicking the close button at the top right asks “Quit, or keep running in the background?”; choose <span class="ui">Keep running in the background</span> and Zizai Cast moves to the system tray and keeps waiting for phones (tick “Remember my choice” to skip the question; change it later in Settings → <span class="ui">When closing the window</span>: Ask every time / Keep running in the background / Quit). Windows 11 may hide the icon under the “^” at the bottom right; drag it onto the taskbar to pin it. Click the tray icon (or choose <span class="ui">Show window</span>) to bring the window back; right-click the icon to record, change settings or open folders, and while mirroring there’s also <span class="ui">Disconnect (phone name)</span>. To <strong>really quit</strong>: right-click the tray icon → <span class="ui">Quit</span>.</p>
 
 <h3 id="update">Automatic updates</h3>
 <p>Every time Zizai Cast starts, it checks for a new version (and again every 6 hours while it runs); you can also click <span class="ui">Check for updates</span> in the menu. A newer installer placed in the <span class="ui">安裝檔</span> (Installers) folder inside the install folder is found automatically as well.</p>
@@ -802,7 +816,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>Translate a selected area</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>Show original</td></tr>
   <tr><td><kbd>Shift</kbd><kbd>F10</kbd></td><td>Open the right-click menu from the keyboard</td></tr>
-  <tr><td><kbd>Shift</kbd> + right-click</td><td>Open the menu on an Android screen (plain right-click = Back)</td></tr>
+  <tr><td><kbd>Shift</kbd> + right-click</td><td>Always opens the menu on an Android screen (plain right-click = Back by default; change it in Settings → Right-click action)</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>Keyboard shortcuts (also in Help → Keyboard shortcuts)</td></tr>
   <tr><td><kbd>Esc</kbd></td><td>In full screen: leave full screen; while mirroring Android: sent to the phone (usually Back)</td></tr>
 </table></div>
 </section>
@@ -834,22 +849,22 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <details id="faq-lag"><summary>The picture lags or stutters</summary><div>
 <ul>
   <li>Wi-Fi signal matters most. Put both the phone and the PC on <strong>5 GHz</strong> Wi-Fi near the router, or connect the PC by cable.</li>
-  <li>Temporarily set the quality to “Standard”.</li>
+  <li>Temporarily set Picture quality to “Standard (smoothest)”.</li>
   <li>Close programs that are downloading or uploading a lot (cloud sync, game updates, etc.).</li>
   <li>A very short delay during normal use is expected; with videos, picture and sound are sent together.</li>
 </ul></div></details>
 
 <details id="faq-blur"><summary>The picture is blurry</summary><div>
 <ul>
-  <li>Right-click menu → Settings → Quality, choose “High” or “Highest”. If they’re greyed out, install “HEVC Video Extensions” from the Microsoft Store.</li>
-  <li>A quality change takes effect from the next connection (while mirroring, it waits until the phone disconnects).</li>
+  <li>Right-click menu → Settings → Picture quality, choose “High (recommended)” or “Highest (needs strong Wi-Fi)”. If they’re greyed out, install “HEVC Video Extensions” from the Microsoft Store.</li>
+  <li>A Picture quality change normally takes effect from the next connection (while mirroring, it waits until the phone disconnects); to apply it right away click “Reconnect now to apply” next to the hint.</li>
   <li>On an unstable network the phone lowers the quality by itself, so a briefly blurry picture is normal.</li>
 </ul></div></details>
 
 <details id="faq-takeover"><summary>Someone else’s phone took over in the middle of mirroring</summary><div>
 <ul>
-  <li>Right-click menu → Settings → When a new phone connects, choose “<strong>Keep current</strong>”; other phones then can’t connect while you’re mirroring.</li>
-  <li>You can also turn on “Require a PIN to connect”; phones that haven’t entered the PIN can’t mirror.</li>
+  <li>Right-click menu → Settings → When a second phone connects, choose “<strong>Keep the current one</strong>”; other phones then can’t connect while you’re mirroring.</li>
+  <li>You can also turn on “Ask new phones for a PIN”; phones that haven’t entered the PIN can’t mirror.</li>
 </ul></div></details>
 
 <details id="faq-fw"><summary>Firewall: I clicked “Cancel”. What now?</summary><div>
@@ -878,12 +893,12 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>After the phone restarts or switches Wi-Fi, the system often turns wireless debugging off. Turn it back on in Developer options; no need to pair again.</li>
   <li>The phone’s battery saver may cut Wi-Fi when the screen is off. Turn battery saver off in the battery settings, or exclude “Settings” from battery optimization.</li>
   <li>Make sure the phone and the PC are still on the same network and no VPN is on.</li>
-  <li>Still not working: remove this PC under “Paired devices” on the phone, then pair again with “Connect Android (scan QR)”.</li>
-  <li>A phone disconnected with the toolbar or <kbd>Ctrl</kbd><kbd>D</kbd> won’t reconnect automatically; connect it again with “Connect Android (scan QR)”, or restart Zizai Cast.</li>
+  <li>Still not working: remove this PC under “Paired devices” on the phone, then pair again with “Connect a phone → Connect Android (scan QR)”.</li>
+  <li>A phone disconnected with the toolbar or <kbd>Ctrl</kbd><kbd>D</kbd> won’t reconnect automatically; connect it again with “Connect a phone → Connect Android (scan QR)”, or restart Zizai Cast.</li>
 </ul></div></details>
 
 <details id="faq-disconnect"><summary>I can’t find “Disconnect”</summary><div>
-<p>Move the mouse over the mirrored screen: a toolbar appears at the top centre, and the red button at its right end is <span class="ui">Disconnect</span>. You can also press <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the tray icon → <span class="ui">Disconnect (phone name)</span>. On an Android screen right-click means “Back”, so it doesn’t open a menu; use “More” in the toolbar instead.</p></div></details>
+<p>Move the mouse over the mirrored screen: a toolbar appears at the top centre, and the red button at its right end is <span class="ui">Disconnect</span>. You can also press <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the tray icon → <span class="ui">Disconnect (phone name)</span>. On an Android screen right-click means “Back” by default, so it doesn’t open a menu; use “More” in the toolbar, press <kbd>Shift</kbd> + right-click, or set Settings → Right-click action to “Open menu”.</p></div></details>
 
 <details id="faq-translate"><summary>Translation does nothing, or Japanese / Korean isn’t translated</summary><div>
 <ul>
@@ -893,7 +908,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </ul></div></details>
 
 <details><summary>Is the app still running after I close the window?</summary><div>
-<p>Yes, it waits in the system tray at the bottom right. To quit completely, right-click the tray icon → Quit. If you don’t want it to start with Windows, untick “Start with Windows”.</p></div></details>
+<p>Yes, it stays in the background (in the system tray at the bottom right). To quit completely, right-click the tray icon → Quit. If you don’t want it to start with Windows, untick “Start with Windows”.</p></div></details>
 
 <div class="foot">
   <i class="m foot-m"></i>

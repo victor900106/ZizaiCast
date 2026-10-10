@@ -88,11 +88,26 @@ blob ids) is in the archive.
   | `libplist` | 2.8.0 | `plist-2.0.dll` |
   | `pthreads` (pthreads4w) | 3.0.0#14 | `pthreadVC3.dll` |
   | `alac` | 2017-11-03-c38887c5#4 | static, inside the exe |
-  | `ffmpeg[core,avcodec]` (LGPL build) | 9.0.2#1 | `avcodec-63.dll`, `avutil-61.dll` |
+  | `ffmpeg[core,avcodec]` (LGPL build) — overlay port `tools/vcpkg-overlay/ffmpeg` (0.7.8+) | 9.0.2#2 | `avcodec-63.dll`, `avutil-61.dll` |
 
   ```
-  vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --triplet x64-windows
+  vcpkg install openssl libplist pthreads alac "ffmpeg[core,avcodec]" --triplet x64-windows --overlay-ports=tools/vcpkg-overlay
   ```
+
+  The overlay is the vcpkg `ffmpeg` port of the commit above with one change
+  (marked `PM`/`Zizai Cast` in `portfile.cmake`): a minimal configuration that
+  builds only what the program uses — libavcodec's native AAC decoder
+  (AAC-LC and AAC-ELD) and libavutil:
+
+  ```
+  --disable-all <vcpkg's usual options> --enable-avcodec
+  --enable-decoder=aac --enable-parser=aac --enable-small --disable-debug
+  --disable-schannel --disable-network --disable-iconv
+  ```
+
+  (no hardware-acceleration options on Windows; still no `--enable-gpl`,
+  `--enable-version3` or `--enable-nonfree`: the DLLs report
+  `LGPL version 2.1 or later`).
 * `android\third_party\fetch_tools.ps1` downloads adb (Platform-Tools r37.0.1)
   and scrcpy-server v5.0, pinned by SHA-256 (CMake runs it automatically when
   the files are missing).
@@ -121,7 +136,7 @@ blob ids) is in the archive.
 | libplist 2.8.0 | unmodified upstream, vcpkg port scripts | deps zip; <https://github.com/libimobiledevice/libplist/releases/tag/2.8.0> |
 | pthreads4w 3.0.0 | vcpkg port patches (build fixes) | deps zip; <https://sourceforge.net/projects/pthreads4w/> |
 | ALAC (Apple) c38887c5 | vcpkg port patches (build files) | deps zip; <https://github.com/macosforge/alac> |
-| FFmpeg 9.0.2 | vcpkg port patches (MSVC build fixes, see `ports/ffmpeg/*.patch`); LGPL configuration | deps zip; <https://ffmpeg.org/releases/>, tag `n9.0.2` at <https://git.ffmpeg.org/ffmpeg.git> |
+| FFmpeg 9.0.2 | unmodified upstream source; vcpkg port patches (MSVC build fixes, see `ports/ffmpeg/*.patch`); minimal LGPL configuration (AAC decoder + avutil only, 0.7.8+) from this project's overlay port `tools/vcpkg-overlay/ffmpeg` (= `ports/ffmpeg` of the deps zip) | deps zip; <https://ffmpeg.org/releases/>, tag `n9.0.2` at <https://git.ffmpeg.org/ffmpeg.git> |
 | adb / AdbWinApi / AdbWinUsbApi (Platform-Tools r37.0.1) | unmodified Google binaries (separate program) | <https://android.googlesource.com/platform/packages/modules/adb> tag `platform-tools-37.0.1`; components listed in `NOTICE.txt` (e.g. libusb: <https://android.googlesource.com/platform/external/libusb>) |
 | scrcpy-server v5.0 | unmodified release binary (separate program) | <https://github.com/Genymobile/scrcpy/tree/v5.0> |
 | MSVC runtime DLLs | unmodified; System Libraries (GPL-3.0 §1), not part of the Corresponding Source | Microsoft Visual C++ Redistributable |
@@ -144,7 +159,8 @@ The vcpkg port directories at the pinned commit are also browsable at
 `plist-2.0.dll`, `avcodec-63.dll` and `avutil-61.dll` are ordinary DLLs in the
 program folder (`程式\`; this file and the notices are installed in
 `程式\licenses\`). You may replace them with your own builds of the same
-ABI (same vcpkg port or upstream version) without rebuilding 自在投影.exe; to
+ABI (same vcpkg port or upstream version; any LGPL FFmpeg 9.0.x build with
+libavcodec's AAC decoder works) without rebuilding 自在投影.exe; to
 relink against a modified library, build from the source zip.
 
 ## 6. Written offer

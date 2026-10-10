@@ -3,6 +3,8 @@
 //   app/res/app.ico                            16 20 24 32 40 48 64 256, PNG entries, each size hand-tuned
 //   assets/public/toutou/                      expressions, layers, per-theme phones, masters, icons, SVG
 //   docs/mascot/toutou/final.png               reference sheet
+// After a re-export, shrink the embedded layers losslessly (0.7.8: -29%, pixels identical) and
+// re-copy them to assets/public/toutou/layers/:  oxipng -o max --strip all -Z video/res/toutou/*.png
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

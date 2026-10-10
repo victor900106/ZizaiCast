@@ -101,10 +101,12 @@ cmake --build build-audio --config Release
 build dirs need a reconfigure.) Requires, triplet x64-windows:
 
 ```
-vcpkg install "ffmpeg[core,avcodec]:x64-windows" alac:x64-windows
+vcpkg install "ffmpeg[core,avcodec]:x64-windows" alac:x64-windows --overlay-ports=tools/vcpkg-overlay
 ```
 
-`ffmpeg[core,avcodec]` = libavcodec + libavutil only, configured without
+`ffmpeg[core,avcodec]` = libavcodec + libavutil only (0.7.8+: the overlay port
+`tools/vcpkg-overlay/ffmpeg` builds just the native `aac` decoder + parser with
+`--disable-all ... --enable-small`, avcodec-63.dll ~0.5 MB instead of ~13 MB), configured without
 `--enable-gpl`/`--enable-nonfree` (do not add the `gpl`, `nonfree`, `fdk-aac`,
 `x264`... features). Runtime DLLs to ship next to the exe: **`avcodec-63.dll`,
 `avutil-61.dll`** (imports: only Windows system DLLs + VCRUNTIME140);

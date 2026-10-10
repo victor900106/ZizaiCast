@@ -585,7 +585,7 @@ build-video\bin\Release\pm_video_test.exe video\testdata\portrait.h265 --fps 60 
 build-video\bin\Release\pm_video_test.exe video\testdata\portrait_rotate.h264 --demo-ui --idle 3000
 ```
 
-More options (full list in the header of `tools/pm_video_test.cpp`):
+More options (full list in the header of `video/tools/pm_video_test.cpp`):
 
 ```bat
 :: A/V sync with synthesised timestamps (UTC like today's core, or --clock qpc),

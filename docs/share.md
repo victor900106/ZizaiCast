@@ -59,7 +59,7 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
   while 4 slow (1.5 s) fake-adb pushes ran: the video's 5 s summaries show
   `drop 0 skip 0`, every picture presented.
 
-## UX (app/main.cpp, app/share_panel.cpp)
+## UX (app/share/, app/share_panel.cpp)
 
 * **Chip**: after 截圖 and after a recording is saved (unless 自動傳到手機 is
   on), a small themed 「⇪ 傳到手機 | ×」 button (`pm::ui::ShareChip`) appears centred just above

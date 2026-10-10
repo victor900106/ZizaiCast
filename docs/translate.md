@@ -288,7 +288,7 @@ translations byte-identical to the MKL build of the same engine, similar speed
 
 The app follows the plan below with two changes: the menus are two submenus
 (放大鏡 ▸ with zoom, colours and 凍結畫面; 翻譯 ▸ with 翻譯整個畫面, 框選翻譯, 顯示原文,
-連續翻譯, 翻成, 管理翻譯模型), and the targets include 日本語 / 한국어 (below).
+即時翻譯 (was 連續翻譯), 翻成, 顯示方式, 進階翻譯設定 ▸ 管理翻譯模型), and the targets include 日本語 / 한국어 (below).
 
 **日本語 / 한국어 targets (0.7.0).** Mozilla's registry (fetched 2026-10-08)
 has en → ja (2.3, all platforms, 49.6 MB) and en → ko (2.1, the Android

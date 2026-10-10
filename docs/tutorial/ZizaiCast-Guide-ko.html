@@ -197,7 +197,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
     <li><a href="#features">기능과 단축키</a></li>
     <li><a href="#faq">자주 묻는 질문</a></li>
   </ol>
-  <div class="side-foot">미러링 화면 위로 마우스를 움직이면 도구 모음이 나타납니다. <kbd>Ctrl</kbd><kbd>D</kbd>로 연결을 끊을 수 있고, 나머지 기능은 모두 오른쪽 클릭 메뉴에 있습니다(Android 화면에서는 도구 모음의 ‘더 보기’).</div>
+  <div class="side-foot">미러링 화면 위로 마우스를 움직이면 도구 모음이 나타납니다. <kbd>Ctrl</kbd><kbd>D</kbd>로 연결을 끊을 수 있고, 나머지 기능은 모두 오른쪽 클릭 메뉴에 있습니다(Android 화면은 기본적으로 오른쪽 클릭이 ‘뒤로’이므로 <kbd>Shift</kbd>+오른쪽 클릭 또는 도구 모음의 ‘더 보기’). <kbd>F1</kbd>은 ‘단축키 목록’을 엽니다.</div>
 </nav>
 
 <main id="top">
@@ -266,8 +266,18 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <div class="note">
   <span class="t">화면에서 사라졌나요?</span>
-  창을 닫아도 앱은 종료되지 않습니다. 작업 표시줄의 알림 영역(시계 옆 작은 아이콘)으로 들어가 계속 연결을 기다리며, 휴대폰이 연결되면 창이 자동으로 다시 나타납니다.
+  창을 닫아도 앱은 종료되지 않습니다. 백그라운드에서 대기합니다(작업 표시줄의 알림 영역, 시계 옆 작은 아이콘). 계속 연결을 기다리며, 휴대폰이 연결되면 창이 자동으로 다시 나타납니다.
 </div>
+
+<h3 id="idle">대기 화면: 휴대폰을 선택하세요</h3>
+<p>아직 연결된 휴대폰이 없으면 창에 <span class="ui">휴대폰을 선택하세요</span>가 표시되고 아래에 카드 세 장이 나타납니다. 휴대폰 종류에 맞는 카드의 버튼을 누르면 됩니다.</p>
+<div class="tbl"><table>
+  <tr><th>카드</th><th>이럴 때</th><th>버튼</th></tr>
+  <tr><td>iPhone / iPad</td><td>휴대폰의 제어 센터 → 화면 미러링에서 Zizai Cast를 선택합니다.</td><td><span class="ui">단계 보기</span>(<a href="#iphone">2장</a>)</td></tr>
+  <tr><td>Android 보기만</td><td>휴대폰의 캐스트 / Smart View로 화면만 봅니다. 조작은 할 수 없습니다(Miracast).</td><td><span class="ui">단계 보기</span>(<a href="#miracast">3장</a>)</td></tr>
+  <tr><td>Android PC로 조작</td><td>무선 디버깅을 사용하며, PC의 마우스와 키보드로 휴대폰을 조작할 수 있습니다.</td><td><span class="ui">QR 표시</span>(QR 코드로 페어링, <a href="#adb">4장</a>)</td></tr>
+</table></div>
+<p>카드 옆에 회색 작은 글씨(예: ‘재부팅 후 사용 가능’)가 보이면 그 방법을 지금은 쓸 수 없는 이유를 알려 주는 것입니다. 카드의 <span class="ui">연결 방법</span>을 누르면 이 안내서가 열립니다(도움말 메뉴의 첫 항목 <span class="ui">연결 방법</span>도 같습니다).</p>
 </section>
 
 <!-- ============ 2 ============ -->
@@ -288,8 +298,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 
 <h3>PIN과 여러 대의 휴대폰</h3>
 <ul>
-  <li>대기 화면에서 <span class="ui">연결 시 PIN 요구</span>를 켜면, <strong>처음 연결하는</strong> iPhone은 PC에 표시되는 4자리 PIN을 입력해야 미러링할 수 있습니다. 한 번 성공한 iPhone은 기억됩니다.</li>
-  <li>다른 iPhone도 Zizai Cast를 선택했을 때의 동작은 오른쪽 클릭 메뉴 → 설정 → <span class="ui">새 휴대폰 연결 시</span>에서 고릅니다: <span class="ui">전환</span>(새 휴대폰 화면 표시) / <span class="ui">현재 유지</span>(먼저 연결된 휴대폰 유지).</li>
+  <li>오른쪽 클릭 메뉴 → <span class="ui">설정</span>(알림 영역 메뉴에도 있음)에서 <span class="ui">새 휴대폰은 PIN으로 연결</span>을 켜면, <strong>처음 연결하는</strong> iPhone은 PC에 표시되는 4자리 PIN을 입력해야 미러링할 수 있습니다. 한 번 성공한 iPhone은 기억됩니다.</li>
+  <li>다른 iPhone도 Zizai Cast를 선택했을 때의 동작은 오른쪽 클릭 메뉴 → 설정 → <span class="ui">두 번째 휴대폰이 연결되면</span>에서 고릅니다: <span class="ui">새 휴대폰으로 전환</span>(기본, 새 휴대폰 화면 표시) / <span class="ui">지금 휴대폰 유지</span>(먼저 연결된 휴대폰 유지).</li>
   <li>iPhone 화면이 꺼지면 미러링이 일시 정지되고, <strong>잠금을 해제하면 자동으로 계속</strong>됩니다.</li>
   <li>iPhone의 음량 버튼으로 PC에서 나오는 소리 크기를 조절할 수 있습니다.</li>
 </ul>
@@ -331,7 +341,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <h3>2단계: 페어링(처음 한 번만)</h3>
 <ol class="steps">
   <li>휴대폰: <span class="ui">개발자 옵션</span> → <span class="ui">무선 디버깅</span> 스위치를 켭니다(처음에는 ‘이 네트워크에서 무선 디버깅을 허용하시겠습니까?’라고 물으면 <span class="ui">허용</span>).</li>
-  <li>PC: Zizai Cast 창을 오른쪽 클릭 → <span class="ui">Android 연결(QR 스캔)</span>. QR 코드가 나타납니다.</li>
+  <li>PC: Zizai Cast 창을 오른쪽 클릭 → <span class="ui">휴대폰 연결</span> → <span class="ui">Android 연결(QR 스캔)</span>(대기 화면의 ‘Android PC로 조작’ 카드에도 <span class="ui">QR 표시</span> 버튼이 있음). QR 코드가 나타납니다.</li>
   <li>휴대폰: ‘무선 디버깅’ 글자를 눌러 페이지를 열고 → <span class="ui">QR 코드로 기기 페어링</span> → PC의 QR 코드를 스캔합니다.</li>
   <li>페어링이 끝나면 창이 자동으로 닫히고 휴대폰 화면이 PC에 나타납니다.</li>
 </ol>
@@ -355,7 +365,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </table></div>
 <div class="note">
   <span class="t">오른쪽 클릭이 ‘뒤로’라면 메뉴는 어디에?</span>
-  Android 화면에서는 오른쪽 클릭이 휴대폰의 <strong>뒤로</strong>가 됩니다. 메뉴를 열려면 마우스를 화면 위쪽으로 옮겨 도구 모음의 <span class="ui">더 보기(전체 메뉴)</span>를 클릭하거나, <kbd>Shift</kbd>를 누른 채 오른쪽 클릭하세요.
+  Android 화면에서는 오른쪽 클릭이 휴대폰의 <strong>뒤로</strong>가 됩니다. 메뉴를 열려면 마우스를 화면 위쪽으로 옮겨 도구 모음의 <span class="ui">더 보기(전체 메뉴)</span>를 클릭하거나, <kbd>Shift</kbd>를 누른 채 오른쪽 클릭하세요(<kbd>Shift</kbd>+오른쪽 클릭은 항상 메뉴를 엽니다). 오른쪽 클릭으로 메뉴를 열고 싶다면 설정 → <span class="ui">오른쪽 클릭 동작</span>을 <span class="ui">메뉴 열기</span>로 바꾸세요(기본값은 <span class="ui">뒤로</span>). 메뉴 열기로 바꾸면 ‘뒤로’는 도구 모음의 버튼을 사용합니다.
 </div>
 
 <div class="note warn">
@@ -367,10 +377,11 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <!-- ============ 5 ============ -->
 <section id="features">
 <h2><span class="num">5</span>기능과 단축키</h2>
-<p class="intro">미러링 중에 화면 위로 마우스를 움직이면 위쪽에 <strong>도구 모음</strong>이 나타납니다. 창을 <strong>오른쪽 클릭</strong>하면 모든 기능을 쓸 수 있습니다(Android 화면에서는 도구 모음의 ‘더 보기’). 단축키는 창을 한 번 클릭한 뒤에 사용하세요. 표시 언어는 설정 → <span class="ui">언어 / Language</span>에서 바꿉니다: <span class="ui">자동(Windows 언어 따름)</span>, <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span>.</p>
+<p class="intro">미러링 중에 화면 위로 마우스를 움직이면 위쪽에 <strong>도구 모음</strong>이 나타납니다. 창을 <strong>오른쪽 클릭</strong>하면 모든 기능을 쓸 수 있습니다(Android 화면에서 오른쪽 클릭은 기본적으로 ‘뒤로’이므로 도구 모음의 ‘더 보기’ 또는 <kbd>Shift</kbd>+오른쪽 클릭, 또는 설정 → <span class="ui">오른쪽 클릭 동작</span>을 <span class="ui">메뉴 열기</span>로 변경). 단축키가 기억나지 않으면 <kbd>F1</kbd>(또는 도움말 → <span class="ui">단축키 목록</span>)을 누르세요. 단축키는 창을 한 번 클릭한 뒤에 사용하세요. 표시 언어는 설정 → <span class="ui">언어 / Language</span>에서 바꿉니다: <span class="ui">자동(Windows 언어 따름)</span>, <span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span>.</p>
 
 <h3>도구 모음</h3>
-<p>마우스를 움직이면 화면 위쪽 가운데에 나타나고, 2초쯤 움직이지 않으면 숨겨집니다. 왼쪽부터 (Android만: 뒤로, 홈, 최근 앱) 스크린샷, 녹화, 휴대폰으로 보내기, 회전, 전체 화면, 돋보기, 번역, 화면 정지, 더 보기, 연결 끊기. 버튼 위에 마우스를 올리면 이름과 단축키가 표시됩니다.</p>
+<p>마우스를 움직이면 화면 위쪽 가운데에 나타나고, 2초쯤 움직이지 않으면 숨겨집니다. 왼쪽부터 (Android만: 뒤로, 홈, 최근 앱) 스크린샷, 녹화, 휴대폰으로 보내기, 회전, 전체 화면, 돋보기, 번역, 화면 정지, 더 보기, 연결 끊기. 자주 쓰는 네 개(스크린샷, 녹화, 번역, 돋보기)는 글자 이름이 함께 표시되고, 나머지 버튼은 마우스를 올리면 이름과 단축키가 표시됩니다. 처음 연결할 때 도구 모음 위치를 한 번 알려 줍니다.</p>
+<p>휴대폰이 연결되기 전에는 오른쪽 클릭 메뉴의 스크린샷, 녹화 시작, 돋보기 등도 회색으로 표시되고 오른쪽에 <span class="ui">휴대폰 연결 후 사용 가능</span>이라고 나옵니다(연결되면 누를 수 있습니다).</p>
 
 <h3 id="disconnect">연결 끊는 방법</h3>
 <p>iPhone, Android 화면 전송, 무선 디버깅 모두 같습니다.</p>
@@ -378,15 +389,15 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <li>도구 모음 오른쪽 끝의 빨간 <span class="ui">연결 끊기</span> 버튼.</li>
   <li><kbd>Ctrl</kbd><kbd>D</kbd> 누르기.</li>
   <li>오른쪽 클릭 메뉴(또는 도구 모음의 ‘더 보기’) 맨 위의 <span class="ui">연결 끊기</span>.</li>
-  <li>알림 영역 아이콘을 오른쪽 클릭 → <span class="ui">연결 끊기(휴대폰 이름)</span>. 창이 숨겨져 있어도 쓸 수 있습니다.</li>
+  <li>알림 영역 아이콘을 오른쪽 클릭 → <span class="ui">연결 끊기(휴대폰 이름)</span>. 창이 백그라운드에서 대기 중일 때도 쓸 수 있습니다.</li>
 </ol>
-<p>녹화 중이면 먼저 녹화를 멈추고 저장합니다. PC에서 연결을 끊은 Android 휴대폰은 자동으로 다시 연결되지 않습니다(<span class="ui">Android 연결(QR 스캔)</span>으로 다시 연결하거나 Zizai Cast를 다시 시작하세요).</p>
+<p>녹화 중이면 먼저 녹화를 멈추고 저장합니다. PC에서 연결을 끊은 Android 휴대폰은 자동으로 다시 연결되지 않습니다(<span class="ui">휴대폰 연결</span> → <span class="ui">Android 연결(QR 스캔)</span>으로 다시 연결하거나 Zizai Cast를 다시 시작하세요).</p>
 
 <div class="grid2">
   <div class="card"><h4>스크린샷 <span><kbd>Ctrl</kbd><kbd>S</kbd></span></h4>
-    <p>설치 폴더의 ‘截圖’(스크린샷) 폴더에 ‘ZizaiCast_날짜_시간.png’ 같은 이름으로 저장됩니다.</p></div>
+    <p>설치 폴더의 ‘截圖’(스크린샷) 폴더에 ‘ZizaiCast_날짜_시간.png’ 같은 이름으로 저장됩니다. 오른쪽 클릭 메뉴 → <span class="ui">스크린샷 폴더 열기</span>.</p></div>
   <div class="card"><h4>녹화 <span><kbd>Ctrl</kbd><kbd>R</kbd></span></h4>
-    <p>한 번 더 누르면 중지. 소리가 포함된 MP4로 ‘錄影’(녹화) 폴더에 저장됩니다.</p></div>
+    <p>한 번 더 누르면 중지. 소리가 포함된 MP4로 ‘錄影’(녹화) 폴더에 저장됩니다. 폴더는 메뉴 최상위의 <span class="ui">녹화 폴더 열기</span>로 엽니다.</p></div>
   <div class="card"><h4>전체 화면 <span><kbd>F11</kbd></span></h4>
     <p>화면을 두 번 클릭해도 됩니다. <kbd>Esc</kbd>로 나갑니다.</p></div>
   <div class="card"><h4>항상 위에 표시 <span><kbd>Ctrl</kbd><kbd>T</kbd></span></h4>
@@ -394,11 +405,13 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <div class="card"><h4>회전·반전</h4>
     <p><kbd>Ctrl</kbd><kbd>→</kbd> / <kbd>Ctrl</kbd><kbd>←</kbd>로 90° 회전, <kbd>Ctrl</kbd><kbd>H</kbd>로 좌우 반전, <kbd>Ctrl</kbd><kbd>0</kbd>으로 원래대로.</p></div>
   <div class="card"><h4>테마·화질</h4>
-    <p>테마: 벚꽃, 민트, 밤하늘, 밀크티. 화질은 설정 → 화질(표준 / 높음 · 권장 / 최고).</p></div>
+    <p>테마: 벚꽃, 민트, 밤하늘, 밀크티(설정 → 테마). 화질은 설정 → <span class="ui">화질</span>(<span class="ui">표준(부드러움)</span> / <span class="ui">높음(권장)</span> / <span class="ui">최고(네트워크 많이 사용)</span>). 화질이 높을수록 Wi‑Fi 부담이 커지니, 끊기면 ‘표준’을 고르세요. 화질이나 PIN을 바꾸면 기본적으로 이번 미러링이 끝난 뒤에 적용되며, 안내 옆의 <span class="ui">지금 다시 연결해 적용</span>을 누르면 바로 다시 연결해 적용됩니다(iPhone은 휴대폰에서 화면 미러링을 다시 선택).</p></div>
+  <div class="card"><h4>백그라운드 대기와 알림 영역</h4>
+    <p>창을 닫으면 ‘Zizai Cast를 종료할까요, 아니면 백그라운드에서 대기할까요?’라고 묻습니다. <span class="ui">백그라운드에서 대기</span>를 고르면 알림 영역에서 계속 휴대폰을 기다립니다(‘이 선택 기억하기’ 후에는 설정 → <span class="ui">창을 닫을 때</span>에서 변경). Windows 11에서는 아이콘이 ‘^’ 안에 숨어 있을 수 있으니 작업 표시줄로 끌어다 놓으면 항상 표시됩니다. 완전히 종료하려면 아이콘을 오른쪽 클릭 → 종료.</p></div>
 </div>
 
 <h3 id="magnifier">돋보기·고대비·화면 정지</h3>
-<p>휴대폰 글자가 작아서 잘 안 보이면 화면을 오른쪽 클릭(Android 화면에서는 도구 모음의 ‘더 보기’) → <span class="ui">돋보기</span>. 휴대폰 화면이 표시될 때 사용할 수 있습니다.</p>
+<p>휴대폰 글자가 작아서 잘 안 보이면 화면을 오른쪽 클릭(Android 화면에서는 도구 모음의 ‘더 보기’ 또는 <kbd>Shift</kbd>+오른쪽 클릭) → <span class="ui">돋보기</span>. 휴대폰 화면이 표시될 때 사용할 수 있습니다.</p>
 <div class="grid2">
   <div class="card"><h4>확대·축소 <span><kbd>Ctrl</kbd><kbd>=</kbd> <kbd>Ctrl</kbd><kbd>-</kbd></span></h4>
     <p>최대 8배까지. <kbd>Ctrl</kbd>을 누른 채 마우스 휠을 돌리면 마우스가 가리키는 곳을 확대합니다. <span class="ui">1×로 되돌리기</span>: <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>0</kbd>.</p></div>
@@ -413,15 +426,16 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 </div>
 
 <h3 id="translate">화면의 글자 번역하기</h3>
-<p>읽을 수 없는 영어·일본어·중국어가 보이면 화면을 오른쪽 클릭 → <span class="ui">번역</span>, 또는 도구 모음의 번역 버튼을 누르세요. 번역문은 원래 글자 위에 작은 카드로 표시됩니다.</p>
+<p>읽을 수 없는 영어·일본어·중국어가 보이면 화면을 오른쪽 클릭 → <span class="ui">번역</span>, 또는 도구 모음의 <span class="ui">번역</span> 버튼을 누르세요. 번역문은 원래 글자 위에 작은 카드로 표시됩니다.</p>
 <div class="tbl"><table>
   <tr><th>메뉴</th><th>하는 일</th></tr>
   <tr><td>화면 전체 번역 <kbd>Ctrl</kbd><kbd>L</kbd></td><td>보이는 화면 전체를 번역합니다. <kbd>Ctrl</kbd><kbd>L</kbd>을 한 번 더 누르면 번역을 닫습니다.</td></tr>
   <tr><td>선택 영역 번역 <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>마우스로 상자를 그린 부분만 번역합니다(<kbd>Esc</kbd>로 취소).</td></tr>
-  <tr><td>원문 보기 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>번역을 잠시 숨기고 원래 글자를 봅니다.</td></tr>
-  <tr><td>계속 번역(5초마다)</td><td>화면이 바뀌어도 자동으로 다시 번역합니다. 스크롤하면서 읽을 때 편리합니다.</td></tr>
-  <tr><td>번역할 언어:</td><td><span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span> 중에서 고릅니다.</td></tr>
-  <tr><td>번역 모델 관리</td><td>다운로드한 번역 모델을 확인하고 삭제합니다.</td></tr>
+  <tr><td>원문 보기 <kbd>Ctrl</kbd><kbd>O</kbd></td><td>번역을 잠시 숨기고 원래 글자를 봅니다. 번역 전에는 회색이며 ‘먼저 ‘화면 전체 번역’을 누르세요’라고 안내합니다.</td></tr>
+  <tr><td>실시간 번역</td><td>화면이 바뀌어도 자동으로 다시 번역합니다. 스크롤하면서 읽을 때 편리합니다.</td></tr>
+  <tr><td>번역할 언어</td><td><span class="ui">繁體中文</span>, <span class="ui">English</span>, <span class="ui">日本語</span>, <span class="ui">한국어</span> 중에서 고릅니다(번역 메뉴 첫 단계에 있음).</td></tr>
+  <tr><td>표시 방법</td><td>자동 / 원래 위치에 표시(작은 카드를 원문 위에) / 목록으로 표시. <span class="ui">어두운 상자(읽기 쉬움)</span>로 글자를 더 읽기 쉽게 할 수 있습니다.</td></tr>
+  <tr><td>고급 번역 설정</td><td>(번역 ▸ 고급 번역 설정 ▸ …) 평소에는 바꾸지 않아도 됩니다(오프라인 번역만으로 사용 가능). <span class="ui">로컬 AI 번역…</span>, <span class="ui">온라인 번역(선택)…</span>, <span class="ui">번역 모델 관리</span>(다운로드한 번역 모델 확인·삭제)가 들어 있습니다.</td></tr>
 </table></div>
 <div class="note">
   <span class="t">오프라인 번역: 화면의 글자는 인터넷으로 전송되지 않습니다</span>
@@ -430,7 +444,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <p>일본어 등이 번역되지 않으면 Windows가 아직 그 글자를 읽지 못하는 것일 수 있습니다. 추가 방법 안내와 <span class="ui">언어 설정 열기</span> 버튼이 표시됩니다(<a href="#faq-translate">자주 묻는 질문</a>).</p>
 
 <h3 id="share">휴대폰으로 보내기</h3>
-<p>스크린샷이나 녹화가 끝나면 화면 아래에 <span class="ui">휴대폰으로 보내기</span> 버튼이 나타납니다. 클릭하면 파일을 휴대폰으로 보낼 수 있습니다. 오른쪽 클릭 메뉴의 <span class="ui">마지막 스크린샷을 휴대폰으로 보내기</span>, <span class="ui">마지막 녹화를 휴대폰으로 보내기</span>, <span class="ui">휴대폰으로 보내기…</span>(파일 직접 선택)나 도구 모음의 버튼으로도 보낼 수 있습니다.</p>
+<p>스크린샷이나 녹화가 끝나면 화면 아래에 <span class="ui">휴대폰으로 보내기</span> 버튼이 나타납니다. 클릭하면 파일을 휴대폰으로 보낼 수 있습니다. 오른쪽 클릭 메뉴의 <span class="ui">휴대폰으로 보내기</span> ▸ <span class="ui">마지막 스크린샷을 휴대폰으로 보내기</span>, <span class="ui">마지막 녹화를 휴대폰으로 보내기</span>, <span class="ui">휴대폰으로 보내기…</span>(파일 직접 선택)나 도구 모음의 버튼으로도 보낼 수 있습니다.</p>
 <ul>
   <li><strong>무선 디버깅으로 연결된 Android</strong>: 휴대폰 갤러리에 바로 저장됩니다. 따로 할 일은 없습니다.</li>
   <li><strong>iPhone / iPad, Android 화면 전송(Miracast)</strong>: PC에 QR 코드가 나타나면 <span class="ui">휴대폰 카메라로 스캔하세요</span>. 휴대폰에서 페이지가 열리면, 사진은 길게 터치 → ‘사진 앱에 저장’(iPhone) / ‘이미지 다운로드’(Android), 동영상은 ‘동영상 다운로드’를 누르고 페이지의 안내를 따릅니다.</li>
@@ -467,7 +481,8 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
   <tr><td><kbd>Ctrl</kbd><kbd>L</kbd></td><td>화면 전체 번역 / 번역 닫기</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>선택 영역 번역</td></tr>
   <tr><td><kbd>Ctrl</kbd><kbd>O</kbd></td><td>원문 보기</td></tr>
-  <tr><td><kbd>Shift</kbd>+오른쪽 클릭</td><td>Android 화면에서 메뉴 열기</td></tr>
+  <tr><td><kbd>Shift</kbd>+오른쪽 클릭</td><td>Android 화면에서 항상 메뉴 열기(일반 오른쪽 클릭은 기본적으로 ‘뒤로’, 설정 → 오른쪽 클릭 동작에서 변경)</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>단축키 목록(도움말 → 단축키 목록)</td></tr>
 </table></div>
 </section>
 
@@ -495,14 +510,14 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <details id="faq-lag"><summary>화면이 늦거나 끊겨요</summary><div>
 <ul>
   <li>휴대폰과 PC 모두 공유기 가까이에서 <strong>5GHz</strong> Wi-Fi를 쓰거나, PC를 유선으로 연결하세요.</li>
-  <li>화질을 잠시 ‘표준’으로 바꾸고, 대용량 다운로드 중인 프로그램을 닫으세요.</li>
+  <li>화질을 잠시 ‘표준(부드러움)’으로 바꾸고, 대용량 다운로드 중인 프로그램을 닫으세요.</li>
 </ul></div></details>
 
 <details id="faq-blur"><summary>화면이 흐려요</summary><div>
-<p>오른쪽 클릭 메뉴 → 설정 → <span class="ui">화질</span>에서 ‘높음 · 권장’이나 ‘최고’를 고르세요. 선택할 수 없으면 Microsoft Store에서 ‘HEVC 비디오 확장’을 설치하세요. 변경 사항은 다음 연결부터 적용됩니다.</p></div></details>
+<p>오른쪽 클릭 메뉴 → 설정 → <span class="ui">화질</span>에서 ‘높음(권장)’이나 ‘최고(네트워크 많이 사용)’를 고르세요. 선택할 수 없으면 Microsoft Store에서 ‘HEVC 비디오 확장’을 설치하세요. 변경 사항은 기본적으로 다음 연결부터 적용되며, 바로 적용하려면 안내 옆의 <span class="ui">지금 다시 연결해 적용</span>을 누르세요.</p></div></details>
 
 <details id="faq-takeover"><summary>미러링 중에 다른 사람의 휴대폰으로 바뀌었어요</summary><div>
-<p>오른쪽 클릭 메뉴 → 설정 → <span class="ui">새 휴대폰 연결 시</span> → <span class="ui">현재 유지</span>를 고르세요. <span class="ui">연결 시 PIN 요구</span>를 켜는 것도 좋습니다.</p></div></details>
+<p>오른쪽 클릭 메뉴 → 설정 → <span class="ui">두 번째 휴대폰이 연결되면</span> → <span class="ui">지금 휴대폰 유지</span>를 고르세요. <span class="ui">새 휴대폰은 PIN으로 연결</span>을 켜는 것도 좋습니다.</p></div></details>
 
 <details id="faq-fw"><summary>방화벽 경고에서 ‘취소’를 눌렀어요</summary><div>
 <ol>
@@ -526,7 +541,7 @@ details>div{padding:14px 18px 6px;color:var(--soft);font-size:15.5px}
 <ul>
   <li>다시 시작하거나 Wi-Fi를 바꾸면 무선 디버깅이 꺼질 수 있습니다. 개발자 옵션에서 다시 켜세요(다시 페어링할 필요 없음).</li>
   <li>휴대폰의 절전 모드가 화면이 꺼졌을 때 Wi-Fi를 끊을 수 있습니다.</li>
-  <li>그래도 안 되면 휴대폰의 ‘페어링된 기기’에서 이 PC를 삭제하고 <span class="ui">Android 연결(QR 스캔)</span>으로 다시 페어링하세요.</li>
+  <li>그래도 안 되면 휴대폰의 ‘페어링된 기기’에서 이 PC를 삭제하고 <span class="ui">휴대폰 연결</span> → <span class="ui">Android 연결(QR 스캔)</span>으로 다시 페어링하세요.</li>
 </ul></div></details>
 
 <details id="faq-disconnect"><summary>‘연결 끊기’를 찾을 수 없어요</summary><div>

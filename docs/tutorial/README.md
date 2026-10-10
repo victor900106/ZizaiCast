@@ -5,7 +5,7 @@ shorter guides in Japanese and Korean (0.7.0).
 
 | file | language | what |
 |---|---|---|
-| `自在投影教學.html` | 繁體中文 | Self-contained illustrated tutorial (inline CSS + SVG, mascot as one base64 PNG in the CSS, ~140 KB, works offline). Opened by the idle screen's 「怎麼連線？」 link and the 「使用教學」 menu item. Sections: 開始之前, iPhone / iPad, Android 投放 (Miracast), Android 無線偵錯, 功能與快捷鍵, 常見問題 (anchors `#before #iphone #miracast #adb #features #faq`; inside 功能與快捷鍵: `#disconnect`, `#magnifier` 放大鏡／高對比／凍結畫面, `#translate` 翻譯, `#share` 傳到手機, `#update` 自動更新與「有新版本」視窗; FAQ items `#faq-notfound #faq-audio #faq-lag #faq-blur #faq-takeover #faq-fw #faq-vpn #faq-miracast #faq-adb #faq-disconnect #faq-translate`). |
+| `自在投影教學.html` | 繁體中文 | Self-contained illustrated tutorial (inline CSS + SVG, mascot as one base64 PNG in the CSS, ~140 KB, works offline). Opened by the idle screen's 「怎麼連線？」 link and the 「使用教學」 menu item. Sections: 開始之前 (incl. 等待畫面：請選你的手機, the three idle cards), iPhone / iPad, Android 投放 (Miracast), Android 無線偵錯, 功能與快捷鍵, 常見問題 (anchors `#before #idle #iphone #miracast #adb #features #faq`; inside 功能與快捷鍵: `#disconnect`, `#magnifier` 放大鏡／高對比／凍結畫面, `#translate` 翻譯, `#share` 傳到手機, `#update` 自動更新與「有新版本」視窗; FAQ items `#faq-notfound #faq-audio #faq-lag #faq-blur #faq-takeover #faq-fw #faq-vpn #faq-miracast #faq-adb #faq-disconnect #faq-translate`). |
 | `ZizaiCast-Guide.html` | English | The same tutorial in English, same design, CSS and mascot (byte-identical except `lang`, `<title>` and Segoe UI first in the font stacks), same ids/anchors. Opened by “How to connect?” / “User guide” when the app UI is English. |
 | `ZizaiCast-Guide-ja.html` | 日本語 | Shorter self-contained guide, same CSS and mascot as the English one (`lang="ja"`, "Yu Gothic UI","Meiryo" first in the font stacks), only the network illustration. Same anchors as above (all section, sub-section and FAQ ids). Opened when the app UI is 日本語. |
 | `ZizaiCast-Guide-ko.html` | 한국어 | Same as the Japanese guide in Korean (`lang="ko"`, "Malgun Gothic" first). Opened when the app UI is 한국어. |
@@ -13,7 +13,7 @@ shorter guides in Japanese and Korean (0.7.0).
 | `ZizaiCast-ReadMe.txt` | English | English short plain-text version (UTF-8 BOM, CRLF); points to `ZizaiCast-Guide.html` as the full guide. |
 
 The app opens the guide that matches its UI language (Settings → 語言 / Language;
-`app/main.cpp` `guideName()`: 自在投影教學.html / ZizaiCast-Guide.html /
+`app/help/tutorial.cpp` `guideName()`: 自在投影教學.html / ZizaiCast-Guide.html /
 ZizaiCast-Guide-ja.html / ZizaiCast-Guide-ko.html, falling back to English, then Chinese).
 The installer puts the guide + readme of the installation language at the top level of
 the install folder, and the guides in `程式\` so any language can be opened after
@@ -24,8 +24,8 @@ Notes for editing: the mascot is 投投 Toutou (original art,
 `node docs/mascot/toutou/export.mjs`), embedded once as the CSS class `.m`. The QR in the
 pairing diagram is a decorative pattern, not a real code. App labels quoted in the
 guides must match the string table `include/pm/i18n_strings.inc` (zh column for the
-Chinese files, en column for the English files), e.g. 「連接 Android（掃 QR）」 /
-“Connect Android (scan QR)”; the Japanese / Korean guides use the ja / ko columns of
+Chinese files, en column for the English files), e.g. 「連接手機 ▸ 連接 Android（掃 QR）」 /
+“Connect phone ▸ Connect Android (scan QR)”; the Japanese / Korean guides use the ja / ko columns of
 `include/pm/i18n_strings_jako.inc` (e.g. 「Android を接続（QR をスキャン）」,
 ‘Android 연결(QR 스캔)’). Keep all languages in sync when one changes (the ja / ko
 guides are shorter but keep every anchor).

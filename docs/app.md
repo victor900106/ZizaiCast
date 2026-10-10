@@ -1,11 +1,13 @@
 # App shell (`app/`) — 自在投影.exe
 
-`app/main.cpp` wires three sources — `pm::AirPlayServer` (core, iPhone),
+`app/` (entry point `app/core/app/main.cpp`; one folder per feature: `core/`,
+`connect/`, `capture/`, `view/`, `translate/`, `share/`, `menus/`, `help/`,
+`update/`) wires three sources — `pm::AirPlayServer` (core, iPhone),
 `pm::MiracastReceiver` (miracast, Android 投放) and `pm::AndroidSource`
 (android, wireless debugging + scrcpy) — to `pm::VideoWindow` (video) and
 `pm::AudioPlayer` (audio), feeds `pm::Recorder` (recorder) while recording,
 and adds the desktop-app behaviour below.
-Target `PhoneMirror`, output name **自在投影.exe**, version 0.7.0 (manifest
+Target `PhoneMirror`, output name **自在投影.exe**, version 0.7.9 (manifest
 `app/res/app.manifest`: Common Controls v6 + PerMonitorV2; version
 resource in `app/res/app.rc`, numbers from `PM_APP_VERSION` in
 app/CMakeLists.txt; `-DPM_APP_VERSION_OVERRIDE=x.y.z` builds a fake
@@ -23,8 +25,8 @@ is copied next to the exe).
 | `--name "X"` | display name for phones (AirPlay + Miracast); default `display_name` in settings.ini, else 自在投影 (繁體中文) / Zizai Cast (English) |
 | `--h265` | advertise HEVC mirroring |
 | `--debug` | forward the protocol library's debug log |
-| `--dev` | developer instance: own mutex, OS-chosen ports (`legacyPorts=false`), name "自在投影 (測試)" / "Zizai Cast (Test)", data in `%LOCALAPPDATA%\PhoneMirror-dev` — runs next to an installed copy |
-| `--no-hevc` | with `--dev` only: behave as if no HEVC decoder were installed (to test the greyed 畫質 items) |
+| `--dev` | developer instance: own mutex, OS-chosen ports (`legacyPorts=false`), name "自在投影 (測試)" / "Zizai Cast (Test)", data in `%LOCALAPPDATA%\PhoneMirror-dev` — runs next to an installed copy; no automatic update check unless its settings.ini sets `update_url` (0.7.9: test runs never reach GitHub; 檢查更新 in the menu still works) |
+| `--no-hevc` | with `--dev` only: behave as if no HEVC decoder were installed (to test the greyed 畫面清晰度 items) |
 | `--test-feed F.h264` | with `--dev` only: fake phone 「連線測試機」 1 s after start; the Annex-B H.264 file is looped at 30 fps into the app's video sink (no audio) |
 | `--test-seconds N` | with `--test-feed`: after N s the video stops and a disconnect is posted (→ 連線中斷 hold) |
 | `--test-takeover S` | with `--test-feed`: at S s the sinks are reset and a takeover by 「第二支 iPhone」 is posted |
@@ -57,7 +59,7 @@ toolbar (newest file), 161 last screenshot, 162 last recording, 163 傳到手機
 151 한국어 (語言 / Language); 放大鏡 / 翻譯 180 放大, 181 縮小, 182 還原 1×, 183
 toolbar 放大鏡 (1× → 2× → 4×), 184–188 colours 原色 / 加強對比 / 黑白 / 反轉 /
 黃字黑底, 189 next colour (Ctrl+K), 190 凍結畫面, 191 翻譯 toggle (Ctrl+L,
-toolbar), 192 翻譯整個畫面, 193 框選翻譯, 194 顯示原文, 195 連續翻譯, 196 關閉翻譯,
+toolbar), 192 翻譯整個畫面, 193 框選翻譯, 194 顯示原文, 195 即時翻譯 (was 連續翻譯), 196 關閉翻譯,
 197 / 198 / 210 / 211 翻成 繁體中文 / English / 日本語 / 한국어, 199 開啟模型資料夾,
 200 刪除全部, 201–208 delete one model pair (201 = 文字辨識 OCR); 905 draws the open question dialog
 (consent / OCR language / delete) into `ask.png`, 906 answers it (`lParam` 1 =
@@ -92,21 +94,30 @@ brings the running window to the front (registered message
   separator, while an update is on offer], 顯示視窗, [中斷連線（name）
   Ctrl+D while a phone is live or an iPhone is connecting], 音量 ▸ |
   [截圖 Ctrl+S, 開始錄影 Ctrl+R — only while a picture is shown; 停止錄影 while
-  recording], 傳到手機 ▸, [放大鏡 ▸ with a picture], 翻譯 ▸ | Android ▸, 設定 ▸,
-  資料夾 ▸, 說明 ▸ | 結束 (0.7.4: ~38 rows down to 13–17; rows that would do
+  recording], 傳到手機 ▸, [放大鏡 ▸ with a picture], 翻譯 ▸ | 連接手機 ▸ (0.7.8; was Android ▸), 設定 ▸,
+  開啟截圖資料夾, 開啟錄影資料夾 (0.7.8; were 資料夾 ▸), 說明 ▸ | 結束 (0.7.4: ~38 rows down to 13–17; rows that would do
   nothing now are left out instead of greyed). Shared submenus (both menus):
   - 傳到手機 ▸ (right: 「N 個未傳」): [傳送未傳的截圖／錄影], [把最後一張截圖 /
     最後一段錄影傳到手機, when there is one], 傳到手機…, 截圖／錄影後自動傳到手機 ✓.
-  - Android ▸ 連接 Android（掃 QR） (greyed without adb), [自動連線已配對的
+  - 連接手機 ▸ (0.7.8; was Android ▸) 連接 Android（掃 QR） (greyed without adb), [自動連線已配對的
     Android ✓, with adb], 接受 Android 投放（Miracast）✓ [+ reason notes] — or, on
     a PC that cannot receive Miracast, one row 「Miracast：這台電腦不支援 ▸」 whose
     submenu holds the reason and 如何啟用 Miracast.
-  - 設定 ▸ 開機自動啟動 ✓, 按 X 時 ▸, 連線需要 PIN 碼 ✓ | 畫質 ▸ (標準 / 高 · 建議 /
-    最高), 新手機連線時 ▸ (接手 / 保持目前) | 主題 ▸, 語言 / Language ▸ — each
-    submenu row shows its current value on the right (畫質　高).
-  - 資料夾 ▸ 截圖 / 錄影; 說明 ▸ 使用教學, [如何啟用 Miracast, when Miracast has a
+  - 設定 ▸ 開機自動啟動 ✓ (note: 開機後在背景等手機連線), 關閉視窗時 ▸ (was 按 X 時;
+    每次詢問 / 背景待命 / 結束程式), 連線要輸入 PIN（新手機） ✓ (was 連線需要 PIN 碼) |
+    畫面清晰度 ▸ (標準（順暢） / 高（建議） / 最高（較吃網路）; was 畫質), 第二支手機連上時 ▸
+    (換成新的 / 維持原本的; were 新手機連線時 ▸ 接手 / 保持目前), [右鍵行為 ▸ 返回 / 開啟選單,
+    Android only] | 主題 ▸, 語言 / Language ▸ — each submenu row shows its current value
+    on the right (畫面清晰度　高).
+  - 說明 ▸ 怎麼連線？, 快速鍵一覽 (F1), 使用教學, [如何啟用 Miracast, when Miracast has a
     problem], 檢查更新, 關於自在投影.
-* Closing the window hides it to the tray (balloon "自在投影仍在背景執行"
+  - 0.7.8 menu behaviour: screenshot / recording / magnifier rows are always listed and
+    greyed with 「手機連上後可用」 when no phone is connected; settings that apply only
+    after the session (畫面清晰度, PIN, name) show 「現在重新連線套用」 next to the note;
+    on Android, 右鍵行為 = 返回 (default) makes right-click Back and Shift+右鍵 always opens
+    the menu, 開啟選單 makes right-click open the menu.
+* Closing the window asks 「要結束，還是繼續在背景待命？」 (設定 ▸ 關閉視窗時;
+  0.7.8: 背景待命, was 縮到右下角) and hides it to the tray (balloon "自在投影仍在背景執行"
   the first time). 結束 in a menu really quits. If the tray is unavailable,
   closing quits.
 * Right-click on the window (or Shift+F10 / menu key, or the toolbar's 更多 /
@@ -185,7 +196,7 @@ The whole UI exists in 繁體中文, English, 日本語 and 한국어.
   value name 自在投影 (shared with the installer), the installer / temp file
   patterns `自在投影-安裝程式-*.exe` / `自在投影-更新-`, the guide file name
   自在投影教學.html, the installer VERSIONINFO product name check (自在投影 or
-  Zizai Cast, app/updater.cpp), settings.ini comments, log lines, symbols
+  Zizai Cast, app/update/updater.cpp), settings.ini comments, log lines, symbols
   (×, →, ←, …). Brand / model names (iPhone, Android, AirPlay, Miracast, the
   test feed's 「Galaxy S24」) are not translated. Test tools under
   video/tools, miracast/tools, android/tools and the module-internal texts of
@@ -323,7 +334,7 @@ then `Recorder::stop()` (finalizes the MP4), badge off, toast
 
 * Auto-stop: picture ends (idle / phone stopped → 「投影結束，錄影已儲存：…」),
   unexpected disconnect (「連線中斷，錄影已儲存：…」), another phone takes over
-  (「「B」接手投影（錄影已儲存）」), app exit, and before an update installs.
+  (「已換成「B」投影（錄影已儲存）」), app exit, and before an update installs.
   Pausing (phone screen off) keeps recording.
 * Failures: start refused below 300 MB free (「磁碟空間不足，無法錄影」) or if
   `start()` fails (「無法開始錄影」). Every second while recording
@@ -352,11 +363,11 @@ cards, dark text on light ones; accent darkened on light cards). Stored as
 
 ## 多支 iPhone (takeover)
 
-設定 / tray: 「新手機連線時：」 接手 (`takeover=new`, default) / 保持目前
+設定 / tray: 「第二支手機連上時」 換成新的 (`takeover=new`, default; was 接手) / 維持原本的 (was 保持目前)
 (`takeover=keep`) → `Options::takeoverPolicy` (NewReplacesOld / KeepCurrent).
 It is read at `start()`, so a change restarts the server like the PIN option
 (deferred until the phone disconnects, with a toast). `Events::onTakeover`
-(old, new) → toast 「「B」接手投影」, title / peer name updated, any recording
+(old, new) → toast 「已換成「B」投影」 (0.7.8; was 「「B」接手投影」), title / peer name updated, any recording
 of the old phone is saved first. The core resets the sinks just before that
 event, which `StatusVideoSink` sees as an unexpected loss: the takeover
 handler ends that hold at once (no dimmed frame / 連線中斷 toast) and the next
@@ -370,7 +381,7 @@ the source: 「自在投影 — 投影中：Galaxy S24（Android）」, 「已�
 S24（Miracast）」, 「…（AirPlay）」.
 
 * **Claiming** (`claimSource`, any thread): a free window is always taken; a
-  busy one only with 新手機連線時 = 接手 (`takeover=new`, `g_takeoverNew`).
+  busy one only with 第二支手機連上時 = 換成新的 (`takeover=new`, `g_takeoverNew`).
   The claimer stops a Miracast owner (`disconnect()`, which resets the
   window) or an Android owner (`stop()`) before its own first picture, then
   posts `WM_PM_SOURCE` → UI: recording saved (「投影來源已切換，錄影已儲存：…」),
@@ -390,8 +401,8 @@ S24（Miracast）」, 「…（AirPlay）」.
   stream's `onCodec`; Miracast at `onStatus(Connecting)`; Android at
   `onConnected` (UI, before `start()`).
 * **takeover=keep** while a picture is shown: an iPhone is refused by
-  restarting the AirPlay server (toast 「「A」投影中，已拒絕「B」（新手機連線時：
-  保持目前）」, at most every 5 s); a Miracast cast is `disconnect()`ed in its
+  restarting the AirPlay server (toast 「「A」投影中，已拒絕「B」（第二支手機連上時：
+  維持原本的）」, at most every 5 s); a Miracast cast is `disconnect()`ed in its
   Connecting callback (toast 「…已拒絕「B」的投放…」); an Android phone that
   connects from the pairing panel is not started (toast 「…「B」已配對，稍後
   再連…」). iPhone vs iPhone stays the core's own `takeoverPolicy`.
@@ -416,7 +427,7 @@ receiver …) → reason shown, item stays enabled. While unavailable a
 does not install the Windows 「無線顯示器」 optional feature itself). Connecting → claim (see
 above), 「正在連線」 screen, window raised; onConnected → 已連線 toast, title;
 onDisconnected → idle; onPin → `showPin` (the receiver asks for a PIN only if
-the phone insists: `PinDisplayIfRequested`; the app's 連線需要 PIN 碼 option
+the phone insists: `PinDisplayIfRequested`; the app's 連線要輸入 PIN（新手機） option
 applies to AirPlay only — MiracastReceiver has no PIN-mode setting).
 Miracast audio is played by Windows (MediaPlayer), not by pm_audio, so it is
 not in recordings.
@@ -526,7 +537,7 @@ user clicks 立即更新 in the 「有新版本」 dialog (or 更新到 vX.Y.Z, 
   an `update_url` in settings.ini equal to one of those is ignored (treated
   as missing); any other explicit value is kept.
 * Manifest: JSON `{"version": "0.5.2", "url": "https://…/zizai-setup-0.5.2.exe",
-  "sha256": "<64 hex>", "notes": "…"}` (`app/updater.cpp`: WinHTTP,
+  "sha256": "<64 hex>", "notes": "…"}` (`app/update/updater.cpp`: WinHTTP,
   TLS 1.2+, no cache, 64 KB cap, small JSON string reader). Optional since
   the 「有新版本」 dialog: `"date": "2026-10-08"`, `"size": <installer bytes>`,
   `"changes_zh": ["…", …]`, `"changes_en": ["…", …]`, 0.7.0 optionally
@@ -691,7 +702,7 @@ loop like `TrackPopupMenu(TPM_RETURNCMD)`; `main.cpp` passes the id to
 * Look: the idle screen's palette — warm dark card (#332326 → #2A1C1F),
   hairline pink border, 8 DIP rounded corners, soft drawn shadow; hover =
   translucent #F5A7A7 fill with a small pink bar; check marks, radio dots, the
-  畫質 caption and a checked item's icon in pink; disabled items at 38 %
+  畫面清晰度 caption and a checked item's icon in pink; disabled items at 38 %
   alpha. Text Microsoft JhengHei UI 14 DIP, shortcuts Segoe UI 12, icons
   Segoe Fluent Icons (Windows 11) → Segoe MDL2 Assets (Windows 10) → none.
   The tray menu has a header (app icon + 「自在投影」 / “Zizai Cast” + version, 「測試版」 /
@@ -795,7 +806,7 @@ the core.
   to an exe that no longer exists it is repointed at the running exe.
 * The idle-screen check boxes (`VideoWindow::setIdleOptions`), the tray menu
   and the 設定 submenu show the same two options and stay in sync.
-* 連線需要 PIN 碼 maps to `Options::requirePin`, which is read at `start()`:
+* 連線要輸入 PIN（新手機） maps to `Options::requirePin`, which is read at `start()`:
   toggling it restarts the AirPlay server (new `AirPlayServer` instance, retried
   for ~4 s while ports are released). During an active session the restart is
   deferred until the phone disconnects (toast says so).
@@ -810,7 +821,7 @@ none) and the app stores `deviceId()` after the first successful start, so an
 existing install keeps its current id. `advertisedInterfaces()` is logged at
 every start and after resume.
 
-## 畫質 (quality)
+## 畫面清晰度 (quality; 畫質 before 0.7.8)
 
 `quality` sets the display mode offered to the phone via
 `AirPlayServer::applyQualityPreset` (all 60 fps): standard 1920×1080 H.264,
@@ -950,7 +961,7 @@ filter stays (settings.ini `filter=`).
   caption + radio 原色 / 加強對比 / 黑白（灰階） / 反轉顏色（黑白對調） / 黃字黑底
   (Ctrl+K cycles; toast 「顏色：…」), 凍結畫面 ✓ (Ctrl+P). 翻譯 ▸ 翻譯整個畫面
   (Ctrl+L), 框選翻譯 (Ctrl+Shift+L), 顯示原文 ✓ (Ctrl+O, while a translation
-  is up), 連續翻譯（每 5 秒） ✓, [關閉翻譯 (Ctrl+L) while up], 翻成： 繁體中文 /
+  is up), 即時翻譯 ✓ (was 連續翻譯（每 5 秒）), [關閉翻譯 (Ctrl+L) while up], 翻成 ▸ 繁體中文 /
   English / 日本語 / 한국어 (radio, settings.ini `translate_to`; `auto` follows the
   UI language), 管理翻譯模型 ▸ (one row per pair: 「日文 → 英文」 with
   「已下載 · 54.8 MB」 or 「未下載 · …」; a downloaded row deletes that pair after a
