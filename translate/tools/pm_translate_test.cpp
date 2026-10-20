@@ -22,6 +22,16 @@
 //       translateTexts -> translatedOk), one JSON line per picture: lines,
 //       blocks, why a block was left out, its translation and the engine's
 //       alone; scored by translate/testdata/eval_metrics.py
+//   pm_translate_test --live-dyn PNG [--target T]
+//       0.7.10 即時翻譯: video corner + still text, spinner, continuous scroll: first-run delay, run gaps, card rebuilds
+//   pm_translate_test --live-replay DIR [--fps N] [--target T]
+//       即時翻譯 over a recording's frames (DIR\*.png, N per second): every run's cards (PM_TR_DEBUG=1: OCR lines too)
+//   pm_translate_test --live-caption [--target T]
+//       0.7.10.1 即時翻譯 over a video with captions burned in word by word (made-up text): no cards over the video, still lines whole
+//   pm_translate_test --live-chat [--target T]
+//       0.7.10.1 即時翻譯: a made-up chat with fixed bars flicked, then still: dynamic cells gone and the lines read again within two runs
+//   pm_translate_test --live-track
+//       0.7.10.1 即時翻譯 card re-use while scrolling (synthetic page, no models): gone vs cards that really left
 //   pm_translate_test --live PNG [--target T]
 //       即時翻譯 on a synthetic 30 fps stream over PNG (still / scroll / video
 //       corner): CPU, pictures looked at, runs, settle -> overlay times
@@ -68,6 +78,7 @@
 #include "pm/i18n.h"
 #include "pm/translate.h"
 #include "pm/video_window.h"
+#include "live_cards.h"
 #include "text_util.h"
 
 using namespace pm::translate;
@@ -672,6 +683,7 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
         const auto& why = plan.why;
         std::vector<std::wstring> tx(blocks.size()), raw(blocks.size());
         std::vector<int> ok(blocks.size(), 0);
+        std::vector<int> tech(blocks.size(), 0);  // 1: techLine, 2: its chunk a technical batch (tech_text.cpp)
         std::vector<TextInfo> infos(blocks.size());
         const double t1 = nowMs();
         double loadMs = 0, rawMs = 0;
@@ -696,8 +708,10 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
                     engine.translate(l, tgt, in, ro, &err);
                     rawMs += nowMs() - r0;
                 }
+                const bool batch = techBatch(in, l, tgt);  // the technical message rules on the whole chunk
                 for (size_t k = 0; k < idx.size() && k < o.size(); ++k) {
                     const TextInfo* inf = k < info.size() ? &info[k] : nullptr;
+                    tech[idx[k]] = (techLine(in[k]) ? 1 : 0) | (batch ? 2 : 0);
                     tx[idx[k]] = cardText(o[k], inf);
                     if (inf) infos[idx[k]] = *inf;
                     if (first && k < ro.size()) raw[idx[k]] = ro[k];
@@ -752,7 +766,7 @@ int runEval(const std::wstring& outFile, const std::vector<std::wstring>& pngs, 
                  std::to_string(b.labelLen) + ",\"step\":" + std::to_string(infos[i].step) +
                  ",\"uncertain\":" + (infos[i].uncertain ? "true" : "false") + ",\"alt\":" + jstr(infos[i].alt) +
                  ",\"alt_ms\":" + std::to_string(static_cast<int>(infos[i].altMs)) + ",\"eng\":" + jstr(fromUtf8(infos[i].engines)) +
-                 ",\"alt_flags\":" + jstr(fromUtf8(infos[i].altFlags)) +
+                 ",\"alt_flags\":" + jstr(fromUtf8(infos[i].altFlags)) + ",\"tech\":" + std::to_string(tech[i]) +
                  ",\"flags\":\"";
             for (const auto& f : infos[i].flags) j += f + " ";
             j += "\"}";
@@ -822,6 +836,296 @@ int qeGarbageSelfTest(int& n) {
     return fails;
 }
 
+// ---- --selftest: technical messages, English -> zh-Hant (tech_text.cpp) ----
+// A work chat's exception reports and test results: codes kept as written,
+// 「[標籤] 值」 lines, Chinese and English side by side.  Made-up part numbers
+// and messages only.
+int techSelfTest(int& n, bool download) {
+    int fails = 0;
+    auto expect = [&](bool ok, const char* what, const std::wstring& got = L"") {
+        ++n;
+        if (!ok) ++fails;
+        std::printf("  %s %s%s%s\n", ok ? "ok  " : "FAIL", what, got.empty() ? "" : "  -> ", u8(got).c_str());
+    };
+    std::printf("technical messages (rules):\n");
+    for (const wchar_t* c : {L"KM220P", L"Q7-RX12", L"731.2KQX4.0081", L"ZX9_DDR_MEM002.004", L"CheckDdrTrainLog", L"NVMe",
+                             L"QX/V7/RF/FAIL", L"4410278K", L"iPhone", L"https://example.com/a?id=7", L"(QA/"})
+        expect(codeToken(c), "code token", c);
+    for (const wchar_t* c : {L"2-point", L"Hello", L"TimeOut", L"NO", L"QA", L"100mg", L"Test", L"測試", L"QA's"})
+        expect(!codeToken(c), "not a code token", c);
+    for (const wchar_t* c : {L"PN:731.2KQX4.0081", L"Q7-RX12 & Q8-RX13", L"ICT-Q7 - ZX9_DDR_MEM002.004", L"QX/V7/RF/FAIL"})
+        expect(codeLine(c), "code line (kept as written)", c);
+    for (const wchar_t* c : {L"Overall YLD:3.50%", L"QA", L"We need QA to check KM220P.", L"PLEASE CHECK KX200 ASAP"})
+        expect(!codeLine(c), "not a code line", c);
+    // A chat message in capitals (0.7.10.1): a sentence, not a line of codes.
+    for (const wchar_t* c : {L"PLEASE CHECK THE KX200 SAMPLES ASAP", L"URGENT: STATION ZQ-7 IS DOWN, PLEASE HELP"})
+        expect(shoutedLine(c), "a sentence in capitals", c);
+    for (const wchar_t* c : {L"ICT-Q7 - TIMEOUT top fail is:", L"PN QA TE RD KX200", L"E2-1 & E3-3 BIN*** Test Fail", L"QX/V7/RF/FAIL"})
+        expect(!shoutedLine(c), "not a sentence in capitals", c);
+    expect(techLabel(L"ModeI", Lang::ZhHant) && std::wstring(techLabel(L"ModeI", Lang::ZhHant)) == L"機種", "label misread by the OCR (ModeI)");
+    expect(techLabel(L"1ime", Lang::ZhHant) && std::wstring(techLabel(L"1ime", Lang::ZhHant)) == L"時間", "label misread by the OCR (1ime)");
+    expect(!techLabel(L"Mode", Lang::ZhHant), "not a label (Mode)");
+    for (const wchar_t* c : {L"PN:731.2KQX4.0081", L"ICT-Q7 top fail is: CheckDdrTrainLog", L"[Owner] QA", L"[狀態 Status] OK"})
+        expect(techLine(c), "a technical message line", c);
+    for (const wchar_t* c : {L"Vitamin B12 10%", L"Epson V800 Photo", L"The FBI said on Monday", L"GUN-HUNTING PROHIBITED AREA", L"Press [OK]"})
+        expect(!techLine(c), "not a technical message line", c);
+    {
+        const std::wstring s = L"Kit KM220P/KM230 Photo/V850";
+        std::wstring got;
+        for (const auto& [p, l] : codeSpans(s)) got += s.substr(p, l) + L" ";
+        expect(got == L"KM220P/KM230 V850 ", "slash-joined: codes whole, a word apart", got);
+    }
+    {
+        const auto it = splitBracketItems(L"[Date]03/14 [Time]8:15 [Owner] QA");
+        expect(it.size() == 3 && it[1] == L"[Time]8:15", "bracket items run together: one each", it.size() > 1 ? it[1] : L"");
+        expect(splitBracketItems(L"Press [OK] then [Cancel]").size() == 1, "buttons in a sentence are not report items");
+        BracketLine b;
+        expect(parseBracketLine(L"[根本原因 Root cause:]", b) && b.labelZh == L"根本原因" && b.colonInside && b.value.empty(),
+               "bilingual label: its Chinese", b.labelZh);
+        expect(parseBracketLine(L"[Corrective action:QA/", b) && b.label == L"Corrective action" && !b.close && b.value == L"QA/",
+               "closing bracket lost: label + value", b.value);
+        expect(parseBracketLine(L"[Statusl", b) && b.label == L"Status" && b.close == L']', "closing bracket read as l", b.label);
+        expect(!parseBracketLine(L"[see page 4: the table] above", b), "a bracketed note is not a label");
+        expect(techLabel(L"responsible  person", Lang::ZhHant) && std::wstring(techLabel(L"Responsible person", Lang::ZhHant)) == L"負責人",
+               "label table (case / spaces ignored)");
+        int drop = 0, tr = 0;
+        for (const auto& p : splitMixed(L"@All 品質異常 Quality alert")) drop += p.kind == MixedPiece::Drop;
+        expect(drop == 1, "a Chinese label's English gloss at the end is dropped");
+        drop = 0;
+        for (const auto& p : splitMixed(L"請到 Build Hall 二樓")) drop += p.kind == MixedPiece::Drop, tr += p.kind == MixedPiece::Translate;
+        expect(drop == 0 && tr == 0, "English between Chinese words is a name, kept");
+        tr = 0;
+        for (const auto& p : splitMixed(L"備註：please send the log to QA today")) tr += p.kind == MixedPiece::Translate;
+        expect(tr == 1, "an English sentence after Chinese is translated");
+        drop = 0, tr = 0;
+        for (const auto& p : splitMixed(L"設定 Changes are saved automatically.")) drop += p.kind == MixedPiece::Drop, tr += p.kind == MixedPiece::Translate;
+        expect(drop == 0 && tr == 1, "an English sentence after a Chinese label is not a gloss");
+    }
+    {
+        // Lines of a report, one item each ([Owner] under [Status] is not one sentence).
+        auto line = [](const wchar_t* t, float y0) {
+            OcrLine l;
+            l.text = t;
+            l.x0 = 0.1f, l.x1 = 0.1f + 0.022f * static_cast<float>(wcslen(t)), l.y0 = y0, l.y1 = y0 + 0.024f;
+            l.lineH = 0.02f;
+            l.conf = 0.98f;
+            l.script = detectScript(l.text);
+            return l;
+        };
+        const std::vector<OcrLine> ls{line(L"[Status] Waiting for parts from the", 0.10f), line(L"[Owner] QA", 0.126f)};
+        const auto bs = layoutBlocks(ls, 0.5f);
+        expect(bs.size() == 2, "a [label] line starts a new block", bs.empty() ? L"" : bs[0].text);
+    }
+    if (!Engine::available() || !ensureModels(Lang::En, Lang::ZhHant, download)) {
+        std::printf("technical messages (engine): skipped (bergamot.dll / en -> zh-Hant models missing)\n");
+        return fails;
+    }
+    std::printf("technical messages (en -> zh-Hant):\n");
+    Engine e;
+    Escalator esc(e);
+    const std::vector<std::wstring> in{
+        L"[Date] 03/14",                                       // 0
+        L"[Responsible person] QA",                            // 1
+        L"[根本原因 Root cause:]",                              // 2
+        L"[處理措施 Corrective action:QA/",                     // 3
+        L"[Line stop] No [Owner] RD",                          // 4
+        L"PN:731.2KQX4.0081",                                  // 5
+        L"QX/V7/RF/FAIL",                                      // 6
+        L"Overall YLD:3.50%",                                  // 7
+        L"Overall YLD:0.00%",                                  // 8
+        L"ICT-Q7 - ZX9_DDR_MEM002.004 top fail is: CheckDdrTrainLog",  // 9
+        L"We need QA to check the KM220P unit at 3F.",         // 10
+        L"@All 品質異常 Quality alert",                         // 11
+        L"測試站 QZ-7 fail 及重測率太高",                        // 12
+        L"Model KM220P SKU/KM230 retest rate 4.10%",           // 13
+        L"Q7-RX12 & Q8-RX13 LOT*** check failed",             // 14
+        L"QA,please check it again",                           // 15
+        L"@All We need QA to assist.",                         // 16
+        L"ICT-Q7 - TIMEOUT top fail is: CheckDdrTrainLog",     // 17
+        L"@All品質異常Quality alert",                         // 18
+    };
+    std::vector<std::wstring> out;
+    std::vector<TextInfo> info;
+    std::wstring err;
+    const bool ok = translateTextsEx(e, &esc, Lang::En, Lang::ZhHant, in, {}, out, &info, &err) && out.size() == in.size();
+    expect(ok, "translated", err);
+    if (!ok) return fails;
+    auto has = [&](size_t i, const wchar_t* s) { return out[i].find(s) != std::wstring::npos; };
+    expect(out[0] == L"[日期] 03/14", "[Date] value", out[0]);
+    expect(out[1] == L"[負責人] QA", "[Responsible person] -> 負責人, the acronym kept", out[1]);
+    expect(out[2] == L"[根本原因：]", "bilingual label: the Chinese once, no English", out[2]);
+    expect(out[3] == L"[處理措施：QA/", "bilingual label, closing bracket lost", out[3]);
+    expect(has(4, L"[是否停線]") && has(4, L"\n[負責人] RD"), "two [label] items: one per line", out[4]);
+    expect(out[5] == in[5] && out[6] == in[6], "code lines as written (no Pn: / ue / fail)", out[5] + L" | " + out[6]);
+    expect(has(7, L"YLD:3.50%") && has(8, L"YLD:0.00%") && !has(8, L"3.50"), "same words, other numbers: each its own", out[7] + L" | " + out[8]);
+    expect(has(9, L"ICT-Q7") && has(9, L"ZX9_DDR_MEM002.004") && has(9, L"CheckDdrTrainLog") && has(9, L"主要失敗項"),
+           "test codes and identifiers kept, top fail -> 主要失敗項", out[9]);
+    expect(has(10, L"QA") && has(10, L"KM220P") && has(10, L"3F"), "acronym / model / floor kept in a sentence", out[10]);
+    expect(out[11] == L"@All 品質異常", "Chinese kept, its English gloss dropped", out[11]);
+    expect(out[12] == L"測試站 QZ-7 fail 及重測率太高", "Chinese with codes: not translated again", out[12]);
+    expect(has(13, L"KM220P") && has(13, L"SKU/KM230") && has(13, L"4.10%") && has(13, L"重測率"), "model codes kept, retest rate", out[13]);
+    expect(has(14, L"Q7-RX12") && has(14, L"Q8-RX13") && has(14, L"LOT***") && !has(14, L"LOT****"), "codes and LOT*** as written", out[14]);
+    expect(has(15, L"QA") && !has(15, L"QA,please"), "a comma without its space", out[15]);
+    expect(out[16].rfind(L"@All ", 0) == 0 && has(16, L"QA"), "a leading mention as written, the acronym kept", out[16]);
+    expect(has(17, L"TIMEOUT") && has(17, L"主要失敗項為：CheckDdrTrainLog"), "capitals of a code line kept, full-width colon", out[17]);
+    expect(out[18] == L"@All品質異常", "a mention glued to Chinese: the gloss still dropped", out[18]);
+    // A made-up LINE work chat (0.7.10.1): its everyday messages in a technical batch are
+    // translated as in 0.7.9 - capitals are a sentence, not codes; an acronym's 's.
+    {
+        const std::vector<std::wstring> in3{
+            L"[Date] 03/14",                                  // 0
+            L"[Owner] QA",                                    // 1
+            L"PLEASE CHECK THE KX200 SAMPLES ASAP",           // 2
+            L"URGENT: STATION ZQ-7 IS DOWN, PLEASE HELP",     // 3
+            L"Waiting for QA's reply.",                       // 4
+            L"[ModeI] KM220P",                                // 5
+            L"Thanks Amy! I will check it after lunch.",      // 6
+        };
+        std::vector<std::wstring> out3;
+        const bool ok3 = translateTextsEx(e, &esc, Lang::En, Lang::ZhHant, in3, {}, out3, nullptr, &err) && out3.size() == in3.size();
+        expect(ok3, "chat translated", err);
+        if (ok3) {
+            auto han = [](const std::wstring& s) { return countScripts(s).han >= 2; };
+            auto has3 = [&](size_t i, const wchar_t* s) { return out3[i].find(s) != std::wstring::npos; };
+            expect(han(out3[2]) && has3(2, L"KX200") && !has3(2, L"PLEASE") && !has3(2, L"SAMPLES"),
+                   "a chat message in capitals is translated, its code kept", out3[2]);
+            expect(han(out3[3]) && has3(3, L"ZQ-7") && !has3(3, L"STATION") && !has3(3, L"PLEASE"),
+                   "an urgent message in capitals is translated, its code kept", out3[3]);
+            expect(has3(4, L"QA") && !has3(4, L"'s") && han(out3[4]), "an acronym's 's: no English left", out3[4]);
+            expect(out3[5] == L"[機種] KM220P", "a label misread by the OCR (ModeI)", out3[5]);
+            expect(han(out3[6]) && !has3(6, L"lunch"), "an everyday chat line translated", out3[6]);
+        }
+    // stripLineDateLabels (rules): the formats LINE draws, only when inserted in another language.
+    {
+        struct C { const wchar_t* in; const wchar_t* want; };
+        for (const C& c : {C{L"The cable test failed 今天 again after lunch.", L"The cable test failed again after lunch."},
+                           C{L"problem. Can't IP 今天 ct -> fail.", L"problem. Can't IP ct -> fail."},
+                           C{L"昨天 Please send the report before Friday.", L"Please send the report before Friday."},
+                           C{L"I will check the printer settings 星期四", L"I will check the printer settings"},
+                           C{L"We can meet 10月9日(四) tomorrow morning.", L"We can meet tomorrow morning."},
+                           C{L"We can meet 2026年10月9日（四） tomorrow morning.", L"We can meet tomorrow morning."},
+                           C{L"We can meet 오늘 tomorrow morning at nine.", L"We can meet tomorrow morning at nine."},
+                           C{L"We can meet 10월 9일 목요일 tomorrow morning.", L"We can meet tomorrow morning."},
+                           C{L"We can meet 어제 tomorrow morning at nine.", L"We can meet tomorrow morning at nine."},
+                           C{L"我們明天早上九點在會議室開會 Today", L"我們明天早上九點在會議室開會"},
+                           C{L"我們明天早上九點在會議室開會 Yesterday", L"我們明天早上九點在會議室開會"},
+                           C{L"明日の会議は九時から会議室で行います 今天", L"明日の会議は九時から会議室で行います"},
+                           C{L"내일 회의는 아침 아홉 시에 시작합니다 今天", L"내일 회의는 아침 아홉 시에 시작합니다"},
+                           C{L"내일 회의는 아침 아홉 시에 시작합니다 Thu, Oct 9", L"내일 회의는 아침 아홉 시에 시작합니다"},
+                           C{L"We can meet Thursday tomorrow morning at nine 星期四", L"We can meet Thursday tomorrow morning at nine"}})
+            expect(stripLineDateLabels(c.in) == c.want, "date label cut out of a line", stripLineDateLabels(c.in));
+        for (const wchar_t* c : {L"今天", L"10月9日(四)", L"Yesterday", L"Today is the day we ship the KX200 samples.",
+                                 L"I need it by Thursday, please check the report.", L"The meeting moved to 3月5日 for everyone.",
+                                 L"今天下午的會議改到明天早上九點", L"昨天 meeting 很順利",
+                                 L"오늘 회의는 아침 아홉 시에 시작합니다", L"昨日の会議は九時から会議室で行いました",
+                                 L"We can meet Today or Tomorrow."})
+            expect(stripLineDateLabels(c) == c, "line left as it is (label alone / own language / real word)", c);
+    }
+    }
+    // LINE's floating date label read into a made-up chat line (0.7.10.1): taken out,
+    // the English sentence translated; a label alone and a real "today" stay as they were.
+    {
+        const std::vector<std::wstring> in4{
+            L"The cable test failed 今天 again after lunch.",  // 0 label in the middle
+            L"昨天 Please send the report before Friday.",     // 1 label at the start
+            L"I will check the printer settings 星期四",        // 2 weekday label at the end
+            L"We can meet 10月9日(四) tomorrow morning.",       // 3 date label
+            L"Thanks Amy, I will call you today after lunch.", // 4 a real English today
+            L"今天",                                            // 5 the label alone
+        };
+        std::vector<std::wstring> out4;
+        const bool ok4 = translateTextsEx(e, &esc, Lang::En, Lang::ZhHant, in4, {}, out4, nullptr, &err) && out4.size() == in4.size();
+        expect(ok4, "chat with date labels translated", err);
+        if (ok4) {
+            auto han4 = [&](size_t i) { return countScripts(out4[i]).han >= 4 && countScripts(out4[i]).latin <= 6; };
+            for (size_t i : {0, 1, 2, 3})
+                expect(han4(i) && out4[i].find(L"今天") == std::wstring::npos && out4[i].find(L"昨天") == std::wstring::npos &&
+                           out4[i].find(L"星期") == std::wstring::npos && out4[i].find(L"10月") == std::wstring::npos,
+                       "a LINE date label inside an English line: removed, the sentence translated", out4[i]);
+            expect(han4(4), "a real English today is kept in the sentence and translated", out4[4]);
+            expect(out4[5] == L"今天", "a label on its own line as before", out4[5]);
+        }
+    }
+    // Not a technical message (a sign, news): 0.7.9's rules, Chinese still kept as written.
+    const std::vector<std::wstring> in2{L"山門 \"No Woman Admitted\"", L"The FBI said on Monday that the case is closed."};
+    std::vector<std::wstring> out2;
+    const bool ok2 = translateTextsEx(e, &esc, Lang::En, Lang::ZhHant, in2, {}, out2, nullptr, &err) && out2.size() == 2;
+    expect(ok2 && out2[0].find(L"山門") == 0 && out2[0].find(L"女性") != std::wstring::npos, "a sign's English after Chinese is translated, not dropped",
+           ok2 ? out2[0] : err);
+    expect(ok2 && out2[1].find(L"FBI") == std::wstring::npos, "news acronyms left to the engine (no technical batch)", ok2 ? out2[1] : err);
+    return fails;
+}
+
+// ---- --selftest: 0.7.10.1 video captions / invented text (qe.cpp inventedText, screen_translator.cpp videoLines) ----
+// Made-up sentences only.  The invented answers have the shape of the owner's case (one or two English words ->
+// a 20+ character stock sentence with a phrase said twice), not its words.
+int videoSubSelfTest(int& n) {
+    int fails = 0;
+    auto expect = [&](bool ok, const char* what, const std::wstring& got = L"") {
+        ++n;
+        if (!ok) ++fails;
+        std::printf("  %s %s%s%s\n", ok ? "ok  " : "FAIL", what, got.empty() ? "" : "  -> ", u8(got).c_str());
+    };
+    std::printf("video captions / invented text:\n");
+    auto inv = [](const wchar_t* s, const wchar_t* t) { return inventedText(s, t, Lang::En, Lang::ZhHant); };
+    // Invented: far too long for the words, a number not in the source, a phrase twice.
+    expect(inv(L"and", L"另外，若您想看更多影片，歡迎在下方訂閱，並且在下方訂閱。") != nullptr, "1 word -> a stock sentence fails");
+    expect(inv(L"ing,", L"如需協助，請與我們的客服團隊聯絡，我們會盡快回覆您。") != nullptr, "a word piece -> a stock sentence fails");
+    expect(inv(L"tools conn", L"40 多個工具") != nullptr, "a number the source does not have fails");
+    expect(inv(L"see you", L"下次見面，下次見面") != nullptr, "a phrase said twice for a short source fails");
+    expect(!translatedOk(L"and", L"另外，若您想看更多影片，歡迎在下方訂閱，並且在下方訂閱。", Lang::En, Lang::ZhHant), "... and gets no card");
+    // Real answers pass (long sentences, short words, names, numbers kept).
+    for (const auto& [s, t] : {std::pair{L"Tiny robots can sort your mail before lunch.", L"小型機器人可以在午餐前幫你整理郵件。"},
+                               {L"Three helpers working at the same time", L"三個助手同時工作"},
+                               {L"Over 40 small tools connected", L"連接了 40 多個小工具"},
+                               {L"Hotels", L"飯店"}, {L"ever", L"有史以來"}, {L"FAQ", L"常見問題"}, {L"is crazy", L"太瘋狂了"},
+                               {L"Maple Harbor Inn Kyoto", L"京都楓港旅館"}, {L"19 models", L"19 個模型"},
+                               {L"Bring a jacket, and bring an umbrella.", L"帶件外套，也帶把傘。"},
+                               {L"Ask follow up...", L"請詢問後續追蹤......"}, {L"There is a minimum order of two.", L"最低訂購量為 2 個。"},
+                               {L"Vitamin B / Vitamine B", L"維生素B / 維生素B"}, {L"%DV*", L"每日參考值百分比*"}, {L"②Bring a towel.", L"2 請帶條毛巾。"}})
+        expect(inv(s, t) == nullptr, "a real translation passes", t);
+    expect(inventedText(L"かんたん", L"簡單又方便的工具，簡單又方便的工具", Lang::Ja, Lang::ZhHant) == nullptr, "only English sources are checked");
+    // Video lines: a caption on a talking head, a still line beside / above the video.
+    const int gx = 8, gy = 16;
+    std::vector<char> dyn(gx * gy, 0);
+    for (int r = 5; r <= 13; ++r)
+        for (int c = 0; c < gx; ++c)
+            if (!(r >= 9 && r <= 11 && c >= 2 && c <= 5)) dyn[r * gx + c] = 1;  // the video, but the calm shirt under the face
+    auto line = [](float x0, float y0, float x1, float y1) {
+        OcrLine l{};
+        l.text = L"words";
+        l.x0 = x0, l.y0 = y0, l.x1 = x1, l.y1 = y1;
+        return l;
+    };
+    const std::vector<OcrLine> ls = {line(0.36f, 0.61f, 0.64f, 0.645f),   // the caption on the shirt
+                                     line(0.03f, 0.27f, 0.92f, 0.295f),   // a still line right above the video
+                                     line(0.03f, 0.10f, 0.92f, 0.125f),   // the post
+                                     line(0.10f, 0.40f, 0.60f, 0.43f)};   // a title over the moving picture
+    const auto v = videoLines(ls, dyn, gx, gy);
+    expect(v[0] == 1, "a caption inside the moving area is the video's");
+    expect(v[1] == 0 && v[2] == 0, "still lines above the video are not");
+    expect(v[3] == 1, "a line on moving cells is the video's");
+    std::vector<char> side(gx * gy, 0);  // a video on the right half only
+    for (int r = 4; r <= 10; ++r)
+        for (int c = 4; c < gx; ++c) side[r * gx + c] = 1;
+    expect(videoLines({line(0.03f, 0.45f, 0.45f, 0.48f)}, side, gx, gy)[0] == 0, "text beside a video (one side) is not");
+    expect(videoLines(ls, std::vector<char>(gx * gy, 0), gx, gy) == std::vector<char>(ls.size(), 0), "no dynamic cells: no video lines");
+    // The video's top edge just inside a cell row: the row's cells are dynamic, the still line in it is not the video's
+    // when the changing pixels are known (64 x 128 thumbnail, the video from y = 0.255 down).
+    std::vector<char> edge(gx * gy, 0);
+    for (int r = 3; r <= 10; ++r)
+        for (int c = 0; c < gx; ++c) edge[r * gx + c] = 1;
+    const int pw = 64, ph = 128;
+    std::vector<char> pix(static_cast<size_t>(pw) * ph, 0);
+    for (int y = static_cast<int>(0.255f * ph); y < static_cast<int>(0.69f * ph); ++y)
+        for (int x = 0; x < pw; ++x) pix[static_cast<size_t>(y) * pw + x] = 1;
+    const std::vector<OcrLine> el = {line(0.03f, 0.205f, 0.80f, 0.235f), line(0.10f, 0.40f, 0.60f, 0.43f)};
+    expect(videoLines(el, edge, gx, gy)[0] == 1, "cells only: a still line in a cell the video reaches is lost (0.7.10 too)");
+    const auto ve = videoLines(el, edge, gx, gy, &pix, pw, ph);
+    expect(ve[0] == 0 && ve[1] == 1, "with the changing pixels: the still line kept, the video's line left out");
+    return fails;
+}
+
 // ---- --selftest: the rules of P0 (layout rows, checks, templates, escalation, cache) ----
 int runSelfTest(bool download) {
     int fails = 0, n = 0;
@@ -832,6 +1136,7 @@ int runSelfTest(bool download) {
     };
     auto has = [](const std::vector<std::string>& v, const char* f) { return std::find(v.begin(), v.end(), f) != v.end(); };
     fails += qeGarbageSelfTest(n);
+    fails += videoSubSelfTest(n);
     std::printf("checks (qe):\n");
     {
         const auto f = checkTranslation(L"直射日光、高温多湿を避けて常温で保存してください", L"存放於遠離陽光直射、高溫且潮濕的環境中", Lang::Ja, Lang::ZhHant);
@@ -919,6 +1224,7 @@ int runSelfTest(bool download) {
         esc.setConfig(c);
         expect(esc.cacheSize() == 0, "cleared when the engines allowed change");
     }
+    fails += techSelfTest(n, download);
     // With the models: rows, a negation through the pivot, the cache.
     if (Engine::available() && ensureModels(Lang::Ja, Lang::ZhHant, download)) {
         std::printf("engine (ja -> zh-Hant):\n");
@@ -1196,6 +1502,798 @@ int runOverlay(const std::wstring& outDir, const std::vector<std::wstring>& pngs
     t.join();
     std::printf("%d failure(s)\n", fails);
     return fails;
+}
+
+// ---- --live-track: 即時翻譯 0.7.10.1 card re-use while scrolling, no models / pictures needed ----
+// A fictional tall page (made-up words, two item shapes, a few look-alike "Reply" rows) seen through a
+// viewport that scrolls by a different amount before every live run.  Each run's blocks (as the OCR would
+// give them: box edges off by up to 0.2 %, one letter wrong in some of the texts) are matched against the
+// cards the previous run left on screen.  Checks per scroll: gone <= cards that really left the picture + 2,
+// and no card shows another item's translation (TextBox::bg carries the item's id in this test).
+// Returns the number of failures; prints the gone numbers (before / after the fix in the commit messages).
+int runLiveTrack() {
+    struct Item {
+        float x0, x1, y, h;
+        std::wstring text;
+    };
+    uint32_t seed = 12345;
+    auto rnd = [&](uint32_t n) {
+        seed = seed * 1664525u + 1013904223u;
+        return (seed >> 8) % n;
+    };
+    const wchar_t* syl[] = {L"quel", L"mar", L"bri", L"vo", L"tes", L"sun", L"drak", L"pol", L"nem", L"ixa", L"zor", L"fen"};
+    std::vector<Item> page;
+    float y = 0.02f;
+    for (int i = 0; i < 140; ++i) {
+        Item it;
+        if (i % 9 == 4) {
+            it.text = L"Reply";  // look-alike rows
+            it.x0 = 0.08f;
+            it.x1 = 0.22f;
+            it.h = 0.022f;
+        } else {
+            std::wstring s;
+            const int words = 2 + static_cast<int>(rnd(4));
+            for (int w = 0; w < words; ++w) {
+                s += syl[rnd(12)];
+                s += syl[rnd(12)];
+                if (w + 1 < words) s += L' ';
+            }
+            s += L" " + std::to_wstring(10 + rnd(89));
+            it.text = s;
+            it.x0 = 0.06f + 0.01f * static_cast<float>(rnd(4));
+            it.x1 = std::min(0.94f, it.x0 + 0.03f * static_cast<float>(s.size()) * 0.5f);
+            it.h = 0.03f + 0.012f * static_cast<float>(rnd(3));
+        }
+        it.y = y;
+        y += it.h + 0.016f + 0.01f * static_cast<float>(rnd(3));
+        page.push_back(it);
+    }
+    using Box = pm::VideoWindow::TextBox;
+    // What the OCR gives for the page seen from `off`: whole items only.  `truth` gets the item ids.
+    auto look = [&](float off, std::vector<size_t>& truth) {
+        std::vector<Box> v;
+        truth.clear();
+        for (size_t i = 0; i < page.size(); ++i) {
+            const Item& it = page[i];
+            const float y0 = it.y - off, y1 = y0 + it.h;
+            if (y0 < 0.0f || y1 > 1.0f) continue;
+            auto j = [&]() { return (static_cast<float>(rnd(5)) - 2.0f) * 0.001f; };
+            Box b;
+            b.x0 = it.x0 + j();
+            b.x1 = it.x1 + j();
+            b.y0 = y0 + j();
+            b.y1 = y1 + j();
+            b.original = it.text;
+            if (rnd(10) == 0 && b.original.size() > 8) b.original[3 + rnd(3)] = L'i';  // a letter read wrong
+            b.text = L"T" + std::to_wstring(i);
+            b.bg = static_cast<uint32_t>(i) + 1;
+            b.lines = 1;
+            v.push_back(b);
+            truth.push_back(i);
+        }
+        return v;
+    };
+    int fails = 0, steps = 0, sumGone = 0, sumLeft = 0, sumKept = 0, sumStay = 0;
+    float off = 0.05f;
+    std::vector<size_t> truth;
+    std::vector<Box> shown = look(off, truth);
+    std::vector<size_t> shownIds = truth;
+    const float steps_[] = {0.08f, 0.15f, 0.22f, 0.31f, 0.45f, -0.12f, 0.05f, 0.18f, 0.27f, -0.2f, 0.12f, 0.36f};
+    for (float d : steps_) {
+        off += d;
+        std::vector<Box> bx = look(off, truth);
+        // really gone: the shown cards' items that are not in this picture
+        int left = 0, stay = 0;
+        for (size_t id : shownIds) {
+            if (std::find(truth.begin(), truth.end(), id) == truth.end()) ++left;
+            else ++stay;
+        }
+        const std::vector<Box> fresh = bx;
+        const LiveCardsResult r = stabilizeLiveCards(bx, shown);
+        int wrong = 0, misplaced = 0;
+        for (size_t k = 0; k < bx.size(); ++k) {
+            if (bx[k].bg != truth[k] + 1) ++wrong;  // another item's card
+            if (std::fabs(bx[k].y0 - fresh[k].y0) > 0.004f || std::fabs(bx[k].y1 - fresh[k].y1) > 0.004f) ++misplaced;  // card not on its text
+        }
+        const bool ok = r.gone <= left + 2 && wrong == 0 && misplaced == 0;
+        if (!ok) ++fails;
+        ++steps;
+        sumGone += r.gone;
+        sumLeft += left;
+        sumKept += r.kept;
+        sumStay += stay;
+        std::printf("  LIVE-TRACK scroll %+.2f: cards shown %zu -> kept=%d new=%d gone=%d (left the picture %d, stayed %d)%s%s%s\n", d, shown.size(), r.kept, r.added, r.gone, left, stay,
+                    r.gone > left + 2 ? "  TOO MANY GONE" : "", wrong ? "  WRONG CARD" : "", misplaced ? "  MISPLACED" : "");
+        shown.assign(bx.begin(), bx.end());
+        shownIds = truth;
+    }
+    std::printf("LIVE-TRACK %s: %d scrolls, gone %d (really left %d), kept %d of %d that stayed\n", fails ? "FAIL" : "OK", steps, sumGone, sumLeft, sumKept, sumStay);
+    return fails;
+}
+
+// ---- --live-caption (also the last part of --live-dyn): 0.7.10.1 即時翻譯 over a video with captions burned in word
+// by word (owner 0.7.10: a talking-head ad, 「everything,」 「you give」 popping up; the cards over it were the
+// engine's invented sentences).  Synthetic 30 fps stream, all text made up: a post (4 still English lines, the
+// last one right above the video), the video below it (moving everywhere but a dark "shirt" in the middle) and a
+// caption on the shirt changing every 0.3-1.6 s.  After a 4 s warm-up, over 24 s:
+//   cards over the video   (a caption translated; must be 0: captions are not translated)
+//   cut still lines        (a post line read cut off at the video's edge; must be 0)
+//   still lines with cards (in the last run; must be 3 of 4 or more)
+int runLiveCaption(Lang tgt) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    const int fw = 720, fh = 1560;
+    const float vidTop = 0.25f, vidBot = 0.70f;  // (about half the cells change: as the owner's video, dyn 35-77 of 128)
+    struct Line {
+        const wchar_t* text;
+        float y;
+    };
+    const Line post[] = {{L"Tiny robots can sort your mail before lunch.", 0.075f},
+                         {L"Ask the garden planner about any seed.", 0.115f},
+                         {L"Three helpers working at the same time", 0.185f},
+                         {L"Over forty small tools connected", 0.222f}};  // (its lower edge just above the video)
+    struct Cap {
+        const wchar_t* text;
+        double s;
+    };
+    const Cap caps[] = {{L"every", 0.5}, {L"single", 0.4}, {L"letter,", 0.9}, {L"you send", 0.6}, {L"gets", 0.3}, {L"sorted", 1.4},
+                        {L"by noon.", 0.7}, {L"", 0.5}, {L"Fast Lane", 1.6}, {L"Quiet Mode", 1.2}, {L"tiny robots", 0.5}, {L"do the rest", 0.8}};
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int fails = 0;
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        struct Run {
+            double at;
+            std::vector<ScreenTranslator::Item> items;
+            int video;
+        };
+        std::mutex lm;
+        std::vector<Run> runs;
+        const double tBase = nowMs();
+        ScreenTranslator* trp = nullptr;
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [&](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring&, bool) {};
+        cb.finished = [&](bool ok, const ScreenTranslator::Timing& tm) {
+            Run r{nowMs() - tBase, ok && trp ? trp->lastItems() : std::vector<ScreenTranslator::Item>{}, tm.videoLines};
+            std::printf("  [caption run] t+%.1f s %s why=%s dyn=%d video=%d cards %zu\n", r.at / 1000, ok ? "done" : "ended", tm.why.c_str(), tm.dynCells,
+                        tm.videoLines, r.items.size());
+            std::lock_guard lk(lm);
+            runs.push_back(std::move(r));
+        };
+        ScreenTranslator tr(win, cb);
+        trp = &tr;
+        tr.setTarget(tgt);
+        std::atomic<bool> feeding{true};
+        std::thread feeder([&] {
+            BITMAPINFO bi{};
+            bi.bmiHeader.biSize = sizeof bi.bmiHeader;
+            bi.bmiHeader.biWidth = fw;
+            bi.bmiHeader.biHeight = -fh;
+            bi.bmiHeader.biPlanes = 1;
+            bi.bmiHeader.biBitCount = 32;
+            void* bits = nullptr;
+            HDC dc = CreateCompatibleDC(nullptr);
+            HBITMAP bmp = CreateDIBSection(dc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+            HGDIOBJ oldBmp = SelectObject(dc, bmp);
+            HFONT postFont = CreateFontW(-30, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            HFONT capFont = CreateFontW(-50, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            SetBkMode(dc, TRANSPARENT);
+            uint8_t* px = static_cast<uint8_t*>(bits);
+            double capLen = 0;
+            for (const auto& c : caps) capLen += c.s;
+            const double t0 = nowMs();
+            for (int n = 0; feeding; ++n) {
+                const double el = (nowMs() - t0) / 1000;
+                // background, the post
+                for (int i = 0; i < fw * fh; ++i) px[i * 4] = 30, px[i * 4 + 1] = 26, px[i * 4 + 2] = 24;
+                SelectObject(dc, postFont);
+                SetTextColor(dc, RGB(236, 236, 236));
+                for (const auto& l : post) {
+                    RECT r{24, static_cast<LONG>(l.y * fh), fw - 10, static_cast<LONG>(l.y * fh) + 40};
+                    DrawTextW(dc, l.text, -1, &r, DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+                }
+                GdiFlush();
+                // the video: moving everywhere but the shirt (x 25-75 %, y 49-63 %)
+                for (int y = static_cast<int>(vidTop * fh); y < static_cast<int>(vidBot * fh); ++y)
+                    for (int x = 0; x < fw; ++x) {
+                        uint8_t* p = &px[(static_cast<size_t>(y) * fw + x) * 4];
+                        if (x > fw / 4 && x < fw * 3 / 4 && y > fh * 49 / 100 && y < fh * 63 / 100) {
+                            p[0] = p[1] = p[2] = 16;
+                            continue;
+                        }
+                        uint32_t hsh = static_cast<uint32_t>(x / 30) * 73856093u ^ static_cast<uint32_t>(y / 30) * 19349663u ^ static_cast<uint32_t>(n / 3) * 83492791u;  // (blocks changing in place: a busy picture, never like a scroll)
+                        hsh = (hsh ^ (hsh >> 13)) * 1274126177u;
+                        const double v = 60 + (hsh >> 24) * 0.6;
+                        p[0] = static_cast<uint8_t>(v * 0.6);
+                        p[1] = static_cast<uint8_t>(v * 0.8);
+                        p[2] = static_cast<uint8_t>(v);
+                    }
+                // the caption of this moment
+                double ph = std::fmod(el, capLen);
+                const wchar_t* cap = L"";
+                for (const auto& c : caps) {
+                    if (ph < c.s) {
+                        cap = c.text;
+                        break;
+                    }
+                    ph -= c.s;
+                }
+                if (*cap) {
+                    SelectObject(dc, capFont);
+                    RECT r{0, fh * 53 / 100, fw, fh * 53 / 100 + 70};
+                    SetTextColor(dc, RGB(0, 0, 0));
+                    for (int d = 0; d < 4; ++d) {
+                        RECT o = r;
+                        OffsetRect(&o, d & 1 ? 2 : -2, d & 2 ? 2 : -2);
+                        DrawTextW(dc, cap, -1, &o, DT_CENTER | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+                    }
+                    SetTextColor(dc, RGB(255, 255, 255));
+                    DrawTextW(dc, cap, -1, &r, DT_CENTER | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+                    GdiFlush();
+                }
+                for (int i = 0; i < fw * fh; ++i) px[i * 4 + 3] = 255;
+                win.submitBgraFrame(px, fw, fh, fw * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+            SelectObject(dc, oldBmp);
+            DeleteObject(bmp);
+            DeleteObject(postFont);
+            DeleteObject(capFont);
+            DeleteDC(dc);
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        win.post([&] { tr.setLive(true); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(28000));
+        feeding = false;
+        feeder.join();
+        win.post([&] { tr.close(); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        // ---- the numbers
+        auto letters = [](const std::wstring& s) {
+            int n = 0;
+            for (wchar_t c : s) n += iswalpha(c) != 0;
+            return n;
+        };
+        int counted = 0, videoCards = 0, cut = 0, videoChanges = 0, lastStill = 0;
+        std::wstring prevVideo;
+        std::lock_guard lk(lm);
+        for (const Run& r : runs) {
+            if (r.at < 4000) continue;
+            ++counted;
+            std::wstring vid;
+            int still = 0;
+            for (const auto& it : r.items) {
+                const float cy = (it.y0 + it.y1) / 2;
+                if (cy > vidTop && cy < vidBot) {
+                    ++videoCards;
+                    vid += it.original + L"|";
+                    std::printf("    card over the video: %s -> %s\n", u8(it.original).c_str(), u8(it.translated).c_str());
+                    continue;
+                }
+                // the post line it belongs to (nearest y)
+                const Line* best = nullptr;
+                for (const auto& l : post)
+                    if (!best || std::fabs(l.y + 0.01f - cy) < std::fabs(best->y + 0.01f - cy)) best = &l;
+                if (best && std::fabs(best->y + 0.01f - cy) < 0.02f) {
+                    ++still;
+                    if (letters(it.original) * 10 < letters(best->text) * 8) {
+                        ++cut;
+                        std::printf("    still line cut: %s -> %s\n", u8(it.original).c_str(), u8(it.translated).c_str());
+                    }
+                }
+            }
+            videoChanges += vid != prevVideo;
+            prevVideo = vid;
+            lastStill = still;
+        }
+        const bool ok = counted > 0 && videoCards == 0 && cut == 0 && lastStill >= 3;
+        std::printf("LIVE-CAPTION %s: %d runs after the warm-up: cards over the video %d (card set over it changed %d times), cut still lines %d, "
+                    "still lines with cards in the last run %d of 4\n",
+                    ok ? "OK" : "FAIL", counted, videoCards, videoChanges, cut, lastStill);
+        if (!ok) ++fails;
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    return fails;
+}
+
+// ---- --live-chat (also part of --live-dyn): 0.7.10.1 a chat (made-up messages) with a fixed title bar and input
+// bar, flicked five times (1600 px, the page slows down over 2.2 s, the last looks move it only a few pixels), then
+// still for 4.5 s each time.  Owner 0.7.10 (LINE): after such a scroll the still page kept 56-69 of 128 cells as
+// "dynamic" and the runs read 6-12 lines of 40.  Per still period: the first two runs after the page stopped
+// must include one with at most 4 dynamic cells that reads 80 % of the lines the period's best run reads.
+int runLiveChat(Lang tgt) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    const int fw = 720, fh = 1560, ph = 6000;
+    const int barTop = fh * 8 / 100, barBot = fh * 92 / 100;
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int fails = 0;
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        struct Run {
+            double at;
+            int dyn, lines;
+        };
+        std::mutex lm;
+        std::vector<Run> runs;
+        const double tBase = nowMs();
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [&](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring&, bool) {};
+        cb.finished = [&](bool ok, const ScreenTranslator::Timing& tm) {
+            Run r{nowMs() - tBase, tm.dynCells, tm.lines - tm.videoLines};
+            std::printf("  [chat run] t+%.1f s %s why=%s dyn=%d lines %d (video %d) translated %d\n", r.at / 1000, ok ? "done" : "ended", tm.why.c_str(),
+                        tm.dynCells, tm.lines, tm.videoLines, tm.translated);
+            std::lock_guard lk(lm);
+            runs.push_back(r);
+        };
+        ScreenTranslator tr(win, cb);
+        tr.setTarget(tgt);
+        // The page (tall), the two bars: drawn once.
+        std::vector<uint8_t> page(static_cast<size_t>(fw) * ph * 4), frame(static_cast<size_t>(fw) * fh * 4);
+        {
+            BITMAPINFO bi{};
+            bi.bmiHeader.biSize = sizeof bi.bmiHeader;
+            bi.bmiHeader.biWidth = fw;
+            bi.bmiHeader.biHeight = -ph;
+            bi.bmiHeader.biPlanes = 1;
+            bi.bmiHeader.biBitCount = 32;
+            void* bits = nullptr;
+            HDC dc = CreateCompatibleDC(nullptr);
+            HBITMAP bmp = CreateDIBSection(dc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+            HGDIOBJ old = SelectObject(dc, bmp);
+            HFONT f = CreateFontW(-28, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            SelectObject(dc, f);
+            SetBkMode(dc, TRANSPARENT);
+            RECT all{0, 0, fw, ph};
+            HBRUSH bg = CreateSolidBrush(RGB(140, 170, 205)), mine = CreateSolidBrush(RGB(150, 230, 120)), theirs = CreateSolidBrush(RGB(255, 255, 255));
+            FillRect(dc, &all, bg);
+            const wchar_t* msgs[] = {L"Morning! Did the parcel for room nine arrive?", L"Yes, it came at eight and it is at the desk.",
+                                     L"Great, I will pick it up after the meeting.", L"The printer on the third floor is jammed again.",
+                                     L"I asked the helpdesk to look at it before noon.", L"Lunch at the noodle place on the corner today?",
+                                     L"Sure, let us meet at the lobby at twelve.", L"Please send me the slides for the client call.",
+                                     L"Sent them to your mail a minute ago.", L"The window in the small room does not close.",
+                                     L"Thanks, I will tell the building manager."};
+            SetTextColor(dc, RGB(20, 20, 20));
+            int y = 20;
+            for (int i = 0; y < ph - 140; ++i) {
+                const bool me = i % 3 == 1;
+                RECT b{me ? 60 : 30, y, me ? 420 : 390, y + 112};  // (narrow bubbles, the right half plain wallpaper: about half the cells change in a scroll, as in the owner's LINE)
+                FillRect(dc, &b, me ? mine : theirs);
+                RECT tx{b.left + 16, b.top + 10, b.right - 16, b.bottom - 8};
+                DrawTextW(dc, msgs[i % std::size(msgs)], -1, &tx, DT_LEFT | DT_TOP | DT_WORDBREAK | DT_NOPREFIX);
+                y += 112 + 70;
+            }
+            GdiFlush();
+            std::memcpy(page.data(), bits, page.size());
+            for (size_t i = 3; i < page.size(); i += 4) page[i] = 255;
+            SelectObject(dc, old);
+            DeleteObject(bmp);
+            DeleteObject(f);
+            DeleteObject(bg);
+            DeleteObject(mine);
+            DeleteObject(theirs);
+            DeleteDC(dc);
+        }
+        std::atomic<double> offset{1800};
+        std::atomic<bool> feeding{true};
+        std::thread feeder([&] {
+            while (feeding) {
+                const int off = std::clamp(static_cast<int>(offset.load()), 0, ph - fh);
+                std::memcpy(frame.data(), page.data() + static_cast<size_t>(off) * fw * 4, frame.size());
+                for (int y = 0; y < fh; ++y) {
+                    if (y >= barTop && y < barBot) continue;
+                    for (int x = 0; x < fw; ++x) {  // the fixed bars (title row / input row with a few marks)
+                        uint8_t* p = &frame[(static_cast<size_t>(y) * fw + x) * 4];
+                        const bool mark = (y < barTop ? (y > barTop / 3 && y < barTop * 2 / 3 && x > 200 && x < 520 && (x / 12) % 3)
+                                                      : (y > barBot + 30 && y < barBot + 90 && x > 80 && x < 600));
+                        p[0] = mark ? 60 : 250, p[1] = mark ? 60 : 245, p[2] = mark ? 60 : 240, p[3] = 255;
+                    }
+                }
+                win.submitBgraFrame(frame.data(), fw, fh, fw * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+        });
+        auto sleepMs = [](double ms) { std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(ms))); };
+        sleepMs(500);
+        win.post([&] { tr.setLive(true); });
+        sleepMs(3500);
+        const int kPeriods = 5;
+        double stillFrom[kPeriods] = {}, stillTo[kPeriods] = {};
+        for (int k = 0; k < kPeriods; ++k) {
+            // A flick: 2.2 s, 1600 px, the speed falling off (first ~300 px a look, the last looks only a few pixels).
+            const double start = offset, dist = k % 2 ? -1600.0 : 1600.0, t0 = nowMs();
+            while (nowMs() - t0 < 2200) {
+                const double u = (nowMs() - t0) / 2200;
+                offset = start + dist * (1 - (1 - u) * (1 - u));
+                sleepMs(16);
+            }
+            offset = start + dist;
+            stillFrom[k] = nowMs() - tBase;
+            sleepMs(4500);
+            stillTo[k] = nowMs() - tBase;
+        }
+        feeding = false;
+        feeder.join();
+        win.post([&] { tr.close(); });
+        sleepMs(300);
+        std::lock_guard lk(lm);
+        int good = 0;
+        for (int k = 0; k < kPeriods; ++k) {
+            int best = 0;
+            std::vector<Run> in;
+            for (const Run& r : runs)
+                if (r.at > stillFrom[k] + 250 && r.at <= stillTo[k]) {  // (a run that started before the stop is not counted)
+                    in.push_back(r);
+                    best = std::max(best, r.lines);
+                }
+            bool ok = false;
+            for (size_t i = 0; i < in.size() && i < 2; ++i) ok = ok || (in[i].dyn <= 4 && in[i].lines * 10 >= best * 8 && best > 0);
+            std::printf("  LIVE-CHAT still #%d: %zu runs; first two: %s; best lines %d -> %s\n", k + 1, in.size(),
+                        in.empty() ? "-" : (std::string("dyn ") + std::to_string(in[0].dyn) + " lines " + std::to_string(in[0].lines) +
+                                            (in.size() > 1 ? ", dyn " + std::to_string(in[1].dyn) + " lines " + std::to_string(in[1].lines) : std::string())).c_str(),
+                        best, ok ? "ok" : "STALE DYNAMIC CELLS");
+            good += ok;
+        }
+        const bool ok = good == kPeriods;
+        std::printf("LIVE-CHAT %s: %d of %d still periods read whole within two runs\n", ok ? "OK" : "FAIL", good, kPeriods);
+        if (!ok) ++fails;
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    return fails;
+}
+
+// ---- --live-dyn PNG: 0.7.10 即時翻譯 regressions on a 30 fps stream over PNG (a viewport over a tall
+// picture), a "video" (moving gradient) in the upper right of the picture, the text below still:
+//   ON-FIRST   live switched on (fresh, video playing): -> first run finished
+//   ON-AGAIN   live off, on again (translator already active), video playing: -> run finished
+//   VIDEO      40 s of video + still text: runs finished, longest gap between them, how often the still
+//              part's pixels changed (a card rebuilt / flashed), card-list replacements, and the time
+//              from changing the text below the video to its run finished
+//   SPIN       30 s of a 2.5 % spinner on/off (3 s each): runs, card-list replacements on identical text
+//   SCROLL     15 s of continuous scrolling: runs, longest gap, card-list replacements
+// Numbers for the 0.7.10 commit messages: before / after the fix.
+int runLiveDyn(const std::wstring& png, Lang tgt) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    std::vector<uint8_t> full;
+    int fw = 0, fh = 0;
+    if (!readPng(png, full, fw, fh)) {
+        std::printf("cannot read %ls\n", png.c_str());
+        return 1;
+    }
+    const int vh = std::min(fh, fw * 16 / 10);
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int fails = runLiveTrack();  // (0.7.10.1: the card re-use while scrolling, no models needed)
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        std::mutex lm;
+        std::vector<double> doneAt;
+        std::atomic<int> done{0};
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [&](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring&, bool) {};
+        const double tBase = nowMs();
+        cb.finished = [&](bool ok, const ScreenTranslator::Timing& tm) {
+            std::printf("  [run] t+%.1f s %s%s why=%s dyn=%d/%d cards kept=%d new=%d gone=%d (%d translated, %.0f ms)\n", (nowMs() - tBase) / 1000, tm.live ? "live " : "", ok ? "done" : "ended", tm.why.c_str(), tm.dynCells, tm.cells, tm.cardsKept, tm.cardsNew, tm.cardsGone, tm.translated, tm.totalMs);
+            std::lock_guard lk(lm);
+            doneAt.push_back(nowMs());
+            done++;
+        };
+        ScreenTranslator tr(win, cb);
+        tr.setTarget(tgt);
+        std::atomic<int> offset{0};
+        std::atomic<bool> video{false}, spin{false}, feeding{true};
+        std::thread feeder([&] {
+            std::vector<uint8_t> frame(static_cast<size_t>(fw) * vh * 4);
+            uint32_t seed = 1;
+            int n = 0;
+            while (feeding) {
+                const int off = std::clamp(offset.load(), 0, fh - vh);
+                std::memcpy(frame.data(), full.data() + static_cast<size_t>(off) * fw * 4, frame.size());
+                if (video)  // a playing video: upper right, 55 % of the width, 20 % of the height
+                    for (int y = vh / 8; y < vh / 8 + vh / 5; ++y)
+                        for (int x = fw * 45 / 100; x < fw; ++x) {
+                            const double v = 128 + 90 * std::sin((x + n * 7) / 23.0) * std::cos((y - n * 5) / 31.0);
+                            uint8_t* p = &frame[(static_cast<size_t>(y) * fw + x) * 4];
+                            p[0] = static_cast<uint8_t>(v);
+                            p[1] = static_cast<uint8_t>(v * 0.8);
+                            p[2] = static_cast<uint8_t>(255 - v);
+                        }
+                if (spin)  // a spinner / animated badge: ~2.5 % of the picture
+                    for (int y = vh / 40; y < vh / 40 + vh / 10; ++y)
+                        for (int x = fw * 3 / 4; x < fw; ++x) {
+                            seed = seed * 1664525u + 1013904223u;
+                            uint8_t* p = &frame[(static_cast<size_t>(y) * fw + x) * 4];
+                            p[0] = p[1] = p[2] = static_cast<uint8_t>(seed >> 24);
+                        }
+                ++n;
+                win.submitBgraFrame(frame.data(), fw, vh, fw * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+        });
+        auto sleepMs = [](double ms) { std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(ms))); };
+        // The still part's (lower half of the window) pixels, hashed.
+        auto stillHash = [&](const wchar_t* shotName) -> uint64_t {
+            const std::wstring path = shotName;
+            bool ok = false;
+            HANDLE ev = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+            win.post([&] {
+                ok = win.saveWindowShot(path);
+                SetEvent(ev);
+            });
+            WaitForSingleObject(ev, 5000);
+            CloseHandle(ev);
+            std::vector<uint8_t> px;
+            int w = 0, h = 0;
+            if (!ok || !readPng(path, px, w, h)) return 0;
+            uint64_t hash = 1469598103934665603ull;
+            for (int y = h * 55 / 100; y < h * 95 / 100; ++y)
+                for (int x = 0; x < w * 4; ++x) hash = (hash ^ px[static_cast<size_t>(y) * w * 4 + x]) * 1099511628211ull;
+            return hash;
+        };
+        // Waits for a run finished after `d0` runs, at most `cap` ms from `from`; the delay or -1.
+        auto waitRun = [&](int d0, double from, double cap) -> double {
+            while (done == d0 && nowMs() - from < cap) sleepMs(10);
+            return done > d0 ? nowMs() - from : -1.0;
+        };
+        // Runs finished in [from, to] and the longest gap between them (the window's edges count).
+        auto gaps = [&](double from, double to, double& maxGap, int& n) {
+            std::lock_guard lk(lm);
+            maxGap = 0;
+            n = 0;
+            double prev = from;
+            for (double a : doneAt)
+                if (a >= from && a <= to) {
+                    maxGap = std::max(maxGap, a - prev);
+                    prev = a;
+                    ++n;
+                }
+            maxGap = std::max(maxGap, to - prev);
+        };
+        auto fmt = [](double ms) {
+            char b[40];
+            if (ms < 0) std::snprintf(b, sizeof b, "NEVER");
+            else std::snprintf(b, sizeof b, "%.0f ms", ms);
+            return std::string(b);
+        };
+        sleepMs(500);
+        // ---- ON-FIRST
+        video = true;
+        {
+            const double t0 = nowMs();
+            const int d0 = done;
+            win.post([&] { tr.setLive(true); });
+            const double d = waitRun(d0, t0, 60000);
+            std::printf("LIVE-DYN ON-FIRST: live switched on (video playing, fresh) -> first run finished %s\n", fmt(d).c_str());
+            if (d < 0) ++fails;
+        }
+        sleepMs(3000);
+        // ---- ON-AGAIN
+        {
+            win.post([&] { tr.setLive(false, 5); });
+            sleepMs(800);
+            offset = offset > 0 ? 0 : std::min(vh / 3, std::max(0, fh - vh));  // another part of the page while it is off
+            sleepMs(300);
+            const double t0 = nowMs();
+            const int d0 = done;
+            win.post([&] { tr.setLive(true, 5); });
+            const double d = waitRun(d0, t0, 20000);
+            std::printf("LIVE-DYN ON-AGAIN: live off, picture changed, on again (video playing) -> run finished %s\n", fmt(d).c_str());
+            if (d < 0) ++fails;
+        }
+        sleepMs(3000);
+        // ---- VIDEO
+        {
+            const auto s0 = tr.liveStats();
+            const double t0 = nowMs();
+            const int d0 = done;
+            uint64_t prev = 0;
+            int changes = 0, samples = 0, kept = 0, unexplained = 0;
+            double prevShotAt = 0;
+            const int baseOff = offset;
+            const int alt = baseOff + std::min(vh / 3, std::max(0, fh - vh - baseOff)) == baseOff ? std::max(0, baseOff - vh / 3)
+                                                                                                 : baseOff + std::min(vh / 3, std::max(0, fh - vh - baseOff));
+            // The text below the video changes at 14 s, 22 s, 30 s (to the other page and back).
+            const double swapTimes[3] = {14000, 22000, 30000};
+            double swapAt[3] = {-1, -1, -1}, swapDelay[3] = {-1, -1, -1};
+            int swapD0[3] = {0, 0, 0}, nSwap = 0;
+            while (nowMs() - t0 < 38000) {
+                const double el = nowMs() - t0;
+                if (nSwap < 3 && el >= swapTimes[nSwap]) {
+                    swapAt[nSwap] = nowMs();
+                    swapD0[nSwap] = done;
+                    offset = nSwap % 2 == 0 ? alt : baseOff;
+                    ++nSwap;
+                }
+                for (int i = 0; i < nSwap; ++i)
+                    if (swapDelay[i] < 0 && done > swapD0[i]) swapDelay[i] = nowMs() - swapAt[i];
+                const uint64_t h = stillHash(kept % 2 ? L"pm_live_dyn_shot_b.png" : L"pm_live_dyn_shot_a.png");
+                const double shotAt = nowMs();
+                ++kept;
+                if (el > 6000 && el < 13500) {
+                    if (samples > 0 && h != prev) {
+                        ++changes;
+                        bool explained = false;
+                        {
+                            std::lock_guard lk(lm);
+                            for (double a : doneAt) explained = explained || (a > prevShotAt - 200 && a < shotAt + 100);
+                        }
+                        if (!explained) ++unexplained;
+                        if (changes <= 3) {  // keep the two shots around a change
+                            wchar_t n[64];
+                            swprintf(n, 64, L"pm_live_dyn_chg%d_before.png", changes);
+                            CopyFileW(kept % 2 ? L"pm_live_dyn_shot_a.png" : L"pm_live_dyn_shot_b.png", n, FALSE);
+                            swprintf(n, 64, L"pm_live_dyn_chg%d_after.png", changes);
+                            CopyFileW(kept % 2 ? L"pm_live_dyn_shot_b.png" : L"pm_live_dyn_shot_a.png", n, FALSE);
+                        }
+                    }
+                    ++samples;
+                }
+                prev = h;
+                prevShotAt = shotAt;
+                sleepMs(100);
+            }
+            const auto s1 = tr.liveStats();
+            double mg;
+            int n;
+            gaps(t0, nowMs(), mg, n);
+            std::printf("LIVE-DYN VIDEO: 38 s: runs finished %d (started %lld: first %lld settled %lld forced %lld), longest gap between runs %.1f s\n",
+                        done - d0, s1.runs - s0.runs, s1.first - s0.first, s1.settled - s0.settled, s1.forced - s0.forced, mg / 1000);
+            std::printf("LIVE-DYN VIDEO: still part changed %d time(s) in 7.5 s (%d shots, text unchanged, video playing), %d of them with no run finishing meanwhile; card list replaced %lld, kept %lld in the 38 s; dynamic cells %d of %d\n",
+                        changes, samples, unexplained, s1.overlaySets - s0.overlaySets, s1.overlayKept - s0.overlayKept, s1.dynCells, s1.cells);
+            double worst = 0;
+            bool never = false;
+            for (int i = 0; i < 3; ++i) {
+                std::printf("LIVE-DYN VIDEO: text below the video changed (#%d) -> run finished %s\n", i + 1, fmt(swapDelay[i]).c_str());
+                if (swapDelay[i] < 0) never = true;
+                worst = std::max(worst, swapDelay[i]);
+            }
+            std::printf("LIVE-DYN VIDEO: text change -> run finished, worst of 3: %s\n", never ? "NEVER" : fmt(worst).c_str());
+            if (never) ++fails;
+        }
+        video = false;
+        sleepMs(4000);
+        // ---- SPIN
+        {
+            const auto s0 = tr.liveStats();
+            const int d0 = done;
+            const double t0 = nowMs();
+            for (int k = 0; nowMs() - t0 < 30000; ++k) {
+                spin = k % 2 == 0;
+                sleepMs(3000);
+            }
+            spin = false;
+            sleepMs(3000);
+            const auto s1 = tr.liveStats();
+            std::printf("LIVE-DYN SPIN: 30 s spinner on/off: runs finished %d, card list replaced %lld, kept %lld (identical text each time)\n", done - d0,
+                        s1.overlaySets - s0.overlaySets, s1.overlayKept - s0.overlayKept);
+        }
+        // ---- SCROLL
+        {
+            offset = 0;
+            sleepMs(4000);
+            const auto s0 = tr.liveStats();
+            const int d0 = done;
+            const double t0 = nowMs();
+            const int range = std::max(1, fh - vh);
+            while (nowMs() - t0 < 15000) {
+                const double ph = std::fmod((nowMs() - t0) / 5000.0, 2.0);  // 5 s down, 5 s up
+                offset = static_cast<int>((ph < 1 ? ph : 2 - ph) * range);
+                sleepMs(16);
+            }
+            const double endAt = nowMs();
+            double mg;
+            int n;
+            gaps(t0, endAt, mg, n);
+            const auto s1 = tr.liveStats();
+            std::printf("LIVE-DYN SCROLL: 15 s continuous scroll: runs finished %d (started %lld: settled %lld forced %lld), longest gap %.1f s, card list replaced %lld, kept %lld\n",
+                        done - d0, s1.runs - s0.runs, s1.settled - s0.settled, s1.forced - s0.forced, mg / 1000, s1.overlaySets - s0.overlaySets,
+                        s1.overlayKept - s0.overlayKept);
+            const double d = waitRun(done, endAt, 8000);
+            std::printf("LIVE-DYN SCROLL: stopped -> run finished %s\n", fmt(d).c_str());
+        }
+        feeding = false;
+        feeder.join();
+        win.post([&] { tr.close(); });
+        sleepMs(300);
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    fails += runLiveCaption(tgt);  // (0.7.10.1: captions burned into a video)
+    fails += runLiveChat(tgt);     // (0.7.10.1: a chat flicked, then still: no stale dynamic cells)
+    std::printf("%d failure(s)\n", fails);
+    return fails;
+}
+
+// ---- --live-replay DIR [--fps N]: 即時翻譯 over a recording's frames (DIR\*.png in name order, N per
+// second, default 10), fed to an off-screen VideoWindow at 30 fps like the phone's stream; live switched on
+// at the first frame.  Every run: why, dynamic cells, and each card (original -> translation, engine step);
+// with PM_TR_DEBUG=1 also the OCR lines (confidence, box), the dynamic grid and each block's pick reason.
+int g_replayFps = 10;
+int runLiveReplay(const std::wstring& dir, Lang tgt) {
+    SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
+    std::vector<std::wstring> frames;
+    WIN32_FIND_DATAW fd;
+    HANDLE fh = FindFirstFileW((dir + L"\\*.png").c_str(), &fd);
+    if (fh != INVALID_HANDLE_VALUE) {
+        do frames.push_back(dir + L"\\" + fd.cFileName);
+        while (FindNextFileW(fh, &fd));
+        FindClose(fh);
+    }
+    std::sort(frames.begin(), frames.end());
+    if (frames.empty()) {
+        std::printf("no PNG in %ls\n", dir.c_str());
+        return 2;
+    }
+    pm::VideoWindow win;
+    if (!win.create(L"pm_translate_test", g_winW, g_winH)) return 1;
+    int runs = 0;
+    std::thread t([&]() {
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        std::atomic<int> shown{-1};
+        std::atomic<bool> feeding{true};
+        const double tBase = nowMs();
+        ScreenTranslator* trp = nullptr;
+        ScreenTranslator::Callbacks cb;
+        cb.askDownload = [&](Lang, Lang, double, std::function<void(bool)> answer) { answer(false); };
+        cb.notify = [](const std::wstring&, const std::wstring&, bool) {};
+        cb.finished = [&](bool ok, const ScreenTranslator::Timing& tm) {
+            ++runs;
+            std::printf("[run] t+%.1f s frame %d %s why=%s dyn=%d/%d video=%d lines %d blocks %d translated %d cards kept=%d new=%d gone=%d\n",
+                        (nowMs() - tBase) / 1000, shown.load() + 1, ok ? "done" : "ended", tm.why.c_str(), tm.dynCells, tm.cells, tm.videoLines, tm.lines,
+                        tm.blocks, tm.translated, tm.cardsKept, tm.cardsNew, tm.cardsGone);
+            if (ok && trp)
+                for (const auto& it : trp->lastItems())
+                    std::printf("  [card] step %d y %.3f-%.3f: %s -> %s\n", it.step, it.y0, it.y1, u8(it.original).c_str(), u8(it.translated).c_str());
+            std::fflush(stdout);
+        };
+        ScreenTranslator tr(win, cb);
+        trp = &tr;
+        tr.setTarget(tgt);
+        std::thread feeder([&] {
+            CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+            std::vector<uint8_t> px;
+            int w = 0, h = 0, cur = -1;
+            const double t0 = nowMs();
+            while (feeding) {
+                const int k = static_cast<int>((nowMs() - t0) * g_replayFps / 1000);
+                if (k >= static_cast<int>(frames.size())) break;
+                if (k != cur) {
+                    if (!readPng(frames[static_cast<size_t>(k)], px, w, h)) break;
+                    cur = k;
+                    shown = k;
+                }
+                win.submitBgraFrame(px.data(), w, h, w * 4, 0);
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+            feeding = false;
+            CoUninitialize();
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        win.post([&] { tr.setLive(true); });
+        while (feeding) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        feeder.join();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // the last run
+        win.post([&] { tr.close(); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        CoUninitialize();
+        win.post([&] { win.close(); });
+    });
+    win.runMessageLoop();
+    t.join();
+    std::printf("%zu frames, %d runs\n", frames.size(), runs);
+    return 0;
 }
 
 // ---- --live PNG: 即時翻譯 on a synthetic stream (a viewport over a tall
@@ -1552,6 +2650,7 @@ int wmain(int argc, wchar_t** argv) {
             g_layoutMode = m == L"inplace" ? 1 : m == L"list" ? 2 : 0;
         } else if (a == L"--dark") g_dark = true;
         else if (a == L"--zoom" && v) g_zoom = static_cast<float>(_wtof(argv[++i]));
+        else if (a == L"--fps" && v) g_replayFps = std::max(1, _wtoi(argv[++i]));
         else if (a.rfind(L"--", 0) == 0) mode = a;
         else files.push_back(a);
     }
@@ -1594,6 +2693,11 @@ int wmain(int argc, wchar_t** argv) {
         std::thread([] { *static_cast<volatile int*>(nullptr) = 1; }).join();
         return 1;
     }
+    if (mode == L"--live-track") return runLiveTrack();
+    if (mode == L"--live-caption") return runLiveCaption(tgt);
+    if (mode == L"--live-chat") return runLiveChat(tgt);
+    if (mode == L"--live-dyn") return files.empty() ? 2 : runLiveDyn(files[0], tgt);
+    if (mode == L"--live-replay") return files.empty() ? 2 : runLiveReplay(files[0], tgt);
     if (mode == L"--live") return files.empty() ? 2 : runLive(files[0], tgt, false);
     if (mode == L"--live-cold") return files.empty() ? 2 : runLive(files[0], tgt, true);
     if (mode == L"--text" || mode == L"--raw") {

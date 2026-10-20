@@ -20,8 +20,10 @@
 #include "raop.h"
 #include "raop_ntp.h"
 #include "raop_rtp_mirror.h"
+#include "raop_rtp.h"
 #include "dnssd.h"
 #include "pm_audio_advert.h"
+#include "pm_volume_hud.h"
 #include <plist/plist.h>
 
 static void t_log(void *cls, int level, const char *msg) {
@@ -242,12 +244,14 @@ static void t_display_pin(void *cls, char *pin) {
 }
 /* PM: "request: ..." INFO lines, collected from the httpd thread */
 static CRITICAL_SECTION g_req_cs;
-static char g_req_log[8192];
+static char g_req_log[32768];
 static volatile LONG g_req_lines;
 
 static void t_raop_log(void *cls, int level, const char *msg) {
     (void) cls;
-    if (!strncmp(msg, "request: ", 9)) {
+    /* also the 0.7.10 volume / teardown diagnostics of the handlers */
+    if (!strncmp(msg, "request: ", 9) || !strncmp(msg, "GET_PARAMETER ", 14) || !strncmp(msg, "SET_PARAMETER ", 14) ||
+        !strncmp(msg, "GET /info: ", 11) || !strncmp(msg, "TEARDOWN: ", 10) || !strncmp(msg, "POST /audioMode", 15)) {
         EnterCriticalSection(&g_req_cs);
         size_t l = strlen(g_req_log);
         snprintf(g_req_log + l, sizeof(g_req_log) - l, "%s\n", msg);
@@ -475,6 +479,8 @@ static int send_raw(SOCKET s, const char *req, char *resp, int resp_size) {
     return r;
 }
 
+static plist_t get_info(SOCKET s, const char *qualifier);
+
 static void test_request_log(void) {
     printf("INFO request log (one line per request, body redacted, chatter limited)\n");
     unsigned short port = 0;
@@ -514,8 +520,88 @@ static void test_request_log(void) {
         printf("    POST /play answer: %s\n", k ? first : "(none)");
     }
     closesocket(b);
+
+    /* 0.7.10: the volume exchange and the stream tear-downs show in the log
+     * (the 0.7.9 log of the iPhone volume-HUD report had none of it).
+     * GET /info reads features / name from dnssd: without one it crashed. */
+    const char hw[6] = {0x02, 0x11, 0x22, 0x33, 0x44, 0x55};
+    int derr = 0;
+    dnssd_t *d = dnssd_init("PMTest", 6, hw, 6, 0, &derr);
+    check(d != NULL && !derr, "dnssd_init (no network I/O)");
+    if (!d) {
+        raop_stop_httpd(r);
+        raop_destroy(r);
+        return;
+    }
+    raop_set_dnssd(r, d);
+    SOCKET c = connect_from("127.0.0.1", port);
+    setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, (const char *) &tmo, sizeof(tmo));
+    plist_t info = get_info(c, NULL);
+    check(info && plist_dict_get_item(info, "initialVolume"), "GET /info carries initialVolume");
+    if (info) plist_free(info);
+    check(wait_req_log("GET /info: initialVolume -15.00 dB reported to the client"), "initialVolume logged");
+    send_raw(c, "GET_PARAMETER rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 20\r\nContent-Type: text/parameters\r\n"
+                "Content-Length: 8\r\n\r\nvolume\r\n", resp, sizeof(resp));
+    check(strstr(resp, "volume: -15.000000") != NULL, "GET_PARAMETER volume answered with the client volume");
+    check(wait_req_log("GET_PARAMETER volume: answered -15.00 dB"), "GET_PARAMETER volume answer logged");
+    send_raw(c, "SET_PARAMETER rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 21\r\nContent-Type: text/parameters\r\n"
+                "Content-Length: 20\r\n\r\nvolume: -20.625000\r\n", resp, sizeof(resp));
+    check(wait_req_log("SET_PARAMETER volume: -20.62 dB (no audio stream)") ||
+              wait_req_log("SET_PARAMETER volume: -20.63 dB (no audio stream)"),
+          "SET_PARAMETER volume logged with its value");
+    send_raw(c, "SET_PARAMETER rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 22\r\nContent-Type: text/parameters\r\n"
+                "Content-Length: 20\r\n\r\nvolume: -20.625000\r\n", resp, sizeof(resp));
+    Sleep(50);
+    {
+        EnterCriticalSection(&g_req_cs);
+        int n = 0;
+        for (const char *p = g_req_log; (p = strstr(p, "SET_PARAMETER volume: -20.6")) != NULL; p++) n++;
+        LeaveCriticalSection(&g_req_cs);
+        check(n == 2, "a repeated SET_PARAMETER volume is logged again (the request line is rate-limited)");
+    }
+    send_raw(c, "SET_PARAMETER rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 23\r\nContent-Type: text/parameters\r\n"
+                "Content-Length: 18\r\n\r\nvolume: 6.000000\r\n", resp, sizeof(resp));
+    check(wait_req_log("SET_PARAMETER volume: 0.00 dB (no audio stream)"),
+          "a volume above 0 dB is clamped to 0 dB without an audio stream too");
+    send_raw(c, "SET_PARAMETER rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 24\r\nContent-Type: text/parameters\r\n"
+                "Content-Length: 13\r\n\r\nvolume: nan\r\n", resp, sizeof(resp));
+    Sleep(50);
+    check(!req_log_has("SET_PARAMETER volume: nan") && !req_log_has("SET_PARAMETER volume: -nan"),
+          "volume \"nan\" ignored");
+    {
+        /* audio-stream TEARDOWN twice within the old 10 s repeat window, then the whole session */
+        plist_t d = plist_new_dict(), a = plist_new_array(), s96 = plist_new_dict();
+        plist_dict_set_item(s96, "type", plist_new_uint(96));
+        plist_array_append_item(a, s96);
+        plist_dict_set_item(d, "streams", a);
+        char *bin = NULL;
+        uint32_t bl = 0;
+        plist_to_bin(d, &bin, &bl);
+        plist_free(d);
+        for (int i = 0; i < 2; i++) {
+            char hdr[256];
+            int hl = snprintf(hdr, sizeof(hdr), "TEARDOWN rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: %d\r\n"
+                              "Content-Type: application/x-apple-binary-plist\r\nContent-Length: %u\r\n\r\n",
+                              30 + i, (unsigned) bl);
+            send_all(c, (const unsigned char *) hdr, hl);
+            send_all(c, (const unsigned char *) bin, (int) bl);
+            recv(c, resp, sizeof(resp) - 1, 0);
+        }
+        plist_mem_free(bin);
+        send_raw(c, "TEARDOWN rtsp://127.0.0.1/1 RTSP/1.0\r\nCSeq: 40\r\n\r\n", resp, sizeof(resp));
+        Sleep(50);
+        EnterCriticalSection(&g_req_cs);
+        int n = 0;
+        for (const char *p = g_req_log; (p = strstr(p, "request: TEARDOWN ")) != NULL; p++) n++;
+        LeaveCriticalSection(&g_req_cs);
+        check(n == 3, "3 TEARDOWNs within 1 s -> 3 request lines (session events are never rate-limited)");
+        check(req_log_has("TEARDOWN: audio stream (96)") && req_log_has("TEARDOWN: whole session (no streams listed)"),
+              "TEARDOWN logs which streams it ends");
+    }
+    closesocket(c);
     raop_stop_httpd(r);
     raop_destroy(r);
+    if (d) dnssd_destroy(d);
 }
 
 /* RTSP GET /info (optionally with a bplist "qualifier"); returns the response
@@ -632,6 +718,231 @@ static void test_audio_advert(void) {
     }
 }
 
+/* settings.ini airplay_volume_control / airplay_audio_status (0.7.10.1, iOS
+ * volume HUD A/B): what GET /info and the _raop TXT record say in each mode,
+ * and that the rest of /info (features, display, initialVolume) is unchanged.
+ * No mDNS registration (no multicast); airplay_server.cpp's order is replayed. */
+static int txt_has(const char *data, uint64_t dl, const char *kv) {
+    /* TXT record: <len><key=value> entries */
+    size_t n = strlen(kv);
+    for (uint64_t i = 0; data && i < dl; i += (unsigned char) data[i] + 1)
+        if ((unsigned char) data[i] == n && i + 1 + n <= dl && !memcmp(data + i + 1, kv, n)) return 1;
+    return 0;
+}
+
+static void test_volume_hud(void) {
+    printf("airplay_volume_control / airplay_audio_status A/B switch\n");
+    pm_volume_hud_t d0 = pm_volume_hud_plan(-1, 1);
+    check(d0.volume_control_type == -1 && d0.audio_status == 1 && d0.status_flags == 68,
+          "default -1/1: no volumeControlType, statusFlags 68 (UxPlay)");
+    check(pm_volume_hud_plan(0, 1).volume_control_type == 0 && pm_volume_hud_plan(4, 1).volume_control_type == 4,
+          "0..4 kept");
+    check(pm_volume_hud_plan(5, 1).volume_control_type == -1 && pm_volume_hud_plan(-7, 1).volume_control_type == -1,
+          "out of range -> -1 (not sent)");
+    check(pm_volume_hud_plan(-1, 0).status_flags == 64 && pm_volume_hud_plan(-1, 9).status_flags == 68,
+          "audio_status 0 -> statusFlags 64 (bit 2 off); other values -> 1");
+    check(pm_volume_hud_txt_flags(1, 0) == 0x4 && pm_volume_hud_txt_flags(1, 1) == 0x8c &&
+          pm_volume_hud_txt_flags(1, 2) == 0x84 && pm_volume_hud_txt_flags(1, 3) == 0x84,
+          "TXT flags with audio status = UxPlay (0x4, PIN 0x8c, password 0x84)");
+    check(pm_volume_hud_txt_flags(0, 0) == 0x0 && pm_volume_hud_txt_flags(0, 1) == 0x88 &&
+          pm_volume_hud_txt_flags(0, 2) == 0x80, "TXT flags without bit 2 (0x0, 0x88, 0x80)");
+
+    const int modes[3][2] = {{-1, 1}, {0, 1}, {3, 0}};
+    for (int m = 0; m < 3; m++) {
+        const pm_volume_hud_t plan = pm_volume_hud_plan(modes[m][0], modes[m][1]);
+        const char hw[6] = {0x02, 0x11, 0x22, 0x33, 0x44, 0x55};
+        int err = 0;
+        dnssd_t *d = dnssd_init("PMTest", 6, hw, 6, 0, &err);
+        check(d != NULL && !err, "dnssd_init (no network I/O)");
+        if (!d) return;
+        dnssd_pm_set_audio_status(d, plan.audio_status);
+        dnssd_set_airplay_features(d, 0, 0);
+        dnssd_set_airplay_features(d, 4, 0);
+        dnssd_set_airplay_features(d, 7, 1);
+        dnssd_set_airplay_features(d, 9, 1);
+        dnssd_set_airplay_features(d, 27, 1);
+        const uint64_t f = dnssd_get_airplay_features(d);
+        unsigned short port = 0;
+        raop_t *r = raop_new(false, &port);
+        check(r != NULL, "receiver on a loopback port");
+        if (!r) { dnssd_destroy(d); return; }
+        raop_set_plist(r, "pm_volumeControlType", plan.volume_control_type);
+        raop_set_plist(r, "pm_statusFlags", (int) plan.status_flags);
+        raop_set_dnssd(r, d);
+        check(dnssd_pm_build_raop_txt(d) == 0, "_raop TXT built (not registered)");
+
+        SOCKET c = connect_from("127.0.0.1", port);
+        plist_t info = get_info(c, NULL);
+        check(info != NULL, "GET /info answered");
+        uint64_t got_f = 0, sf = 0, vct = 99;
+        plist_t n;
+        if (info && (n = plist_dict_get_item(info, "features"))) plist_get_uint_val(n, &got_f);
+        if (info && (n = plist_dict_get_item(info, "statusFlags"))) plist_get_uint_val(n, &sf);
+        plist_t vn = info ? plist_dict_get_item(info, "volumeControlType") : NULL;
+        if (vn) plist_get_uint_val(vn, &vct);
+        printf("    volume_control %d audio_status %d: statusFlags %llu, volumeControlType %s%llu\n",
+               modes[m][0], modes[m][1], (unsigned long long) sf, vn ? "" : "(absent) ",
+               (unsigned long long) (vn ? vct : 0));
+        check(got_f == f && ((got_f >> 9) & 1) == 1, "/info features unchanged (bit 9 audio on)");
+        check(sf == plan.status_flags, "/info statusFlags as planned");
+        check(plan.volume_control_type < 0 ? vn == NULL : (vn && (int) vct == plan.volume_control_type),
+              plan.volume_control_type < 0 ? "default: no volumeControlType key (as UxPlay)"
+                                           : "volumeControlType sent with the configured value");
+        check(info && plist_dict_get_item(info, "initialVolume") && plist_dict_get_item(info, "audioFormats"),
+              "/info still has initialVolume and audioFormats (sound path untouched)");
+        plist_t disp = info ? plist_dict_get_item(info, "displays") : NULL;
+        check(disp && plist_array_get_size(disp) == 1, "/info still lists the display (Screen Mirroring)");
+        if (info) plist_free(info);
+
+        plist_t t = get_info(c, "txtRAOP");
+        char *data = NULL;
+        uint64_t dl = 0;
+        plist_t tn = t ? plist_dict_get_item(t, "txtRAOP") : NULL;
+        if (tn) plist_get_data_val(tn, &data, &dl);
+        check(txt_has(data, dl, plan.audio_status ? "sf=0x4" : "sf=0x0"),
+              plan.audio_status ? "_raop TXT sf=0x4 (UxPlay)" : "_raop TXT sf=0x0 (bit 2 off)");
+        if (data) plist_mem_free(data);
+        if (t) plist_free(t);
+        closesocket(c);
+        raop_stop_httpd(r);
+        raop_destroy(r);
+        dnssd_destroy(d);
+    }
+}
+
+/* ------------------------------------------- iPhone audio-stream cycling
+ * 0.7.10 (iPhone volume-HUD report, log 10:28:26-39): while mirroring the
+ * phone sets up and tears down the audio stream (type 96) every few seconds,
+ * often without any sound in it ("no data" packets only), and sends
+ * SET_PARAMETER volume in between. A volume that arrived within one 5 ms select
+ * round of the thread before the TEARDOWN was dropped and stayed pending: the
+ * next audio SETUP then applied that old volume (PC volume and the
+ * initialVolume / GET_PARAMETER answer no longer matched the phone's slider).
+ * Driven here on raop_rtp directly, as the RTSP handlers do. */
+static CRITICAL_SECTION g_vol_cs;
+static int g_vol_calls;
+static float g_vol_last;
+static char g_rtp_log[8192];
+static void t_set_volume(void *cls, float v) {
+    (void) cls;
+    EnterCriticalSection(&g_vol_cs);
+    g_vol_calls++;
+    g_vol_last = v;
+    LeaveCriticalSection(&g_vol_cs);
+}
+static void vol_get(int *calls, float *last) {
+    EnterCriticalSection(&g_vol_cs);
+    *calls = g_vol_calls;
+    *last = g_vol_last;
+    LeaveCriticalSection(&g_vol_cs);
+}
+static void t_rtp_log(void *cls, int level, const char *msg) {
+    (void) cls;
+    (void) level;
+    if (!strncmp(msg, "[audio-timing] audio stream ended", 33)) {
+        EnterCriticalSection(&g_vol_cs);
+        size_t l = strlen(g_rtp_log);
+        snprintf(g_rtp_log + l, sizeof(g_rtp_log) - l, "%s\n", msg);
+        LeaveCriticalSection(&g_vol_cs);
+    }
+}
+static void send_nodata(unsigned short port, unsigned short seq0, int n) {
+    SOCKET u = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    struct sockaddr_in a;
+    memset(&a, 0, sizeof(a));
+    a.sin_family = AF_INET;
+    a.sin_port = htons(port);
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    for (int i = 0; i < n; i++) {
+        unsigned char p[12] = { 0x80, 0x60 };  /* 12 bytes: a "no data" packet */
+        unsigned short seq = (unsigned short) (seq0 + i);
+        p[2] = (unsigned char) (seq >> 8);
+        p[3] = (unsigned char) seq;
+        sendto(u, (const char *) p, sizeof(p), 0, (struct sockaddr *) &a, sizeof(a));
+    }
+    closesocket(u);
+}
+
+static void test_audio_cycle(void) {
+    printf("iPhone audio stream SETUP / SET_PARAMETER volume / TEARDOWN cycles (0.7.10 volume-HUD report)\n");
+    InitializeCriticalSection(&g_vol_cs);
+    logger_t *logger = logger_init();
+    logger_set_level(logger, LOGGER_INFO);
+    logger_set_callback(logger, t_rtp_log, NULL);
+    raop_callbacks_t cbs;
+    memset(&cbs, 0, sizeof(cbs));
+    cbs.audio_process = t_audio;
+    cbs.audio_set_volume = t_set_volume;
+    timing_protocol_t tp = NTP;
+    raop_ntp_t *ntp = raop_ntp_init(logger, &cbs, "127.0.0.1", 4, 7, &tp);
+    static const unsigned char key[16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+    raop_rtp_t *rtp = ntp ? raop_rtp_init(logger, &cbs, ntp, "127.0.0.1", 4, key, key) : NULL;
+    check(rtp != NULL, "raop_rtp_init");
+    if (!rtp) {
+        if (ntp) raop_ntp_destroy(ntp);
+        logger_destroy(logger);
+        return;
+    }
+
+    /* the 10:28 pattern, 30 times: SETUP, silent stream, volume, TEARDOWN at once
+     * (half of them: no time at all between the volume and the TEARDOWN) */
+    int lost = 0, wrong = 0, started = 0;
+    for (int i = 0; i < 30; i++) {
+        unsigned short rport = 0, cport = 0, dport = 0;
+        unsigned char ct = 8;
+        unsigned int sr = 44100;
+        raop_rtp_start_audio(rtp, &rport, &cport, &dport, &ct, &sr);
+        if (dport) started++;
+        send_nodata(dport, (unsigned short) (i * 100), 20);
+        Sleep(15);
+        int c0, c1;
+        float last;
+        vol_get(&c0, &last);
+        float v = -10.0f - (float) i * 0.5f;
+        if (raop_rtp_is_running(rtp)) raop_rtp_set_volume(rtp, v);  /* SET_PARAMETER, stream running */
+        if (i & 1) Sleep(30);                                          /* else: TEARDOWN right behind it */
+        raop_rtp_stop(rtp);                                            /* TEARDOWN type 96 */
+        vol_get(&c1, &last);
+        if (c1 != c0 + 1) lost++;
+        else if (last != v) wrong++;
+    }
+    check(started == 30, "30 audio SETUPs in a row each get a data port");
+    printf("    volumes lost %d, wrong %d (of 30)\n", lost, wrong);
+    check(lost == 0 && wrong == 0, "every SET_PARAMETER volume is applied once, also one right before the TEARDOWN");
+
+    /* the volume arrives after the stream ended (is_running raced): applied at
+     * once, and the next audio SETUP does not replay anything */
+    int c0, c1, c2;
+    float last;
+    vol_get(&c0, &last);
+    raop_rtp_set_volume(rtp, -30.0f);
+    vol_get(&c1, &last);
+    check(c1 == c0 + 1 && last == -30.0f, "volume set between streams applied at once (not left for the next SETUP)");
+    {
+        unsigned short rport = 0, cport = 0, dport = 0;
+        unsigned char ct = 8;
+        unsigned int sr = 44100;
+        raop_rtp_start_audio(rtp, &rport, &cport, &dport, &ct, &sr);
+        send_nodata(dport, 9000, 20);
+        Sleep(100);
+        raop_rtp_stop(rtp);
+    }
+    vol_get(&c2, &last);
+    check(c2 == c1 && last == -30.0f, "next audio SETUP / TEARDOWN applies no stale volume");
+
+    EnterCriticalSection(&g_vol_cs);
+    int ended = 0;
+    for (const char *p = g_rtp_log; (p = strstr(p, "audio stream ended: 0 audio data packets")) != NULL; p++) ended++;
+    int held = strstr(g_rtp_log, "(stream held open without sound)") != NULL;
+    LeaveCriticalSection(&g_vol_cs);
+    check(ended == 31, "each silent stream logged as 0 audio data packets");
+    check(held, "a stream with only \"no data\" packets is logged as held open without sound");
+
+    raop_rtp_destroy(rtp);
+    raop_ntp_destroy(ntp);
+    logger_destroy(logger);
+}
+
 int main(void) {
     WSADATA wsa;
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -648,6 +959,8 @@ int main(void) {
     test_pairing();
     test_request_log();
     test_audio_advert();
+    test_volume_hud();
+    test_audio_cycle();
 
     logger_destroy(logger);
     printf(g_fail ? "FAILED (%d)\n" : "all passed\n", g_fail);

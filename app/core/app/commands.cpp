@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -48,6 +49,37 @@ void runCommand(UINT cmd) {
     case CmdSharePick:
     case CmdShareStop:
     case CmdShareAuto: shareCommand(cmd); break;
+    case CmdRemoteToggle:
+    case CmdRemoteQr:
+    case CmdRemoteViewOnly:
+    case CmdRemoteAudio:
+    case CmdRemoteMutePc:
+    case CmdRemoteIdle15:
+    case CmdRemoteIdle30:
+    case CmdRemoteIdle60:
+    case CmdRemoteIdleNever:
+    case CmdRemoteForget:
+    case CmdRemoteKick:
+    case CmdRemoteHelp:
+    case CmdRemoteAudioAuto:
+    case CmdRemoteAudioDefault:
+    case CmdRemoteTunnel:
+    case CmdRemotePersistent:
+    case CmdRemotePassword:
+    case CmdRemoteFixedApproval:
+    case CmdRemoteFixedToggle:
+    case CmdRemoteFixedCopy:
+    case CmdRemoteFixedTemp:
+    case CmdRemoteLanQr:
+    case CmdRemoteTsQr:
+    case CmdRemoteAdvanced:
+    case CmdRemoteTsHelp: remoteCommand(cmd); break;
+    case CmdIdleTabCast:
+    case CmdIdleTabRemote:
+        g.settings.idleTab = cmd == CmdIdleTabRemote ? 1 : 0;
+        saveSettings();
+        refreshIdleHints();
+        break;
     case CmdShow: bringToFront(); break;
     case CmdAutostart: setAutostartOption(!g.autostart); break;
     case CmdPin: setPinOption(!g.settings.requirePin); break;
@@ -124,7 +156,8 @@ void runCommand(UINT cmd) {
     case CmdRightClickMenu: setRightClickMenu(cmd == CmdRightClickMenu); break;
     case CmdApplyNow: applyNow(); break;
     default:
-        if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
+        if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast)) remoteCommand(cmd);
+        else if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {
             const int k = static_cast<int>(cmd - CmdTrDeleteLang0);
             // Files another downloaded language needs too: say so once; if

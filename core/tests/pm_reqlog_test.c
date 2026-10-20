@@ -43,6 +43,26 @@ int main(void) {
           "artwork repeat suppressed");
     check(pm_reqlog_should_log(&st, "POST", "/play", NULL, 9000, &sk) == 1, "clock going back does not mute a kind forever");
 
+    printf("pm_reqlog: session events are never suppressed\n");
+    check(pm_reqlog_should_log(&st, "SETUP", "rtsp://h/1531", "application/x-apple-binary-plist", 50000, &sk) == 1,
+          "first SETUP logged");
+    check(pm_reqlog_should_log(&st, "SETUP", "rtsp://h/1531", "application/x-apple-binary-plist", 50001, &sk) == 1 &&
+              sk == 0,
+          "the audio-stream SETUP right after it is logged too");
+    check(pm_reqlog_should_log(&st, "TEARDOWN", "rtsp://h/1531", "application/x-apple-binary-plist", 55000, &sk) == 1,
+          "TEARDOWN logged");
+    check(pm_reqlog_should_log(&st, "TEARDOWN", "rtsp://h/1531", "application/x-apple-binary-plist", 58000, &sk) == 1,
+          "a second TEARDOWN 3 s later is logged too (0.7.9 lost the closing one)");
+    check(pm_reqlog_should_log(&st, "RECORD", "rtsp://h/1531", NULL, 58001, &sk) == 1 &&
+              pm_reqlog_should_log(&st, "FLUSH", "rtsp://h/1531", NULL, 58002, &sk) == 1 &&
+              pm_reqlog_should_log(&st, "FLUSH", "rtsp://h/1531", NULL, 58003, &sk) == 1,
+          "RECORD / FLUSH always logged");
+    check(pm_reqlog_should_log(&st, "POST", "/audioMode", "application/x-apple-binary-plist", 58004, &sk) == 1 &&
+              pm_reqlog_should_log(&st, "POST", "/audioMode", "application/x-apple-binary-plist", 58005, &sk) == 1,
+          "POST /audioMode always logged");
+    check(pm_reqlog_should_log(&st, "GET_PARAMETER", "rtsp://1.2.3.4/123", NULL, 58006, &sk) == 0,
+          "GET_PARAMETER still rate-limited (its handler logs the volume)");
+
     printf("pm_reqlog: table full\n");
     for (i = 0; i < 100; i++) {
         char url[32];

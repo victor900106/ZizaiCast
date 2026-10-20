@@ -37,6 +37,7 @@ std::wstring currentTitle() {
 
 void refreshTitles() {
     g.idleTitle = fmt(S::TitleIdle, {tr(S::AppName), g.name});
+    if (!g.remoteTitle.empty()) g.idleTitle = tr(S::AppName) + std::wstring(L" — ") + g.remoteTitle;  // 0.8.2
     g.pausedTitle = fmt(S::TitlePaused, {tr(S::AppName)});
 }
 

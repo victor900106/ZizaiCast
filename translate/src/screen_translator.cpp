@@ -4,10 +4,12 @@
 #include <objbase.h>
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <map>
@@ -18,6 +20,7 @@
 #include "pm/i18n.h"
 #include "pm/translate.h"
 #include "pm/video_window.h"
+#include "live_cards.h"
 #include "text_util.h"
 
 namespace pm::translate {
@@ -57,6 +60,8 @@ bool labelWithGloss(const std::wstring& t) {
 
 bool translatedOk(const std::wstring& src, const std::wstring& tx, Lang from, Lang tgt) {
     if (tx.empty() || squeezeSpaces(tx) == squeezeSpaces(src)) return false;
+    // The engine's stock sentence for a fragment it could not read (0.7.10.1): no card rather than invented text.
+    if (inventedText(src, tx, from, tgt)) return false;
     const ScriptCount s = countScripts(src);
     // (kana kept in quotes on purpose - 「よん」, 「なな」 on a page about the
     // language - does not make the answer "came back Japanese")
@@ -221,6 +226,61 @@ bool katakanaOnly(const std::wstring& t) {
 }
 
 }  // namespace
+
+// 即時翻譯 (0.7.10.1): the lines of a playing video.  dyn: gx x gy cells (row-major) that keep changing.  A line is
+// the video's when (a) 40 % or more of its box lies on dynamic cells - with pix (the thumbnail's pixels that keep
+// changing), 35 % of the pixels under it instead: a still line in a cell the video's edge reaches is not the
+// video's - or (b) it sits inside a moving area: dynamic
+// cells on its row to its left and to its right (3 cells at most away) and above or below it (a caption over a
+// talking head: the caption's own cells change only when the word does, the face and hands around it all the time).
+// Text beside a video (dynamic cells on one side only) and full-width text are never (b).
+std::vector<char> videoLines(const std::vector<OcrLine>& lines, const std::vector<char>& dyn, int gx, int gy,
+                             const std::vector<char>* pix, int pw, int ph) {
+    const bool fine = pix && pw > 0 && ph > 0 && pix->size() == static_cast<size_t>(pw) * ph;
+    std::vector<char> out(lines.size(), 0);
+    if (gx <= 0 || gy <= 0 || dyn.size() != static_cast<size_t>(gx * gy)) return out;
+    auto at = [&](int x, int y) { return x >= 0 && x < gx && y >= 0 && y < gy && dyn[static_cast<size_t>(y * gx + x)] != 0; };
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const OcrLine& l = lines[i];
+        const float x0 = std::clamp(l.x0, 0.f, 1.f), x1 = std::clamp(l.x1, 0.f, 1.f), y0 = std::clamp(l.y0, 0.f, 1.f), y1 = std::clamp(l.y1, 0.f, 1.f);
+        const float area = (x1 - x0) * (y1 - y0);
+        if (area <= 0) continue;
+        const int c0 = std::clamp(static_cast<int>(x0 * gx), 0, gx - 1), c1 = std::clamp(static_cast<int>(x1 * gx - 1e-4f), 0, gx - 1);
+        const int r0 = std::clamp(static_cast<int>(y0 * gy), 0, gy - 1), r1 = std::clamp(static_cast<int>(y1 * gy - 1e-4f), 0, gy - 1);
+        float on = 0;
+        if (fine) {
+            const int px0 = std::clamp(static_cast<int>(x0 * pw), 0, pw - 1), px1 = std::clamp(static_cast<int>(std::ceil(x1 * pw)) - 1, px0, pw - 1);
+            const int py0 = std::clamp(static_cast<int>(y0 * ph), 0, ph - 1), py1 = std::clamp(static_cast<int>(std::ceil(y1 * ph)) - 1, py0, ph - 1);
+            int n = 0, tot = 0;
+            for (int y = py0; y <= py1; ++y)
+                for (int x = px0; x <= px1; ++x) n += (*pix)[static_cast<size_t>(y) * pw + x] != 0, ++tot;
+            on = tot ? area * static_cast<float>(n) / static_cast<float>(tot) / 0.35f * 0.4f : 0;  // (35 % of the pixels = the 40 % below)
+        } else {
+            for (int r = r0; r <= r1; ++r)
+                for (int c = c0; c <= c1; ++c)
+                    if (at(c, r)) {
+                        const float ox = std::min(x1, (c + 1.f) / gx) - std::max(x0, static_cast<float>(c) / gx);
+                        const float oy = std::min(y1, (r + 1.f) / gy) - std::max(y0, static_cast<float>(r) / gy);
+                        if (ox > 0 && oy > 0) on += ox * oy;
+                    }
+        }
+        if (on >= 0.4f * area) {
+            out[i] = 1;
+            continue;
+        }
+        const int rc = std::clamp(static_cast<int>((y0 + y1) / 2 * gy), 0, gy - 1);
+        bool left = false, right = false, vert = false;
+        for (int r = rc - 1; r <= rc + 1; ++r)
+            for (int d = 1; d <= 3; ++d) {
+                left = left || at(c0 - d, r);
+                right = right || at(c1 + d, r);
+            }
+        for (int c = c0; c <= c1 && !vert; ++c)
+            for (int d = 1; d <= 3; ++d) vert = vert || at(c, r0 - d) || at(c, r1 + d);
+        out[i] = left && right && vert;
+    }
+    return out;
+}
 
 std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang src, Lang tgt, float aspect, bool trustText,
                                                std::vector<std::string>* why, Lang* screenLang) {
@@ -563,6 +623,12 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
             skip(i, "low confidence");
             continue;
         }
+        // A short piece read unsure (a word blurred by motion, cut by the picture's edge, a caption fading in):
+        // the engine makes a sentence of its own around it (0.7.10.1) - left out.
+        if (b.conf < 0.8f && !trustText && !row && n.letters() <= 10) {
+            skip(i, "unsure fragment");
+            continue;
+        }
         if (n.letters() == 0) {  // 9:41, 5G, $89.99 …
             skip(i, "no letters");
             continue;
@@ -712,6 +778,12 @@ struct ScreenTranslator::Impl {
         bool liveRun = false;
         uint64_t gen = 0;
         bool first = false;  // the magnified (visible) part of a whole-screen job: shown, then the whole picture follows
+        // Live runs (0.7.10): why it started, and the grid cells (kGX x kGY, row-major) that keep changing
+        // (a playing video): left out of the picture before the OCR.
+        std::string why;
+        std::vector<char> dyn;
+        std::vector<char> pix;  // 0.7.10.1: the thumbnail's pixels that keep changing (pixW x pixH), for videoLines
+        int pixW = 0, pixH = 0;
     };
     std::deque<Job> jobs;
     bool stop = false;
@@ -741,12 +813,43 @@ struct ScreenTranslator::Impl {
         int w = 0, h = 0;
     };
     Thumb lastThumb, doneThumb;          // last grabbed / last translated
+    // 0.7.10.1: row profiles of the last grabbed picture (scroll detection, profileScrolled)
+    struct Profile {
+        std::vector<float> v;            // h rows x kBands: mean luma of every 4th pixel of each column band
+        int h = 0;
+    };
+    static constexpr int kBands = 8;
+    Profile lastProf;
     long long lastFrames = -1;           // VideoWindow::Stats::framesDecoded at the last look
+    double lastFrameMs = 0;              // when a new picture was last decoded
     double lastGrabMs = 0, lastChangeMs = 0, movingSinceMs = 0, lastRunMs = -1e9;
     bool dirty = false, overlayHidden = false;
     bool lastLookStill = false;          // the last look found no change
     bool framesSinceLook = false;        // new pictures decoded since the last look
     LiveStats liveStats;                 // guarded by m
+    // 0.7.10: the picture is a kGX x kGY grid; a cell that keeps changing (a playing video, a spinner, a
+    // marquee) is "dynamic": it does not count for "is the picture still", it is not read by the OCR
+    // and gets no cards.  A scroll changes everything coherently: it is not a dynamic area.
+    static constexpr int kGX = 8, kGY = 16, kCells = kGX * kGY;
+    uint8_t cellHist[kCells] = {};       // per cell: the last 8 looks, 1 = changed (worker thread)
+    std::vector<uint8_t> pixHist;        // 0.7.10.1: per thumbnail pixel, the same (lastThumb's size)
+    char dynCell[kCells] = {};           // dynamic now
+    int dynCount = 0;
+    char sentDyn[kCells] = {};           // the dynamic cells the video window's scroll tracking was told
+    // The scroll tracking (video/src/live_scroll_tracker.h) leaves the dynamic cells out.
+    void syncIgnore() {
+        if (!std::memcmp(sentDyn, dynCell, sizeof sentDyn)) return;
+        std::memcpy(sentDyn, dynCell, sizeof sentDyn);
+        win.setTextOverlayLiveIgnore(dynCount > 0 ? std::vector<char>(dynCell, dynCell + kCells) : std::vector<char>{}, kGX, kGY);
+    }
+    bool liveKick = false;               // guarded by m: live was just switched on - translate at once
+    bool lastRunForced = false;          // the last live run started while the picture kept moving
+    std::string liveWhy;                 // why livePoll() said go
+    std::vector<VideoWindow::TextBox> shownBoxes;  // guarded by m: the cards a live run put on screen last
+    void clearShown() {
+        std::lock_guard lk(m);
+        shownBoxes.clear();
+    }
 
     static Thumb thumbOf(const std::vector<uint8_t>& bgra, int w, int h) {
         Thumb t;
@@ -767,29 +870,263 @@ struct ScreenTranslator::Impl {
             }
         return t;
     }
-    // Share of thumbnail cells that changed by more than 12 levels (0..1; 1 when the sizes differ).
-    static double thumbDiff(const Thumb& a, const Thumb& b) {
+    // The grid cell of thumbnail pixel (x, y).
+    static int cellOf(int x, int y, int w, int h) { return std::min(kGY - 1, y * kGY / h) * kGX + std::min(kGX - 1, x * kGX / w); }
+    // Share of thumbnail pixels that changed by more than 12 levels (0..1; 1 when the sizes differ), not
+    // counting the cells marked in `dyn` (a playing video).
+    static double thumbDiff(const Thumb& a, const Thumb& b, const char* dyn = nullptr) {
         if (a.w != b.w || a.h != b.h || a.y.empty()) return 1;
-        size_t n = 0;
-        for (size_t i = 0; i < a.y.size(); ++i) n += std::abs(a.y[i] - b.y[i]) > 12;
-        return static_cast<double>(n) / a.y.size();
+        size_t n = 0, tot = 0;
+        for (int y = 0; y < a.h; ++y)
+            for (int x = 0; x < a.w; ++x) {
+                if (dyn && dyn[cellOf(x, y, a.w, a.h)]) continue;
+                ++tot;
+                n += std::abs(a.y[static_cast<size_t>(y) * a.w + x] - b.y[static_cast<size_t>(y) * a.w + x]) > 12;
+            }
+        return tot ? static_cast<double>(n) / static_cast<double>(tot) : 0;
+    }
+    // A vertical shift of the picture explains most of what changed (a scroll, whatever the content).
+    // 0.7.10.1: only the rows that changed are compared (a chat's fixed title bar / input bar do not move with
+    // the page and made every shift look wrong), and in half-row steps (the end of a flick moves the page a few
+    // pixels a look, less than a thumbnail row: no whole-row shift matched), up to half the picture (a flick moved
+    // the page 200+ px a look, past the 12 rows tried before).  Before, such a scroll was learned
+    // as "dynamic" cells (a video) and a still chat was then read with half its lines left out (owner 0.7.10,
+    // LINE: dyn 56-69/128 on a still page).
+    static bool looksScrolled(const Thumb& a, const Thumb& b, size_t mism0) {
+        if (mism0 == 0) return false;
+        std::vector<char> rowChanged(static_cast<size_t>(a.h), 0);
+        size_t mism = 0, rows = 0;
+        for (int y = 0; y < a.h; ++y) {
+            int n = 0;
+            for (int x = 0; x < a.w; ++x) n += std::abs(a.y[static_cast<size_t>(y) * a.w + x] - b.y[static_cast<size_t>(y) * a.w + x]) > 12;
+            rowChanged[static_cast<size_t>(y)] = n >= 2;
+            if (n >= 2) mism += static_cast<size_t>(n), ++rows;
+        }
+        if (mism == 0) return false;
+        auto px = [&](int y, int x) { return static_cast<int>(b.y[static_cast<size_t>(std::clamp(y, 0, a.h - 1)) * a.w + x]); };
+        const int reach = std::max(12, a.h / 2) * 2;  // a flick moves the page up to half a screen between two looks
+        for (int h2 = -reach; h2 <= reach; ++h2) {  // shift in half rows
+            if (!h2) continue;
+            const int lo = h2 >= 0 ? h2 / 2 : -((-h2 + 1) / 2);  // floor(h2 / 2)
+            const bool half = (h2 & 1) != 0;
+            size_t n = 0, cmp = 0;
+            for (int y = 0; y < a.h; ++y) {
+                if (!rowChanged[static_cast<size_t>(y)] || y + lo < 0 || y + lo + (half ? 1 : 0) >= a.h) continue;
+                ++cmp;
+                for (int x = 0; x < a.w; ++x) {
+                    const int v = half ? (px(y + lo, x) + px(y + lo + 1, x)) / 2 : px(y + lo, x);
+                    n += std::abs(a.y[static_cast<size_t>(y) * a.w + x] - v) > (half ? 20 : 12);
+                }
+            }
+            // (per row compared: a large shift leaves fewer rows to compare - at least a third of the changed ones).
+            // Beyond 12 rows the shift must explain 3/4 of the change, not half: a pattern that repeats down the
+            // picture (stripes in a video) also matches itself one period further.
+            const size_t k = std::abs(h2) > 24 ? 4 : 2;
+            if (cmp * 3 >= rows && n * k * rows < mism * cmp) return true;
+        }
+        return false;
     }
     static constexpr double kSettleMs = 300, kMinGapMs = 2000, kChanged = 0.004;
+    // Moving for this long (a video over a third of the screen, a scroll that does not end) and still translated
+    // at least every kForceGapMs: never waits for a stillness that does not come.
+    static constexpr double kForceAfterMs = 1500, kForceGapMs = 2500;
     static constexpr bool kOverlayFollows = true;  // 0.7.8 即時翻譯: VideoWindow::setTextOverlayLive
-    // One look at the picture (worker thread, live mode, idle): true = translate now.
+    // One look compared with the one before (thumbnails): updates the per-cell history and the dynamic cells;
+    // true = something that is not a dynamic cell changed (the picture is moving).
+    static Profile profileOf(const std::vector<uint8_t>& bgra, int w, int h) {
+        Profile pr;
+        pr.h = h;
+        pr.v.assign(static_cast<size_t>(h) * kBands, 0.f);
+        for (int b = 0; b < kBands; ++b) {
+            const int x0 = b * w / kBands, x1 = (b + 1) * w / kBands;
+            int n = 0;
+            for (int x = x0; x < x1; x += 4) ++n;
+            if (!n) continue;
+            for (int y = 0; y < h; ++y) {
+                const uint8_t* row = &bgra[static_cast<size_t>(y) * w * 4];
+                int acc = 0;
+                for (int x = x0; x < x1; x += 4) acc += (row[x * 4] * 29 + row[x * 4 + 1] * 150 + row[x * 4 + 2] * 77) >> 8;
+                pr.v[static_cast<size_t>(y) * kBands + b] = static_cast<float>(acc) / n;
+            }
+        }
+        return pr;
+    }
+    // 0.7.10.1: a vertical shift of the picture explains most of what changed - a scroll.  Row profiles (column
+    // bands averaged over every picture row) instead of the thumbnail: the thumbnail samples a 15 px row at 4
+    // points, so a page moved by part of a row looks like new text everywhere and no shift matched (owner 0.7.10,
+    // LINE: a scroll learned as a video, 56-69 of 128 cells, half the page left unread).  Only the rows that changed
+    // are compared (a chat's fixed title / input bar), shifts up to half the picture (coarse in 4-row steps, then
+    // every row); the share of the change the best shift explains (scrolledLook decides).
+    struct ShiftFit {
+        double explained = 0;  // share of the change the best shift explains (0 when too little changed)
+        int shift = 0, rows = 0;
+    };
+    static ShiftFit profileShift(const Profile& a, const Profile& b) {
+        ShiftFit f;
+        if (a.h != b.h || a.h <= 0 || a.v.size() != b.v.size()) return f;
+        const int h = a.h;
+        auto rowDiff = [&](int ya, int yb) {
+            float d = 0;
+            for (int k = 0; k < kBands; ++k) d += std::fabs(a.v[static_cast<size_t>(ya) * kBands + k] - b.v[static_cast<size_t>(yb) * kBands + k]);
+            return d;
+        };
+        std::vector<int> ys;
+        double base = 0;
+        for (int y = 0; y < h; ++y) {
+            float mx = 0;
+            for (int k = 0; k < kBands; ++k) mx = std::max(mx, std::fabs(a.v[static_cast<size_t>(y) * kBands + k] - b.v[static_cast<size_t>(y) * kBands + k]));
+            if (mx > 3) {
+                ys.push_back(y);
+                base += rowDiff(y, y);
+            }
+        }
+        f.rows = static_cast<int>(ys.size());
+        if (static_cast<int>(ys.size()) < h / 20 || base <= 0) return f;
+        base /= static_cast<double>(ys.size());
+        auto err = [&](int sft) -> double {
+            double e = 0;
+            size_t n = 0;
+            for (int y : ys) {
+                if (y + sft < 0 || y + sft >= h) continue;
+                e += rowDiff(y, y + sft);
+                ++n;
+            }
+            return n * 3 < ys.size() ? 1e30 : e / static_cast<double>(n);
+        };
+        double best = 1e30;
+        int at = 0;
+        for (int sft = -h / 2; sft <= h / 2; sft += 4)
+            if (sft) {
+                const double e = err(sft);
+                if (e < best) best = e, at = sft;
+            }
+        for (int sft = at - 4; sft <= at + 4; ++sft)
+            if (sft) {
+                const double e = err(sft);
+                if (e < best) best = e, at = sft;
+            }
+        f.explained = 1 - best / base;
+        f.shift = at;
+        return f;
+    }
+    // Scroll check of one look: the profiles when both are known, else the thumbnails.
+    ShiftFit lastFit;      // the last look's (PM_TR_LOOKDEBUG)
+    int lastScrollDir = 0;  // the last look was a scroll: its direction (+1 / -1), else 0
+    // Measured per look on the owner's recordings (PM_TR_LOOKDEBUG): the chat's scroll moved by up to ~120 px
+    // (h / 18) explains 64-91 % of the change, a playing video's ~0 %; a large shift is ambiguous (a dark video
+    // matches itself 47-64 % hundreds of pixels away, the start of a flick 19-62 %) and counts only right after a
+    // scroll the same way.
+    bool scrolledLook(const Thumb& t, const Thumb& p, size_t mism, const Profile* prof) {
+        if (prof && prof->h > 0 && prof->h == lastProf.h) {
+            lastFit = profileShift(*prof, lastProf);
+            const int dir = lastFit.shift > 0 ? 1 : lastFit.shift < 0 ? -1 : 0;
+            const bool ok = lastFit.explained >= 0.6 && (std::abs(lastFit.shift) <= prof->h / 18 || (dir != 0 && dir == lastScrollDir));
+            lastScrollDir = ok ? dir : 0;
+            return ok;
+        }
+        lastScrollDir = 0;
+        return looksScrolled(t, p, mism);
+    }
+    bool lookMoved(const Thumb& t, const Thumb& p, const Profile* prof = nullptr) {
+        if (t.w != p.w || t.h != p.h || p.y.empty()) {
+            pixHist.assign(static_cast<size_t>(t.w) * t.h, 0);
+            std::memset(cellHist, 0, sizeof cellHist);
+            std::memset(dynCell, 0, sizeof dynCell);
+            dynCount = 0;
+            return true;
+        }
+        int cnt[kCells] = {}, px[kCells] = {};
+        size_t mism = 0;
+        for (int y = 0; y < t.h; ++y)
+            for (int x = 0; x < t.w; ++x) {
+                const int c = cellOf(x, y, t.w, t.h);
+                ++px[c];
+                if (std::abs(t.y[static_cast<size_t>(y) * t.w + x] - p.y[static_cast<size_t>(y) * t.w + x]) > 12) ++cnt[c], ++mism;
+            }
+        bool ch[kCells];
+        int changedCells = 0;
+        for (int c = 0; c < kCells; ++c) {
+            ch[c] = cnt[c] >= 3 && cnt[c] * 100 > px[c] * 6;
+            changedCells += ch[c];
+        }
+        // Most of the picture changed, or all of it moved the same way: a scroll / another page - nothing is
+        // "dynamic" because of it (the next stillness translates, or the forced run below).
+        // (from 4 changed cells: the slow end of a flick changes only a few, and they must not stay "dynamic")
+        lastFit = {};
+        const bool scrolled = changedCells >= 4 && scrolledLook(t, p, mism, prof);
+        if (changedCells < 4) lastScrollDir = 0;
+        static const bool lookDebug = std::getenv("PM_TR_LOOKDEBUG") != nullptr;  // tests: every look
+        if (lookDebug)
+            std::fprintf(stderr, "  [look] t=%.1f changed cells %d, pixels %zu, dynamic %d, shift %+d explains %.0f %% of %d rows%s%s\n", nowMs() / 1000, changedCells, mism, dynCount, lastFit.shift, 100 * lastFit.explained, lastFit.rows,
+                         scrolled ? " (scroll)" : "", changedCells > kCells * 6 / 10 ? " (most of the picture)" : "");
+        if (scrolled) {
+            // A scroll: what was learned as "dynamic" moved with the page (and was maybe the scroll itself) - forgotten.
+            std::fill(pixHist.begin(), pixHist.end(), uint8_t(0));
+            std::memset(cellHist, 0, sizeof cellHist);
+            std::memset(dynCell, 0, sizeof dynCell);
+            dynCount = 0;
+            return true;
+        }
+        if (changedCells > kCells * 6 / 10) return true;
+        bool moving = false;
+        if (pixHist.size() != t.y.size()) pixHist.assign(t.y.size(), 0);
+        for (size_t i = 0; i < t.y.size(); ++i) pixHist[i] = static_cast<uint8_t>((pixHist[i] << 1) | (std::abs(t.y[i] - p.y[i]) > 12 ? 1 : 0));
+        dynCount = 0;
+        for (int c = 0; c < kCells; ++c) {
+            cellHist[c] = static_cast<uint8_t>((cellHist[c] << 1) | (ch[c] ? 1 : 0));
+            if (!dynCell[c] && std::popcount(static_cast<unsigned>(cellHist[c] & 31)) >= 3) dynCell[c] = 1;
+            else if (dynCell[c] && (cellHist[c] & 7) == 0) dynCell[c] = 0;
+            dynCount += dynCell[c];
+            moving = moving || (ch[c] && !dynCell[c]);
+        }
+        return moving;
+    }
+    // A live run's new cards against the ones on screen (live_cards.h).  True when nothing else differs.
+    static bool stabilize(std::vector<VideoWindow::TextBox>& bx, const std::vector<VideoWindow::TextBox>& shown, Timing& t) {
+        const LiveCardsResult r = stabilizeLiveCards(bx, shown);
+        t.cardsKept = r.kept;
+        t.cardsNew = r.added;
+        t.cardsGone = r.gone;
+        return r.same;
+    }
+    bool startRun(const char* why, double now) {
+        dirty = false;
+        lastRunMs = now;
+        liveWhy = why;
+        lastRunForced = !std::strcmp(why, "forced-moving");
+        std::lock_guard lk(m);
+        ++liveStats.runs;
+        if (!std::strcmp(why, "first")) ++liveStats.first;
+        else if (!std::strcmp(why, "settled")) ++liveStats.settled;
+        else ++liveStats.forced;
+        liveStats.lastSettleMs = lastChangeMs;
+        return true;
+    }
+    // One look at the picture (worker thread, live mode, idle): true = translate now (liveWhy says why).
     bool livePoll() {
         const double now = nowMs();
+        {
+            bool kick;
+            {
+                std::lock_guard lk(m);
+                kick = std::exchange(liveKick, false);
+            }
+            if (kick) {  // live was just switched on: the first translation does not wait for anything (what was a video before still is)
+                movingSinceMs = 0;
+                return startRun("first", now);
+            }
+        }
         const long long frames = win.stats().framesDecoded;
         if (frames != lastFrames) {
             lastFrames = frames;
+            lastFrameMs = now;
             framesSinceLook = true;
-            // A new picture: look at it (at most 5 times a second; twice a
-            // second when nothing changed for 2 s - a phone that keeps
-            // sending the same screen; once a second while it has been
-            // moving for 3 s - a playing video).
-            const double every = movingSinceMs > 0 && now - movingSinceMs > 3000 ? 1000
-                                 : now - lastChangeMs > 2000                       ? 500
-                                                                                   : 200;
+            // A new picture: look at it (at most 5 times a second; twice a second when nothing changed
+            // for 2 s - a phone that keeps sending the same screen; 2.5 times a second while a part of the
+            // picture is a video or it has been moving for 3 s).
+            const double every = dynCount > 0 || (movingSinceMs > 0 && now - movingSinceMs > 3000) ? 400
+                                 : now - lastChangeMs > 2000                                            ? 500
+                                                                                                        : 200;
             if (now - lastGrabMs >= every) {
                 lastGrabMs = now;
                 framesSinceLook = false;
@@ -797,44 +1134,59 @@ struct ScreenTranslator::Impl {
                 int w = 0, h = 0;
                 if (win.grabPicture(px, w, h) && w > 0 && h > 0) {
                     Thumb t = thumbOf(px, w, h);
+                    Profile prof = profileOf(px, w, h);
+                    const bool moving = lookMoved(t, lastThumb, &prof);
+                    lastProf = std::move(prof);
+                    syncIgnore();
                     {
                         std::lock_guard lk(m);
                         ++liveStats.grabs;
+                        liveStats.dynCells = dynCount;
+                        liveStats.cells = kCells;
                     }
-                    lastLookStill = thumbDiff(t, lastThumb) <= kChanged;
-                    if (!lastLookStill) {
+                    lastLookStill = !moving;
+                    if (moving) {
                         lastChangeMs = now;
                         if (movingSinceMs <= 0) movingSinceMs = now;
-                        dirty = thumbDiff(t, doneThumb) > kChanged;
-                        // The overlay no longer matches the moving picture: hide it - 0.7.8: no,
-                        // it follows scrolling and hides itself otherwise (video/src/live_overlay.cpp).
-                        if (!overlayHidden && dirty && !kOverlayFollows) {
-                            win.setTextOverlay({});
-                            overlayHidden = true;
-                            std::lock_guard lk(m);
-                            ++liveStats.hidden;
-                        }
+                    }
+                    // Differs from the translated picture (outside the dynamic cells)?
+                    dirty = doneThumb.y.empty() || thumbDiff(t, doneThumb, dynCell) > kChanged;
+                    // The overlay no longer matches the moving picture: hide it - 0.7.8: no,
+                    // it follows scrolling and hides itself otherwise (video/src/live_overlay.cpp).
+                    if (moving && !overlayHidden && dirty && !kOverlayFollows) {
+                        win.setTextOverlay({});
+                        overlayHidden = true;
+                        std::lock_guard lk(m);
+                        ++liveStats.hidden;
                     }
                     lastThumb = std::move(t);
                 }
             }
         }
-        // Settled: kSettleMs since the last change, and a look since then
-        // found it still (or no new picture came at all) - a video looked at
-        // once a second never settles.
+        // Settled: kSettleMs since the last change (outside the dynamic cells), and a look since then
+        // found it still (or no new picture came at all).
         const bool still = now - lastChangeMs >= kSettleMs && (lastLookStill || !framesSinceLook);
         if (still) movingSinceMs = 0;
         // Back to the translated picture (a video corner stopped) with the
         // overlay hidden: shown again by a run (from the caches).
         if (still && overlayHidden && !dirty) dirty = true;
-        if (!dirty || !still) return false;
-        if (now - lastRunMs < kMinGapMs) return false;  // at most one run per 2 s
-        dirty = false;
-        lastRunMs = now;
-        std::lock_guard lk(m);
-        ++liveStats.runs;
-        liveStats.lastSettleMs = lastChangeMs;
-        return true;
+        if (!dirty) return false;
+        // At most one run per 2 s; the picture that stopped after a forced run while moving: 0.6 s (the page it is on now).
+        if (still) return now - lastRunMs >= (lastRunForced ? 600.0 : kMinGapMs) && startRun("settled", now);
+        // Moving for a long time: a run every kForceGapMs anyway.
+        if (movingSinceMs > 0 && now - movingSinceMs >= kForceAfterMs && now - lastRunMs >= kForceGapMs) return startRun("forced-moving", now);
+        return false;
+    }
+    // The dynamic cells a live run leaves out: only those that changed in the last look (a video keeps
+    // changing; a cell that changed while the page moved and is still now is text again - the run that starts 0.3 s
+    // after a scroll stopped must read it), none when no new picture came for 0.7 s (nothing plays).  Empty: none.
+    std::vector<char> activeDyn(double now) const {
+        std::vector<char> d(kCells, 0);
+        if (now - lastFrameMs > 700) return {};
+        int n = 0;
+        for (int c = 0; c < kCells; ++c) n += d[static_cast<size_t>(c)] = dynCell[c] && (cellHist[c] & 1) != 0;
+        if (n == 0) return {};
+        return d;
     }
     std::vector<std::pair<Lang, Lang>> warmPairs;  // worker thread: translated once (models loaded)
 
@@ -931,7 +1283,36 @@ struct ScreenTranslator::Impl {
                         const bool go = livePoll();
                         lk.lock();
                         if (go && live && active && !busy && jobs.empty()) {
-                            jobs.push_back({false, 0, 0, 1, 1, true, gen});
+                            Job j;
+                            j.liveRun = true;
+                            j.gen = gen;
+                            j.why = liveWhy;
+                            if (dynCount > 0) j.dyn = activeDyn(nowMs());
+                            // A run while the picture keeps moving (forced): cells that changed in the last 3 looks count
+                            // too - a video that just started is not "dynamic" yet (3 changes of 5 looks), and its
+                            // captions were translated meanwhile (owner recording 14:06: 「ever」 -> 有史以來).  A scroll
+                            // clears the history, so a scrolled page is not left out.
+                            const bool forced = liveWhy == "forced-moving";
+                            if (forced) {
+                                std::vector<char> d = j.dyn.empty() ? std::vector<char>(kCells, 0) : j.dyn;
+                                int n = 0;
+                                for (int c = 0; c < kCells; ++c) n += d[static_cast<size_t>(c)] = d[static_cast<size_t>(c)] || (cellHist[c] & 7) != 0;
+                                if (n > 0 && n <= kCells * 6 / 10) j.dyn = std::move(d);
+                            }
+                            if (!j.dyn.empty() && pixHist.size() == lastThumb.y.size()) {
+                                // pixels that changed in 2 of the last 3 looks (a video's own pixels, not its whole cells), in the
+                                // dynamic cells only (the end of a scroll changed pixels everywhere)
+                                j.pix.assign(pixHist.size(), 0);
+                                for (int y = 0; y < lastThumb.h; ++y)
+                                    for (int x = 0; x < lastThumb.w; ++x) {
+                                        const size_t i = static_cast<size_t>(y) * lastThumb.w + x;
+                                        j.pix[i] = j.dyn[static_cast<size_t>(cellOf(x, y, lastThumb.w, lastThumb.h))] &&
+                                                   std::popcount(static_cast<unsigned>(pixHist[i] & 7)) >= (forced ? 1 : 2);
+                                    }
+                                j.pixW = lastThumb.w;
+                                j.pixH = lastThumb.h;
+                            }
+                            jobs.push_back(std::move(j));
                             busy = true;
                             break;
                         }
@@ -1035,8 +1416,24 @@ struct ScreenTranslator::Impl {
         if (!job.region) {  // 即時翻譯 compares later pictures with this one
             doneThumb = thumbOf(px, w, h);
             lastThumb = doneThumb;
+            lastProf = profileOf(px, w, h);
             overlayHidden = false;
             dirty = false;
+            if (job.liveRun) {
+                t.why = job.why;
+                t.cells = kCells;
+                // A playing video etc.: its lines are left out after the OCR (videoLines below), no cards over it.
+                // 0.7.10 greyed the dynamic cells (+ a margin) out before the OCR: the grey cut the lines along its
+                // edge (the post's 「400+ connected apps」 read as 「400+ conn」, a caption as 「hing,」) and the engine
+                // made invented sentences of the pieces (owner 0.7.10: 「如果您想要更多資訊,可以在下面留言…」).
+                if (job.dyn.size() == static_cast<size_t>(kCells)) t.dynCells = static_cast<int>(std::count(job.dyn.begin(), job.dyn.end(), char(1)));
+            } else {  // a full translation: what "dynamic" meant is forgotten
+                std::memset(cellHist, 0, sizeof cellHist);
+                std::memset(dynCell, 0, sizeof dynCell);
+                dynCount = 0;
+                syncIgnore();
+                movingSinceMs = 0;
+            }
         }
         // Region: crop (content coordinates).
         int cx0 = 0, cy0 = 0, cw = w, ch = h;
@@ -1205,6 +1602,16 @@ struct ScreenTranslator::Impl {
             l.y0 = (cy0 + l.y0 * ch) / h;
             l.y1 = (cy0 + l.y1 * ch) / h;
         }
+        // Live: the lines of the playing video (its captions pop up word by word: 「everything,」 「you give」) are
+        // not translated - a card would show a word that is gone again, or a fragment's invented sentence.
+        std::vector<OcrLine> videoText;
+        if (job.liveRun && !job.region && job.dyn.size() == static_cast<size_t>(kCells)) {
+            const std::vector<char> vid = videoLines(ocr.lines, job.dyn, kGX, kGY, job.pix.empty() ? nullptr : &job.pix, job.pixW, job.pixH);
+            std::vector<OcrLine> keep;
+            for (size_t i = 0; i < ocr.lines.size(); ++i) (vid[i] ? videoText : keep).push_back(std::move(ocr.lines[i]));
+            ocr.lines.swap(keep);
+            t.videoLines = static_cast<int>(videoText.size());
+        }
         // A Japanese / Korean screen read without its recogniser: say how to add it.
         if (!cb.ocrOverride && !paddle && src == Lang::Unknown && (!Ocr::available(Lang::Ja) || !Ocr::available(Lang::Ko))) {
             std::wstring all;
@@ -1231,10 +1638,37 @@ struct ScreenTranslator::Impl {
         if (prof)
             std::fprintf(stderr, "[tr] picture %dx%d: grab+crop %.0f ms, OCR %.0f ms, layout + pick %.0f ms (%zu lines -> %zu blocks)\n", cw, ch,
                          t.grabMs, t.ocrMs, nowMs() - tl0, ocr.lines.size(), blocks.size());
+        if (debug && job.liveRun) {  // tests (pm_translate_test --live-replay): what the OCR read, the dynamic cells
+            std::fprintf(stderr, "  [live] why=%s dyn=%d/%d\n", job.why.c_str(), t.dynCells, kCells);
+            if (job.dyn.size() == static_cast<size_t>(kCells))
+                for (int gy = 0; gy < kGY; ++gy) {
+                    char row[kGX + 1] = {};
+                    for (int gx = 0; gx < kGX; ++gx) row[gx] = job.dyn[gy * kGX + gx] ? '#' : '.';
+                    std::fprintf(stderr, "  [dyn] %s\n", row);
+                }
+            for (const auto& l : videoText)
+                std::fprintf(stderr, "  [ocr-video] conf %.2f box %.3f,%.3f-%.3f,%.3f: %s\n", l.conf, l.x0, l.y0, l.x1, l.y1, toUtf8(l.text).c_str());
+            for (const auto& l : ocr.lines)
+                std::fprintf(stderr, "  [ocr] conf %.2f box %.3f,%.3f-%.3f,%.3f h %.3f: %s\n", l.conf, l.x0, l.y0, l.x1, l.y1, l.lineH,
+                             toUtf8(l.text).c_str());
+        }
         if (debug)
             for (size_t i = 0; i < blocks.size(); ++i)
                 std::fprintf(stderr, "  [block] %s: %s\n", why[i].empty() ? "translate" : why[i].c_str(), toUtf8(blocks[i].text).c_str());
         if (byLang.empty() && job.first) return;  // nothing in the magnified part: the whole picture decides
+        if (byLang.empty() && job.liveRun && !job.region) {
+            // Live: a picture with nothing to translate (a video, a photo): no toast; cards of the page before go.
+            bool had;
+            {
+                std::lock_guard lk(m);
+                had = !shownBoxes.empty();
+                shownBoxes.clear();
+                if (had) ++liveStats.overlaySets;
+            }
+            if (had) win.setTextOverlay({});
+            finish(false, t, job.gen, true);
+            return;
+        }
         if (byLang.empty()) {
             Lang dominant = cjk != Lang::Unknown ? cjk : ocr.engine;
             notify(tr(S::MenuTranslate), blocks.empty() ? tr(S::TrNoText) : pm::i18n::fmt(S::TrSameLang, {langName(tgt)}), false);
@@ -1298,8 +1732,30 @@ struct ScreenTranslator::Impl {
         if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: translation starts (resetBudget %.0f ms)\n", nowMs() - t0, nowMs() - tr0);
         // Blocks per engine call: whole pictures for most, chunks shown as they
         // finish on dense screens (progressive).
-        bool progressive = true;
+        bool liveHadCards = false;
+        if (job.liveRun && !job.region) {
+            std::lock_guard lk(m);
+            liveHadCards = !shownBoxes.empty();
+        }
+        bool progressive = !liveHadCards;
         const size_t totalBlocks = plan.picked();
+        // Puts the cards on screen.  A live run keeps the cards that are already there: a block with the same
+        // text at (about) the same place is the old card as it was (no new layout, no flash); when nothing
+        // else changed the list is not replaced at all (the overlay is only anchored to this picture again).
+        auto show = [&](std::vector<VideoWindow::TextBox>& bx) {
+            const bool liveShow = job.liveRun && !job.region;
+            bool same = false;
+            {
+                std::lock_guard lk(m);
+                if (liveShow) {
+                    same = stabilize(bx, shownBoxes, t);
+                    ++(same ? liveStats.overlayKept : liveStats.overlaySets);
+                }
+                if (!same) shownBoxes = bx;
+            }
+            if (same) win.reanchorTextOverlay();
+            else win.setTextOverlay(bx);
+        };
         auto pass = [&]() -> bool {
         result.clear();
         boxes.clear();
@@ -1312,7 +1768,7 @@ struct ScreenTranslator::Impl {
         // Dense screens (a Wikipedia page: 84 blocks, 3.6k characters): the
         // blocks done so far are shown after each chunk (top of the page first).
         if (progressive && totalBlocks > kPlanChunk && current(job.gen)) {
-            win.setTextOverlay(boxes);
+            show(boxes);
             if (t.firstMs <= 0) t.firstMs = nowMs() - t0;
             if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: chunk shown\n", nowMs() - t0);
         }
@@ -1340,7 +1796,7 @@ struct ScreenTranslator::Impl {
         // the improved result replaces it in place (progressive display).
         const size_t queued = escalator.pendingCount();
         if (queued && current(job.gen)) {
-            win.setTextOverlay(boxes);
+            if (!liveHadCards) show(boxes);  // (live with cards on screen: only the final list, no half-way flicker)
             progressive = false;
             if (escalator.runPending(t0 + escalator.config().targetMs) > 0 && current(job.gen) && !pass()) {
                 finish(false, t, job.gen, job.liveRun);
@@ -1351,7 +1807,7 @@ struct ScreenTranslator::Impl {
         t.translated = static_cast<int>(result.size());
         t.totalMs = nowMs() - t0;
         if (!current(job.gen)) return;  // closed meanwhile
-        win.setTextOverlay(boxes);
+        show(boxes);
         {
             std::lock_guard lk(m);
             timing = t;
@@ -1405,6 +1861,7 @@ void ScreenTranslator::translateScreen() {
     impl_->win.cancelRegionSelect();
     impl_->win.setTextOverlayOriginal(false);
     impl_->win.setTextOverlay({});
+    impl_->clearShown();
     if (!isLive && !impl_->win.viewState().frozen) {
         impl_->win.setFrozen(true);
         std::lock_guard lk(impl_->m);
@@ -1462,6 +1919,7 @@ void ScreenTranslator::translateRegion() {
         }
         im->win.setTextOverlayOriginal(false);
         im->win.setTextOverlay({});
+        im->clearShown();
         im->win.setOverlayBusy(tr(S::TrReading));
         Impl::Job j;
         j.region = true;
@@ -1487,6 +1945,7 @@ void ScreenTranslator::setLive(bool on, int seconds) {
     bool unfreeze = false, first = false;
     {
         std::lock_guard lk(impl_->m);
+        const bool wasLive = impl_->live;
         impl_->live = on;
         impl_->liveSec = std::clamp(seconds, 2, 60);
         if (on && impl_->frozeByUs) {  // live follows the moving picture
@@ -1499,6 +1958,7 @@ void ScreenTranslator::setLive(bool on, int seconds) {
         // 翻譯整個畫面 had run once.  The first run is a full one: the same
         // set-up (the download consent, the models) as 翻譯整個畫面.
         first = on && !impl_->active && !impl_->busy;
+        impl_->liveKick = on && !first && !wasLive;  // (0.7.10) already translating: the next look translates at once
     }
     if (unfreeze) impl_->win.setFrozen(false);
     impl_->win.setTextOverlayLive(on);  // 0.7.8: in place, follows scrolling (video/src/live_overlay.cpp)
@@ -1529,6 +1989,8 @@ void ScreenTranslator::close() {
         std::lock_guard lk(impl_->m);
         ++impl_->gen;
         impl_->jobs.clear();
+        impl_->shownBoxes.clear();
+        impl_->liveKick = false;
         impl_->active = false;
         impl_->live = false;
         impl_->original = false;

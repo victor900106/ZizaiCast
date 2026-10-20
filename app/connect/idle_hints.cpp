@@ -7,10 +7,34 @@
 #include "capture/capture.h"
 #include "connect/connect.h"
 #include "connect/connect_internal.h"
+#include "remote/remote.h"
+#include "view/view.h"
 
 namespace pm_app {
 
 void refreshIdleHints() {
+    // 0.8.2: two pages, chosen with the tabs at the top: 手機投影 (the phone's screen
+    // on this PC: the cards below) and 遠端控制 (a phone controls this PC: app/remote).
+    using IA0 = pm::VideoWindow::IdleAction;
+    std::vector<IA0> tabs;
+    if (remoteAvailable()) {
+        const HWND h = g.hwnd;  // posted: the window is inside its own click handling
+        IA0 a{tr(S::TabCast), false, [h]() { PostMessageW(h, WM_PM_TOOL, CmdIdleTabCast, 0); }, -1};
+        a.kind = 1, a.on = g.settings.idleTab != 1;
+        IA0 b{tr(S::TabRemote), false, [h]() { PostMessageW(h, WM_PM_TOOL, CmdIdleTabRemote, 0); }, -1};
+        b.kind = 1, b.on = g.settings.idleTab == 1;
+        tabs.push_back(std::move(a));
+        tabs.push_back(std::move(b));
+    }
+    if (remoteAvailable() && g.settings.idleTab == 1) {
+        std::vector<pm::VideoWindow::IdleCard> rc;
+        std::vector<IA0> ra = std::move(tabs);
+        remoteIdlePage(rc, ra);
+        g.window->setIdleCards(std::move(rc));
+        g.window->setIdleActions(std::move(ra));
+        refreshIdleOptions();
+        return;
+    }
     // 0.7.8: 「請選你的手機」 and three cards (iPhone / iPad · Android 只要看 ·
     // Android 用電腦操控), each with one button.  A way that cannot be used
     // right now stays listed, greyed, with the reason and the next step as
@@ -43,7 +67,7 @@ void refreshIdleHints() {
     // Actions: each card's button first (the video window draws actions on
     // the idle screen only, never while a phone is live), then 更新 and the
     // tutorial in the row under the cards.
-    std::vector<IA> actions;
+    std::vector<IA> actions = std::move(tabs);
     actions.push_back({tr(S::CardSteps), true, []() { openTutorial(L"iphone"); }, 0});
     switch (why) {
     case MiraOn: actions.push_back({tr(S::CardSteps), true, []() { openTutorial(L"miracast"); }, 1}); break;
@@ -64,6 +88,7 @@ void refreshIdleHints() {
     }
     actions.push_back({tr(S::ActHowTo), false, []() { openTutorial(nullptr); }});
     g.window->setIdleActions(std::move(actions));
+    refreshIdleOptions();
 }
 
 }  // namespace pm_app

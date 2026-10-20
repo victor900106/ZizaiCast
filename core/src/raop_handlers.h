@@ -145,7 +145,9 @@ raop_handler_info(raop_conn_t *conn,
     plist_t vv_node = plist_new_uint(strtol(AIRPLAY_VV, NULL, 10));
     plist_dict_set_item(res_node, "vv", vv_node);
 
-    plist_t status_flags_node = plist_new_uint(68);
+    /* PM 0.7.10.1: UxPlay 68 (bits 2 "audio cable attached" and 6); 64 with
+     * settings.ini airplay_audio_status=0 (pm_volume_hud.h) */
+    plist_t status_flags_node = plist_new_uint(raop->pm_status_flags);
     plist_dict_set_item(res_node, "statusFlags", status_flags_node);
 
     plist_t keep_alive_low_power_node = plist_new_uint(1);
@@ -165,8 +167,23 @@ raop_handler_info(raop_conn_t *conn,
         goto finished;
     }
 
-    plist_t initial_volume_node = plist_new_real(raop->callbacks.audio_set_client_volume(raop->callbacks.cls)); 
+    double initial_volume = raop->callbacks.audio_set_client_volume(raop->callbacks.cls);
+    plist_t initial_volume_node = plist_new_real(initial_volume);
     plist_dict_set_item(res_node, "initialVolume", initial_volume_node);
+    /* PM: the client sets its AirPlay slider to this (and then sends no volume until the slider moves) */
+    logger_log(raop->logger, LOGGER_INFO, "GET /info: initialVolume %.2f dB reported to the client", initial_volume);
+
+    /* PM 0.7.10.1: A/B knob for the iOS volume HUD (settings.ini
+     * airplay_volume_control, pm_volume_hud.h). UxPlay sends no
+     * volumeControlType; shairport-sync (AirPlay 2) sends 3. */
+    if (raop->pm_volume_control_type >= 0) {
+        plist_dict_set_item(res_node, "volumeControlType", plist_new_uint(raop->pm_volume_control_type));
+        logger_log(raop->logger, LOGGER_INFO, "GET /info: [volume-hud] volumeControlType %d, statusFlags %u",
+                   raop->pm_volume_control_type, raop->pm_status_flags);
+    } else if (raop->pm_status_flags != PM_STATUS_FLAGS_UXPLAY) {
+        logger_log(raop->logger, LOGGER_INFO, "GET /info: [volume-hud] no volumeControlType, statusFlags %u",
+                   raop->pm_status_flags);
+    }
       
     plist_t audio_latencies_node = plist_new_array();
     plist_t audio_latencies_0_node = plist_new_dict();
@@ -1211,12 +1228,17 @@ raop_handler_get_parameter(raop_conn_t *conn,
     int datalen = 0;
 
     content_type = http_request_get_header(request, "Content-Type");
+    data = http_request_get_data(request, &datalen);
     if (!content_type) {
+        /* PM: logged (the request line alone is rate-limited for GET_PARAMETER) */
+        if (datalen > 0) {
+            logger_log(raop->logger, LOGGER_INFO, "GET_PARAMETER without Content-Type (%d B): 451 Parameter not understood",
+                       datalen);
+        }
         http_response_init(response, "RTSP/1.0", 451, "Parameter not understood");
         return;
     }
 
-    data = http_request_get_data(request, &datalen);
     if (!strcmp(content_type, "text/parameters")) {
         const char *current = data;
 
@@ -1226,9 +1248,13 @@ raop_handler_get_parameter(raop_conn_t *conn,
             /* This is a bit ugly, but seems to be how airport works too */
             if ((datalen - (current - data) >= 8) && !strncmp(current, "volume\r\n", 8)) {
                 char volume[25] = "volume: 0.0\r\n";
+                double answered = 0.0;
                 if (raop->callbacks.audio_set_client_volume) {
-                    snprintf(volume, 25, "volume: %9.6f\r\n", raop->callbacks.audio_set_client_volume(raop->callbacks.cls));
+                    answered = raop->callbacks.audio_set_client_volume(raop->callbacks.cls);
+                    snprintf(volume, 25, "volume: %9.6f\r\n", answered);
                 }
+                /* PM: the client sets its AirPlay slider to the answer */
+                logger_log(raop->logger, LOGGER_INFO, "GET_PARAMETER volume: answered %.2f dB", answered);
                 http_response_add_header(response, "Content-Type", "text/parameters");
                 *response_data = strdup(volume);
                 if (*response_data) {
@@ -1253,6 +1279,8 @@ raop_handler_get_parameter(raop_conn_t *conn,
                 current = NULL;
             }
         }
+    } else {
+        logger_log(raop->logger, LOGGER_INFO, "GET_PARAMETER %.40s (%d B): not answered", content_type, datalen);
     }
 }
 
@@ -1268,6 +1296,7 @@ raop_handler_set_parameter(raop_conn_t *conn,
 
     content_type = http_request_get_header(request, "Content-Type");
     if (!content_type) {
+        logger_log(raop->logger, LOGGER_INFO, "SET_PARAMETER without Content-Type: 451 Parameter not understood");
         http_response_init(response, "RTSP/1.0", 451, "Parameter not understood");
         return;
     }
@@ -1280,13 +1309,22 @@ raop_handler_set_parameter(raop_conn_t *conn,
             if ((datalen >= 8) && !strncmp(datastr, "volume: ", 8)) {
                 float vol = 0.0f;
                 /* PM: an unreadable value is ignored (it used to become 0 dB = full volume) */
-                if (sscanf(datastr+8, "%f", &vol) != 1) {
+                if (sscanf(datastr+8, "%f", &vol) != 1 || vol != vol) {  /* PM: "nan" too */
                     logger_log(raop->logger, LOGGER_WARNING, "ignoring unreadable volume parameter");
                 } else if (conn->raop_rtp && raop_rtp_is_running(conn->raop_rtp)) {
+                    /* PM: every volume the phone sends, also an unchanged one (audio_set_volume logs changes only) */
+                    logger_log(raop->logger, LOGGER_INFO, "SET_PARAMETER volume: %.2f dB (audio stream running)", vol);
                     raop_rtp_set_volume(conn->raop_rtp, vol);
-                } else if (raop->callbacks.audio_set_volume) {
-                    /* set volume in playbin (hls) */
-                    raop->callbacks.audio_set_volume(raop->callbacks.cls, vol);
+                } else {
+                    /* PM: same range as raop_rtp_set_volume: -144 (mute) .. 0 dB. Unclamped, a
+                     * value out of range was kept and answered back as initialVolume. */
+                    if (vol > 0.0f) vol = 0.0f;
+                    else if (vol < -144.0f) vol = -144.0f;
+                    logger_log(raop->logger, LOGGER_INFO, "SET_PARAMETER volume: %.2f dB (no audio stream)", vol);
+                    if (raop->callbacks.audio_set_volume) {
+                        /* set volume in playbin (hls) */
+                        raop->callbacks.audio_set_volume(raop->callbacks.cls, vol);
+                    }
                 }
             } else if (conn->raop_rtp) {
                 if ((datalen >= 10) && !strncmp(datastr, "progress: ", 10)) {
@@ -1313,6 +1351,8 @@ raop_handler_set_parameter(raop_conn_t *conn,
         } else {
             logger_log(raop->logger, LOGGER_WARNING, "RAOP not initialized at SET_PARAMETER metadata");
         }
+    } else {
+        logger_log(raop->logger, LOGGER_INFO, "SET_PARAMETER %.40s (%d B): ignored", content_type, datalen);
     }
 }
 
@@ -1332,8 +1372,8 @@ raop_handler_audiomode(raop_conn_t *conn,
     plist_get_string_val(req_audiomode_node, &audiomode);
     if (audiomode) {
         /* not sure what should be done with this request: usually audioMode requested is "default" */
-        int log_level = (strstr(audiomode, "default") ? LOGGER_DEBUG : LOGGER_INFO);
-        logger_log(raop->logger, log_level, "Unhandled RTSP request \"audioMode: %s\"", audiomode);
+        /* PM: always INFO (which mode the phone asks for, next to the audio SETUP / TEARDOWN lines) */
+        logger_log(raop->logger, LOGGER_INFO, "POST /audioMode: \"%.40s\" (not acted on)", audiomode);
         plist_mem_free(audiomode);
     }
     plist_free(req_root_node);
@@ -1417,7 +1457,12 @@ raop_handler_teardown(raop_conn_t *conn,
         }
     }
     plist_free(req_root_node);
-    logger_log(raop->logger, LOGGER_DEBUG, "TEARDOWN request,  96=%d, 110=%d", teardown_96, teardown_110);
+    /* PM: INFO: which streams the phone ends (audio 96 / mirror 110 / neither = the whole session) */
+    logger_log(raop->logger, LOGGER_INFO, "TEARDOWN: %s",
+               teardown_96 && teardown_110 ? "audio (96) and mirror (110) streams"
+               : teardown_96               ? "audio stream (96)"
+               : teardown_110              ? "mirror stream (110)"
+                                           : "whole session (no streams listed)");
   
     http_response_add_header(response, "Connection", "close");
   

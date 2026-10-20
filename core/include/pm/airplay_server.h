@@ -99,6 +99,15 @@ public:
         // mirroring session's own sound is not affected by the receiver in
         // any mode (core/src/pm_audio_advert.h). Needs stop()+start().
         int advertiseAudio = 1;
+        // A/B test (0.7.10.1, iOS volume bar pops up when the Google app opens
+        // while mirroring): see core/src/pm_volume_hud.h. Needs stop()+start().
+        //   volumeControlType: GET /info "volumeControlType"; -1 = not sent
+        //     (UxPlay, default), 0..4 sent as is (0 guessed "fixed/none",
+        //     1 relative, 3 absolute = what shairport-sync sends)
+        //   audioStatusFlag: statusFlags bit 2 "audio cable attached" in
+        //     /info and the TXT records; 1 = on (UxPlay, default), 0 = off
+        int volumeControlType = -1;
+        int audioStatusFlag = 1;
     };
 
     // Picture-quality presets (display size requested from the iPhone):

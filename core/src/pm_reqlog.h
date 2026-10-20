@@ -4,9 +4,14 @@
  *
  *  - "routine" requests (POST /feedback every ~2 s, GET_PARAMETER) are logged
  *    at most once per PM_REQLOG_ROUTINE_MS, with the number skipped since;
+ *  - session events (SETUP, RECORD, FLUSH, TEARDOWN, POST /audioMode) are
+ *    always logged: a session has only a few, and a suppressed one hid what the
+ *    phone did (0.7.9 log: an audio-stream SETUP and the closing TEARDOWN fell
+ *    inside the repeat window and never showed);
  *  - any other method+path(+Content-Type, so SET_PARAMETER volume/progress,
  *    artwork and metadata are separate kinds) is logged the first time and then
  *    at most once per PM_REQLOG_REPEAT_MS, again with the skipped count.
+ *    (0.7.10: the SET_PARAMETER / GET_PARAMETER handlers log the volume itself.)
  *
  * Pure (no I/O, caller passes the clock) so tests can drive it. Only the httpd
  * thread calls it, so there is no locking. GPL-3.0-or-later. */
@@ -40,6 +45,16 @@ static inline int pm_reqlog_is_routine(const char *method, const char *url) {
     return 0;
 }
 
+/* never rate-limited: the stream set-up / tear-down of a session */
+static inline int pm_reqlog_is_session_event(const char *method, const char *url) {
+    if (!method) return 0;
+    if (!strcmp(method, "SETUP") || !strcmp(method, "RECORD") || !strcmp(method, "FLUSH") ||
+        !strcmp(method, "TEARDOWN"))
+        return 1;
+    if (!strcmp(method, "POST") && url && !strcmp(url, "/audioMode")) return 1;
+    return 0;
+}
+
 static inline void pm_reqlog_key(const char *method, const char *url, const char *content_type,
                                  char *key, size_t n) {
     size_t plen = 0;
@@ -58,6 +73,7 @@ static inline int pm_reqlog_should_log(pm_reqlog_t *st, const char *method, cons
     uint64_t window = pm_reqlog_is_routine(method, url) ? PM_REQLOG_ROUTINE_MS : PM_REQLOG_REPEAT_MS;
     int free_i = -1, oldest_i = 0, i;
     *skipped = 0;
+    if (pm_reqlog_is_session_event(method, url)) return 1;
     pm_reqlog_key(method, url, content_type, key, sizeof(key));
     for (i = 0; i < PM_REQLOG_SLOTS; i++) {
         pm_reqlog_slot_t *s = &st->slot[i];

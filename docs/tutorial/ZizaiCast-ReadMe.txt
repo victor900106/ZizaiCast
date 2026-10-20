@@ -3,7 +3,9 @@
 
 Mirror the screen of an iPhone / iPad / Android phone to this Windows PC.
 Full illustrated guide: "ZizaiCast-Guide.html" in the install folder ("How to connect?" on the waiting screen opens it too).
+The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Remote control" (section 6: use this PC from a phone).
 
+[Phone mirroring]
 1. Before you start
   - The phone and the PC must be on the same Wi-Fi / local network (not a guest network, not mobile data).
   - On first run, when the Windows firewall asks, tick "Private networks" and click "Allow access".
@@ -80,7 +82,60 @@ Full illustrated guide: "ZizaiCast-Guide.html" in the install folder ("How to co
   - Send to phone: after a screenshot or recording click "Send to phone" (also in the right-click menu under "Send to phone"). Android (wireless debugging): straight into the gallery;
     iPhone / iPad / Android casting: scan the QR code on the PC with the phone's camera (same Wi-Fi, works for 10 minutes).
 
-6. FAQ
+[Remote control]
+6. Remote control: use this PC from a phone (the second big feature)
+  See the PC's screen in the phone's browser, hear its sound and use the mouse and keyboard with your fingers; no app (Safari on iPhone, Chrome on Android).
+  Off every time Zizai Cast starts: turn it on yourself. Full illustrated steps: the "Remote control" chapter of the guide.
+
+  Turn it on: the main window has two big tabs, "Phone mirroring" and "Remote control". Switch to "Remote control" and turn it on
+    (the "Remote control" item in the right-click menu and the tray menu is the same switch). While connected, a
+    "Remote control in progress" bar stays at the top of the PC screen.
+
+  At home (same Wi-Fi):
+    1. Turn it on in the "Remote control" tab and open the "Same Wi-Fi" page: a QR code appears.
+    2. Phone on the same Wi-Fi: scan the QR code with the camera.
+    3. The PC asks "A phone wants to control this PC" -> click "Allow" only for your own phone (tick "Remember this phone" to skip it next time).
+    4. Tap "Turn on sound" on the phone to hear the PC.
+
+  Outside (recommended): fixed address + a password you choose (the address never changes; nothing to install on the phone)
+    1. The first time, set a password on the PC, at least 8 characters (it can only be set on the PC).
+    2. Tick "Always on for outside access, so it works from the moment the PC starts".
+    3. Open the fixed address on the phone and enter the password.
+    4. Add the page to the Home Screen (the icon is called "Zizai Remote"):
+       iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "menu" -> "Add to Home screen".
+    5 wrong passwords in a row lock sign-in for 15 minutes.
+  Outside (Tailscale): install Tailscale from https://tailscale.com/download on the PC and the phone, sign in with the same account,
+    turn remote control off and on, scan the QR code on the "Tailscale" page. On mobile data "Sharp" uses about 10 Mbps (about 4 GB an hour): pick "Smooth".
+  Outside (temporary address): Remote control window > "Temporary address" > "Get the link"; scan the QR code
+    (works once), enter the 6-digit passcode; someone at the PC must click "Allow". The address (from cloudflared,
+    trycloudflare.com) is new every time. Do it once next to the PC before you go.
+
+  Gestures (trackpad mode): one finger = move the pointer (faster = further), tap = left click, two-finger tap = right click,
+    two fingers = scroll, hold half a second then move = drag, pinch = zoom, three-finger tap = keyboard. Settings: "Direct", pointer speed, quality (Smooth / Standard / Sharp).
+
+  Sound:
+    - The sound of all the PC's speakers is mixed together and sent to the phone; there is no device to pick.
+    - The phone page has a volume control, 0-300%.
+    - Tick "Mute the PC while the phone plays sound" to keep the PC's speakers silent while the phone plays.
+    - Switch the speakers off and the phone still has sound.
+    - Don't use Windows mute (taskbar speaker, keyboard mute key): the phone may go silent too.
+
+  Safety:
+    - The fixed address is public. Your password is the only protection: use a long one you haven't used anywhere else.
+    - You can turn on "New phones from outside also need Allow on the PC" for one more lock (don't, when you are away from the PC).
+    - End it at any time: "End" on the bar or Ctrl+D; "View only" is available too. A phone idle for 30 minutes is disconnected.
+  Limits:
+    - Windows running as administrator (e.g. Task Manager), UAC prompts and the lock screen (incl. Ctrl+Alt+Del) can't be operated from the phone.
+    - The PC must be on and signed in.
+    - The fixed address needs Tailscale running on the PC.
+  Troubleshooting:
+    - No sound: tap "Turn on sound" on the page (always on iPhone); check the page's volume isn't 0%; turn Windows mute off.
+    - Can't connect: at home use the same Wi-Fi (AP isolation / guest network, Windows Firewall or a VPN block it); for the fixed
+      address check the PC is on, signed in, Tailscale is running and "Always on for outside access" is ticked; after 5 wrong passwords wait 15 minutes.
+    - Forgot the password: reset it on the PC in the "Remote control" tab (it can't be reset from the phone).
+
+[Phone mirroring] FAQ
+7. FAQ
   - Zizai Cast doesn't appear: check same network, firewall allowed, VPN off;
     only one AirPlay receiver can run on a PC (close AirServer, UxPlay, etc. first).
   - Clicked Cancel on the firewall: search "Allow an app through Windows Firewall" → Change settings → tick "Private" for Zizai Cast.

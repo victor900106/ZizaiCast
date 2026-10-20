@@ -175,8 +175,15 @@ void Renderer::liveTrack() {
     L.trackMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
+void Renderer::setLiveIgnore(const std::vector<char>& cells, int gx, int gy) {
+    LiveOverlay& L = live();
+    L.tracker.setIgnore(cells, gx, gy);
+    L.sigAt = -1e9;  // tracked again at the next frame drawn
+}
+
 void Renderer::setOverlayLive(bool on) {
     LiveOverlay& L = live();
+    if (!on) L.tracker.setIgnore({}, 0, 0);
     if (L.on == on) return;
     L.on = on;
     L.valid = false;

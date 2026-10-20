@@ -218,6 +218,9 @@ bool labelLike(const Block& b) {
     if (n.latin == 0) return t.size() <= 10;
     int words = 1;
     for (wchar_t c : b.text) words += c == L' ';
+    // An identifier / test code (CheckDdrTrainLog) is a value, not a
+    // field name: 0.7.9 made it the label of the next line's test code.
+    if (words == 1 && codeToken(b.text)) return false;
     return words <= 3 && b.text.size() <= 24;
 }
 

@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -45,6 +46,12 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PM_SHARE:
         onShareEvent(wp, lp);
         return 0;
+    case WM_PM_REMOTE:  // 遠端操控 (app/remote)
+        onRemoteEvent(wp, lp);
+        return 0;
+    case WM_HOTKEY:  // Ctrl+D while a phone controls this PC
+        if (onRemoteHotkey(wp)) return 0;
+        break;
     case WM_MOVE:
     case WM_SIZE:
         g.shareChip.reposition();  // stays over the window's bottom
@@ -152,6 +159,8 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PM_OPTION:
         if (wp == OptAutostart) setAutostartOption(lp != 0);
         else if (wp == OptPin) setPinOption(lp != 0);
+        else if (wp == OptRemoteAudio) remoteCommand(CmdRemoteAudio);
+        else if (wp == OptRemoteMutePc) remoteCommand(CmdRemoteMutePc);
         return 0;
     case WM_PM_TRAY:
         switch (LOWORD(lp)) {
@@ -344,6 +353,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         g.quitting = true;
         stopRecording();
         stopSharing();
+        stopRemote();
         saveSettings();
         ShutdownBlockReasonDestroy(h);
         g.log->write("info", "session ending: done");
@@ -359,6 +369,15 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         }
         if (msg == g.devCmdMsg && g.devCmdMsg) {  // --dev test scripts: run a menu command
             if (wp == 900 || wp == 901) devMenuShots(static_cast<int>(lp) - 1, wp == 901);  // menu PNGs (lp = hot row + 1)
+            else if (wp == 960) remoteDevShots();  // 遠端操控: remote_panel(_ts).png, remote_banner.png, remote_ask.png
+            else if (wp == 961) remoteDevAnswer(static_cast<int>(lp));  // its 允許 / 拒絕 (1 allow, 2 deny, 3 allow + remember)
+            else if (wp == 962) remoteDevClick(static_cast<int>(lp));   // 0.8.1: clicks as if from the phone (see remote.h)
+            else if (wp == 963) remoteDevFixed(static_cast<int>(lp));   // 0.8.2: 常駐外網 password / shots (see remote.h)
+            else if (wp == 964) {  // 0.8.2 idle-CPU test: a mouse move over this window as a posted message (the real pointer never moves)
+                RECT rc{};
+                GetClientRect(h, &rc);
+                PostMessageW(h, WM_MOUSEMOVE, 0, MAKELPARAM((rc.right / 2 + static_cast<int>(lp) % 7) & 0x7fff, (rc.bottom / 3) & 0x7fff));
+            }
             else if (wp == 905) {  // 放大鏡 / 翻譯: the open question dialog as ask.png
                 const fs::path d = fs::temp_directory_path() / L"pmshots";
                 std::error_code ec;

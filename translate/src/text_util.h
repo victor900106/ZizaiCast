@@ -40,6 +40,12 @@ std::wstring fromUtf8(const std::string& s);
 // bopomofo): the right OCR language is probably not installed.
 bool looksMisread(const std::wstring& allText);
 
+// LINE's floating date label (今天 / 昨天 / 星期四 / 10月9日(四) / Today / Yesterday /
+// 今日 / 昨日 / 오늘 / 어제 / 10월 9일 목요일 ...) that the OCR read into a message in
+// another language: removed when the rest of the line is plainly one other language.
+// A line that is only the label, or a label in its own language, is returned as is.
+std::wstring stripLineDateLabels(const std::wstring& line);
+
 // Chinese output: ASCII , ? ! : ; ( ) next to CJK characters -> full width.
 std::wstring fullWidthPunctuation(const std::wstring& s);
 
@@ -78,6 +84,10 @@ std::map<Lang, std::vector<size_t>> pickBlocks(std::vector<Block>& blocks, Lang 
                                                std::vector<std::string>* why = nullptr, Lang* screenLang = nullptr);
 // A translation worth a card: not empty, not the source again, in the target's script.
 bool translatedOk(const std::wstring& src, const std::wstring& tx, Lang from, Lang tgt);
+// 即時翻譯: per OCR line, 1 = a playing video's (dyn: gx x gy cells that keep changing, row-major; pix, when
+// given: pw x ph pixels of the picture's thumbnail that keep changing - finer than the cells at a video's edge).
+std::vector<char> videoLines(const std::vector<OcrLine>& lines, const std::vector<char>& dyn, int gx, int gy,
+                             const std::vector<char>* pix = nullptr, int pw = 0, int ph = 0);
 
 // A table field name of any language (名称, 内容量, 熱量, 제품명, Input …): label_text.cpp.
 bool isFieldLabel(const std::wstring& text);
@@ -120,6 +130,9 @@ bool negationKept(const NegCues& cues, const std::wstring& tx, Lang tgt);
 std::vector<std::wstring> numbersIn(const std::wstring& s);  // 3,980 -> 3980; 0.05; 26.12.09
 // Every number of src is in tx.
 bool numbersKept(const std::wstring& src, const std::wstring& tx);
+// qe.cpp: an English -> zh-Hant / ja / ko answer with text the source does not have (the engine's stock
+// sentence for a fragment: too long, a number not in the source, a phrase twice); its reason or nullptr.
+const char* inventedText(const std::wstring& src, const std::wstring& tx, Lang from, Lang tgt);
 // translator.cpp: every number with a unit in src (3.7 g, 42kcal, 380円, 100만원)
 // keeps a unit after it in tx (公克 / 大卡 / 日圓 / 萬韓元 … accepted);
 // repairUnits puts the lost ones back after a bare number.
@@ -290,4 +303,57 @@ constexpr wchar_t kOverlayUncertain = 0xE001;
 // A box with only this mark: text kept as written (a track list, readings) -
 // no card, but the list panel stays off it.
 constexpr wchar_t kOverlayKeep = 0xE002;
+}  // namespace pm::translate
+
+namespace pm::translate {
+// ---- tech_text.cpp (technical messages: English -> zh-Hant) ----
+// A part number / test code / identifier kept as written (KM220P, Q7-RX12,
+// 731.2KQX4.0081, ZX9_DDR_MEM002.004, CheckDdrTrainLog, NVMe, QX/V7/RF/FAIL, a
+// URL) - not 2-point, Hello, NO.  Punctuation around the word is ignored.
+bool codeToken(const std::wstring& word);
+// An acronym (QA, RD, YLD, 5G): 2-6 capitals / digits, 2+ capitals.
+bool acronymWord(const std::wstring& word);
+// The code tokens of a text (codeToken; not 100mg / 3pm): start, length.
+std::vector<std::pair<size_t, size_t>> codeSpans(const std::wstring& s);
+// A line of codes only (codes, acronyms, numbers, symbols; at least one code):
+// PN:731.2KQX4.0081, Q7-RX12 & Q8-RX13, ICT-Q7 - ZX9_DDR_MEM002.004 - kept as written.
+bool codeLine(const std::wstring& t);
+// An exception report's field label ([Owner] -> 負責人); nullptr: none.
+const wchar_t* techLabel(const std::wstring& label, Lang tgt);
+// Test-report terms in an English text (top fail -> 主要失敗項), as placeholders' text.
+std::vector<GlossaryHit> techTermHits(const std::wstring& text, Lang src, Lang tgt);
+// A line with several 「[標籤] 值」 items run together (OCR / layout joined
+// them: [Date]03/14 [Time]8:15) -> one item each; the text before the first too.
+std::vector<std::wstring> splitBracketItems(const std::wstring& t);
+// 「[標籤] 值」: the label (its Chinese half when bilingual: [日期 Date] -> 日期),
+// the colons as written, the value.  false: not a bracket label line.
+struct BracketLine {
+    wchar_t open = 0, close = 0;  // close 0: the closing bracket was lost ([Action:QA/)
+    std::wstring label, labelZh, value;
+    bool colonInside = false, colonAfter = false;  // [Label:] / [Label]:
+};
+bool parseBracketLine(const std::wstring& t, BracketLine& out);
+// Chinese and English mixed on one line (an English-script block): the Chinese
+// kept (Traditional forms), English sentences (3+ plain words) translated, a
+// Chinese label's English gloss at the end dropped (品質異常 Quality alert),
+// names / codes / single words kept.
+struct MixedPiece {
+    std::wstring text;
+    enum Kind { Keep, Translate, Drop } kind = Keep;
+};
+// glosses false: no gloss dropped (a picture that is not a technical message:
+// 大峰山寺 "No Woman Admitted" is a sign, not a label and its gloss).
+std::vector<MixedPiece> splitMixed(const std::wstring& t, bool glosses = true);
+// A line of a technical message: a strong code (ZX9_DDR_MEM002.004, KM220P,
+// CheckDdrTrainLog - not B12, V800, iPhone) or a report's [label].
+// translateTextsEx applies the code / acronym / [標籤] rules only to a batch
+// with two such lines (one for a single text): news (ICE, DHS) and food labels
+// (Vitamin B12) keep 0.7.9's behaviour.
+bool techLine(const std::wstring& t);
+// A sentence in capitals (a chat message: PLEASE CHECK THE KX200 SAMPLES ASAP):
+// 3+ words of capitals only, 2+ of them 5 letters or more - its words are
+// words, not acronyms / codes (only its real codes are kept as written).
+bool shoutedLine(const std::wstring& t);
+// translateTextsEx's decision for a batch (English -> zh-Hant): a technical message.
+bool techBatch(const std::vector<std::wstring>& in, Lang src, Lang tgt);
 }  // namespace pm::translate

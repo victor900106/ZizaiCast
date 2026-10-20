@@ -458,7 +458,7 @@ the existing feedback watchdog / `conn_reset`). The app calls
 
 ```
 [network] refreshNetwork(): interfaces unchanged: before [乙太網路=192.168.1.125, …], now […]
-[network] mDNS re-opened and re-announced on 3 interface(s): 乙太網路=192.168.1.125, Tailscale=100.101.153.4, 乙太網路 4=192.168.56.1
+[network] mDNS re-opened and re-announced on 3 interface(s): 乙太網路=192.168.1.125, Tailscale=100.64.0.1, 乙太網路 4=192.168.56.1
 [network] AirPlay listener on TCP port 65316 still up (wildcard bind); 0 open connection(s) kept
 [network] mDNS announcement repeated
 ```
@@ -470,12 +470,12 @@ change`) and the first network change brings the advertisement up.
 Verified (2026-10-07, `py -3 tools/pm_probe/net_check.py`, pm_probe
 `--dynamic-ports` next to the installed app): this PC has Ethernet
 192.168.1.125 (real), VirtualBox host-only 192.168.56.1, Tailscale
-100.101.153.4 (Wi-Fi disconnected). Default: advertised on Ethernet only;
+100.64.0.1 (Wi-Fi disconnected). Default: advertised on Ethernet only;
 a PTR query sent out of each interface is answered on Ethernet with
 `A 192.168.1.125` and not on the VirtualBox/Tailscale ones. With
 `--allow-virtual` (test hook env `PM_MDNS_ALLOW_VIRTUAL=1`, all three
 advertised) each interface answers with its own A record (192.168.56.1 /
-100.101.153.4 / 192.168.1.125). `--refresh` (pm_probe `--refresh-at 5`, or
+100.64.0.1 / 192.168.1.125). `--refresh` (pm_probe `--refresh-at 5`, or
 press R in pm_probe) shows the `[network]` lines above and the same answers
 afterwards. Automatic notifications could not be exercised without
 toggling adapters (not allowed on this PC); they share the refresh path.

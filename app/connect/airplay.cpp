@@ -22,6 +22,8 @@ bool startServer(int attempts) {
     pm::AirPlayServer::Options opts = g.opts;
     opts.requirePin = g.settings.requirePin;
     opts.advertiseAudio = g.settings.advertiseAudio;
+    opts.volumeControlType = g.settings.volumeControlType;  // 0.7.10.1 volume HUD A/B
+    opts.audioStatusFlag = g.settings.audioStatusFlag;
     // The remembered volume as of now, not as of app start: a restart (PIN /
     // quality / language / network change) must not go back to the startup level.
     // (AirPlayServer::start() applies it to the player; RememberVolumeAudioSink
@@ -98,7 +100,9 @@ void restartServer() {
     g.log->write("info", "restarting AirPlay server (requirePin=" + std::to_string(g.settings.requirePin) +
                              ", quality=" + Settings::qualityKey(g.settings.quality) +
                              ", takeover=" + (g.settings.takeoverKeep ? "keep" : "new") +
-                             ", airplay_advertise_audio=" + std::to_string(g.settings.advertiseAudio) + ")");
+                             ", airplay_advertise_audio=" + std::to_string(g.settings.advertiseAudio) +
+                             ", airplay_volume_control=" + std::to_string(g.settings.volumeControlType) +
+                             ", airplay_audio_status=" + std::to_string(g.settings.audioStatusFlag) + ")");
     if (g.server) g.server->stop();
     g.server.reset();
     const bool ok = startServer(10);

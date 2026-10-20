@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -41,6 +42,7 @@ void setLanguage(int pref) {
         g.updatePanel.relabel();
         g.sharePanel.relabel();
         g.sharePicker.relabel();
+        remoteRelabel();
         pm::ui::trset::relabel();
         if (g.keysPanel.isOpen()) {
             g.keysPanel.relabel();

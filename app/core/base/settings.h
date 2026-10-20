@@ -34,6 +34,23 @@ struct Settings {
     bool toolbarHintShown = false;  // 0.7.8: the toolbar introduced itself once (first phone shown)
     bool autoShare = false;      // 截圖／錄影後自動傳到手機 (docs/share.md)
     bool muted = false;          // 靜音 (volume_ui.h); the level itself stays in volume.txt
+    // 遠端操控 (0.8.0, docs/remote.md). Off at every start (turned on by hand); these are its options.
+    bool remoteViewOnly = false;  // 僅觀看: the phone sees the screen, input is dropped
+    bool remoteAudio = true;      // the PC's sound is offered to the phone (it still has to tap 開啟聲音)
+    bool remoteMutePc = false;    // mute the PC's speakers while the phone plays the sound
+    int remoteIdleMinutes = 30;   // end a session after this long without a touch on the phone (0 = never)
+    // 0.8.1 聲音來源: "" automatic (the device that plays), "default" the Windows default, else a device id
+    std::string remoteAudioSource;
+    std::string remoteToken;      // the phone link's secret part: kept so a Home Screen icon keeps working
+    int remotePort = 8090;        // its port (the next free one from 8090 if taken; kept for the same reason)
+    // 常駐外網 (0.8.2): remote control + the fixed link (Tailscale Funnel :8443) at every
+    // start; logins with the owner's password (only its PBKDF2 hash is kept).
+    bool remotePersistent = false;
+    std::string remotePwHash;          // "pbkdf2-sha256$<iterations>$<salt>$<key>"
+    std::string remoteFixedSecret;     // signs the phones' 30-day logins (a new password = a new one)
+    bool remoteFixedNeedApproval = false;  // 外面的新手機也要電腦按允許
+    std::string whatsNewSeen;          // the version whose 新功能 note was shown
+    int idleTab = 0;                   // 0.8.2 main window page: 0 手機投影, 1 遠端控制 (the last one shown)
     std::string updatedTo;     // set just before an update installs: 「已更新到 vX」 at the next start
     std::string skipVersion;   // 略過這個版本: never prompted again (the menu item stays)
     int language = 0;          // 語言 / Language: 0 auto (Windows UI language), 1 zh-TW, 2 en, 3 ja, 4 ko
@@ -47,6 +64,11 @@ struct Settings {
     // A/B test (0.7.6): Options::advertiseAudio, settings.ini airplay_advertise_audio
     // 1 also an AirPlay speaker (default), 0 Screen Mirroring only, 2 bit 9 on but no _raop._tcp
     int advertiseAudio = 1;
+    // A/B test (0.7.10.1, iOS volume bar when the Google app opens): Options::volumeControlType /
+    // audioStatusFlag, settings.ini airplay_volume_control (-1 default, 0..4) and
+    // airplay_audio_status (1 default, 0); core/src/pm_volume_hud.h
+    int volumeControlType = -1;
+    int audioStatusFlag = 1;
     // 0.7.8 UX (p7): 右鍵行為 on an Android picture: false 返回 (default), true 開啟選單;
     // Shift+right click always opens the menu. The 「右鍵＝返回」 hint shows once.
     bool rightClickMenu = false;
@@ -116,6 +138,26 @@ struct Settings {
         s.toolbarHintShown = flag("toolbar_hint_shown", false);
         s.autoShare = flag("auto_share", false);
         s.muted = flag("mute", false);
+        s.remoteViewOnly = flag("remote_view_only", false);
+        s.remoteAudio = flag("remote_audio", true);
+        s.remoteMutePc = flag("remote_mute_pc", false);
+        if (auto it = kv.find("remote_idle_minutes"); it != kv.end())
+            s.remoteIdleMinutes = (std::max)(0, (std::min)(24 * 60, atoi(it->second.c_str())));
+        if (auto it = kv.find("remote_audio_source"); it != kv.end() && it->second.size() < 512)
+            s.remoteAudioSource = it->second == "auto" ? std::string() : it->second;
+        if (auto it = kv.find("remote_token"); it != kv.end() && it->second.size() == 32) s.remoteToken = it->second;
+        if (auto it = kv.find("remote_port"); it != kv.end()) {
+            const int p = atoi(it->second.c_str());
+            if (p >= 1024 && p <= 65535) s.remotePort = p;
+        }
+        s.remotePersistent = flag("remote_persistent", false);
+        if (auto it = kv.find("remote_pw_hash"); it != kv.end() && it->second.rfind("pbkdf2-sha256$", 0) == 0 && it->second.size() < 256)
+            s.remotePwHash = it->second;
+        if (auto it = kv.find("remote_fixed_secret"); it != kv.end() && it->second.size() == 64) s.remoteFixedSecret = it->second;
+        s.remoteFixedNeedApproval = flag("remote_fixed_approval", false);
+        if (s.remotePwHash.empty() || s.remoteFixedSecret.empty()) s.remotePersistent = false;  // no password: never on
+        if (auto it = kv.find("whats_new_seen"); it != kv.end() && it->second.size() < 32) s.whatsNewSeen = it->second;
+        if (auto it = kv.find("idle_tab"); it != kv.end()) s.idleTab = it->second == "remote" ? 1 : 0;
         if (auto it = kv.find("updated_to"); it != kv.end()) s.updatedTo = it->second;
         if (auto it = kv.find("skip_version"); it != kv.end()) s.skipVersion = it->second;
         if (auto it = kv.find("language"); it != kv.end())
@@ -133,6 +175,11 @@ struct Settings {
         if (auto it = kv.find("translate_last"); it != kv.end()) s.translateLast = it->second;
         if (auto it = kv.find("airplay_advertise_audio"); it != kv.end())
             s.advertiseAudio = it->second == "0" ? 0 : it->second == "2" ? 2 : 1;
+        if (auto it = kv.find("airplay_volume_control"); it != kv.end()) {
+            const std::string& v = it->second;
+            s.volumeControlType = v.size() == 1 && v[0] >= '0' && v[0] <= '4' ? v[0] - '0' : -1;
+        }
+        if (auto it = kv.find("airplay_audio_status"); it != kv.end()) s.audioStatusFlag = it->second == "0" ? 0 : 1;
         if (auto it = kv.find("android_right_click"); it != kv.end()) s.rightClickMenu = it->second == "menu";
         s.rightClickHintShown = flag("right_click_hint_shown", false);
         if (auto it = kv.find("display_name"); it != kv.end()) {
@@ -196,6 +243,26 @@ struct Settings {
             << "auto_share=" << (autoShare ? 1 : 0) << "\n"
             << "; 靜音: PC sound off for every phone (1/0); the level is kept in volume.txt\n"
             << "mute=" << (muted ? 1 : 0) << "\n"
+            << "; 遠端操控 (remote control from a phone browser; always off at start): view only (1/0), send the PC sound (1/0),\n"
+            << ";   mute the PC while the phone plays it (1/0), end a session after N minutes without a touch (0 = never)\n"
+            << "remote_view_only=" << (remoteViewOnly ? 1 : 0) << "\n"
+            << "remote_audio=" << (remoteAudio ? 1 : 0) << "\n"
+            << "remote_mute_pc=" << (remoteMutePc ? 1 : 0) << "\n"
+            << "remote_idle_minutes=" << remoteIdleMinutes << "\n"
+            << "; the PC sound for the phone from: auto (the playback device that plays), default (the Windows default), or a device id\n"
+            << "remote_audio_source=" << (remoteAudioSource.empty() ? std::string("auto") : remoteAudioSource) << "\n"
+            << "; the phone link (secret token + port), kept so the phone's Home Screen icon keeps working; delete both for a new link\n"
+            << (remoteToken.empty() ? std::string() : "remote_token=" + remoteToken + "\n")
+            << "remote_port=" << remotePort << "\n"
+            << "; 常駐外網: remote control + a fixed address (Tailscale Funnel port 8443) at every start (1/0); the password's\n"
+            << ";   PBKDF2 hash (never the password), the login-signing secret, new phones from outside also need 允許 (1/0)\n"
+            << "remote_persistent=" << (remotePersistent ? 1 : 0) << "\n"
+            << (remotePwHash.empty() ? std::string() : "remote_pw_hash=" + remotePwHash + "\n")
+            << (remoteFixedSecret.empty() ? std::string() : "remote_fixed_secret=" + remoteFixedSecret + "\n")
+            << "remote_fixed_approval=" << (remoteFixedNeedApproval ? 1 : 0) << "\n"
+            << (whatsNewSeen.empty() ? std::string() : "whats_new_seen=" + whatsNewSeen + "\n")
+            << "; main window page: cast (手機投影) or remote (遠端控制)\n"
+            << "idle_tab=" << (idleTab == 1 ? "remote" : "cast") << "\n"
             << "; UI language: auto (Windows display language: zh-* -> zh-TW, ja-* -> ja, ko-* -> ko, else en), zh-TW, en, ja, ko\n"
             << "language=" << languageKey(language) << "\n"
             << "; magnifier colours: none, contrast, gray, invert, yellow (yellow text on black)\n"
@@ -211,6 +278,12 @@ struct Settings {
             << "; A/B test: 1 = also offered as an AirPlay speaker (default), 0 = Screen Mirroring only\n"
             << ";   (no audio-only AirPlay: features bit 9 off, no _raop._tcp), 2 = bit 9 on but no _raop._tcp\n"
             << "airplay_advertise_audio=" << advertiseAudio << "\n"
+            << "; A/B test (iOS volume bar pops up while mirroring), applies at the next start:\n"
+            << ";   airplay_volume_control: -1 = as before (default); 0..4 = tell the iPhone this volume control type\n"
+            << ";   (0 = guess: fixed volume, the phone's volume buttons stay on the phone; 1 = up/down only; 3 = slider)\n"
+            << ";   airplay_audio_status: 1 = as before (default); 0 = do not claim an audio output (may lose the sound)\n"
+            << "airplay_volume_control=" << volumeControlType << "\n"
+            << "airplay_audio_status=" << audioStatusFlag << "\n"
             << "; Android picture right click: back (the phone's Back) or menu (this window's menu); Shift+right click = menu\n"
             << "android_right_click=" << (rightClickMenu ? "menu" : "back") << "\n"
             << "right_click_hint_shown=" << (rightClickHintShown ? 1 : 0) << "\n";

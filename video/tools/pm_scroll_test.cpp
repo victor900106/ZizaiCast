@@ -1,6 +1,7 @@
 // pm_scroll_test: offline test of the 即時翻譯 scroll tracker (live_scroll_tracker).
 //
 //   pm_scroll_test [--dir launch/_work/eval_web/png] [--verbose]
+//   pm_scroll_test --video      (synthetic: a playing video block on a still / scrolling page, 0.7.10)
 //
 // Builds a long "web page" from screenshots of the evaluation set (scaled
 // to a 1080-wide phone), shows it through a 1080 x 2400 phone screen with a
@@ -194,6 +195,66 @@ double pct(std::vector<double> v, double p) {
     return v[std::min(v.size() - 1, static_cast<size_t>(p * (v.size() - 1) + 0.5))];
 }
 
+// --video: 0.7.10.  A playing video (a block of the signature that changes with every picture) on a page that
+// does not move (the cards must stay: ok, not moved - 0.7.9 hid them whenever the video made the page look
+// "changed some other way") and on a page that scrolls; with the video's grid cells ignored and without.
+int videoTest() {
+    constexpr int R = 1024, B = ScrollSig::kBands, GX = 8, GY = 16, kPage = R + 400;
+    std::mt19937 rng(7);
+    // A text-like page: lines of dark bands on a light ground.
+    std::vector<uint8_t> page(static_cast<size_t>(kPage) * B, 235);
+    for (int y = 0; y < kPage; ++y)
+        if (y % 24 < 14)
+            for (int b = 0; b < B; ++b)
+                if (rng() % 3 != 0) page[static_cast<size_t>(y) * B + b] = static_cast<uint8_t>(60 + rng() % 120);
+    auto frame = [&](int off, bool video) {
+        ScrollSig s;
+        s.rows = R;
+        s.v.assign(page.begin() + static_cast<size_t>(off) * B, page.begin() + static_cast<size_t>(off + R) * B);
+        if (video)
+            for (int y = 130; y < 330; ++y)
+                for (int b = 14; b < B; ++b) s.v[static_cast<size_t>(y) * B + b] = static_cast<uint8_t>(rng() % 256);
+        return s;
+    };
+    std::vector<char> cells(GX * GY, 0);  // the video's cells: rows 130..330 -> 2..5, bands 14..31 -> 3..7
+    for (int cy = 130 * GY / R; cy <= 329 * GY / R; ++cy)
+        for (int cx = 14 * GX / B; cx < GX; ++cx) cells[cy * GX + cx] = 1;
+    int fails = 0;
+    auto still = [&](bool ignore) {
+        ScrollTracker tr;
+        tr.setAnchor(frame(100, false));
+        if (ignore) tr.setIgnore(cells, GX, GY);
+        int ok = 0, moved = 0;
+        for (int f = 0; f < 100; ++f) {
+            const auto& r = tr.update(frame(100, true));
+            ok += r.ok;
+            moved += r.moved;
+        }
+        std::printf("video on a still page, video cells %s: ok %d/100 pictures, moved %d\n", ignore ? "ignored" : "not ignored", ok, moved);
+        return ok;
+    };
+    still(false);
+    if (still(true) != 100) ++fails;
+    {
+        ScrollTracker tr;
+        tr.setAnchor(frame(100, false));
+        tr.setIgnore(cells, GX, GY);
+        int ok = 0, n = 0;
+        double maxErr = 0;
+        for (int f = 1; f <= 120; ++f) {
+            const int off = 100 + (f < 60 ? f * 3 : (120 - f) * 3);  // down 180 rows, back up
+            const auto& r = tr.update(frame(off, true));
+            ++n;
+            ok += r.ok;
+            if (r.ok) maxErr = std::max(maxErr, static_cast<double>(std::fabs(r.dy * R - (100 - off))));
+        }
+        std::printf("video on a scrolling page, video cells ignored: ok %d/%d pictures, max shift error %.2f rows\n", ok, n, maxErr);
+        if (ok < n * 95 / 100 || maxErr > 1.5) ++fails;
+    }
+    std::printf("%s\n", fails ? "FAIL" : "PASS");
+    return fails ? 1 : 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -201,6 +262,8 @@ int main(int argc, char** argv) {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     std::wstring dir = L"launch\\_work\\eval_web\\png";
     bool verbose = false;
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--video") return videoTest();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--dir" && i + 1 < argc) {

@@ -98,7 +98,10 @@ void createTranslator() {
         char buf[200];
         std::snprintf(buf, sizeof buf, "translate%s %s: %d lines, %d blocks, %d translated, ocr %.0f ms, translate %.0f ms, total %.0f ms",
                       t.live ? " live run" : "", ok ? "done" : "ended", t.lines, t.blocks, t.translated, t.ocrMs, t.translateMs, t.totalMs);
-        g.log->write("info", buf);
+        std::string line = buf;
+        if (t.live)  // 0.7.10: why it ran, the video cells left out, the cards kept as they were
+            line += " [why=" + t.why + " dyn=" + std::to_string(t.dynCells) + "/" + std::to_string(t.cells) + " video=" + std::to_string(t.videoLines) + " cards kept=" + std::to_string(t.cardsKept) + " new=" + std::to_string(t.cardsNew) + " gone=" + std::to_string(t.cardsGone) + "]";
+        g.log->write("info", line);
         // Nothing to show (declined download, no text, OCR language missing):
         // do not leave the picture frozen with an empty overlay.
         if (!ok) closeEmptyTranslation(0);

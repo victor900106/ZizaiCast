@@ -35,7 +35,7 @@
 
 namespace pm::translate::online {
 
-enum class Provider { None, DeepL, Azure };
+enum class Provider { None, DeepL, Azure, Google };
 // Off: never sent.  Escalate: only segments that failed the quality checks
 // (the escalator's step 4).  All: every segment goes online first (the
 // Bergamot result is the fallback where the request fails) - see prefetch().
@@ -49,13 +49,16 @@ struct Settings {
     Provider provider = Provider::None;
     // The consent dialog version the user accepted, per provider (0: none).
     // Consent is given to a company: switching provider needs it again.
-    int consentDeepL = 0, consentAzure = 0;
+    int consentDeepL = 0, consentAzure = 0, consentGoogle = 0;
     std::wstring azureRegion;      // Azure resource region ("eastasia", "japaneast"…); "" = global resource
 
-    int consentFor(Provider p) const { return p == Provider::DeepL ? consentDeepL : p == Provider::Azure ? consentAzure : 0; }
+    int consentFor(Provider p) const {
+        return p == Provider::DeepL ? consentDeepL : p == Provider::Azure ? consentAzure : p == Provider::Google ? consentGoogle : 0;
+    }
     void setConsent(Provider p, int version = kConsentVersion) {
         if (p == Provider::DeepL) consentDeepL = version;
         if (p == Provider::Azure) consentAzure = version;
+        if (p == Provider::Google) consentGoogle = version;
     }
     bool consented(Provider p) const { return consentFor(p) >= kConsentVersion; }
     // The UI shows the consent dialog before saving when this is true.
@@ -96,8 +99,11 @@ void forgetAll();
 enum class Status {
     Ok,
     NotConfigured,   // off, no consent for this provider, or no key
-    BadKey,          // 401 / 403 (wrong key, wrong Azure region, key of another product)
-    QuotaExceeded,   // DeepL 456 (character allowance of the plan used up), Azure 403001 (free tier used up)
+    BadKey,          // 401 / 403 (wrong key, wrong Azure region, key of another product); Google 400 "API key not valid"
+    QuotaExceeded,   // DeepL 456 (character allowance of the plan used up), Azure 403001 (free tier used up),
+                     // Google 403 "Daily Limit Exceeded" (quota used up)
+    ApiDisabled,     // Google 403: Cloud Translation API not enabled in the key's project (or the key is
+                     // restricted to other APIs, or the project has no billing account)
     RateLimited,     // 429 after the retries
     Timeout,         // no answer in time
     Network,         // no connection / DNS / TLS / proxy
@@ -106,12 +112,12 @@ enum class Status {
     BadResponse,     // unexpected answer
 };
 // "ok", "not-configured", "bad-key", "quota", "rate-limited", "timeout",
-// "network", "server-error", "unsupported", "bad-response".
+// "network", "server-error", "unsupported", "bad-response", "api-disabled".
 const char* statusId(Status s);
 
 // What the key test found out about the account (UI text from this, not from detail).
-enum class Plan { Unknown, DeepLFree, DeepLPro, Azure };
-const char* planId(Plan p);  // "unknown", "deepl-free", "deepl-pro", "azure"
+enum class Plan { Unknown, DeepLFree, DeepLPro, Azure, Google };
+const char* planId(Plan p);  // "unknown", "deepl-free", "deepl-pro", "azure", "google"
 
 struct TestResult {
     Status status = Status::NotConfigured;
@@ -124,7 +130,7 @@ struct TestResult {
                                     // plan is a one-time allowance - do not say "monthly".
 };
 // Checks a key typed in (before it is saved) with one tiny request: DeepL
-// GET /v2/usage (no characters billed), Azure a 2-character translation.
+// GET /v2/usage (no characters billed), Azure and Google a 2-character translation.
 // Blocking (up to ~25 s): call from a worker thread.  Sends no screen text.
 // region: Azure only.  Does not touch the back-off of the stored key.
 TestResult testKey(Provider p, const std::wstring& key, const std::wstring& region = L"");
@@ -165,7 +171,7 @@ void resetBackoff();  // 「重試」: forget every back-off now
 Mode activeMode();
 
 // Picture-level batch: translates the segments in as few requests as the
-// provider allows (DeepL 50 texts, Azure 1,000 texts per request; one per
+// provider allows (DeepL 50 texts, Azure 1,000 texts, Google 128 texts / 5,000 characters per request; one per
 // language pair, contexts of a batch combined) and keeps the results in the
 // memory cache, so later per-segment ITranslator::translate calls with the
 // same TrRequest (text, src, tgt, context, keep, terms) are cache hits and
@@ -180,8 +186,8 @@ Status prefetch(const std::vector<TrRequest>& in, std::vector<TrHypothesis>* out
 
 // Display data for the settings page / consent dialog (URLs and the
 // provider's own name; not translated).
-const wchar_t* providerName(Provider p);       // "DeepL", "Microsoft Azure Translator"
-const char* providerId(Provider p);            // "deepl", "azure", "none"
+const wchar_t* providerName(Provider p);       // "DeepL", "Microsoft Azure Translator", "Google Cloud Translation"
+const char* providerId(Provider p);            // "deepl", "azure", "google", "none"
 const wchar_t* providerTermsUrl(Provider p);   // terms of service
 const wchar_t* providerPrivacyUrl(Provider p); // privacy / data handling
 const wchar_t* providerSignupUrl(Provider p);  // where the user gets a key

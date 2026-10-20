@@ -17,6 +17,7 @@
 //                 so it can run next to an installed copy
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -134,6 +135,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     pm::ui::SharePanel::testOffscreen = g.testOffscreen;
     pm::ui::SharePicker::testOffscreen = g.testOffscreen;
     pm::ui::AskPanel::testOffscreen = g.testOffscreen;
+    pm::ui::RemotePanel::testOffscreen = g.testOffscreen;
+    pm::ui::RemotePasswordPanel::testOffscreen = g.testOffscreen;
     g.testNoNetwork = dev && g.testNoNetwork;
     if (dev) {  // 傳到手機 tests: serve on this address instead of the LAN one (e.g. 127.0.0.1)
         wchar_t bind[64] = {};
@@ -400,6 +403,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             window.showToast(fmt(S::UpdIncomplete, {toWide(to)}), 5000);
         }
     }
+    // 0.8.2: 常駐外網 (remote control + the fixed link) and the 新功能 note once after an upgrade.
+    remoteStartup(background);
     // First start: open the tutorial once (not from autostart).
     if (!g.settings.tutorialShown && !background) {
         g.settings.tutorialShown = true;
@@ -435,6 +440,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     trayRemove();
     stopRecording();
     stopSharing();
+    stopRemote();
     g.pairPanel.close();
     g.aboutPanel.close();
     g.updatePanel.close();

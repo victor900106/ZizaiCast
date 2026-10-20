@@ -7,7 +7,7 @@
 (android, wireless debugging + scrcpy) — to `pm::VideoWindow` (video) and
 `pm::AudioPlayer` (audio), feeds `pm::Recorder` (recorder) while recording,
 and adds the desktop-app behaviour below.
-Target `PhoneMirror`, output name **自在投影.exe**, version 0.7.9 (manifest
+Target `PhoneMirror`, output name **自在投影.exe**, version 0.7.12 (manifest
 `app/res/app.manifest`: Common Controls v6 + PerMonitorV2; version
 resource in `app/res/app.rc`, numbers from `PM_APP_VERSION` in
 app/CMakeLists.txt; `-DPM_APP_VERSION_OVERRIDE=x.y.z` builds a fake

@@ -349,7 +349,7 @@ bool applyTemplate(const std::wstring& text, Lang src, Lang tgt, std::wstring& o
 
 // ---- Data glossary (ja / ko -> zh-Hant, Taiwan usage) ----
 // Proper nouns, stations, dishes, signs: Wikidata (CC0), hand-curated lists,
-// OpenCC-converted labels (tools/glossary, SOURCES.md), compiled in
+// OpenCC-converted labels (launch/_work/glossary, SOURCES.md), compiled in
 // from glossary_data.inc (translate/tools/make_glossary_inc.py).  Tests:
 // PM_GLOSSARY=DIR reads DIR\glossary_ja.tsv / glossary_ko.tsv instead,
 // PM_GLOSSARY=off turns it off.

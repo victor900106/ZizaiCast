@@ -15,7 +15,7 @@ Every release on <https://github.com/victor900106/ZizaiCast/releases> carries,
 |---|---|
 | `zizai-setup-<version>.exe` (published name; built as `自在投影-安裝程式-<version>.exe`) | the installer (object code) |
 | `ZizaiCast-<version>-source.zip` | `git archive` of the exact commit the installer was built from (with `BUILD.md` at its root: tools, vcpkg port versions, commands) |
-| `ZizaiCast-<version>-deps-source.zip` | `upstream/` + `ports/`: upstream source archives of the vcpkg libraries shipped in the installer (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg; PCRE2, linked into `bergamot.dll`) + the vcpkg port scripts/patches used to build them; `bergamot/`: the complete source of `bergamot.dll` (BergamotTranslatorSharp and all its submodules at the pinned commits, plus this project's build script and patch file); `onnxruntime/`: licence and notices of the unmodified `onnxruntime.dll`; `DEPS-README.txt` (versions, commits, SHA-256, download URL of `onnxruntime.dll`, what is not included and why) |
+| `ZizaiCast-<version>-deps-source.zip` | `upstream/` + `ports/`: upstream source archives of the vcpkg libraries shipped in the installer (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg; PCRE2, linked into `bergamot.dll`) + the vcpkg port scripts/patches used to build them; `bergamot/`: the complete source of `bergamot.dll` (BergamotTranslatorSharp and all its submodules at the pinned commits, plus this project's build script and patch file); `onnxruntime/`: licence and notices of the unmodified `onnxruntime.dll`; (0.8.0, 遠端操控) the upstream sources of libdatachannel, libjuice (MPL-2.0), libsrtp, usrsctp, opus, plog and nlohmann-json with their port scripts; `DEPS-README.txt` (versions, commits, SHA-256, download URL of `onnxruntime.dll`, what is not included and why) |
 
 This is "equivalent access to the Corresponding Source in the same way through
 the same place at no further charge" (GPL-3.0 §6(d)); for libplist and FFmpeg
@@ -111,6 +111,8 @@ blob ids) is in the archive.
 * `android\third_party\fetch_tools.ps1` downloads adb (Platform-Tools r37.0.1)
   and scrcpy-server v5.0, pinned by SHA-256 (CMake runs it automatically when
   the files are missing).
+* `remote\third_party\fetch_cloudflared.ps1` downloads cloudflared 2026.7.2
+  (official signed release, SHA-256 pinned) for the no-app link (0.8.1).
 * ```
   cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
   cmake --build build --config Release
@@ -139,6 +141,7 @@ blob ids) is in the archive.
 | FFmpeg 9.0.2 | unmodified upstream source; vcpkg port patches (MSVC build fixes, see `ports/ffmpeg/*.patch`); minimal LGPL configuration (AAC decoder + avutil only, 0.7.8+) from this project's overlay port `tools/vcpkg-overlay/ffmpeg` (= `ports/ffmpeg` of the deps zip) | deps zip; <https://ffmpeg.org/releases/>, tag `n9.0.2` at <https://git.ffmpeg.org/ffmpeg.git> |
 | adb / AdbWinApi / AdbWinUsbApi (Platform-Tools r37.0.1) | unmodified Google binaries (separate program) | <https://android.googlesource.com/platform/packages/modules/adb> tag `platform-tools-37.0.1`; components listed in `NOTICE.txt` (e.g. libusb: <https://android.googlesource.com/platform/external/libusb>) |
 | scrcpy-server v5.0 | unmodified release binary (separate program) | <https://github.com/Genymobile/scrcpy/tree/v5.0> |
+| cloudflared 2026.7.2 (0.8.1) | unmodified signed release binary (separate program, Apache-2.0) | <https://github.com/cloudflare/cloudflared/tree/2026.7.2>; `remote/third_party/fetch_cloudflared.ps1` (SHA-256 pinned) |
 | MSVC runtime DLLs | unmodified; System Libraries (GPL-3.0 §1), not part of the Corresponding Source | Microsoft Visual C++ Redistributable |
 | bergamot.dll (0.7.0): BergamotTranslatorSharp @ `e084db2` with bergamot-translator, Marian, intgemm, SentencePiece, ssplit-cpp, yaml-cpp, spdlog, pathie-cpp, faiss, ONNX.js sgemm + Eigen, zlib, CLI11 (submodules at that commit) and PCRE2 10.49 (vcpkg static) | **modified build** — `translate/tools/build_bergamot.sh` patches (Eigen ONNX sgemm instead of MKL / BLAS, `translate/bergamot/lapack_stubs.cpp`, `/arch:SSE2`); MPL-2.0 parts: these patches are the only changes | build script + patch file: source zip (`translate/tools/build_bergamot.sh`, `translate/bergamot/`); the complete upstream tree at the pinned commits: deps zip `bergamot/BergamotTranslatorSharp/` (commit list in `DEPS-README.txt`); PCRE2 10.49: deps zip `upstream/` + `ports/pcre2`; <https://github.com/Freeesia/BergamotTranslatorSharp/tree/e084db279f0d4314b31c7730cfc61ab03f235604> (recursive submodules) |
 | Firefox Translations models | not distributed (downloaded by the user's app from Mozilla after consent; MPL-2.0) | <https://github.com/mozilla/translations> |

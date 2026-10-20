@@ -1,0 +1,1634 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="自在遠端">
+<title>Remote</title>
+<style>
+:root{--bg:#1E1416;--fg:#F6E9EA;--ac:#F5A7A7;--panel:rgba(30,20,22,.94);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--fg);font:15px/1.4 -apple-system,system-ui,"Microsoft JhengHei","Hiragino Sans","Apple SD Gothic Neo",sans-serif;
+  overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+#v{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform-origin:50% 50%}
+/* 外網連結 when WebRTC cannot connect: H.264 over the tunnel, decoded with WebCodecs onto this canvas */
+#scr{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform-origin:50% 50%;display:none}
+/* which path the picture takes (直連 / 隧道) and the round trip, top right */
+#path{position:absolute;right:calc(6px + var(--sr));top:calc(6px + var(--st));z-index:4;padding:3px 9px;border-radius:12px;background:rgba(0,0,0,.6);
+  font-size:12px;display:none;white-space:nowrap;pointer-events:none}
+#path.tun{color:#ffd9a0}
+/* 通行碼 (外網連結) */
+#pass{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);
+  padding:24px calc(24px + var(--sr)) calc(24px + var(--sb)) calc(24px + var(--sl));text-align:center}
+#passT{font-size:19px;font-weight:600}
+#passS{font-size:14px;opacity:.75;max-width:420px}
+#passIn{font:600 30px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:10px;width:min(270px,82vw);text-align:center;padding:10px 6px 10px 16px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--fg);-webkit-user-select:text;user-select:text;touch-action:auto}
+#passGo{flex:0 0 auto;min-width:140px;background:var(--ac);color:#2a1a1c;border:0;font-weight:600}
+#passErr{font-size:14px;color:#ffb3b3;min-height:20px}
+#pass.pw #passIn{letter-spacing:normal;font:500 20px/1.3 system-ui,sans-serif;padding:12px 14px;width:min(320px,86vw)}
+#pad{position:absolute;inset:0;z-index:2}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+#hud{position:absolute;left:calc(6px + var(--sl));top:calc(6px + var(--st));z-index:3;padding:4px 8px;background:rgba(0,0,0,.62);border-radius:8px;
+  font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none;display:none;max-width:calc(100% - 12px);overflow:hidden}
+/* toolbar: small round icon buttons, bottom right (thumb reach), never over the middle */
+#bar{position:absolute;right:calc(8px + var(--sr));bottom:calc(8px + var(--sb));z-index:4;display:flex;gap:8px;align-items:center}
+.ib{width:44px;height:44px;border-radius:22px;border:1px solid rgba(255,255,255,.18);background:rgba(20,20,20,.62);display:flex;align-items:center;justify-content:center;padding:0}
+.ib svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ib.on{background:var(--ac);border-color:var(--ac)}.ib.on svg{stroke:#2a1a1c}
+#bar .ib{transition:opacity .4s}
+#bar.dim .ib{opacity:.35}
+
+#silent{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;max-width:calc(100% - 24px);bottom:calc(64px + var(--sb));z-index:4;padding:6px 14px;border-radius:14px;
+  background:rgba(0,0,0,.66);font-size:13px;display:none;text-align:center;pointer-events:none}
+body.sheet-open #silent{display:none!important}
+#badge{position:absolute;left:50%;transform:translateX(-50%);top:calc(6px + var(--st));z-index:4;padding:3px 10px;border-radius:12px;background:rgba(0,0,0,.6);
+  font-size:13px;display:none;white-space:nowrap}
+/* "sound on" call to action, shown until used */
+#cta{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(64px + var(--sb));z-index:4;display:none;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:24px;border:0;background:var(--ac);color:#2a1a1c;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#cta svg{width:20px;height:20px;fill:none;stroke:#2a1a1c;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* toast */
+#toast{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;top:calc(40px + var(--st));z-index:5;max-width:min(92vw,460px);padding:10px 14px;border-radius:12px;
+  background:var(--bg);font-size:14px;display:none;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+/* sheets (settings, help, keyboard) */
+.sheet{position:absolute;z-index:6;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,520px);max-height:calc(100% - 12px - var(--st));overflow:auto;
+  background:var(--bg);border-radius:16px 16px 0 0;padding:14px 16px calc(14px + var(--sb));display:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  box-shadow:0 -6px 30px rgba(0,0,0,.45)}
+body.sheet-open #cta{display:none!important}
+.sheet h3{margin:0 0 10px;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sheet h3 button{border:0;background:none;color:var(--ac);font-size:15px;padding:6px 4px;white-space:nowrap}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);flex-wrap:wrap}
+.row>label,.row>.lbl{flex:1 1 140px;min-width:0}
+.sub{display:block;font-size:12px;opacity:.65;margin-top:2px}
+.seg{display:flex;border:1px solid rgba(255,255,255,.25);border-radius:10px;overflow:hidden;flex:0 1 auto;max-width:100%}
+.seg button{border:0;background:none;padding:7px 11px;font-size:14px;white-space:nowrap;min-width:0}
+.seg button.on{background:var(--ac);color:#2a1a1c;font-weight:600}
+input[type=range]{flex:1 1 160px;accent-color:var(--ac);min-width:120px}
+.sw{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:14px;background:rgba(255,255,255,.25);position:relative;flex:0 0 46px;margin:0}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:11px;background:#fff;transition:left .15s}
+.sw:checked{background:var(--ac)}.sw:checked::after{left:21px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;padding-top:12px}
+.btn{flex:1 1 auto;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;font-size:15px;white-space:nowrap}
+.btn.warn{border-color:#e57373;color:#ffb3b3}
+#help ul{margin:6px 0 10px;padding-left:20px}#help li{margin:4px 0}
+#help a{color:var(--ac)}
+/* keyboard panel */
+#kb input{position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0}
+#kbhint{font-size:13px;opacity:.75;margin-bottom:8px}
+#keys{display:flex;flex-wrap:wrap;gap:6px}
+#keys button{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);border-radius:9px;padding:8px 10px;font-size:14px;white-space:nowrap;min-width:44px}
+#keys button.on{background:var(--ac);color:#2a1a1c;border-color:var(--ac)}
+#keys .sep{flex-basis:100%;height:0}
+#keys button.warnk{border-color:#e57373;color:#ffb3b3}
+#keys #bClip{border-color:var(--ac);color:var(--ac)}
+textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;color:var(--fg);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22);
+  border-radius:10px;padding:8px;resize:vertical;-webkit-user-select:text;user-select:text;touch-action:auto}
+/* predicted PC pointer (O7): shown while the PC has not caught up with the finger yet */
+#cur{position:absolute;z-index:3;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid #fff;background:rgba(245,167,167,.55);
+  box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none;display:none}
+
+/* tap feedback: a ring where the click happened */
+.rip{position:absolute;z-index:3;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid var(--ac);pointer-events:none;
+  animation:rip .38s ease-out forwards}
+.rip.r2{border-style:double;border-width:6px}
+@keyframes rip{from{transform:scale(.3);opacity:.95}to{transform:scale(1.35);opacity:0}}
+#ask{position:absolute;inset:0;z-index:9;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:24px}
+#askBox{background:var(--bg);border-radius:14px;padding:18px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#askT{font-size:16px;margin-bottom:14px}
+/* full-page message (connecting / waiting for the PC / errors) */
+#msg{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;
+  background:var(--bg);padding:24px calc(24px + var(--sr)) calc(24px + var(--sb)) calc(24px + var(--sl))}
+#msg.hide{display:none}
+#msg.over{background:rgba(0,0,0,.72)}
+#msgT{font-size:19px;font-weight:600;max-width:520px}
+#msgS{font-size:14px;opacity:.75;max-width:520px;white-space:pre-line}
+.nw{white-space:nowrap}
+#msgB{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#msgB .btn{flex:0 1 auto;background:var(--ac);color:#2a1a1c;border:0;font-weight:600;min-width:120px}
+#msgB .btn.alt{background:rgba(255,255,255,.1);color:var(--fg)}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:var(--ac);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#app{font-size:13px;opacity:.55}
+/* the browser only starts the picture after a tap (iPhone Low Power Mode / some in-app browsers):
+   asked for at once, while the connection is still being set up */
+#tapHint{position:absolute;left:0;right:0;bottom:calc(18px + var(--sb));z-index:10;display:none;justify-content:center;pointer-events:none}
+#tapHint span{padding:12px 20px;border-radius:24px;background:var(--ac);color:#2a1a1c;font-weight:600;font-size:16px;box-shadow:0 4px 16px rgba(0,0,0,.4);
+  max-width:calc(100% - 32px);text-align:center;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+#rowSens input{flex:1 1 100%}
+#rowVol input{flex:1 1 100%}
+#volV{font-variant-numeric:tabular-nums;opacity:.8;min-width:3.5em;text-align:right}
+/* phone sideways: tighter rows so the settings fit without scrolling */
+@media (max-height:500px){.sheet{padding-top:8px}.sheet h3{margin-bottom:2px}.row{padding:4px 0}.sub{display:none}.btnrow{padding-top:6px}.btn{padding:7px 12px}
+  #keys button{padding:6px 9px}#kbhint{display:none}#rowSens input{flex:1 1 200px}}
+</style>
+</head>
+<body>
+<video id="v" playsinline muted autoplay disablepictureinpicture></video>
+<canvas id="scr"></canvas>
+<div id="pad"></div>
+<div id="hud"></div>
+<div id="badge"></div>
+<button id="cta"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span id="ctaT"></span></button>
+<div id="bar">
+  <button class="ib" id="bSnd"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path id="sndWave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="sndX" d="m16 9 6 6m0-6-6 6"/></svg></button>
+  <button class="ib" id="bZoom"><svg viewBox="0 0 24 24"><g id="zIn"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></g><g id="zFit"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g></svg></button>
+  <button class="ib" id="bKb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+  <button class="ib" id="bSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</div>
+<div id="toast"></div>
+<div id="silent"></div>
+<div id="path"></div>
+<div id="cur"></div>
+
+<div class="sheet" id="set">
+  <h3><span id="setT"></span><button id="setClose"></button></h3>
+  <div class="row"><span class="lbl" id="lMode"></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
+  <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="300" step="10"></div>
+  <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
+  <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
+  <div class="row"><label for="swAuto"><span id="lAuto"></span><span class="sub" id="lAutoSub"></span></label><input type="checkbox" class="sw" id="swAuto"></div>
+  <div class="row" id="rowMon" style="display:none"><span class="lbl" id="lMon"></span><div class="seg" id="segMon"></div></div>
+  <div class="row"><label for="swFill" id="lFill"></label><input type="checkbox" class="sw" id="swFill"></div>
+  <div class="row"><label for="swLock"><span id="lLock"></span><span class="sub" id="lLockSub"></span></label><input type="checkbox" class="sw" id="swLock"></div>
+  <div class="row" id="rowFs" style="display:none"><label for="swFs" id="lFs"></label><input type="checkbox" class="sw" id="swFs"></div>
+  <div class="row"><label for="swHud"><span id="lHud"></span><span class="sub" id="lHudSub"></span></label><input type="checkbox" class="sw" id="swHud"></div>
+  <div class="btnrow"><button class="btn" id="bHelp"></button><button class="btn warn" id="bBye"></button></div>
+  <div id="app"></div>
+</div>
+
+<div class="sheet" id="help">
+  <h3><span id="helpT"></span><button id="helpClose"></button></h3>
+  <div id="helpBody"></div>
+</div>
+
+<div class="sheet" id="clipS">
+  <h3><span id="clipT"></span><button id="clipClose"></button></h3>
+  <b id="clipToPc"></b><span class="sub" id="clipToPcHint"></span>
+  <textarea id="clipIn" rows="3"></textarea>
+  <div class="btnrow"><button class="btn" id="clipSend"></button><button class="btn" id="clipType"></button></div>
+  <div style="height:14px"></div>
+  <b id="clipFromPc"></b><span class="sub" id="clipFromPcHint"></span>
+  <textarea id="clipOut" rows="3" readonly></textarea>
+  <div class="btnrow"><button class="btn" id="clipCopy"></button></div>
+</div>
+
+<div class="sheet" id="kb">
+  <input id="txt" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <h3><span id="kbT"></span><button id="kbClose"></button></h3>
+  <div id="kbhint"></div>
+  <div id="keys">
+    <button data-m="Control">Ctrl</button><button data-m="Alt">Alt</button><button data-m="Shift">Shift</button><button data-m="Meta">Win</button>
+    <button data-k="Escape">Esc</button><button data-k="Tab">Tab</button><button data-k="Enter">Enter</button><button data-k="Backspace">⌫</button>
+    <span class="sep"></span>
+    <button data-k="ArrowLeft">←</button><button data-k="ArrowUp">↑</button><button data-k="ArrowDown">↓</button><button data-k="ArrowRight">→</button>
+    <button data-k="Home">Home</button><button data-k="End">End</button><button data-k="Delete">Del</button>
+    <span class="sep"></span>
+    <button data-c="Control+C" data-t="copy"></button><button data-c="Control+V" data-t="paste"></button><button data-c="Control+Z" data-t="undo"></button>
+    <button data-c="Alt+Tab">Alt+Tab</button><button data-c="Meta+D" data-t="desktop"></button><button data-c="Meta" data-t="start"></button>
+    <span class="sep"></span>
+    <button data-c="Control+A" data-t="selAll"></button><button data-c="Control+S" data-t="save"></button><button data-c="Control+F" data-t="find"></button>
+    <button data-c="Meta+Tab" data-t="taskView"></button><button data-c="Meta+E" data-t="explorer"></button><button data-c="Meta+Shift+S" data-t="snip"></button>
+    <button data-c="Control+Shift+Escape" data-t="taskMgr" data-note="taskMgrNote"></button><button data-c="Alt+F4" data-t="closeWin" data-confirm="closeWinAsk" class="warnk"></button>
+    <button id="bClip"></button>
+  </div>
+</div>
+
+<div id="ask"><div id="askBox"><div id="askT"></div><div class="btnrow"><button class="btn" id="askNo"></button><button class="btn warn" id="askYes"></button></div></div></div>
+<div id="msg"><div class="spin" id="msgSpin"></div><div id="msgT"></div><div id="msgS"></div><div id="msgB"></div></div>
+<div id="tapHint"><span id="tapHintT"></span></div>
+<div id="pass"><div id="passT"></div><div id="passS"></div>
+  <input id="passIn" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="passcode">
+  <button class="btn" id="passGo"></button><div id="passErr"></div></div>
+
+<script>window.PM = /*PM_CONFIG*/{};</script>
+<script src="trackpad.js"></script>
+<script src="vkbd.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const PM = Object.assign({lang: 0, app: '自在投影', bg: '#1E1416', accent: '#F5A7A7', fg: '#F6E9EA', help: '', audio: true, approval: true, tailscale: false, quality: 2}, window.PM || {});
+const LANG = [0, 1, 2, 3].includes(PM.lang) ? PM.lang : 0;
+document.documentElement.lang = ['zh-Hant', 'en', 'ja', 'ko'][LANG];
+document.documentElement.style.setProperty('--bg', PM.bg);
+document.documentElement.style.setProperty('--fg', PM.fg);
+document.documentElement.style.setProperty('--ac', PM.accent);
+
+// ---- strings: 繁中 / English / 日本語 / 한국어 ----
+const T = {
+  title: ['遠端控制', 'Remote control', 'リモート操作', '원격 제어'],
+  connecting: ['連線中…', 'Connecting…', '接続中…', '연결 중…'],
+  waitTitle: ['請在電腦上按「允許」', 'Click “Allow” on the PC', 'パソコンで「許可」を押してください', 'PC에서 “허용”을 누르세요'],
+  waitSub: ['這支手機第一次連線，電腦畫面會跳出確認視窗。', 'This phone is new to the PC: a confirmation window is showing on the PC.', 'このスマホは初めての接続です。パソコンに確認画面が表示されています。', '이 휴대폰은 처음 연결합니다. PC 화면에 확인 창이 표시됩니다.'],
+  denied: ['電腦拒絕了這次連線', 'The PC declined the connection', 'パソコンが接続を拒否しました', 'PC가 연결을 거부했습니다'],
+  deniedSub: ['如果是你本人，請在電腦旁再試一次並按「允許」。', 'If it was you, try again next to the PC and click “Allow”.', 'ご本人の場合は、パソコンの近くでもう一度試して「許可」を押してください。', '본인이라면 PC 옆에서 다시 시도하고 “허용”을 누르세요.'],
+  retry: ['重試', 'Try again', '再試行', '다시 시도'],
+  kicked: ['電腦端已中斷遠端控制', 'Remote control was ended on the PC', 'パソコン側でリモート操作が終了しました', 'PC에서 원격 제어를 종료했습니다'],
+  stopped: ['電腦端已關閉遠端控制', 'Remote control was turned off on the PC', 'パソコン側でリモート操作がオフになりました', 'PC에서 원격 제어를 껐습니다'],
+  stoppedSub: ['要再用：先在電腦上重新開啟「遠端控制」，再按「重新連線」。', 'To use it again: turn “Remote control” back on on the PC, then tap “Reconnect”.', 'もう一度使うには、パソコンで「リモート操作」をオンにしてから「再接続」を押してください。', '다시 쓰려면 PC에서 “원격 제어”를 다시 켠 뒤 “다시 연결”을 누르세요.'],
+  pcOnly: ['這個按鈕只能在電腦上按（避免手機誤觸把連線關掉）', 'That button works on the PC only (so a tap from the phone can’t end the connection)', 'このボタンはパソコンでのみ押せます（スマホからの誤操作で接続が切れないように）', '이 버튼은 PC에서만 누를 수 있습니다(휴대폰에서 실수로 연결을 끊지 않도록)'],
+  passT: ['輸入通行碼', 'Enter the passcode', 'パスコードを入力', '통행 코드 입력'],
+  passS: ['6 位數通行碼在電腦的「遠端控制」視窗，「免安裝外網」那一頁。', 'The 6-digit passcode is on the PC: the “Remote control” window, “No-app link” tab.', '6 桁のパスコードはパソコンの「リモート操作」画面の「アプリ不要」タブにあります。', '6자리 통행 코드는 PC의 “원격 제어” 창, “앱 없이 외부” 탭에 있습니다.'],
+  passGo: ['確定', 'OK', 'OK', '확인'],
+  passWrong: ['通行碼不對，還可以再試 {0} 次', 'Wrong passcode: {0} tries left', 'パスコードが違います（あと {0} 回）', '통행 코드가 틀렸습니다({0}번 남음)'],
+  passDead: ['錯太多次，這個連結已失效', 'Too many wrong tries: this link no longer works', '間違いが多すぎるため、このリンクは使えなくなりました', '너무 많이 틀려 이 링크를 더 이상 쓸 수 없습니다'],
+  pwT: ['輸入密碼', 'Enter the password', 'パスワードを入力', '비밀번호 입력'],
+  pwS: ['這是你在電腦「常駐外網」設定的密碼。登入一次，這支手機 30 天內不用再輸入。', 'The password you set for “Always-on link” on the PC. Log in once and this phone won’t ask again for 30 days.', 'パソコンの「常時外部リンク」で設定したパスワードです。一度ログインすると、このスマホでは 30 日間入力不要です。', 'PC의 “상시 외부 링크”에서 정한 비밀번호입니다. 한 번 로그인하면 이 휴대폰은 30일 동안 다시 묻지 않습니다.'],
+  pwWrong: ['密碼不對，還可以再試 {0} 次', 'Wrong password: {0} tries left', 'パスワードが違います（あと {0} 回）', '비밀번호가 틀렸습니다({0}번 남음)'],
+  pwLocked: ['錯太多次，請 {0} 分鐘後再試', 'Too many wrong tries: try again in {0} minutes', '間違いが多すぎます。{0} 分後にもう一度お試しください', '너무 많이 틀렸습니다. {0}분 후 다시 시도하세요'],
+  pwNone: ['電腦還沒設定密碼', 'No password is set on the PC yet', 'パソコンでパスワードがまだ設定されていません', 'PC에 아직 비밀번호가 설정되지 않았습니다'],
+  passDeadSub: ['請在電腦上重新掃描「免安裝外網」的 QR 碼。', 'Scan the “No-app link” QR code on the PC again.', 'パソコンの「アプリ不要」の QR コードを読み取り直してください。', 'PC의 “앱 없이 외부” QR 코드를 다시 스캔하세요.'],
+  viaDirect: ['直連', 'Direct', '直接', '직접 연결'],
+  viaTunnel: ['隧道', 'Tunnel', 'トンネル', '터널'],
+  noCodecs: ['這個瀏覽器不能經隧道顯示畫面', 'This browser can’t show the picture through the tunnel', 'このブラウザーではトンネル経由で画面を表示できません', '이 브라우저는 터널로 화면을 표시할 수 없습니다'],
+  noCodecsSub: ['直連沒有成功，而隧道需要 WebCodecs：請用最新版的 Safari 或 Chrome，或改用同一個 Wi-Fi／Tailscale。', 'The direct path did not connect and the tunnel needs WebCodecs: use a current Safari or Chrome, or the same Wi-Fi / Tailscale.', '直接接続ができず、トンネルには WebCodecs が必要です。最新の Safari / Chrome を使うか、同じ Wi-Fi／Tailscale を使ってください。', '직접 연결이 되지 않았고 터널에는 WebCodecs가 필요합니다. 최신 Safari/Chrome을 쓰거나 같은 Wi-Fi/Tailscale을 쓰세요.'],
+  tapAny: ['點一下畫面，開始顯示', 'Tap anywhere to start the picture', '画面をタップすると表示が始まります', '화면을 탭하면 표시가 시작됩니다'],
+  replaced: ['已在另一個分頁或裝置開啟', 'Opened in another tab or on another device', '別のタブまたは端末で開かれました', '다른 탭이나 기기에서 열렸습니다'],
+  byMe: ['已中斷連線', 'Disconnected', '切断しました', '연결을 끊었습니다'],
+  reconnect: ['重新連線', 'Reconnect', '再接続', '다시 연결'],
+  lost: ['連線中斷，正在重新連線…', 'Connection lost, reconnecting…', '接続が切れました。再接続しています…', '연결이 끊겼습니다. 다시 연결 중…'],
+  unreachable: ['找不到電腦', 'Can’t reach the PC', 'パソコンに接続できません', 'PC에 연결할 수 없습니다'],
+  unreachableSub: ['請確認電腦已開啟「遠端控制」，而且手機和電腦在同一個 Wi-Fi（在外面請先開 Tailscale）。會自動重試。', 'Check that Remote control is on on the PC and that the phone is on the same Wi-Fi (outside: turn on Tailscale first). Retrying automatically.', 'パソコンで「リモート操作」がオンか、スマホが同じ Wi-Fi にいるか確認してください（外出先では先に Tailscale をオン）。自動で再試行します。', 'PC에서 “원격 제어”가 켜져 있는지, 휴대폰이 같은 Wi-Fi에 있는지 확인하세요(외부에서는 먼저 Tailscale을 켜세요). 자동으로 다시 시도합니다.'],
+  expired: ['這個網址已失效', 'This address is no longer valid', 'このアドレスは無効になりました', '이 주소는 더 이상 유효하지 않습니다'],
+  expiredSub: ['請在電腦上重新掃描 QR 碼。', 'Scan the QR code on the PC again.', 'パソコンの QR コードをもう一度読み取ってください。', 'PC의 QR 코드를 다시 스캔하세요.'],
+  noVideo: ['連上了但沒有畫面', 'Connected, but no picture', '接続しましたが映像がありません', '연결되었지만 화면이 없습니다'],
+  noVideoSub: ['常見原因：路由器開了「AP 隔離／訪客網路」、防火牆擋住，或這個瀏覽器不支援。', 'Common causes: the router isolates devices (“AP isolation” / guest network), a firewall, or this browser.', 'よくある原因：ルーターの「AP アイソレーション／ゲストネットワーク」、ファイアウォール、またはこのブラウザー。', '흔한 원인: 공유기의 “AP 격리/게스트 네트워크”, 방화벽 또는 이 브라우저.'],
+  noRtc: ['這個瀏覽器不能用遠端控制', 'This browser can’t do remote control', 'このブラウザーではリモート操作を使えません', '이 브라우저에서는 원격 제어를 사용할 수 없습니다'],
+  noRtcSub: ['請用 iPhone 的 Safari 或 Android 的 Chrome 開啟。', 'Open it in Safari (iPhone) or Chrome (Android).', 'iPhone は Safari、Android は Chrome で開いてください。', 'iPhone은 Safari, Android는 Chrome으로 여세요.'],
+  tapStart: ['點一下開始顯示畫面', 'Tap to show the screen', 'タップして画面を表示', '탭하여 화면 표시'],
+  soundOn: ['開啟聲音', 'Turn on sound', '音を出す', '소리 켜기'],
+  soundTapAgain: ['再點一次「開啟聲音」', 'Tap “Turn on sound” once more', 'もう一度「音を出す」をタップしてください', '“소리 켜기”를 한 번 더 누르세요'],
+  pcSilent: ['電腦目前沒有在播放聲音', 'The PC isn’t playing any sound right now', 'パソコンは今、音を再生していません', 'PC에서 지금 재생 중인 소리가 없습니다'],
+  vol: ['手機音量', 'Phone volume', 'スマホの音量', '휴대폰 음량'],
+  volSub: ['把電腦傳來的聲音放大（100% = 原音，最高 300%，不會爆音）', 'Boosts the PC’s sound (100% = as is, up to 300%, no clipping)', 'パソコンの音を増幅（100% = そのまま、最大 300%、音割れ防止つき）', 'PC 소리를 키웁니다(100% = 원음, 최대 300%, 찢어짐 방지)'],
+  muted: ['已靜音（電腦聲音不再傳到手機）', 'Muted (the PC’s sound no longer comes to the phone)', 'ミュートしました（パソコンの音は送られません）', '음소거됨(PC 소리를 더 이상 보내지 않음)'],
+  noSound: ['聲音沒開：電腦端關閉了「聲音傳到手機」', 'No sound: “Send sound to phone” is off on the PC', '音なし：パソコンで「音をスマホへ」がオフです', '소리 없음: PC에서 “휴대폰으로 소리 보내기”가 꺼져 있음'],
+  viewOnly: ['僅觀看', 'View only', '表示のみ', '보기 전용'],
+  viewOnlyToast: ['電腦設為「僅觀看」：可以看畫面，不能操作。', 'The PC is set to “View only”: you can watch, not control.', 'パソコンが「表示のみ」です。見ることはできますが操作できません。', 'PC가 “보기 전용”입니다. 볼 수는 있지만 조작할 수 없습니다.'],
+  settings: ['設定', 'Settings', '設定', '설정'],
+  close: ['完成', 'Done', '完了', '완료'],
+  mode: ['操作方式', 'Control', '操作方法', '조작 방식'],
+  trackpad: ['觸控板', 'Trackpad', 'トラックパッド', '트랙패드'],
+  direct: ['直接點', 'Direct', '直接タップ', '직접 터치'],
+  sens: ['游標速度', 'Pointer speed', 'ポインターの速度', '포인터 속도'],
+  sensSub: ['手指滑越快，游標跑越遠', 'Faster swipes move the pointer further', '速く動かすほど遠くへ移動します', '빠르게 밀수록 더 멀리 이동합니다'],
+  quality: ['畫質', 'Picture', '画質', '화질'],
+  qSub: ['清晰＝電腦原解析度，約 10–16 Mbps', 'Sharp = the PC’s own resolution, about 10–16 Mbps', '高画質＝パソコンの解像度そのまま、約 10–16 Mbps', '선명하게 = PC 원래 해상도, 약 10–16 Mbps'],
+  q0: ['流暢', 'Smooth', 'なめらか', '부드럽게'], q1: ['標準', 'Standard', '標準', '표준'], q2: ['清晰', 'Sharp', '高画質', '선명하게'],
+  monitor: ['螢幕', 'Screen', '画面', '화면'],
+  primary: ['主', 'main', 'メイン', '주'],
+  fill: ['填滿畫面（裁掉黑邊）', 'Fill the screen (crop the bars)', '画面いっぱい（黒帯をカット）', '화면 채우기(검은 띠 자르기)'],
+  fullscreen: ['全螢幕', 'Full screen', '全画面', '전체 화면'],
+  lock: ['鎖定畫面縮放', 'Lock zoom', 'ズームを固定', '확대/축소 잠금'],
+  lockSub: ['雙指只捲動，畫面不會被誤觸放大或移動', 'Two fingers only scroll; the picture can’t be zoomed or moved by accident', '2 本指はスクロールだけ。誤って拡大・移動しません', '두 손가락은 스크롤만, 실수로 확대·이동되지 않음'],
+  zoomFit: ['適合螢幕', 'Fit to screen', '画面に合わせる', '화면에 맞추기'],
+  zoom11: ['放大到原始大小（1:1）', 'Actual size (1:1)', '実際のサイズ（1:1）', '실제 크기(1:1)'],
+  locked: ['畫面縮放已鎖定', 'Zoom is locked', 'ズームは固定されています', '확대/축소가 잠겨 있습니다'],
+  hud: ['連線資訊', 'Connection info', '接続情報', '연결 정보'],
+  hudSub: ['延遲、畫面張數與左上角量測方塊', 'Latency, frame rate and the measuring blocks top left', '遅延・フレームレートと左上の計測ブロック', '지연, 프레임 속도와 왼쪽 위 측정 블록'],
+  gestures: ['手勢說明', 'Gestures', 'ジェスチャー', '제스처'],
+  disconnect: ['中斷連線', 'Disconnect', '切断', '연결 끊기'],
+  keyboard: ['鍵盤', 'Keyboard', 'キーボード', '키보드'],
+  kbHint: ['用手機鍵盤打字會直接送到電腦。Ctrl / Alt / Shift / Win 按一下會套用到下一個鍵。', 'Typing on the phone keyboard goes straight to the PC. Ctrl / Alt / Shift / Win apply to the next key.', 'スマホのキーボードで入力するとそのままパソコンに送られます。Ctrl / Alt / Shift / Win は次のキーに付きます。', '휴대폰 키보드로 입력하면 바로 PC로 전송됩니다. Ctrl / Alt / Shift / Win은 다음 키에 적용됩니다.'],
+  copy: ['複製', 'Copy', 'コピー', '복사'], paste: ['貼上', 'Paste', '貼り付け', '붙여넣기'], undo: ['復原', 'Undo', '元に戻す', '실행 취소'],
+  desktop: ['桌面', 'Desktop', 'デスクトップ', '바탕 화면'], start: ['開始', 'Start', 'スタート', '시작'],
+  selAll: ['全選', 'Select all', 'すべて選択', '모두 선택'], save: ['儲存', 'Save', '保存', '저장'], find: ['尋找', 'Find', '検索', '찾기'],
+  taskView: ['工作檢視', 'Task view', 'タスクビュー', '작업 보기'], explorer: ['檔案總管', 'File Explorer', 'エクスプローラー', '파일 탐색기'],
+  snip: ['截圖', 'Snip', '切り取り', '캡처'], taskMgr: ['工作管理員', 'Task Manager', 'タスク マネージャー', '작업 관리자'],
+  taskMgrNote: ['工作管理員常以系統管理員身分執行，手機可能無法操作它。', 'Task Manager often runs as administrator; the phone may not be able to control it.', 'タスク マネージャーは管理者として動くことが多く、スマホから操作できない場合があります。', '작업 관리자는 보통 관리자 권한으로 실행되어 휴대폰으로 조작하지 못할 수 있습니다.'],
+  closeWin: ['關閉視窗', 'Close window', 'ウィンドウを閉じる', '창 닫기'],
+  closeWinAsk: ['要關閉電腦上目前的視窗嗎？（Alt+F4）\n沒存檔的內容可能會不見。', 'Close the active window on the PC? (Alt+F4)\nUnsaved work may be lost.', 'パソコンの今のウィンドウを閉じますか？（Alt+F4）\n保存していない内容は失われることがあります。', 'PC의 현재 창을 닫을까요? (Alt+F4)\n저장하지 않은 내용이 사라질 수 있습니다.'],
+  cancel: ['取消', 'Cancel', 'キャンセル', '취소'],
+  idleBye: ['手機 {0} 分鐘沒有操作，已自動中斷', 'No touch on the phone for {0} minutes: disconnected', 'スマホの操作が {0} 分間なかったため切断しました', '{0}분 동안 휴대폰 조작이 없어 연결을 끊었습니다'],
+  blocked: ['這個網路位址用錯網址太多次，暫時被擋住了', 'Too many wrong links from this address: blocked for a while', 'このアドレスから間違ったリンクが多すぎるため、しばらくブロックされています', '이 주소에서 잘못된 링크가 너무 많아 잠시 차단되었습니다'],
+  blockedSub: ['請 15 分鐘後再用電腦上的 QR 碼重新開啟。', 'Try again in 15 minutes with the QR code on the PC.', '15 分後にパソコンの QR コードからもう一度開いてください。', '15분 후 PC의 QR 코드로 다시 여세요.'],
+  // F6: plain reasons
+  whyFirewall: ['影像連線被擋住了', 'The picture connection is blocked', '映像の接続がブロックされています', '화면 연결이 차단되었습니다'],
+  whyFirewallSub: ['網頁打得開，但影像走不過來。常見原因：電腦防火牆擋住「自在投影」、路由器開了「AP 隔離／訪客網路」，或電腦／手機開著 VPN。', 'The page loads but the picture can’t get through. Usually: the PC firewall blocks the app, the router isolates devices (“AP isolation” / guest network), or a VPN is on.', 'ページは開けますが映像が届きません。よくある原因：パソコンのファイアウォール、ルーターの「AP アイソレーション／ゲストネットワーク」、VPN。', '페이지는 열리지만 화면이 오지 않습니다. 흔한 원인: PC 방화벽, 공유기의 “AP 격리/게스트 네트워크”, VPN.'],
+  whyTs: ['Tailscale 連不到電腦', 'Can’t reach the PC through Tailscale', 'Tailscale でパソコンに届きません', 'Tailscale로 PC에 연결할 수 없습니다'],
+  whyTsSub: ['請確認手機的 Tailscale 已開啟、兩邊登入同一個帳號，而且電腦開著「遠端控制」。會自動重試。', 'Check that Tailscale is on on the phone, both sides use the same account, and Remote control is on on the PC. Retrying automatically.', 'スマホの Tailscale がオンか、両方が同じアカウントか、パソコンで「リモート操作」がオンか確認してください。自動で再試行します。', '휴대폰의 Tailscale이 켜져 있는지, 양쪽이 같은 계정인지, PC에서 “원격 제어”가 켜져 있는지 확인하세요. 자동으로 다시 시도합니다.'],
+  whyLeftWifi: ['手機可能已離開這個 Wi-Fi', 'The phone may have left this Wi-Fi', 'スマホがこの Wi-Fi から離れたかもしれません', '휴대폰이 이 Wi-Fi에서 벗어났을 수 있습니다'],
+  howTo: ['看排除方法', 'How to fix', '対処方法', '해결 방법'],
+  // F7 clipboard
+  clip: ['剪貼簿', 'Clipboard', 'クリップボード', '클립보드'],
+  clipToPc: ['手機 → 電腦', 'Phone → PC', 'スマホ → パソコン', '휴대폰 → PC'],
+  clipToPcHint: ['在下面長按「貼上」，再按送出。', 'Long-press below to paste, then send.', '下を長押しして貼り付け、送信を押します。', '아래를 길게 눌러 붙여넣고 보내기를 누르세요.'],
+  clipSend: ['放到電腦剪貼簿', 'Put on the PC clipboard', 'パソコンのクリップボードへ', 'PC 클립보드에 넣기'],
+  clipType: ['直接打出來', 'Type it on the PC', 'パソコンで入力', 'PC에 입력'],
+  clipSent: ['已放到電腦剪貼簿（在電腦按 Ctrl+V 貼上）', 'On the PC clipboard (Ctrl+V on the PC to paste)', 'パソコンのクリップボードに入れました（Ctrl+V で貼り付け）', 'PC 클립보드에 넣었습니다(PC에서 Ctrl+V)'],
+  clipFromPc: ['電腦 → 手機', 'PC → Phone', 'パソコン → スマホ', 'PC → 휴대폰'],
+  clipFromPcHint: ['電腦上複製的文字會出現在這裡，長按即可複製到手機。', 'Text copied on the PC shows up here; long-press to copy it on the phone.', 'パソコンでコピーした文字がここに出ます。長押しでスマホにコピーできます。', 'PC에서 복사한 텍스트가 여기에 나타납니다. 길게 눌러 휴대폰에 복사하세요.'],
+  clipCopy: ['複製到手機', 'Copy to phone', 'スマホにコピー', '휴대폰에 복사'],
+  clipCopied: ['已複製', 'Copied', 'コピーしました', '복사됨'],
+  clipCopyFail: ['請長按文字選「拷貝」', 'Long-press the text and choose Copy', '文字を長押しして「コピー」を選んでください', '텍스트를 길게 눌러 복사를 선택하세요'],
+  clipEmpty: ['（電腦剪貼簿沒有文字）', '(no text on the PC clipboard)', '（パソコンのクリップボードに文字はありません）', '(PC 클립보드에 텍스트 없음)'],
+  // O1
+  auto: ['自動調整畫質', 'Adjust quality automatically', '画質を自動調整', '화질 자동 조정'],
+  autoSub: ['網路不穩時先降位元率，再降一段畫質；穩定後慢慢回升', 'On a shaky network: lower the bitrate, then one quality step; back up when stable', '不安定なときはビットレート、次に画質を下げ、安定したら戻します', '불안정하면 비트레이트, 다음 화질을 낮추고 안정되면 되돌립니다'],
+  autoDown: ['網路不穩，畫質暫時降到「{0}」', 'Shaky network: quality lowered to “{0}” for now', '通信が不安定なため、画質を一時的に「{0}」にしました', '네트워크가 불안정해 화질을 잠시 “{0}”(으)로 낮췄습니다'],
+  autoUp: ['網路穩定了，畫質回到「{0}」', 'Network is stable again: back to “{0}”', '通信が安定したので「{0}」に戻しました', '네트워크가 안정되어 “{0}”(으)로 돌아왔습니다'],
+
+  a2hs: ['想要全螢幕：按 Safari 的「分享」→「加入主畫面」，之後從主畫面圖示開啟。', 'For full screen: Share → “Add to Home Screen” in Safari, then open it from the icon.', '全画面にするには：Safari の「共有」→「ホーム画面に追加」、その後アイコンから開きます。', '전체 화면: Safari에서 공유 → “홈 화면에 추가” 후 아이콘으로 여세요.'],
+  rotate: ['把手機橫放，畫面會更大。', 'Turn the phone sideways for a bigger picture.', 'スマホを横にすると画面が大きくなります。', '휴대폰을 가로로 돌리면 화면이 커집니다.'],
+  tsData: ['正在透過 Tailscale 從外面連線。用行動網路時，「清晰」約每秒 10 Mbps，建議選「流暢」。', 'Connected from outside through Tailscale. On mobile data “Sharp” uses about 10 Mbps; “Smooth” is recommended.', 'Tailscale で外から接続中です。モバイル通信では「高画質」は約 10 Mbps 使います。「なめらか」がおすすめです。', 'Tailscale로 외부에서 연결 중입니다. 모바일 데이터에서는 “선명하게”가 약 10 Mbps를 씁니다. “부드럽게”를 권장합니다.'],
+  ok: ['知道了', 'OK', 'OK', '확인'],
+  tutorial: ['完整教學', 'Full guide', '詳しい説明', '전체 안내'],
+  gTrackpad: [
+    ['單指滑動：移動游標（滑越快跑越遠）', '單指點一下：左鍵', '雙指點一下：右鍵', '雙指上下／左右滑：捲動', '按住不動約半秒再拖：拖曳（選文字、拖視窗）', '雙指捏合：放大畫面，放大後雙指移動可平移', '三指點一下：開關鍵盤'],
+    ['One finger: move the pointer (faster = further)', 'Tap: left click', 'Two-finger tap: right click', 'Two fingers up/down/sideways: scroll', 'Hold still for half a second, then move: drag (select text, move windows)', 'Pinch: zoom the picture; while zoomed, move two fingers to pan', 'Three-finger tap: keyboard'],
+    ['1 本指でなぞる：ポインター移動（速いほど遠く）', 'タップ：左クリック', '2 本指タップ：右クリック', '2 本指で上下左右：スクロール', '0.5 秒ほど押さえてから動かす：ドラッグ（文字選択・ウィンドウ移動）', 'ピンチ：画面を拡大、拡大中は 2 本指で移動', '3 本指タップ：キーボード'],
+    ['한 손가락 밀기: 포인터 이동(빠를수록 멀리)', '탭: 왼쪽 클릭', '두 손가락 탭: 오른쪽 클릭', '두 손가락 상하좌우: 스크롤', '반 초쯤 누른 채 움직이기: 드래그(텍스트 선택, 창 이동)', '핀치: 화면 확대, 확대 중 두 손가락으로 이동', '세 손가락 탭: 키보드']],
+  gDirect: [
+    ['點哪裡就按哪裡（左鍵）', '按住約半秒：右鍵', '按住拖動：拖曳', '雙指滑動：捲動；雙指捏合：放大', '三指點一下：開關鍵盤'],
+    ['Tap where you want to click (left click)', 'Hold for half a second: right click', 'Touch and move: drag', 'Two fingers: scroll; pinch: zoom', 'Three-finger tap: keyboard'],
+    ['押した場所をクリック（左クリック）', '0.5 秒押さえる：右クリック', '押さえたまま動かす：ドラッグ', '2 本指：スクロール、ピンチ：拡大', '3 本指タップ：キーボード'],
+    ['누른 곳을 클릭(왼쪽 클릭)', '반 초 누르기: 오른쪽 클릭', '누른 채 움직이기: 드래그', '두 손가락: 스크롤, 핀치: 확대', '세 손가락 탭: 키보드']],
+  gNote: ['以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面無法從手機操作。', 'Windows running as administrator, UAC prompts and the lock screen can’t be controlled from the phone.', '管理者として実行中のウィンドウ、UAC の確認画面、ロック画面はスマホから操作できません。', '관리자 권한으로 실행 중인 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다.'],
+};
+const t = k => (T[k] || [k])[LANG] || T[k][1];
+const tf = (k, a) => t(k).replace('{0}', a);
+document.title = PM.app + ' ' + t('title');
+
+// ---- state ----
+const v = $('v'), pad = $('pad'), hud = $('hud'), msg = $('msg');
+// 外網連結 (cloudflared): the page lives at /c/<its own path>/ (PM.tunnel); on the LAN at /<token>/.
+const TUN = !!PM.tunnel;
+// 常駐外網 (0.8.2): the page lives at "/" (PM.fixed); after the password, everything goes to /k/<login>/.
+const FIXED = !!PM.fixed;
+const TOKEN = location.pathname.split('/')[1];
+let BASE = FIXED ? '/k/-/' : TUN ? location.pathname.replace(/[^/]*$/, '') : '/' + TOKEN + '/';
+const Q = new URLSearchParams(location.search), AUTO = Q.has('auto');
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+const store = {
+  get(k, d) { try { const x = localStorage.getItem('pm.' + k); return x === null ? d : JSON.parse(x); } catch { return d; } },
+  set(k, x) { try { localStorage.setItem('pm.' + k, JSON.stringify(x)); } catch {} },
+};
+const prefs = {
+  mode: store.get('mode', 'trackpad'),
+  sens: store.get('sens', 1.0),
+  q: store.get('q', PM.tailscale || TUN ? 0 : PM.quality),
+  mon: store.get('mon', 0),
+  fill: store.get('fill', false),
+  hud: store.get('hud', false),
+  gain: store.get('gain', 150),  // 0.8.2: phone volume boost, % (owner: "聲音有點小")
+  lock: store.get('lock', false),
+  auto: store.get('auto', true),
+};
+// O1: the quality actually asked for (auto may hold it below prefs.q for a while).
+let curQ = prefs.q;
+
+let pc = null, dc = null, sessId = '', gen = 0, retryTimer = 0, retryN = 0;
+const S = {state: 'new', rtt: NaN, rttMin: Infinity, off: NaN, offRtt: Infinity, fps: 0, lat: [], latShow: NaN, latP95: NaN, srv: null,
+           pair: '', dec: NaN, jb: NaN, kbps: 0, lost: 0, dropped: 0, w: 0, h: 0, stampOk: 0, stampBad: 0, sent: 0, lastBytes: 0, lastT: 0,
+           playErr: '', viewOnly: false, monitors: [], bye: '', sound: false, aud: null, reconnects: 0};
+// The DataChannel when WebRTC is up, else the tunnel's WebSocket (外網連結).
+const send = o => { if (dc && dc.readyState === 'open') { dc.send(JSON.stringify(o)); S.sent++; } else wsSend(o); };
+const post = (p, body) => fetch(BASE + p, {method: 'POST', body, cache: 'no-store'});
+let device = store.get('device', '');
+if (!/^[A-Za-z0-9_-]{8,64}$/.test(device)) {
+  device = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  store.set('device', device);
+}
+
+// ---- first picture: phase marks (ms since the page started; sent to the PC log once) ----
+S.ph = {};
+const mark = k => { if (S.ph[k] === undefined) S.ph[k] = Math.round(performance.now()); };
+// A spare RTCPeerConnection, built while the session request is on its way.
+let sparePc = null;
+const iceServers = () => (PM.ice || []).map(u => ({urls: u}));  // 外網連結: public STUN (hole punching); LAN: none
+function warmPc() {
+  if (sparePc || typeof RTCPeerConnection === 'undefined') return;
+  try { sparePc = new RTCPeerConnection({iceServers: iceServers()}); } catch {}
+}
+function takePc() { const p = sparePc || new RTCPeerConnection({iceServers: iceServers()}); sparePc = null; mark('pc'); return p; }
+
+// ---- autoplay: some browsers start a video only from a tap (iPhone in Low
+// Power Mode, in-app browsers; the owner's iPhone Chrome in 0.8.0:
+// NotAllowedError, the picture waited ~3 s for a tap). Found out at once with
+// a tiny silent stream, and the tap is asked for while the connection is
+// still being set up instead of after it.
+let needTap = false;
+function probeStream() {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 16;
+    c.getContext('2d').fillRect(0, 0, 16, 16);
+    return c.captureStream ? c.captureStream(0) : null;
+  } catch { return null; }
+}
+function setNeedTap(on) {
+  needTap = on;
+  document.body.classList.toggle('need-tap', on);
+  $('tapHint').style.display = on ? 'flex' : 'none';
+  if (on) mark('tapAsk');
+}
+function unlockTap() {
+  if (!needTap) return;
+  mark('tap');
+  // Inside the tap: WebKit lets this element play from now on (also the real stream later).
+  if (!(v.srcObject instanceof MediaStream)) { const s = probeStream(); if (s) v.srcObject = s; }
+  v.muted = true;
+  setNeedTap(false);
+  const pr = v.play();
+  if (pr) pr.then(() => { S.playErr = ''; if (v.videoWidth && S.state === 'connected') hideMsg(); })
+            .catch(e => { S.playErr = String(e && e.name || e); if (e && e.name === 'NotAllowedError') setNeedTap(true); });
+}
+document.addEventListener('touchend', unlockTap, {capture: true});
+document.addEventListener('click', unlockTap, {capture: true});
+(async () => {
+  const s = probeStream();
+  if (!s) return;
+  const pv = document.createElement('video');
+  pv.muted = true; pv.playsInline = true; pv.setAttribute('playsinline', ''); pv.srcObject = s;
+  try { await pv.play(); mark('autoplayOk'); }
+  catch (e) { if (e && e.name === 'NotAllowedError' && v.paused) setNeedTap(true); }
+  pv.srcObject = null;
+})();
+
+// ---- 外網連結 (0.8.1): the tunnel's WebSocket (control messages, and the
+// picture + sound when direct WebRTC does not connect: H.264 decoded with
+// WebCodecs onto a canvas, Opus with AudioDecoder) ----
+const scr = $('scr'), scrx = scr.getContext('2d');
+const tun = {ws: null, wsOpen: false, media: false, wantMedia: false, timer: 0, dec: null, configured: false, skip: true, caps: new Map(),
+             actx: null, adec: null, aNext: 0, aTs: 0, lastVia: '', frames: 0};
+const picW = () => tun.media ? scr.width : v.videoWidth;
+const picH = () => tun.media ? scr.height : v.videoHeight;
+// What the trackpad zooms: the video or the canvas, whichever shows.
+const view = {get videoWidth() { return picW(); }, get videoHeight() { return picH(); },
+              style: {set transform(x) { v.style.transform = x; scr.style.transform = x; }, get transform() { return v.style.transform; }}};
+const wsSend = o => { if (tun.ws && tun.wsOpen) { tun.ws.send(JSON.stringify(o)); S.sent++; return true; } return false; };
+function openTunnel(my) {
+  closeTunnel();
+  const w = tun.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + BASE + 'ws?id=' + encodeURIComponent(sessId));
+  w.binaryType = 'arraybuffer';
+  w.onopen = () => {
+    if (tun.ws !== w) return;
+    tun.wsOpen = true; mark('ws');
+    if (S.sound) wsSend({t: 'audio', on: true});
+    if (prefs.hud) wsSend({t: 'stamp', on: true});
+    if (tun.wantMedia) { tun.media = false; setTunnelMedia(true, 'tunnel reopened'); }
+  };
+  w.onmessage = ev => { if (tun.ws !== w || my !== gen) return; if (typeof ev.data === 'string') onDc(ev); else onMedia(ev.data); };
+  w.onclose = () => {
+    if (tun.ws !== w) return;
+    tun.ws = null; tun.wsOpen = false;
+    if (my !== gen || S.bye || (pc && pc.connectionState === 'connected')) return;
+    S.reconnects++;
+    diag('tunnel-closed');
+    showMsg(t('lost'), '', [], {spin: true, over: true});
+    scheduleRetry(() => connect('lost'));
+  };
+}
+function closeTunnel() {
+  clearTimeout(tun.timer);
+  if (tun.ws) { const w = tun.ws; tun.ws = null; try { w.close(); } catch {} }
+  tun.wsOpen = false;
+  if (tun.media) setTunnelMedia(false, 'closed', true);
+  tun.wantMedia = false;
+}
+function setTunnelMedia(on, why, quiet) {
+  tun.wantMedia = on;
+  if (on === tun.media) return;
+  if (on && typeof VideoDecoder === 'undefined') {
+    diag('no-webcodecs', {why});
+    showMsg(t('noCodecs'), t('noCodecsSub'), [[t('retry'), () => { retryN = 0; connect(); }]]);
+    return;
+  }
+  tun.media = on;
+  if (!quiet) wsSend({t: 'ws-media', on, why});
+  scr.style.display = on ? 'block' : 'none';
+  v.style.opacity = on ? '0' : '';  // still decoding: its frames tell when direct plays again
+  if (on) { tun.configured = false; tun.skip = true; mark('tunnel'); if (S.sound) startTunnelAudio(); }
+  else if (tun.adec) { try { tun.adec.close(); } catch {} tun.adec = null; }
+  updatePath();
+}
+function avcCodec(u8) {  // avc1.PPCCLL from the SPS (Annex B)
+  const h = x => x.toString(16).padStart(2, '0');
+  for (let i = 0; i + 6 < u8.length; i++)
+    if (u8[i] === 0 && u8[i + 1] === 0 && (u8[i + 2] === 1 || (u8[i + 2] === 0 && u8[i + 3] === 1))) {
+      const j = u8[i + 2] === 1 ? i + 3 : i + 4;
+      if ((u8[j] & 0x1f) === 7) return 'avc1.' + h(u8[j + 1]) + h(u8[j + 2]) + h(u8[j + 3]);
+    }
+  return 'avc1.42e034';
+}
+function newDecoder() {
+  tun.dec = new VideoDecoder({
+    output: frame => drawFrame(frame),
+    error: e => { diag('decoder-error', {error: String(e && e.message || e)}); tun.dec = null; tun.configured = false; tun.skip = true; wsSend({t: 'idr'}); },
+  });
+  tun.configured = false;
+}
+// [1][flags][seq u32][capture time f64 (PC clock, ms)][H.264 access unit, Annex B]  /  [2][capture f64][Opus packet]
+function onMedia(buf) {
+  const dv = new DataView(buf), type = dv.getUint8(0);
+  if (type === 1) {
+    const key = (dv.getUint8(1) & 1) === 1, seq = dv.getUint32(2, true), cap = dv.getFloat64(6, true);
+    // The newest frame number, at most every 50 ms: how the PC knows the tunnel is full.
+    tun.ackN = seq;
+    if (!tun.ackTimer) tun.ackTimer = setTimeout(() => { tun.ackTimer = 0; wsSend({t: 'ack', n: tun.ackN}); }, 50);
+    if (!tun.media) return;
+    if (!tun.dec || tun.dec.state === 'closed') newDecoder();
+    const data = new Uint8Array(buf, 14);
+    if (!tun.configured) {
+      if (!key) return;
+      tun.dec.configure({codec: avcCodec(data), optimizeForLatency: true, hardwareAcceleration: 'prefer-hardware'});
+      tun.configured = true;
+    }
+    if (tun.skip && !key) return;
+    if (tun.dec.decodeQueueSize > 3 && !key) { tun.skip = true; wsSend({t: 'idr'}); return; }  // the phone can't keep up: wait for a key frame
+    tun.skip = false;
+    tun.caps.set(seq, cap);
+    if (tun.caps.size > 240) tun.caps.delete(tun.caps.keys().next().value);
+    try { tun.dec.decode(new EncodedVideoChunk({type: key ? 'key' : 'delta', timestamp: seq * 1000, data})); }
+    catch (e) { tun.configured = false; tun.skip = true; wsSend({t: 'idr'}); }
+  } else if (type === 2) {
+    if (!tun.media || !S.sound) return;
+    if (!tun.adec) startTunnelAudio();
+    if (!tun.adec || tun.adec.state !== 'configured') return;
+    try { tun.adec.decode(new EncodedAudioChunk({type: 'key', timestamp: (tun.aTs += 20000), data: new Uint8Array(buf, 9)})); } catch {}
+  }
+}
+function drawFrame(frame) {
+  const w = frame.displayWidth, h = frame.displayHeight, seq = Math.round(frame.timestamp / 1000);
+  if (scr.width !== w || scr.height !== h) { scr.width = w; scr.height = h; setTimeout(applyFill, 0); }
+  scrx.drawImage(frame, 0, 0, w, h);
+  frame.close();
+  fpsN++; frameNo++; tun.frames++;
+  S.w = w; S.h = h;
+  const cap = tun.caps.get(seq);
+  if (cap !== undefined && isFinite(S.off)) {  // capture on the PC -> shown here (PC clock via the pings)
+    const lat = performance.timeOrigin + performance.now() + S.off - cap;
+    if (lat > -50 && lat < 10000) S.lat.push(lat);
+  }
+  if (!S.ttff) {
+    S.ttff = performance.now(); mark('frame'); setNeedTap(false);
+    window.__pmFirstFrame = S.ttff;
+    diag('first-frame', {ph: S.ph, via: 'tunnel'});
+  }
+  if (S.state !== 'pending') hideMsg();
+}
+function startTunnelAudio() {
+  try {
+    if (!tun.actx) tun.actx = soundCtx();
+    if (tun.actx.state !== 'running') tun.actx.resume().catch(() => {});
+    if (typeof AudioDecoder === 'undefined' || (tun.adec && tun.adec.state !== 'closed')) return;
+    tun.adec = new AudioDecoder({output: d => playPcm(d), error: () => { tun.adec = null; }});
+    tun.adec.configure({codec: 'opus', sampleRate: 48000, numberOfChannels: 2});
+  } catch (e) { diag('tunnel-audio-error', {error: String(e && e.message || e)}); }
+}
+function playPcm(d) {
+  const ctx = tun.actx;
+  if (!ctx || !S.sound) { d.close(); return; }
+  const n = d.numberOfFrames, ch = Math.min(2, d.numberOfChannels);
+  const b = ctx.createBuffer(ch, n, d.sampleRate);
+  let peak = 0;
+  for (let c = 0; c < ch; c++) {
+    const a = new Float32Array(n);
+    d.copyTo(a, {planeIndex: c, format: 'f32-planar'});
+    for (let i = 0; i < n; i += 8) peak = Math.max(peak, Math.abs(a[i]));
+    b.copyToChannel(a, c);
+  }
+  d.close();
+  const now = ctx.currentTime;
+  if (tun.aNext < now + 0.02 || tun.aNext > now + 0.4) tun.aNext = now + 0.06;  // a 60 ms cushion; never more than 0.4 s behind
+  const src = ctx.createBufferSource();
+  src.buffer = b; src.connect(snd.in || ctx.destination); src.start(tun.aNext);
+  tun.aNext += b.duration;
+  S.aud = {packets: (S.aud && S.aud.packets || 0) + 1, lost: 0, energy: 0, level: peak};
+}
+// 直連 / 隧道 and the round trip, top right (tunnel page only); the PC log gets each change.
+function updatePath() {
+  if (!TUN) return;
+  const el = $('path');
+  const via = tun.media ? 'tunnel' : pc && pc.connectionState === 'connected' ? 'direct' : '';
+  if (!via) { el.style.display = 'none'; return; }
+  el.textContent = (via === 'tunnel' ? t('viaTunnel') : t('viaDirect')) + (isFinite(S.rtt) ? ' · ' + Math.round(S.rtt) + ' ms' : '');
+  el.className = via === 'tunnel' ? 'tun' : '';
+  el.style.display = 'block';
+  if (via !== tun.lastVia) { tun.lastVia = via; send({t: 'path', via, rtt: isFinite(S.rtt) ? S.rtt : 0}); }
+}
+setInterval(updatePath, 1000);
+// ---- 通行碼 ----
+function askPass(err) {
+  hideMsg();
+  $('pass').style.display = 'flex';
+  if (FIXED) {  // the owner's password instead of the 6 digits
+    const i = $('passIn');
+    $('pass').classList.add('pw');
+    i.type = 'password'; i.removeAttribute('inputmode'); i.removeAttribute('pattern'); i.maxLength = 256;
+    i.autocomplete = 'current-password'; i.setAttribute('aria-label', 'password');
+  }
+  $('passT').textContent = t(FIXED ? 'pwT' : 'passT');
+  $('passS').innerHTML = nwHtml(t(FIXED ? 'pwS' : 'passS'));
+  $('passGo').textContent = t('passGo');
+  $('passErr').textContent = err || '';
+  setTimeout(() => { try { $('passIn').focus(); } catch {} }, 60);
+}
+async function submitPw() {
+  const password = $('passIn').value;
+  if (!password || $('passGo').disabled) return;
+  $('passGo').disabled = true;
+  let r = null, j = null;
+  try { r = await fetch('/login', {method: 'POST', body: JSON.stringify({password}), cache: 'no-store'}); j = await r.json(); } catch {}
+  $('passGo').disabled = false;
+  $('passIn').value = '';
+  if (j && j.ok && j.token) {
+    store.set('fixedTok', j.token);
+    BASE = '/k/' + j.token + '/';
+    $('pass').style.display = 'none'; PM.verified = true; diag('password-ok'); connect(); return;
+  }
+  if (j && j.noPassword) return askPass(t('pwNone'));
+  if (j && j.locked) return askPass(tf('pwLocked', Math.max(1, Math.ceil((j.retryAfter || 900) / 60))));
+  if (j && j.left !== undefined) return askPass(tf('pwWrong', j.left));
+  askPass(t('unreachable'));
+}
+async function startFixed() {
+  const tok = store.get('fixedTok', '');
+  if (tok) {
+    let st = 0;
+    try { st = (await fetch('/k/' + tok + '/check', {method: 'POST', cache: 'no-store'})).status; } catch {}
+    if (st === 204) { BASE = '/k/' + tok + '/'; PM.verified = true; connect(); return; }
+    if (st === 401) store.set('fixedTok', '');
+  }
+  askPass();
+}
+async function submitPass() {
+  if (FIXED) return submitPw();
+  const code = $('passIn').value.replace(/\D/g, '').slice(0, 6);
+  if (code.length !== 6 || $('passGo').disabled) return;
+  $('passGo').disabled = true;
+  let j = null;
+  try { j = await (await post('pass', JSON.stringify({code}))).json(); } catch {}
+  $('passGo').disabled = false;
+  $('passIn').value = '';
+  if (j && j.ok) { $('pass').style.display = 'none'; PM.verified = true; diag('passcode-ok'); connect(); return; }
+  if (!j || j.dead || j.blocked) { $('pass').style.display = 'none'; S.state = 'expired'; showMsg(t('passDead'), t('passDeadSub')); return; }
+  askPass(tf('passWrong', j.left));
+}
+$('passGo').onclick = submitPass;
+$('passIn').addEventListener('input', () => { if (!FIXED && $('passIn').value.replace(/\D/g, '').length >= 6) submitPass(); });
+$('passIn').addEventListener('keydown', e => { if (e.key === 'Enter') submitPass(); });
+
+// ---- phone volume (0.8.2): Web Audio, gain 0-300 % (default 150 %) then a
+// limiter (no clipping); analysers before / after for the level report ----
+const snd = {ctx: null, in: null, gain: null, lim: null, anIn: null, anOut: null, src: null, srcStream: null, elementFallback: false, silentSec: 0};
+function soundCtx() {
+  if (!snd.ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}  // iPhone: not muted by the silent switch
+    try { snd.ctx = new AC({latencyHint: 'interactive', sampleRate: 48000}); } catch { snd.ctx = new AC(); }
+    snd.in = snd.ctx.createGain();
+    snd.anIn = snd.ctx.createAnalyser(); snd.anIn.fftSize = 2048;
+    snd.gain = snd.ctx.createGain(); snd.gain.gain.value = prefs.gain / 100;
+    snd.lim = snd.ctx.createDynamicsCompressor();
+    snd.lim.threshold.value = -2; snd.lim.knee.value = 0; snd.lim.ratio.value = 20; snd.lim.attack.value = 0.002; snd.lim.release.value = 0.12;
+    snd.anOut = snd.ctx.createAnalyser(); snd.anOut.fftSize = 2048;
+    snd.in.connect(snd.anIn); snd.in.connect(snd.gain); snd.gain.connect(snd.lim); snd.lim.connect(snd.anOut); snd.anOut.connect(snd.ctx.destination);
+  }
+  if (snd.ctx.state !== 'running') snd.ctx.resume().catch(() => {});
+  return snd.ctx;
+}
+function routeStreamAudio() {
+  const st = v.srcObject;
+  if (!snd.ctx || !(st instanceof MediaStream) || !st.getAudioTracks().length) return false;
+  if (snd.srcStream === st) return true;
+  try {
+    if (snd.src) snd.src.disconnect();
+    snd.src = snd.ctx.createMediaStreamSource(st);
+    snd.src.connect(snd.in);
+    snd.srcStream = st;
+    return true;
+  } catch (e) { diag('gain-route-failed', {error: String(e && e.message || e)}); return false; }
+}
+const rmsOf = an => { if (!an) return 0; const a = new Float32Array(an.fftSize); an.getFloatTimeDomainData(a); let q = 0; for (const x of a) q += x * x; return Math.sqrt(q / a.length); };
+// Once a second: levels for the report; and if the routed track stays silent in
+// Web Audio while packets arrive (a browser that can't route it), the element plays it.
+setInterval(() => {
+  S.rmsIn = rmsOf(snd.anIn); S.rmsOut = rmsOf(snd.anOut);
+  if (!S.sound || tun.media || snd.elementFallback || !snd.srcStream) { snd.silentSec = 0; return; }
+  const arriving = S.aud && S.aud.level > 0.003;
+  snd.silentSec = arriving && S.rmsIn < 1e-5 ? snd.silentSec + 1 : 0;
+  if (snd.silentSec >= 3) {
+    snd.elementFallback = true; v.muted = false; v.play().catch(() => {});
+    diag('gain-fallback', {why: 'web audio got no sound from the WebRTC track'});
+  }
+}, 1000);
+// When the stream object changes (reconnect), the chain follows it.
+v.addEventListener('loadedmetadata', () => { if (S.sound && !snd.elementFallback && snd.ctx) routeStreamAudio(); });
+
+// A quoted name (「重新連線」, “Reconnect”) never breaks across lines.
+const nwHtml = x => esc(x).replace(/(「[^」]{1,14}」|“[^”]{1,24}”)/g, '<span class="nw">$1</span>');
+const esc = x => String(x).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+// ---- full-page message ----
+function showMsg(title, sub, buttons, opts) {
+  opts = opts || {};
+  $('msgT').textContent = title || '';
+  $('msgS').innerHTML = nwHtml(sub || '');
+  $('msgSpin').style.display = opts.spin ? '' : 'none';
+  const b = $('msgB'); b.textContent = '';
+  for (const [label, fn, alt] of buttons || []) {
+    const x = document.createElement('button'); x.className = 'btn' + (alt ? ' alt' : ''); x.textContent = label;
+    x.onclick = e => { e.stopPropagation(); fn(); }; b.appendChild(x);
+  }
+  msg.classList.toggle('over', !!opts.over);
+  msg.classList.remove('hide');
+}
+const hideMsg = () => msg.classList.add('hide');
+let toastTimer = 0;
+function toast(text, ms) {
+  const el = $('toast'); el.textContent = text; el.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.style.display = 'none'; }, ms || 4000);
+}
+$('toast').onclick = () => { $('toast').style.display = 'none'; };
+
+// ---- diagnostics over plain HTTP (reach the PC log even if WebRTC fails) ----
+const diag = (what, extra) => post('diag', JSON.stringify(Object.assign({what, ua: navigator.userAgent, secure: window.isSecureContext,
+  rtc: typeof RTCPeerConnection, standalone, state: S.state, ice: pc ? pc.iceConnectionState : ''}, extra || {}))).catch(() => {});
+diag('load');
+
+// ---- connection: server offer -> our answer (non-trickle); auto-reconnect ----
+function stopPc() {
+  if (pc) { try { pc.close(); } catch {} }
+  pc = null; dc = null;
+  closeTunnel();
+}
+function scheduleRetry(fn) {
+  clearTimeout(retryTimer);
+  const ms = Math.min(10000, 1000 * Math.pow(2, Math.min(retryN++, 4)));
+  retryTimer = setTimeout(fn, ms);
+}
+let watchdog = 0;
+async function connect(reason) {
+  clearTimeout(retryTimer);
+  const my = ++gen;
+  stopPc();
+  S.bye = '';
+  if (typeof RTCPeerConnection === 'undefined') {
+    S.state = 'unsupported';
+    showMsg(t('noRtc'), t('noRtcSub'));
+    diag('no-rtcpeerconnection');
+    return;
+  }
+  if (reason !== 'switch') showMsg(t('connecting'), '', [], {spin: true});
+  S.state = 'session';
+  let r;
+  try {
+    mark('sess');
+    const sessP = post('session', JSON.stringify({device, q: curQ, m: prefs.mon}));
+    // Built while the request is out: the first RTCPeerConnection of a page
+    // takes the browser a while (measured ~600 ms in Edge).
+    warmPc();
+    r = await sessP;
+    while (r.status === 202 && my === gen) {
+      const p = await r.json();
+      S.state = 'pending';
+      showMsg(t('waitTitle'), t('waitSub'), [], {spin: true});
+      r = await post('session?id=' + encodeURIComponent(p.id), '');
+    }
+  } catch (e) {
+    if (my !== gen) return;
+    S.state = 'unreachable';
+    // F6: say why in plain words (the page itself came from the PC, so the PC was reachable once).
+    if (PM.tailscale) showMsg(t('whyTs'), t('whyTsSub'), [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-tailscale'), true]], {spin: true});
+    else if (S.everConnected) showMsg(t('whyLeftWifi'), t('unreachableSub'), [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]], {spin: true});
+    else showMsg(t('unreachable'), t('unreachableSub'), [[t('retry'), () => { retryN = 0; connect(); }]], {spin: true});
+    scheduleRetry(connect);
+    return;
+  }
+  if (my !== gen) return;
+  if (r.status === 401) { S.state = 'passcode'; if (FIXED) store.set('fixedTok', ''); askPass(); return; }
+  if (r.status === 429) {
+    S.state = 'blocked';
+    showMsg(t('blocked'), t('blockedSub'), [[t('retry'), () => { retryN = 0; connect(); }]]);
+    return;
+  }
+  if (r.status === 403) {
+    let j = null; try { j = await r.json(); } catch {}
+    if (j && j.denied) { S.state = 'denied'; showMsg(t('denied'), t('deniedSub'), [[t('retry'), () => { retryN = 0; connect(); }]]); }
+    else { S.state = 'expired'; showMsg(t('expired'), t('expiredSub')); }
+    return;
+  }
+  if (!r.ok) {
+    S.state = 'error ' + r.status;
+    showMsg(t('unreachable'), t('unreachableSub') + '\n(HTTP ' + r.status + ')', [[t('retry'), () => { retryN = 0; connect(); }]], {spin: true});
+    scheduleRetry(connect);
+    return;
+  }
+  const o = await r.json();
+  mark('offer');
+  sessId = o.id;
+  S.monitors = o.monitors || [];
+  S.viewOnly = !!o.viewOnly;
+  S.audioOffered = o.audio !== false;
+  prefs.mon = o.monitor || 0;
+  applyViewOnly();
+  buildMonitorSeg();
+  const p = pc = takePc();
+  // Trickle: the answer goes out at once, the page's candidates follow
+  // (0.8.0 waited for the whole ICE gathering first).
+  const trickle = {q: [], posted: false, timer: 0, mdns: 0};
+  const flushTrickle = () => {
+    trickle.timer = 0;
+    if (!trickle.posted || !trickle.q.length || my !== gen) return;
+    post('candidate?id=' + encodeURIComponent(sessId), JSON.stringify({c: trickle.q.splice(0)})).catch(() => {});
+  };
+  p.onicecandidate = e => {
+    if (my !== gen || !e.candidate || !e.candidate.candidate || Q.has('nocand') || Q.has('simice')) return;
+    if (e.candidate.candidate.includes('.local')) { trickle.mdns++; return; }  // the PC can't resolve these; its checks find us anyway
+    trickle.q.push({candidate: e.candidate.candidate, mid: e.candidate.sdpMid});
+    if (trickle.posted && !trickle.timer) trickle.timer = setTimeout(flushTrickle, 30);
+  };
+  p.ontrack = e => {
+    if (my !== gen) return;
+    mark('track');
+    // Smallest receive buffer the browser allows (Chrome: jitterBufferTarget;
+    // Safari ignores it). ?jb=off disables.
+    if (e.track.kind === 'video' && Q.get('jb') !== 'off' && e.receiver) {
+      try { if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = 0; } catch {}
+      try { e.receiver.playoutDelayHint = 0; } catch {}
+    }
+    const stream = e.streams && e.streams[0] ? e.streams[0] : null;
+    // Audio and video arrive as two tracks of one stream: attach it once
+    // (a second srcObject assignment aborts the first play()).
+    if (stream) { if (v.srcObject !== stream) { v.srcObject = stream; startPlay(); } }
+    else { if (!(v.srcObject instanceof MediaStream)) { v.srcObject = new MediaStream(); } v.srcObject.addTrack(e.track); startPlay(); }
+  };
+  p.ondatachannel = e => {
+    if (my !== gen) return;
+    dc = e.channel; dc.onmessage = ev => { if (my === gen) onDc(ev); };
+    dc.onopen = () => { if (S.sound) send({t: 'audio', on: true}); if (prefs.hud) send({t: 'stamp', on: true}); };
+  };
+  p.onconnectionstatechange = () => {
+    if (my !== gen) return;
+    S.state = p.connectionState;
+    if (S.state === 'connected') {
+      mark('conn');
+      retryN = 0; diag('pc-connected');
+      S.everConnected = true; p.wasConnected = true;
+      if (v.videoWidth) hideMsg();
+    }
+    if (S.state === 'failed' || S.state === 'disconnected' || S.state === 'closed') {
+      if (S.bye) return;  // the PC ended it: no reconnect
+      if (TUN && tun.wsOpen) {  // 外網連結: direct WebRTC is gone or never came: the tunnel carries the picture
+        diag('direct-' + S.state, {via: 'tunnel'});
+        setTunnelMedia(true, 'direct ' + S.state);
+        return;
+      }
+      S.reconnects++;
+      if (!p.wasConnected && S.state === 'failed') {
+        // F6: HTTP works (we got the offer) but the media path never came up.
+        diag('pc-failed', {reason: 'firewall'});
+        showMsg(t('whyFirewall'), t('whyFirewallSub'), [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]]);
+        return;
+      }
+      diag('pc-' + S.state);
+      showMsg(t('lost'), '', [], {spin: true, over: true});
+      scheduleRetry(() => connect('lost'));
+    }
+  };
+  try {
+    // Test mode ?simice: no candidates either way = the media path can never open (like a firewall).
+    const noCands = x => x.split('\r\n').filter(l => !l.startsWith('a=candidate:')).join('\r\n');
+    await p.setRemoteDescription({type: 'offer', sdp: Q.has('simice') ? noCands(o.sdp) : o.sdp});
+    await p.setLocalDescription(await p.createAnswer());
+    // A complete answer (with end-of-candidates) lets the PC nominate at once
+    // (measured: answering before that cost ~100 ms of ICE); but at most 250 ms
+    // (0.8.0 waited up to 2 s), later candidates are trickled.
+    await new Promise(res => {
+      if (p.iceGatheringState === 'complete') return res();
+      const tm = setTimeout(res, 250);
+      p.addEventListener('icegatheringstatechange', () => { if (p.iceGatheringState === 'complete') { clearTimeout(tm); res(); } });
+    });
+    if (my !== gen) return;
+    trickle.q = trickle.q.filter(c => !p.localDescription.sdp.includes(c.candidate));  // already in the answer
+    let sdp = p.localDescription.sdp;
+    // Test mode: send no candidates (like a browser hiding its addresses);
+    // the PC must still connect via peer-reflexive.
+    if (Q.has('nocand') || Q.has('simice')) sdp = noCands(sdp);
+    mark('ans');
+    const a = await post('answer?id=' + encodeURIComponent(sessId), sdp);
+    if (!a.ok) throw new Error('answer HTTP ' + a.status);
+    trickle.posted = true; flushTrickle();
+    if (TUN) {
+      openTunnel(my);
+      clearTimeout(tun.timer);
+      tun.timer = setTimeout(() => {
+        if (my === gen && !(pc && pc.connectionState === 'connected')) setTunnelMedia(true, 'direct did not connect in 2.5 s');
+      }, Q.has('simice') ? 0 : 2500);
+    }
+    if (S.state === 'session') S.state = 'connecting';
+  } catch (e) {
+    if (my !== gen) return;
+    S.state = 'error: ' + e.message;
+    diag('start-error', {error: String(e && e.message || e)});
+    showMsg(t('lost'), String(e.message || e), [], {spin: true});
+    scheduleRetry(() => connect('lost'));
+    return;
+  }
+  clearTimeout(watchdog);
+  watchdog = setTimeout(async () => {
+    if (my !== gen || v.videoWidth || (tun.media && scr.width)) return;
+    let cands = [];
+    try { (await p.getStats()).forEach(s => { if (s.type === 'local-candidate' || s.type === 'remote-candidate' || s.type === 'candidate-pair')
+      cands.push(s.type + ':' + (s.candidateType || s.state || '') + ':' + (s.address || s.ip || '') + ':' + (s.port || '')); }); } catch {}
+    diag('no-video-after-10s', {videoW: v.videoWidth, paused: v.paused, playErr: S.playErr, cands, reason: p.wasConnected ? 'no-video' : 'firewall'});
+    // Never got a media path: say so (not "connected but no picture").
+    if (!v.videoWidth) showMsg(p.wasConnected ? t('noVideo') : t('whyFirewall'), p.wasConnected ? t('noVideoSub') : t('whyFirewallSub'),
+                               [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]]);
+  }, 10000);
+}
+function retry() { retryN = 0; connect(); return true; }
+// The guide for remote control (served by the PC itself, opened at a section).
+function openHelp(anchor) {
+  if (!PM.help) return;
+  window.open(PM.help + (anchor ? '#' + anchor : ''), '_blank');
+}
+
+// ---- playback (iOS: muted autoplay only; sound needs a tap) ----
+function startPlay() {
+  const pr = v.play();
+  if (!pr) return;
+  pr.then(() => { S.playErr = ''; setNeedTap(false); if (S.state === 'connected' || v.videoWidth) hideMsg(); }).catch(err => {
+    S.playErr = String(err && err.name || err);
+    if (err && err.name === 'AbortError') return;  // replaced by a newer load
+    if (err && err.name === 'NotAllowedError' && !v.muted) {
+      // Unmuted autoplay refused (reconnect without a tap): play muted, offer sound again.
+      v.muted = true; setSound(false, true); v.play().catch(() => setNeedTap(true));
+      return;
+    }
+    // A tap anywhere starts it (not only a small button: 0.8.0).
+    setNeedTap(true);
+  });
+}
+v.addEventListener('playing', () => { if (S.state === 'connected') hideMsg(); });
+v.addEventListener('loadedmetadata', () => { applyFill(); });
+v.addEventListener('resize', () => { applyFill(); });
+
+// ---- sound ----
+function setSound(on, quiet) {
+  S.sound = on;
+  $('bSnd').classList.toggle('on', on);
+  $('sndWave').style.display = on ? '' : 'none';
+  $('sndX').style.display = on ? 'none' : '';
+  $('cta').style.display = !on && S.audioOffered !== false && !store.get('soundUsed', false) ? 'flex' : 'none';
+  if (!quiet) send({t: 'audio', on});
+}
+function soundTap() {
+  if (S.audioOffered === false) { toast(t('noSound')); return; }
+  if (TUN) startTunnelAudio();  // an AudioContext may only start from a tap
+  if (S.sound) { v.muted = true; setSound(false); toast(t('muted'), 2500); return; }
+  // 0.8.2: the sound goes through Web Audio (gain + limiter); the element stays muted.
+  // If this browser can't route the WebRTC track there, the element plays it (no boost).
+  const routed = !!soundCtx() && routeStreamAudio();
+  v.muted = routed;
+  snd.elementFallback = !routed;
+  const pr = v.play();
+  store.set('soundUsed', true);
+  setSound(true);
+  if (pr) pr.catch(err => {
+    if (err && err.name === 'NotAllowedError') { v.muted = true; setSound(false); store.set('soundUsed', false); setSound(false, true); toast(t('soundTapAgain')); }
+  });
+}
+$('bSnd').onclick = soundTap;
+$('cta').onclick = soundTap;
+$('ctaT').textContent = t('soundOn');
+$('bSnd').setAttribute('aria-label', t('soundOn'));
+$('bKb').setAttribute('aria-label', t('keyboard'));
+$('bSet').setAttribute('aria-label', t('settings'));
+
+// ---- DataChannel: ping / clock offset / server stats / PC events ----
+let pingId = 0;
+function onDc(e) {
+  let m; try { m = JSON.parse(e.data); } catch { return; }
+  if (m.t === 'pong') {
+    const now = performance.now(), rtt = now - m.c;
+    S.rtt = rtt; S.rttMin = Math.min(S.rttMin, rtt);
+    S.offRtt *= 1.01;
+    if (rtt <= S.offRtt) { S.offRtt = rtt; S.off = m.s - (performance.timeOrigin + m.c + rtt / 2); }
+  } else if (m.t === 'stats') {
+    S.srv = m;
+    // Sound on, but the PC plays nothing for 6 s in a row: say so (0.8.0 left
+    // the owner guessing at a near-silent stream). aPeak = the PC's own level.
+    if (S.sound && m.aOn && typeof m.aPeak === 'number') {
+      S.quiet = m.aPeak < 0.001 ? (S.quiet || 0) + 1 : 0;
+      if (S.quiet >= 6) { $('silent').textContent = t('pcSilent'); $('silent').style.display = 'block'; }
+      else if (!S.quiet) $('silent').style.display = 'none';
+    } else { S.quiet = 0; $('silent').style.display = 'none'; }
+    if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
+  } else if (m.t === 'cur') {
+    onCursor(m);
+  } else if (m.t === 'clip') {
+    $('clipOut').value = m.s || '';
+    $('clipOut').placeholder = t('clipEmpty');
+  } else if (m.t === 'clip-ok') {
+    toast(m.ok ? t('clipSent') : 'clipboard: failed', 3000);
+  } else if (m.t === 'notice') {
+    if (m.what === 'pc-only') toast(t('pcOnly'), 5000);
+  } else if (m.t === 'mode') {
+    if (typeof m.audio === 'boolean') {  // 0.8.2: 電腦聲音傳到手機 switched on the PC, live
+      S.audioOffered = m.audio;
+      if (!m.audio && S.sound) { v.muted = true; setSound(false, true); toast(t('noSound')); }
+      else setSound(S.sound, true);
+    }
+    if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
+  } else if (m.t === 'bye') {
+    S.bye = m.why || 'kicked';
+    clearTimeout(retryTimer);
+    const title = m.why === 'stopped' ? t('stopped') : m.why === 'replaced' ? t('replaced') : m.why === 'idle' ? tf('idleBye', m.minutes || 30) : t('kicked');
+    showMsg(title, m.why === 'stopped' ? t('stoppedSub') : '', [[t('reconnect'), () => { retryN = 0; connect(); }]]);
+    setNeedTap(false);
+    setTimeout(() => { stopPc(); S.state = 'ended'; }, 0);
+  }
+}
+setInterval(() => send({t: 'ping', id: ++pingId, c: performance.now()}), 500);
+function applyViewOnly(announce) {
+  $('badge').textContent = t('viewOnly');
+  $('badge').style.display = S.viewOnly ? 'block' : 'none';
+  $('bKb').style.display = S.viewOnly ? 'none' : '';
+  if (S.viewOnly) showKb(false);
+  if (announce && S.viewOnly) toast(t('viewOnlyToast'));
+}
+
+// ---- frames: fps + capture -> display latency (stamp, only with the HUD on) ----
+const cv = document.createElement('canvas'), cx = cv.getContext('2d', {willReadFrequently: true});
+function readStamp() {
+  const h = v.videoHeight, w = v.videoWidth;
+  if (!h || !w) return NaN;
+  const B = Math.max(8, Math.floor(h / 60)), N = 42;
+  if (B * N > w) return NaN;
+  cv.width = B * N; cv.height = B;
+  cx.drawImage(v, 0, 0, B * N, B, 0, 0, B * N, B);
+  const d = cx.getImageData(0, 0, B * N, B).data;
+  const lum = i => { const x = i * B + (B >> 1), y = B >> 1, p = (y * B * N + x) * 4; return d[p] * .299 + d[p + 1] * .587 + d[p + 2] * .114; };
+  const white = lum(0), black = lum(1);
+  if (white - black < 80) return NaN;
+  const th = (white + black) / 2;
+  let val = 0, bytes = [0, 0, 0, 0], ck = 0;
+  for (let i = 0; i < 32; i++) { const bit = lum(2 + i) > th ? 1 : 0; val = val * 2 + bit; bytes[i >> 3] = bytes[i >> 3] * 2 + bit; }
+  for (let i = 0; i < 8; i++) ck = ck * 2 + (lum(34 + i) > th ? 1 : 0);
+  if (((bytes[0] + bytes[1] + bytes[2] + bytes[3]) & 255 ^ 0x5A) !== ck) return NaN;
+  return val;
+}
+let fpsN = 0, fpsT = performance.now(), frameNo = 0;
+const rvfc = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+function onFrame(now, meta) {
+  fpsN++; frameNo++;
+  if (TUN && tun.media && !v.paused && v.videoWidth > 16) setTunnelMedia(false, 'direct is playing');
+  if (!S.ttff && !v.paused && v.videoWidth > 16) {  // not the 16x16 autoplay probe
+    S.ttff = now; mark('frame'); setNeedTap(false);
+    window.__pmFirstFrame = now;
+    diag('first-frame', {ph: S.ph, playErr: S.playErr});  // the phases, once per page, in the PC log
+  }
+  if (prefs.hud && frameNo % 3 === 0 && S.srv && S.srv.stamp && isFinite(S.off)) {
+    const stamp = readStamp();
+    if (isFinite(stamp)) {
+      const shown = performance.timeOrigin + (meta && meta.expectedDisplayTime ? meta.expectedDisplayTime : now) + S.off;
+      let lat = ((shown % 4294967296) - stamp);
+      if (lat < -2147483648) lat += 4294967296;
+      if (lat > -50 && lat < 10000) { S.lat.push(lat); S.stampOk++; } else S.stampBad++;
+    } else S.stampBad++;
+  }
+  v.requestVideoFrameCallback(onFrame);
+}
+if (rvfc) v.requestVideoFrameCallback(onFrame);
+setInterval(() => {
+  const now = performance.now();
+  if (rvfc) S.fps = fpsN * 1000 / (now - fpsT);
+  fpsN = 0; fpsT = now;
+  if (S.lat.length) { const a = S.lat.slice().sort((x, y) => x - y); S.latShow = a[a.length >> 1]; S.latP95 = a[Math.min(a.length - 1, Math.floor(a.length * .95))]; }
+}, 1000);
+
+// ---- getStats ----
+async function pollStats() {
+  if (!pc) return;
+  const rep = await pc.getStats();
+  let pairId = '', inb = null; const cands = {};
+  rep.forEach(s => {
+    if (s.type === 'inbound-rtp' && s.kind === 'video') inb = s;
+    if (s.type === 'inbound-rtp' && s.kind === 'audio') S.aud = {packets: s.packetsReceived || 0, lost: s.packetsLost || 0, energy: s.totalAudioEnergy || 0, level: s.audioLevel || 0};
+    if (s.type === 'transport' && s.selectedCandidatePairId) pairId = s.selectedCandidatePairId;
+    if (s.type === 'local-candidate' || s.type === 'remote-candidate') cands[s.id] = s;
+  });
+  if (!pairId) rep.forEach(s => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pairId = s.id; });
+  const pair = pairId && rep.get(pairId);
+  if (pair) {
+    const l = cands[pair.localCandidateId] || {}, r = cands[pair.remoteCandidateId] || {};
+    S.pair = (l.candidateType || '?') + '(' + (l.address || l.ip || '?') + ') ↔ ' + (r.candidateType || '?') + '(' + (r.address || r.ip || '?') + ':' + (r.port || '') + ')';
+  }
+  if (inb) {
+    if (inb.framesDecoded) S.dec = inb.totalDecodeTime * 1000 / inb.framesDecoded;
+    if (inb.jitterBufferEmittedCount) S.jb = inb.jitterBufferDelay * 1000 / inb.jitterBufferEmittedCount;
+    const now = performance.now();
+    if (S.lastT) S.kbps = (inb.bytesReceived - S.lastBytes) * 8 / (now - S.lastT);
+    S.lastBytes = inb.bytesReceived; S.lastT = now;
+    S.lost = inb.packetsLost || 0; S.dropped = inb.framesDropped || 0;
+    S.w = inb.frameWidth || v.videoWidth; S.h = inb.frameHeight || v.videoHeight;
+    if (!rvfc) S.fps = inb.framesPerSecond || 0;
+  }
+}
+setInterval(() => pollStats().catch(() => {}), 1000);
+
+// ---- HUD (connection info) + report to the PC log ----
+const f1 = x => isFinite(x) ? x.toFixed(1) : '-', f0 = x => isFinite(x) ? Math.round(x) : '-';
+setInterval(() => {
+  if (!prefs.hud) return;
+  const s = S.srv;
+  hud.textContent =
+    S.state + '  ' + S.w + 'x' + S.h + '  ' + f1(S.fps) + ' fps  ' + f0(S.kbps) + ' kbps\n' +
+    'RTT ' + f1(S.rtt) + ' ms (min ' + f1(S.rttMin) + ')  lat ' + f0(S.latShow) + ' ms (p95 ' + f0(S.latP95) + ')\n' +
+    (s ? 'PC ' + f1(s.c2s_avg) + ' ms  CPU ' + f1(s.cpu1) + '%  ' + s.encoder + (s.gpuPath ? '' : ' (CPU)') + '\n' : '') +
+    'dec ' + f1(S.dec) + ' ms  jb ' + f1(S.jb) + ' ms  lost ' + S.lost + (S.aud ? '  audio ' + S.aud.packets : '') + '\n' + S.pair +
+    (s && s.aDev ? '\n♪ ' + s.aDev + '  ' + (s.aPeak || 0).toFixed(3) : '');
+}, 500);
+setInterval(() => {
+  const a = S.lat.slice().sort((x, y) => x - y);
+  const pct = p => a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : null;
+  send({t: 'report', ua: navigator.userAgent, state: S.state, rtt: S.rtt, rttMin: S.rttMin, fps: S.fps, lat_n: a.length, lat_p50: pct(.5),
+        lat_p95: pct(.95), dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
+        sent: S.sent, playErr: S.playErr, ttff_ms: S.ttff || null, aud: S.aud, muted: v.muted,
+        rmsIn: S.rmsIn, rmsOut: S.rmsOut, gain: prefs.gain, gainPath: snd.elementFallback ? 'element' : snd.srcStream || tun.media ? 'webaudio' : '', mode: prefs.mode, sens: prefs.sens,
+        q: prefs.q, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
+        vw: innerWidth, vh: innerHeight});
+  S.lat = [];
+}, 5000);
+
+// ---- input ----
+// Pointer speed: desktop pixels per CSS pixel of finger travel. Base = the
+// picture's own scale (finger and pointer move alike on the picture) x 0.6,
+// x the user's slider, x an acceleration curve: slow moves are precise,
+// fast swipes go up to 3x further (an ultrawide desktop is crossed with one
+// quick swipe, a slow one still hits a 16 px button).
+function videoBox() {
+  const r = pad.getBoundingClientRect();
+  const iw = picW() || 16, ih = picH() || 9;
+  const fit = Math.min(r.width / iw, r.height / ih);
+  return {r, w: iw * fit, h: ih * fit};
+}
+function accel(speed) {  // speed: CSS px per ms
+  const x = Math.min(1, Math.max(0, (speed - 0.25) / 1.35));
+  return 1 + 2 * x * x * (3 - 2 * x);  // smoothstep 1 .. 3
+}
+function gain(speed) {
+  const dw = S.srv && S.srv.deskW ? S.srv.deskW : (picW() || 1920);
+  const b = videoBox();
+  return dw / Math.max(1, b.w) * 0.6 * prefs.sens * accel(speed || 0);
+}
+// Client point -> 0..1 of the streamed screen (zoom / pan aware); null outside.
+function toVideo(clientX, clientY) {
+  const b = videoBox();
+  const z = trackpad.zoom, cxp = b.r.left + b.r.width / 2 + trackpad.panX, cyp = b.r.top + b.r.height / 2 + trackpad.panY;
+  const x = (clientX - (cxp - b.w * z / 2)) / (b.w * z), y = (clientY - (cyp - b.h * z / 2)) / (b.h * z);
+  if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+  return {x, y};
+}
+let mvx = 0, mvy = 0, whx = 0, why = 0, pendBtn = -1, absPt = null;
+// Tap feedback (F8): a ring at the click. Trackpad mode: where the PC pointer
+// is (predicted, see the cursor overlay) if known, else under the finger.
+let lastTouch = null;
+pad.addEventListener('touchstart', e => { const t0 = e.touches[0]; if (t0) lastTouch = {x: t0.clientX, y: t0.clientY}; }, {passive: true});
+function ripple(right) {
+  const p = (trackpad.mode === 'trackpad' && typeof cursorClient === 'function' && cursorClient()) || lastTouch;
+  if (!p) return;
+  const r = document.createElement('div');
+  r.className = 'rip' + (right ? ' r2' : '');
+  r.style.left = p.x + 'px'; r.style.top = p.y + 'px';
+  document.body.appendChild(r);
+  setTimeout(() => r.remove(), 450);
+}
+pad.addEventListener('touchmove', () => { S.touchMoves = (S.touchMoves || 0) + 1; }, {passive: true});
+const kb = $('kb'), txt = $('txt');
+const vk = new RemoteVirtualKeyboard(txt, {
+  text: s => { if (!S.viewOnly) send({t: 'text', s}); },
+  key: k => { if (!S.viewOnly) send({t: 'key', k}); },
+  combo: keys => { if (!S.viewOnly) send({t: 'combo', keys}); },
+});
+function showKb(on) {
+  if (on && S.viewOnly) return;
+  if (on) closeSheets();
+  kb.style.display = on ? 'block' : 'none';
+  $('bKb').classList.toggle('on', on);
+  syncSheetFlag();
+  if (on) vk.show(); else vk.hide();
+}
+const trackpad = new RemoteTrackpad(pad, view, {
+  sensitivity: gain,
+  toVideo,
+  abs: (x, y) => { if (!S.viewOnly) { flush(); absPt = {x, y}; flushAbs(); } },
+  move: (dx, dy) => { if (!S.viewOnly) { mvx += dx; mvy += dy; } },
+  wheel: (dx, dy) => { if (!S.viewOnly) { whx += dx; why += dy; } },
+  // down immediately followed by up (a tap) goes out as one "click".
+  button: (b, down) => {
+    if (S.viewOnly) return;
+    flush();
+    if (down) ripple(b === 2);
+    if (down) {
+
+      pendBtn = b;
+      queueMicrotask(() => { if (pendBtn === b) { pendBtn = -1; send({t: 'down', b}); } });
+    } else if (pendBtn === b) {
+      pendBtn = -1; send({t: 'click', b});
+    } else send({t: 'up', b});
+  },
+  keyboard: () => showKb(kb.style.display !== 'block'),
+  zoomed: () => { if (prefs.fill && trackpad.zoom < fillZoom() - 0.01) { prefs.fill = false; store.set('fill', false); $('swFill').checked = false; } syncZoomBtn(); },
+});
+trackpad.mode = prefs.mode;
+function flushAbs() { if (absPt) { send({t: 'abs', x: absPt.x, y: absPt.y}); absPt = null; } }
+function flush() {
+  flushAbs();
+  if (mvx || mvy) {
+    const n = ++moveSeq;
+    send({t: 'move', dx: mvx, dy: mvy, n});
+    pendingMoves.push({n, dx: mvx, dy: mvy, at: performance.now()});
+    if (pendingMoves.length > 120) pendingMoves.shift();
+    lastLocalMove = performance.now();
+    mvx = mvy = 0; S.moveMsgs = (S.moveMsgs || 0) + 1;
+    drawCursor();
+  }
+  if (whx || why) { send({t: 'wheel', dx: whx, dy: why}); whx = why = 0; }
+}
+(function loop() { flush(); requestAnimationFrame(loop); })();
+// Desktop browsers (mouse) for quick checks: same messages.
+let mdown = false;
+pad.addEventListener('mousedown', () => { mdown = true; });
+pad.addEventListener('mousemove', e => { if (mdown && !S.viewOnly) { mvx += e.movementX * gain(0.5); mvy += e.movementY * gain(0.5); } });
+window.addEventListener('mouseup', () => { mdown = false; });
+// ---- O7: predicted PC pointer. The PC reports where its pointer is and the
+// last move it applied (n); the page adds the moves it sent since then and
+// draws a small ring there while the PC has not caught up (high RTT).
+let moveSeq = 0, pendingMoves = [], srvCur = null, lastLocalMove = 0;
+function deskW() { return S.srv && S.srv.deskW ? S.srv.deskW : (picW() || 1920); }
+function deskH() { return S.srv && S.srv.deskH ? S.srv.deskH : (picH() || 1080); }
+function cursorNorm() {
+  if (!srvCur) return null;
+  let x = srvCur.x * deskW(), y = srvCur.y * deskH();
+  for (const m of pendingMoves) { x += m.dx; y += m.dy; }
+  return {x: Math.min(1, Math.max(0, x / deskW())), y: Math.min(1, Math.max(0, y / deskH()))};
+}
+function normToClient(c) {
+  const b = videoBox();
+  const z = trackpad.zoom, cxp = b.r.left + b.r.width / 2 + trackpad.panX, cyp = b.r.top + b.r.height / 2 + trackpad.panY;
+  return {x: cxp - b.w * z / 2 + c.x * b.w * z, y: cyp - b.h * z / 2 + c.y * b.h * z};
+}
+function cursorClient() { const c = cursorNorm(); return c ? normToClient(c) : null; }
+function onCursor(m) {
+  srvCur = {x: m.x, y: m.y, n: m.n, v: m.v};
+  while (pendingMoves.length && pendingMoves[0].n <= m.n) pendingMoves.shift();
+  drawCursor();
+}
+function drawCursor() {
+  const el = $('cur');
+  const c = trackpad.mode === 'trackpad' && srvCur && srvCur.v !== false ? cursorClient() : null;
+  if (!c) { el.style.display = 'none'; return; }
+  // Zoomed in: keep the pointer on screen (the picture follows it).
+  if (trackpad.zoom > 1.01 && !prefs.lock && performance.now() - lastLocalMove < 300) {
+    const r = pad.getBoundingClientRect(), m = 40;
+    let dx = 0, dy = 0;
+    if (c.x < r.left + m) dx = r.left + m - c.x; else if (c.x > r.right - m) dx = r.right - m - c.x;
+    if (c.y < r.top + m) dy = r.top + m - c.y; else if (c.y > r.bottom - m) dy = r.bottom - m - c.y;
+    if (dx || dy) { trackpad.panX += dx; trackpad.panY += dy; trackpad._applyZoom(); }
+  }
+  const p = cursorClient();
+  // Only while there are moves the PC has not applied yet: at low latency the
+  // ring never shows (the real pointer in the picture is already there).
+  const lagging = pendingMoves.length > 0 && performance.now() - pendingMoves[0].at > 30;
+  el.style.display = lagging ? 'block' : 'none';
+  el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+}
+setInterval(() => { if (pendingMoves.length && performance.now() - pendingMoves[0].at > 1500) pendingMoves = []; drawCursor(); }, 100);
+
+// ---- activity (idle disconnect / frame rate on the PC) and background pause ----
+let lastActSent = 0;
+function act() { const n = performance.now(); if (n - lastActSent > 1000) { lastActSent = n; send({t: 'act'}); } }
+document.addEventListener('touchstart', act, {passive: true, capture: true});
+document.addEventListener('touchmove', act, {passive: true, capture: true});
+document.addEventListener('visibilitychange', () => {
+  // O5: no picture / sound while the page is in the background; back = at once (IDR).
+  send({t: 'pause', on: document.hidden});
+  if (document.hidden) { send({t: 'release'}); return; }
+
+  // back from the background (iOS drops the connection there): reconnect at once
+  if (!S.bye && pc && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed')) { retryN = 0; connect('lost'); }
+  else if (!S.bye && !pc && S.state !== 'pending' && S.state !== 'denied' && S.state !== 'expired') { retryN = 0; connect('lost'); }
+});
+
+// ---- keyboard panel ----
+$('bKb').onclick = () => showKb(kb.style.display !== 'block');
+$('kbClose').onclick = () => showKb(false);
+$('kbT').textContent = t('keyboard');
+$('kbClose').textContent = t('close');
+$('kbhint').textContent = t('kbHint');
+for (const b of document.querySelectorAll('#keys button[data-t]')) b.textContent = t(b.dataset.t);
+for (const b of document.querySelectorAll('#keys button[data-k]')) b.onclick = () => { vk.press(b.dataset.k); vk.show(); };
+for (const b of document.querySelectorAll('#keys button[data-m]')) b.onclick = () => { vk.toggleMod(b.dataset.m); vk.show(); };
+for (const b of document.querySelectorAll('#keys button[data-c]')) b.onclick = () => {
+  const go = () => {
+    if (!S.viewOnly) send({t: 'combo', keys: b.dataset.c.split('+')});
+    if (b.dataset.note) toast(t(b.dataset.note), 5000);
+  };
+  if (b.dataset.confirm) askConfirm(t(b.dataset.confirm), t(b.dataset.t), go);  // Alt+F4: ask first
+  else { go(); vk.show(); }
+};
+// A small in-page confirmation (no window.confirm: it blocks and looks foreign).
+function askConfirm(text, yesLabel, yes) {
+  $('askT').textContent = text; $('askT').style.whiteSpace = 'pre-line';
+  $('askYes').textContent = yesLabel; $('askNo').textContent = t('cancel');
+  $('ask').style.display = 'flex';
+  $('askYes').onclick = () => { $('ask').style.display = 'none'; yes(); };
+  $('askNo').onclick = () => { $('ask').style.display = 'none'; };
+}
+
+vk.onModsChange = mods => { for (const b of document.querySelectorAll('#keys button[data-m]')) b.classList.toggle('on', mods.has(b.dataset.m)); };
+
+// ---- settings sheet ----
+function closeSheets() {
+  for (const id of ['set', 'help']) $(id).style.display = 'none';
+  if ($('clipS').style.display === 'block') { $('clipS').style.display = 'none'; send({t: 'clip-stop'}); }
+  $('bSet').classList.remove('on'); syncSheetFlag();
+}
+function syncSheetFlag() { document.body.classList.toggle('sheet-open', ['set', 'help', 'kb', 'clipS'].some(id => $(id).style.display === 'block')); }
+// ---- F7: clipboard text both ways (http pages have no clipboard API: a text box each way) ----
+$('clipT').textContent = t('clip');
+$('bClip').textContent = t('clip');
+$('clipClose').textContent = t('close');
+$('clipToPc').textContent = t('clipToPc');
+$('clipToPcHint').textContent = t('clipToPcHint');
+$('clipSend').textContent = t('clipSend');
+$('clipType').textContent = t('clipType');
+$('clipFromPc').textContent = t('clipFromPc');
+$('clipFromPcHint').textContent = t('clipFromPcHint');
+$('clipCopy').textContent = t('clipCopy');
+function openClip() {
+  showKb(false); closeSheets();
+  $('clipS').style.display = 'block';
+  $('clipOut').value = '';
+  send({t: 'clip-get', watch: true});
+  syncSheetFlag();
+}
+$('bClip').onclick = openClip;
+$('clipClose').onclick = closeSheets;
+const clipSend = type => {
+  const s = $('clipIn').value;
+  if (!s || S.viewOnly) return;
+  send({t: 'clip-set', s, type});
+  if (type) toast(t('clipType'), 1500);
+};
+$('clipSend').onclick = () => clipSend(false);
+$('clipType').onclick = () => clipSend(true);
+$('clipCopy').onclick = () => {
+  const ta = $('clipOut');
+  ta.focus(); ta.select();
+  try { ta.setSelectionRange(0, ta.value.length); } catch {}
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  toast(ok ? t('clipCopied') : t('clipCopyFail'), 2500);
+};
+// The toolbar fades while it is not used (the picture under it stays visible).
+let dimTimer = 0;
+function wakeBar() { $('bar').classList.remove('dim'); clearTimeout(dimTimer); dimTimer = setTimeout(() => $('bar').classList.add('dim'), 4000); }
+$('bar').addEventListener('touchstart', wakeBar, {passive: true});
+$('bar').addEventListener('click', wakeBar);
+wakeBar();
+$('bSet').onclick = () => { const open = $('set').style.display === 'block'; closeSheets(); showKb(false); if (!open) { $('set').style.display = 'block'; $('bSet').classList.add('on'); } syncSheetFlag(); };
+$('setT').textContent = t('settings');
+$('setClose').textContent = t('close');
+$('setClose').onclick = closeSheets;
+$('lMode').textContent = t('mode');
+$('lSens').textContent = t('sens');
+$('lSensSub').textContent = t('sensSub');
+$('lQ').textContent = t('quality');
+$('lQSub').textContent = t('qSub');
+$('lMon').textContent = t('monitor');
+$('lFill').textContent = t('fill');
+$('lFs').textContent = t('fullscreen');
+$('lLock').textContent = t('lock');
+$('lLockSub').textContent = t('lockSub');
+$('lHud').textContent = t('hud');
+$('lAuto').textContent = t('auto');
+$('lAutoSub').textContent = t('autoSub');
+$('lHudSub').textContent = t('hudSub');
+$('lVol').textContent = t('vol');
+$('lVolSub').textContent = t('volSub');
+const showVol = () => { $('vol').value = prefs.gain; $('volV').textContent = prefs.gain + '%'; };
+showVol();
+$('vol').oninput = () => {
+  prefs.gain = Math.max(0, Math.min(300, +$('vol').value | 0)); store.set('gain', prefs.gain); showVol();
+  if (snd.gain) snd.gain.gain.setTargetAtTime(prefs.gain / 100, snd.ctx.currentTime, 0.03);
+};
+$('bHelp').textContent = t('gestures');
+$('bBye').textContent = t('disconnect');
+$('app').textContent = PM.app;
+const segMode = $('segMode'), segQ = $('segQ');
+segMode.children[0].textContent = t('trackpad'); segMode.children[1].textContent = t('direct');
+for (let i = 0; i < 3; i++) segQ.children[i].textContent = t('q' + i);
+function syncSettings() {
+  for (const b of segMode.children) b.classList.toggle('on', b.dataset.v === prefs.mode);
+  for (const b of segQ.children) b.classList.toggle('on', +b.dataset.v === prefs.q);
+  for (const b of $('segMon').children) b.classList.toggle('on', +b.dataset.v === prefs.mon);
+  $('rowSens').style.display = prefs.mode === 'trackpad' ? '' : 'none';
+  $('sens').value = prefs.sens;
+  $('swFill').checked = prefs.fill;
+  $('swLock').checked = prefs.lock;
+  trackpad.zoomLocked = prefs.lock;
+  syncZoomBtn();
+  $('swHud').checked = prefs.hud;
+  $('swAuto').checked = prefs.auto;
+  hud.style.display = prefs.hud ? 'block' : 'none';
+}
+function setMode(m) { prefs.mode = m; store.set('mode', m); trackpad.mode = m; syncSettings(); return true; }
+function setQuality(q) {
+  q = Math.max(0, Math.min(2, q | 0));
+  if (q === prefs.q && q === curQ) return true;
+  prefs.q = q; store.set('q', q); syncSettings();
+  curQ = q; adapt.reset();
+  connect('switch');  // a new stream size: new session (same phone, no new 允許)
+  return true;
+}
+$('swAuto').onchange = () => { prefs.auto = $('swAuto').checked; store.set('auto', prefs.auto); if (!prefs.auto) adapt.restore(); };
+
+// ---- O1: weak-network adaptation. Every 2 s from the browser's own receive
+// statistics: bad = packet loss > 4 %, RTT > 300 ms, or far fewer frames
+// shown than the PC sends (> 35 % short). Two bad windows in a row: first the
+// bitrate goes down (70 %, then 45 % of the preset), then one quality step
+// (new session, same phone). Up again only after a long good stretch (bitrate
+// after 10 s, quality after 30 s), never above the user's choice.
+const adapt = {
+  last: null, bad: 0, good: 0, level: 0, kbps: 0, log: [],
+  reset() { this.last = null; this.bad = this.good = 0; this.level = 0; this.kbps = 0; },
+  preset(q) { return [6000, 10000, 14000][q] || 14000; },
+  restore() {
+    if (this.level) { this.level = 0; send({t: 'bitrate', kbps: this.preset(curQ)}); }
+    if (curQ !== prefs.q) { curQ = prefs.q; connect('switch'); }
+  },
+  async tick() {
+    if (!pc || S.state !== 'connected' || document.hidden) { this.last = null; return; }
+    let inb = null;
+    try { (await pc.getStats()).forEach(s => { if (s.type === 'inbound-rtp' && s.kind === 'video') inb = s; }); } catch { return; }
+    if (!inb) return;
+    const now = {recv: inb.packetsReceived || 0, lost: inb.packetsLost || 0, frames: inb.framesDecoded || 0, t: performance.now()};
+    const prev = this.last; this.last = now;
+    if (!prev) return;
+    const dRecv = now.recv - prev.recv, dLost = Math.max(0, now.lost - prev.lost);
+    const loss = (dRecv + dLost) > 50 ? dLost / (dRecv + dLost) : 0;
+    const shown = (now.frames - prev.frames) * 1000 / (now.t - prev.t);
+    const sent = S.srv ? S.srv.fps : 0;
+    const short = sent > 5 && shown < sent * 0.65;
+    const simLoss = +(Q.get('simloss') || 0) / 100;  // tests: pretend this much loss
+    const bad = loss > 0.04 || simLoss > 0.04 || (isFinite(S.rtt) && S.rtt > 300) || short;
+    S.adapt = {loss: +(Math.max(loss, simLoss) * 100).toFixed(1), shown: +shown.toFixed(1), sent: +(sent || 0).toFixed(1), rtt: S.rtt, level: this.level, q: curQ};
+    if (!prefs.auto) return;
+    if (bad) { this.bad++; this.good = 0; } else { this.good++; this.bad = 0; }
+    if (this.bad >= 2) {
+      this.bad = 0;
+      if (this.level < 2) {
+        this.level++;
+        this.kbps = Math.round(this.preset(curQ) * (this.level === 1 ? 0.7 : 0.45));
+        send({t: 'bitrate', kbps: this.kbps});
+        diag('adapt-down', {to: 'bitrate', kbps: this.kbps, why: S.adapt});
+      } else if (curQ > 0) {
+        curQ--; this.level = 0;
+        diag('adapt-down', {to: 'quality', q: curQ, why: S.adapt});
+        toast(tf('autoDown', t('q' + curQ)), 4000);
+        connect('switch');
+      }
+    } else if (this.good >= 5 && this.level > 0) {  // 10 s good: bitrate back up a step
+      this.good = 0; this.level--;
+      this.kbps = this.level ? Math.round(this.preset(curQ) * 0.7) : this.preset(curQ);
+      send({t: 'bitrate', kbps: this.kbps});
+      diag('adapt-up', {to: 'bitrate', kbps: this.kbps});
+    } else if (this.good >= 15 && curQ < prefs.q) {  // 30 s good at full bitrate: one quality step up
+      this.good = 0; curQ++;
+      diag('adapt-up', {to: 'quality', q: curQ});
+      toast(tf('autoUp', t('q' + curQ)), 3000);
+      connect('switch');
+    }
+  },
+};
+setInterval(() => adapt.tick(), 2000);
+
+for (const b of segMode.children) b.onclick = () => setMode(b.dataset.v);
+for (const b of segQ.children) b.onclick = () => setQuality(+b.dataset.v);
+$('sens').oninput = () => { prefs.sens = +$('sens').value; store.set('sens', prefs.sens); };
+$('swHud').onchange = () => { prefs.hud = $('swHud').checked; store.set('hud', prefs.hud); send({t: 'stamp', on: prefs.hud}); syncSettings(); };
+function buildMonitorSeg() {
+  const seg = $('segMon'); seg.textContent = '';
+  $('rowMon').style.display = S.monitors.length > 1 ? '' : 'none';
+  S.monitors.forEach((m, i) => {
+    const b = document.createElement('button'); b.dataset.v = i;
+    b.textContent = (i + 1) + (m.primary ? ' (' + t('primary') + ')' : '');
+    b.onclick = () => { if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); connect('switch'); } };
+    seg.appendChild(b);
+  });
+  syncSettings();
+}
+// 填滿: zoom the picture until it covers the screen (pan with two fingers).
+function fillZoom() { const b = videoBox(); return Math.max(b.r.width / Math.max(1, b.w), b.r.height / Math.max(1, b.h)); }
+function applyFill() {
+  if (!picW()) return;
+  if (prefs.fill) { trackpad.zoom = Math.max(trackpad.zoom, fillZoom()); }
+  else if (Math.abs(trackpad.zoom - fillZoom()) < 0.01 || trackpad.zoom < 1.001) { trackpad.zoom = 1; trackpad.panX = trackpad.panY = 0; }
+  trackpad._applyZoom();
+  syncZoomBtn();
+}
+$('swFill').onchange
+ = () => { prefs.fill = $('swFill').checked; store.set('fill', prefs.fill); if (!prefs.fill) { trackpad.zoom = 1; trackpad.panX = trackpad.panY = 0; } applyFill(); };
+window.addEventListener('resize', () => setTimeout(applyFill, 50));
+// 適合螢幕 / 原始大小 1:1 (F3): one button; 1:1 = one PC pixel per phone
+// pixel, centred on the PC pointer when its position is known.
+function syncZoomBtn() {
+  const z = trackpad.zoom > 1.01;
+  $('zIn').style.display = z ? 'none' : '';
+  $('zFit').style.display = z ? '' : 'none';
+  $('bZoom').setAttribute('aria-label', z ? t('zoomFit') : t('zoom11'));
+  $('bZoom').title = $('bZoom').getAttribute('aria-label');
+}
+function zoomTo(z, nx, ny) {
+  const b = videoBox();
+  trackpad.zoom = Math.max(1, Math.min(8, z));
+  if (trackpad.zoom <= 1.001) trackpad.panX = trackpad.panY = 0;
+  else { trackpad.panX = -(nx - 0.5) * b.w * trackpad.zoom; trackpad.panY = -(ny - 0.5) * b.h * trackpad.zoom; }
+  trackpad._applyZoom();
+  syncZoomBtn();
+}
+$('bZoom').onclick = () => {
+  if (prefs.lock) { toast(t('locked'), 2000); return; }
+  if (trackpad.zoom > 1.01) {
+    if (prefs.fill) { prefs.fill = false; store.set('fill', false); $('swFill').checked = false; }
+    zoomTo(1);
+  } else {
+    const c = (typeof cursorNorm === 'function' && cursorNorm()) || {x: 0.5, y: 0.5};
+    zoomTo(Math.max(1.5, (picW() || 1920) / (window.devicePixelRatio || 1) / Math.max(1, videoBox().w)), c.x, c.y);
+  }
+};
+$('swLock').onchange = () => { prefs.lock = $('swLock').checked; store.set('lock', prefs.lock); syncSettings(); };
+// Full screen: Android / desktop browsers (iPhone Safari has none: 加入主畫面).
+const canFs = !!(document.documentElement.requestFullscreen) && !isIOS;
+if (canFs) $('rowFs').style.display = '';
+$('swFs').onchange = async () => {
+  try {
+    if ($('swFs').checked) { await document.documentElement.requestFullscreen({navigationUI: 'hide'}); try { await screen.orientation.lock('landscape'); } catch {} }
+    else if (document.fullscreenElement) await document.exitFullscreen();
+  } catch { $('swFs').checked = !!document.fullscreenElement; }
+};
+document.addEventListener('fullscreenchange', () => { $('swFs').checked = !!document.fullscreenElement; });
+$('bBye').onclick = () => {
+  closeSheets();
+  send({t: 'release'});
+  S.bye = 'me'; gen++; clearTimeout(retryTimer);
+  setTimeout(stopPc, 50);
+  S.state = 'ended';
+  showMsg(t('byMe'), '', [[t('reconnect'), () => { retryN = 0; connect(); }]]);
+};
+// gestures help
+$('helpT').textContent = t('gestures');
+$('helpClose').textContent = t('close');
+$('helpClose').onclick = closeSheets;
+$('bHelp').onclick = () => {
+  closeSheets();
+  const body = $('helpBody'); body.textContent = '';
+  for (const [title, list] of [[t('trackpad'), T.gTrackpad[LANG]], [t('direct'), T.gDirect[LANG]]]) {
+    const h = document.createElement('b'); h.textContent = title; body.appendChild(h);
+    const ul = document.createElement('ul');
+    for (const x of list) { const li = document.createElement('li'); li.textContent = x; ul.appendChild(li); }
+    body.appendChild(ul);
+  }
+  const n = document.createElement('div'); n.className = 'sub'; n.textContent = t('gNote'); body.appendChild(n);
+  if (PM.help) { const a = document.createElement('a'); a.href = PM.help; a.target = '_blank'; a.rel = 'noopener'; a.textContent = t('tutorial'); a.style.display = 'inline-block'; a.style.marginTop = '10px'; body.appendChild(a); }
+  $('help').style.display = 'block';
+  syncSheetFlag();
+
+};
+syncSettings();
+setSound(false, true);
+
+// ---- one-time hints: add to Home Screen (iPhone), turn sideways, Tailscale data use ----
+setTimeout(() => {
+  if (S.state !== 'connected') return;
+  if (PM.tailscale && !store.get('tsHint', false)) { store.set('tsHint', true); toast(t('tsData'), 8000); return; }
+  if (isIOS && !standalone && !store.get('a2hsHint', false)) { store.set('a2hsHint', true); toast(t('a2hs'), 9000); return; }
+  if (innerHeight > innerWidth && !store.get('rotHint', false)) { store.set('rotHint', true); toast(t('rotate'), 4000); }
+}, 4000);
+
+// ---- automated test (?auto): one snapshot of the decoded video to the PC ----
+if (AUTO) setTimeout(async function snap() {
+  if (!picW()) return setTimeout(snap, 1000);
+  const c = document.createElement('canvas'); c.width = picW(); c.height = picH();
+  c.getContext('2d').drawImage(tun.media ? scr : v, 0, 0);
+  c.toBlob(b => { if (b) post('snap', b).catch(() => {}); }, 'image/png');
+}, 6000);
+
+if (FIXED) startFixed(); else if (TUN && !PM.verified) askPass(); else connect();
+</script>
+</body>
+</html>

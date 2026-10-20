@@ -85,7 +85,7 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     bool reset = false, codecCh = false, resize = false, paint = false, poke = false, optsCh = false,
          hoverCh = false, syncCh = false, adapterCh = false;
     int pause = -1, hov = -1, vis = -1, test = -1, theme = -1, dim = -1, frame = -1, rec = -1, mHover = -1;
-    int motion = -1, pressR = -2, focusR = -2;
+    int motion = -1, pressR = -2, focusR = -2, quiet = -1;
     bool flashR = false;
     LPARAM testLp = 0;
     bool xform = false, mClick = false, tapCh = false;
@@ -158,6 +158,7 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
         testLp = testArg;
         theme = std::exchange(themeReq, -1);
         motion = std::exchange(motionReq, -1);
+        quiet = std::exchange(quietReq, -1);
         pressR = std::exchange(pressReq, -2);
         focusR = std::exchange(focusReq, -2);
         flashR = std::exchange(flashReq, false);
@@ -215,6 +216,10 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     }
     if (motion >= 0) {
         ren.setReducedMotion(motion == 1);
+        paint = true;
+    }
+    if (quiet >= 0) {
+        ren.setIdleQuiet(quiet == 1);
         paint = true;
     }
     if (pressR != -2) {
@@ -361,6 +366,22 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     }
     if (const int lv = liveOvReq.exchange(-1); lv >= 0) {  // 即時翻譯 (live_overlay.cpp)
         ren.setOverlayLive(lv == 1);
+        paint = true;
+    }
+    if (liveIgnoreReq.exchange(false)) {
+        std::vector<char> cells;
+        int gx, gy;
+        {
+            std::lock_guard lk(liveIgnoreM);
+            cells = liveIgnoreCells;
+            gx = liveIgnoreGx;
+            gy = liveIgnoreGy;
+        }
+        ren.setLiveIgnore(cells, gx, gy);
+        paint = true;
+    }
+    if (liveReanchorReq.exchange(false) && !boxes) {
+        ren.liveBoxesSet();
         paint = true;
     }
     if (boxes) {

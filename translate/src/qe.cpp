@@ -3,6 +3,7 @@
 // no model.  translateTexts re-translates what fails (rewritten source,
 // clause by clause) and marks what still fails.
 #include <algorithm>
+#include <cwctype>
 #include <regex>
 #include <string>
 #include <vector>
@@ -266,6 +267,53 @@ bool numbersKept(const std::wstring& src, const std::wstring& tx) {
         b.erase(it);
     }
     return true;
+}
+
+// Text the source does not have (0.7.10.1, owner: a cut-off English caption word in a video came back as
+// 「如果您想要更多資訊,可以在下面留言,並且在下面留言。」): the engine's stock sentences for an input it
+// cannot read (a word cut in half, a misread, one word without its sentence).  English -> zh-Hant / ja / ko:
+//   too-long         far more characters than any translation of that many words has;
+//   invented-number  a number the source does not have (400+ conn -> 「400 多個 100 個」);
+//   repeated-phrase  a short source, and a phrase of 4+ characters said twice in the answer.
+// nullptr: plausible.  Only the shape is checked (no word list): a right answer is never this long.
+const char* inventedText(const std::wstring& src, const std::wstring& tx, Lang from, Lang tgt) {
+    if (from != Lang::En || (tgt != Lang::ZhHant && tgt != Lang::Ja && tgt != Lang::Ko) || tx.empty()) return nullptr;
+    int letters = 0, words = 0;
+    bool in = false, lower = false;
+    for (wchar_t c : src) {
+        lower = lower || (c >= L'a' && c <= L'z');
+        const bool alnum = (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9');
+        letters += alnum && !iswdigit(c);
+        words += alnum && !in;
+        in = alnum;
+    }
+    const ScriptCount t = countScripts(tx);
+    const int cjk = t.han + t.kana + t.hangul;
+    // Measured on the eval sets: an English line of n words / m letters comes back with at most ~2n + 2 and
+    // ~1.0 m characters (FAQ -> 常見問題, Keio Plaza Hotel Tokyo -> 東京京王廣場飯店); the stock sentence of
+    // a fragment is 20-30 characters for 1-2 words.
+    // (an abbreviation in capitals spells out: %DV -> 每日參考值百分比)
+    if (lower && cjk > 2 * words + 5 && cjk * 10 > letters * 12 + 30) return "too-long";
+    // The two below only for a fragment (1-3 words): a sentence has number words / dates (two -> 2, December -> 12,
+    // ② -> 2) and repeats on purpose (Vitamin A / Vitamine A).
+    if (words > 3) return nullptr;
+    std::wstring srcN;  // circled numbers (②) are numbers too
+    for (wchar_t c : src) srcN += c >= 0x2460 && c <= 0x2473 ? L" " + std::to_wstring(c - 0x2460 + 1) + L" " : std::wstring(1, c);
+    std::vector<std::wstring> a = numbersIn(srcN);
+    for (const auto& n : numbersIn(tx)) {
+        auto it = std::find(a.begin(), a.end(), n);
+        if (it == a.end()) return "invented-number";
+        a.erase(it);
+    }
+    if (words <= 2) {
+        std::wstring c;  // the answer's letters only (punctuation and spaces out)
+        for (wchar_t ch : tx)
+            if (iswalpha(ch) || isCjk(ch)) c += ch;
+        for (size_t len = 4; len * 2 <= c.size(); ++len)
+            for (size_t i = 0; i + len * 2 <= c.size(); ++i)
+                if (c.find(c.substr(i, len), i + len) != std::wstring::npos) return "repeated-phrase";
+    }
+    return nullptr;
 }
 
 }  // namespace pm::translate

@@ -39,6 +39,7 @@ add_library(pm_translate STATIC
   src/preprocess.cpp
   src/qe.cpp
   src/screen_translator.cpp
+  src/tech_text.cpp
   src/text_util.h
   src/text_util.cpp
   src/translator.cpp

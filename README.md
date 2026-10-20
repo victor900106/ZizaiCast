@@ -7,9 +7,9 @@
 # 自在投影 Zizai Cast
 
 **把 iPhone、iPad、Android 手機畫面，無線投影到 Windows 電腦。**<br>
-iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。免費、開源、沒有廣告、不用帳號。
+iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控；也能反過來，用手機遠端控制電腦。免費、開源、沒有廣告、不用帳號。
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.7.9-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.7.9" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.2.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.2.1" height="40"></a>
 
 [介紹頁](https://victor900106.github.io/ZizaiCast/) ・ [所有版本](https://github.com/victor900106/ZizaiCast/releases) ・ [怎麼連線](#start) ・ [常見問題](#faq) ・ [隱私](#privacy)
 
@@ -31,18 +31,19 @@ iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。免費、開�
 - **錄影、截圖、傳到手機**：一鍵錄成 MP4（含聲音）或截成 PNG，再一次勾選多個檔案傳回手機。
 - **放大鏡與弱視濾鏡**：最多放大 8 倍，加強對比、黑白、反轉、黃字黑底，可凍結畫面。
 - **畫面翻譯**：英文、日文、韓文、簡體中文翻成繁體中文（或英文、日文、韓文）。文字辨識與翻譯**都在電腦上離線執行**；可選用本機 AI 翻譯，或用自己的金鑰開啟線上翻譯。
+- **遠端控制（新）**：手機用瀏覽器就能看電腦畫面、聽電腦聲音、用手指操控電腦，不用裝 App。在家掃 QR 碼；在外面用固定網址＋密碼、Tailscale 或臨時網址。預設關閉，新手機要在電腦上按「允許」。
 - **四語介面**：繁體中文、English、日本語、한국어；有新版時一鍵更新（不會自己偷偷更新）。
-- **資料留在你的網路**：沒有遙測、不用帳號；平常唯一的對外連線是檢查更新（[隱私說明](#privacy)）。
+- **資料留在你的網路**：沒有遙測、不用帳號；平常唯一的對外連線是檢查更新，遠端控制的外網連線只在你開啟時才有（[隱私說明](#privacy)）。
 
-## 0.7.9 新功能
+## 0.8.2.1 新功能（0.7.9 之後）
 
 | | |
 |---|---|
-| **即時翻譯跟著畫面走** | 即時翻譯的譯文固定蓋在原文位置，手機畫面捲動時譯文跟著移動，不用每次重新按翻譯。 |
-| **選單更好懂** | 「連接手機 ▸」取代「Android ▸」，第一項就是「怎麼連線？」；截圖、錄影資料夾放在第一層；「說明 ▸ 快速鍵一覽」（F1）。 |
-| **截圖、錄影完成後直接動手** | 完成提示上可以直接點「開啟資料夾」或「傳到手機」。 |
-| **設定用白話說** | 「畫面清晰度」標準（順暢）／高（建議）／最高（較吃網路）；「第二支手機連上時」換成新的／維持原本的；關閉視窗時可選「背景待命」，並告訴你圖示在哪裡。 |
-| **沒連手機時也看得到** | 截圖、錄影、放大鏡一律列在選單上，沒連手機時顯示「手機連上後可用」。 |
+| **遠端控制** | 主畫面多了「遠端控制」分頁：打開開關，手機用瀏覽器掃 QR 碼，就能看電腦畫面、聽電腦聲音、用手指操控電腦。新手機要在電腦上按「允許」；連線時電腦上方會一直顯示「正在被遠端操控」，可隨時中斷。 |
+| **在外面也能連** | 固定網址＋自己設定的密碼（可勾「常駐外網」，開機就能從外面連；錯 5 次鎖 15 分鐘）；也可用 Tailscale 或免安裝的臨時網址。 |
+| **聲音** | 電腦所有喇叭的聲音一起送到手機，手機上可調 0–300% 音量；可選「手機播聲音時電腦靜音」。 |
+| **即時翻譯更穩、更準** | 畫面有影片或捲動時照常翻譯，卡片跟著移動不閃爍；影片字幕不再被翻成原文沒有的句子；工作群組裡的料號、代碼保留原樣。 |
+| **Google 線上翻譯** | 線上翻譯多了 Google Cloud Translation（自備金鑰）。 |
 
 完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
 
@@ -252,6 +253,7 @@ iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。免費、開�
 - **有 DRM 的影片會是黑畫面**（手機端就擋掉了）。
 - **Miracast 需要 Windows「無線顯示器」功能**與支援的 Wi‑Fi 網卡；Miracast 的聲音不會錄進錄影檔。
 - **Android 無線偵錯需要 Android 11 以上**。
+- **遠端控制不能操作系統管理員視窗、UAC 提示和鎖定畫面**（Windows 的限制）；一次只能一支手機連線。
 - **YouTube 的「AirPlay 影片」（只傳網址的模式）不支援**，請用螢幕鏡像。
 - **安裝程式沒有數位簽章**，SmartScreen 會提醒。
 - 只支援 Windows 10 / 11 64 位元。
@@ -268,8 +270,9 @@ iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控。免費、開�
   - 不想檢查更新：在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=`（留空）即可完全關閉。
 - **畫面翻譯完全在電腦上離線執行**（程式碼：`translate/`）：畫面和文字都不會上傳。第一次使用前會先詢問，你同意後才下載模型：翻譯模型（Firefox Translations，約 50 MB）來自 `firefox-settings-attachments.cdn.mozilla.net`／`firefox.settings.services.mozilla.com`，文字辨識模型（PaddleOCR，約 37 MB）來自 `www.modelscope.cn`；每個檔案都以 SHA-256 驗證，可以在「管理翻譯模型」刪除。不同意的話不會連線。
 - **本機 AI 翻譯（選用）也在電腦上執行**：只有在你選擇下載時，才從本專案的鏡像 `victor900106.github.io/ZizaiCast/addons/`（llama.cpp 官方檔案未經修改，MIT；連不上時改用 `github.com`）與 `huggingface.co`（Qwen 模型，Apache-2.0）下載，約 1.3 GB（小模型約 560 MB）；用顯示卡做文字辨識的附加元件來自 Microsoft 的 `api.nuget.org`。每個檔案都以大小和 SHA-256 驗證，可以隨時刪除。
-- **線上翻譯（選用）預設關閉**（程式碼：`translate/src/online_engine*.cpp`）：只有在你開啟、同意並填入自己的 DeepL 或 Azure 金鑰後，才把辨識出的文字（不含畫面）以 HTTPS 送到你選的服務（`api.deepl.com`／`api-free.deepl.com` 或 `api.cognitive.microsofttranslator.com`）。金鑰用 Windows DPAPI 加密存在這台電腦，不會寫進記錄檔。沒有開啟就完全不會連線。
+- **線上翻譯（選用）預設關閉**（程式碼：`translate/src/online_engine*.cpp`）：只有在你開啟、同意並填入自己的 DeepL、Azure 或 Google 金鑰後，才把辨識出的文字（不含畫面）以 HTTPS 送到你選的服務（`api.deepl.com`／`api-free.deepl.com`、`api.cognitive.microsofttranslator.com` 或 `translation.googleapis.com`）。金鑰用 Windows DPAPI 加密存在這台電腦，不會寫進記錄檔。沒有開啟就完全不會連線。
 - **傳到手機只在區域網路**（程式碼：`share/`）：Android 經無線偵錯直接傳進相簿；其他手機掃 QR 碼，從這台電腦上暫時開啟的網頁下載（只接受同一個區域網路的連線），不經過任何伺服器。
+- **遠端控制預設關閉**（程式碼：`remote/`、`app/remote/`）：打開後，在家時手機直接連這台電腦（同一個區域網路，網址含隨機密鑰）；新手機要在電腦上按「允許」，連線時電腦上方一直顯示提示，可隨時中斷。只有在你自己選用時才經過外部服務：Tailscale（你自己的帳號）、固定網址（Tailscale Funnel，需要你設定的密碼）或臨時網址（Cloudflare 的 `trycloudflare.com`，程式附帶未修改的 cloudflared）。
 - 其他網路活動都在區域網路內：AirPlay 的裝置探索（mDNS）與串流、Miracast（Windows 內建）、Android 無線偵錯（程式自帶的 adb，只連你配對的手機）。
 - 設定與記錄檔存在 `%LOCALAPPDATA%\PhoneMirror`（`settings.ini`、`phonemirror.log`），只在你的電腦上。
 

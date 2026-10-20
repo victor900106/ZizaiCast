@@ -43,6 +43,7 @@ struct App {
     WPARAM videoState = 0;         // last WM_PM_STATE value
 
     std::wstring idleTitle, pausedTitle;
+    std::wstring remoteTitle;      // 0.8.2: 「遠端控制：等待手機（Wi-Fi）」 added to the idle title while it is on
     int lastOrientation = 0;  // 0 unknown, 1 portrait, 2 landscape
     long long lastResumeMs = -100000;
     long long resumeFramesIn = 0;  // VideoWindow frames received at resume

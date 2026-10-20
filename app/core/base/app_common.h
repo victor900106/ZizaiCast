@@ -43,6 +43,8 @@
 #include "ask_panel.h"
 #include "update_panel.h"
 #include "pair_panel.h"
+#include "remote_panel.h"
+#include "remote_password_panel.h"
 #include "popup_menu.h"
 #include "resource.h"
 #include "share_panel.h"
@@ -73,6 +75,7 @@ constexpr UINT WM_PM_SRCEV = WM_APP + 7;   // wp: SourceEvent, lp: std::wstring*
 constexpr UINT WM_PM_TOOL = WM_APP + 8;    // wp: Command (live toolbar button)
 constexpr UINT WM_PM_LOCALDIR = WM_APP + 9;  // 本機更新: something changed in <install>\安裝檔
 constexpr UINT WM_PM_SHARE = WM_APP + 20;   // 傳到手機: wp ShareEvent, lp owned payload (see onShareEvent)
+constexpr UINT WM_PM_REMOTE = WM_APP + 21;  // 遠端操控: wp RemoteEvent, lp owned RemoteMsg* (app/remote)
 enum EventKind : WPARAM { EvConnecting = 1, EvDisconnected, EvPin, EvTakeover };
 // Miracast / Android events (posted from their threads as WM_PM_SRCEV).
 enum SourceEvent : WPARAM {
@@ -215,8 +218,43 @@ enum Command : UINT {
     // 0.7.8 UX (p9): 現在重新連線套用 (chip, 設定 ▸): end the session so that
     // PIN / 畫面清晰度 / 名稱 changes held for it apply now
     CmdApplyNow = 325,
+    // 遠端操控 (0.8.0, docs/remote.md); fixed ids for --dev DevCommand scripts.
+    CmdRemoteToggle = 330,  // 開啟遠端操控 ✓
+    CmdRemoteQr,            // 顯示手機連線 QR 碼…
+    CmdRemoteViewOnly,      // 僅觀看 ✓
+    CmdRemoteAudio,         // 電腦聲音傳到手機 ✓
+    CmdRemoteMutePc,        // 手機播聲音時電腦靜音 ✓
+    CmdRemoteIdle15,        // 沒操作多久自動中斷 ▸ 15 / 30 / 60 分鐘 / 不自動中斷
+    CmdRemoteIdle30,
+    CmdRemoteIdle60,
+    CmdRemoteIdleNever,
+    CmdRemoteForget,        // 忘記記住的手機
+    CmdRemoteKick,          // 中斷目前的遠端連線 (Ctrl+D while a phone is connected)
+    CmdRemoteHelp,          // 遠端操控教學
+    // 0.8.1
+    CmdRemoteAudioAuto,     // 聲音來源 ▸ 自動（正在出聲的裝置）
+    CmdRemoteAudioDefault,  // 聲音來源 ▸ Windows 預設播放裝置
+    CmdRemoteAudioDev0,     // 聲音來源 ▸ one playback device (up to 8)
+    CmdRemoteAudioDevLast = CmdRemoteAudioDev0 + 7,
+    CmdRemoteTunnel,        // 外網連結（免安裝，cloudflared）on / off
+    // 0.8.2 常駐外網
+    CmdRemotePersistent,     // 常駐外網（固定網址＋密碼） ✓
+    CmdRemotePassword,       // 變更常駐外網密碼…
+    CmdRemoteFixedApproval,  // 外面的新手機也要電腦按允許 ✓
+    // 0.8.2 遠端控制 page (the main window's second tab)
+    CmdRemoteFixedToggle,    // 開啟 / 關閉固定網址 (this run; 常駐外網 = every start)
+    CmdRemoteFixedCopy,      // 複製網址
+    CmdRemoteFixedTemp,      // 改用臨時網址 (Funnel cannot be used: cloudflared to the same password page)
+    CmdRemoteLanQr,          // 在家 ▸ 顯示 / 收起 QR 碼
+    CmdRemoteTsQr,           // Tailscale ▸ 顯示 / 收起 QR 碼
+    CmdRemoteAdvanced,       // 進階設定 (a menu)
+    CmdRemoteTsHelp,         // 怎麼設定 Tailscale
+    CmdRemoteForgetDev0,     // 已記住的手機 ▸ one phone (up to 16)
+    CmdRemoteForgetDevLast = CmdRemoteForgetDev0 + 15,
+    CmdIdleTabCast,          // main window page 手機投影
+    CmdIdleTabRemote,        // main window page 遠端控制
 };
-enum IdleOptionId : int { OptAutostart = 1, OptPin = 2 };
+enum IdleOptionId : int { OptAutostart = 1, OptPin = 2, OptRemoteAudio = 3, OptRemoteMutePc = 4 };
 constexpr UINT_PTR kOrientationTimer = 1;
 constexpr UINT_PTR kSyncTimer = 2;     // every 1 s while 影音同步 is on
 constexpr UINT_PTR kLostTimer = 3;     // ends the "connection lost" hold

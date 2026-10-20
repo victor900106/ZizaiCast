@@ -73,10 +73,10 @@ double Renderer::nextFrameInMs() const {
     }
     // Idle / paused screen: the mascot floats (and blinks) for a while after
     // any activity, then rests on a static frame (at once with reduced motion).
-    bool slow = !reduced_ && (scene_ == Scene::Idle || paused_) && now < ambientUntil_ + kTail;
+    bool slow = !reduced_ && !quiet_ && (scene_ == Scene::Idle || paused_) && now < ambientUntil_ + kTail;
     if (!fast && !slow) return toolDue;
     // Fully covered window (Present reported occlusion): probe slowly.
-    const double period = occluded_ ? 500 : fast ? kFastFrameMs : kSlowFrameMs;
+    const double period = occluded_ ? 500 : fast ? kFastFrameMs : ambientFrameMs();
     const double next = std::max(0.0, period - (now - lastRender_));
     return toolDue >= 0 ? std::min(next, toolDue) : next;
 }

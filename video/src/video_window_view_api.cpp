@@ -219,6 +219,22 @@ std::shared_ptr<SnapshotRequest> VideoWindow::Impl::runSnapshot(bool framed, boo
 }  // namespace pm
 
 namespace pm {
+void VideoWindow::reanchorTextOverlay() {
+    impl_->liveReanchorReq = true;
+    impl_->wake();
+}
+
+void VideoWindow::setTextOverlayLiveIgnore(std::vector<char> cells, int gx, int gy) {
+    {
+        std::lock_guard lk(impl_->liveIgnoreM);
+        impl_->liveIgnoreCells = std::move(cells);
+        impl_->liveIgnoreGx = gx;
+        impl_->liveIgnoreGy = gy;
+    }
+    impl_->liveIgnoreReq = true;
+    impl_->wake();
+}
+
 void VideoWindow::setTextOverlayLive(bool on) {
     impl_->liveOvReq = on ? 1 : 0;
     impl_->wake();

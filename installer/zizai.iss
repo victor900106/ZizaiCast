@@ -13,7 +13,7 @@
 #define AppName "自在投影"
 ; /DAppVersion=x.y.z overrides it (fake newer installers for updater tests).
 #ifndef AppVersion
-  #define AppVersion "0.7.9"
+  #define AppVersion "0.8.2.1"
 #endif
 #define AppExe "自在投影.exe"
 #ifndef BuildDir
@@ -182,6 +182,13 @@ Source: "{#BuildDir}\avutil-61.dll"; DestDir: "{app}\程式"; Flags: ignoreversi
 Source: "{#BuildDir}\libcrypto-3-x64.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\plist-2.0.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 Source: "{#BuildDir}\pthreadVC3.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+; 遠端操控 (0.8.0, docs/remote.md): WebRTC (libdatachannel + libjuice, MPL-2.0; libSRTP,
+; BSD-3; DTLS through OpenSSL's libssl) and the PC sound for the phone (Opus, BSD-3).
+Source: "{#BuildDir}\datachannel.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "{#BuildDir}\juice.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "{#BuildDir}\srtp2.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "{#BuildDir}\libssl-3-x64.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
+Source: "{#BuildDir}\opus.dll"; DestDir: "{app}\程式"; Flags: ignoreversion
 ; 翻譯 (0.7.0): the offline translation engine (MPL-2.0, static CRT, system DLLs
 ; only), loaded at run time. The translation models are NOT bundled: the app
 ; downloads them after asking (%LOCALAPPDATA%\PhoneMirror\models).
@@ -205,6 +212,9 @@ Source: "..\docs\licenses\onnxruntime\*"; DestDir: "{app}\程式\licenses\onnxru
 ; scrcpy-server (LICENSE-scrcpy.txt) and LICENSE-qrcodegen.txt, copied to
 ; <bin>\android-tools by app/CMakeLists.txt (android/third_party/fetch_tools.ps1).
 Source: "{#BuildDir}\android-tools\*"; DestDir: "{app}\程式\android-tools"; Flags: ignoreversion
+; 免安裝外網 (0.8.1): cloudflared (Cloudflare Tunnel client, Apache-2.0), an unmodified
+; official release run as a separate process; its LICENSE and VERSION.txt beside it.
+Source: "{#BuildDir}\cloudflared\*"; DestDir: "{app}\程式\cloudflared"; Flags: ignoreversion
 ; User guide in both languages next to the exe (the app opens the one of its
 ; UI language, which can be switched any time) ...
 Source: "..\docs\tutorial\自在投影教學.html"; DestDir: "{app}\程式"; Flags: ignoreversion

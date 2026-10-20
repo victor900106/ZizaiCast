@@ -26,6 +26,7 @@
 #include "../dnssd.h"
 #include "../dnssdint.h"
 #include "../utils.h"
+#include "../pm_volume_hud.h"
 
 #include "mdnsd.h"
 
@@ -101,21 +102,21 @@ static int dnssd_build_raop_txt(dnssd_t *dnssd_public)
 
     char features[22] = {0};
     const char *pw = "false";
-    const char *sf = RAOP_SF;
+    char sf[8] = {0};
 
     switch (dnssd_public->pin_pw) {
     case 1:
-        pw = "true";
-        sf = "0x8c";
-        break;
     case 2:
     case 3:
         pw = "true";
-        sf = "0x84";
         break;
     default:
         break;
     }
+    /* UxPlay: RAOP_SF "0x4", "0x8c" (PIN), "0x84" (password); PM 0.7.10.1:
+     * bit 2 dropped with airplay_audio_status=0 (pm_volume_hud.h) */
+    snprintf(sf, sizeof(sf), "0x%x",
+             pm_volume_hud_txt_flags(!dnssd_public->pm_no_audio_status, dnssd_public->pin_pw));
 
     snprintf(features, sizeof(features), "0x%X,0x%X", dnssd_public->features1, dnssd_public->features2);
     dnssd->raop_record.length = 0;
@@ -149,18 +150,21 @@ static int dnssd_build_airplay_txt(dnssd_t *dnssd_public)
 
     char device_id[3 * MAX_HWADDR_LEN];
     char features[22] = {0};
+    char flags[8] = {0};
 
     if (utils_hwaddr_airplay(device_id, sizeof(device_id), dnssd_public->hw_addr, dnssd_public->hw_addr_len) < 0) {
         return -1;
     }
 
     snprintf(features, sizeof(features), "0x%X,0x%X", dnssd_public->features1, dnssd_public->features2);    
+    /* UxPlay: always "0x4"; PM 0.7.10.1: "0x0" with airplay_audio_status=0 */
+    snprintf(flags, sizeof(flags), "0x%x", pm_volume_hud_txt_flags(!dnssd_public->pm_no_audio_status, 0));
     dnssd->airplay_record.length = 0;
 
     return mdnsd_txt_add(&dnssd->airplay_record, "deviceid", device_id) ||
            mdnsd_txt_add(&dnssd->airplay_record, "features", features) ||
            mdnsd_txt_add(&dnssd->airplay_record, "pw", dnssd_public->pin_pw ? "true" : "false") ||
-           mdnsd_txt_add(&dnssd->airplay_record, "flags", "0x4") ||
+           mdnsd_txt_add(&dnssd->airplay_record, "flags", flags) ||
            mdnsd_txt_add(&dnssd->airplay_record, "model", GLOBAL_MODEL) ||
            mdnsd_txt_add(&dnssd->airplay_record, "pk", dnssd_public->pk) ||
            mdnsd_txt_add(&dnssd->airplay_record, "pi", AIRPLAY_PI) ||
@@ -415,6 +419,13 @@ int dnssd_pm_build_raop_txt(dnssd_t *dnssd_public)
         return -1;
     }
     return dnssd_build_raop_txt(dnssd_public);
+}
+
+void dnssd_pm_set_audio_status(dnssd_t *dnssd_public, int audio_status)
+{
+    if (dnssd_public) {
+        dnssd_public->pm_no_audio_status = audio_status ? 0 : 1;
+    }
 }
 
 int dnssd_pm_raop_registered(dnssd_t *dnssd_public)

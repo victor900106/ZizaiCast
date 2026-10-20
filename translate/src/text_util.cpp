@@ -207,6 +207,10 @@ bool separateItem(const OcrLine& p, const OcrLine& ln) {
     const ScriptCount a = countScripts(p.text), b = countScripts(ln.text);
     // Prices, quantities, numbers (8,000원, 850円, 29 g).
     if (a.digits >= a.letters() || b.digits >= b.letters()) return true;
+    // A 「[標籤] 值」 item of a report (a work chat: [Date] 03/14 / [Owner] QA …),
+    // one per line: 0.7.9 joined a [label] value line with the next line's
+    // [label] into one sentence.
+    if (!ln.text.empty() && wcschr(L"[【［", ln.text.front())) return true;
     // Table labels stacked in a column (内容量 / 保存方法, 熱量 / たんぱく質):
     // field names, or two short label-like lines.
     if (isFieldLabel(p.text) || isFieldLabel(ln.text)) return true;
@@ -388,6 +392,84 @@ std::vector<Block> groupLines(const std::vector<OcrLine>& lines, float aspect) {
     }
     for (Block& b : out) b.lang = detectScript(b.text);
     return out;
+}
+
+namespace {
+enum class LabelKind { Han, Hangul, Latin };
+struct LabelHit {
+    size_t pos, len;
+    LabelKind kind;
+    bool zhOnly;  // 今天 / 昨天 / 星期X: Chinese wording (not Japanese)
+};
+}  // namespace
+
+std::wstring stripLineDateLabels(const std::wstring& line) {
+    if (line.size() < 8) return line;
+    // A date needs its weekday (LINE writes 10月9日(四)); a bare 3月5日 inside a sentence is real text.
+    static const std::wregex han(
+        L"(?:\\d{4}年)?\\d{1,2}月\\d{1,2}日\\s*[(（][一二三四五六日月火水木金土曜]{1,3}[)）]"
+        L"|今天|昨天|前天|星期[一二三四五六日天]|[週周][一二三四五六日天]|今日|昨日|[月火水木金土日]曜日");
+    static const std::wregex zhOnly(L"^(?:今天|昨天|前天|星期.|[週周].)$");
+    static const std::wregex hangul(
+        L"(?:\\d{4}년\\s*)?\\d{1,2}월\\s*\\d{1,2}일(?:\\s*[(（][월화수목금토일](?:요일)?[)）]|\\s*[월화수목금토일]요일)"
+        L"|오늘|어제|그저께");
+    static const std::wregex latin(
+        L"\\b(?:Today|Yesterday)\\b"
+        L"|\\b(?:Mon|Tues?|Wed(?:nes)?|Thu(?:rs?)?|Fri|Sat(?:ur)?|Sun)(?:day)?\\.?,?\\s+"
+        L"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)[a-z]*\\.?\\s+\\d{1,2}(?:,\\s*\\d{4})?\\b"
+        L"|\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\\b");
+    auto collect = [&](const std::wstring& s, const std::wregex& re, LabelKind k, std::vector<LabelHit>& v) {
+        for (std::wsregex_iterator it(s.begin(), s.end(), re), end; it != end; ++it)
+            v.push_back({static_cast<size_t>(it->position()), static_cast<size_t>(it->length()), k,
+                         k == LabelKind::Han && std::regex_match(it->str(), zhOnly)});
+    };
+    // Cut hits out (each leaves one blank), collapse blanks, trim.
+    auto cut = [](const std::wstring& s, const std::vector<LabelHit>& v) {
+        std::wstring o;
+        size_t p = 0;
+        for (const auto& h : v) {
+            if (h.pos < p) continue;
+            o.append(s, p, h.pos - p);
+            o += L' ';
+            p = h.pos + h.len;
+        }
+        o.append(s, p, std::wstring::npos);
+        std::wstring r;
+        for (wchar_t c : o)
+            if (!(c == L' ' && (r.empty() || r.back() == L' '))) r += c;
+        while (!r.empty() && r.back() == L' ') r.pop_back();
+        return r;
+    };
+    std::wstring cur = line;
+    // Pass 1: Han / Hangul labels in a plainly Latin or Hangul line; Hangul labels in a Han / kana line.
+    {
+        std::vector<LabelHit> hits;
+        collect(cur, han, LabelKind::Han, hits);
+        collect(cur, hangul, LabelKind::Hangul, hits);
+        std::sort(hits.begin(), hits.end(), [](const LabelHit& a, const LabelHit& b) { return a.pos < b.pos; });
+        if (!hits.empty()) {
+            const ScriptCount c = countScripts(cut(cur, hits));
+            const bool latinRest = c.han + c.kana + c.hangul == 0 && c.latin >= 6;
+            const bool hangulRest = c.hangul >= 4 && c.han + c.kana == 0;
+            const bool hanRest = c.han + c.kana >= 4 && c.hangul == 0;
+            std::vector<LabelHit> drop;
+            for (const auto& h : hits) {
+                if (h.kind == LabelKind::Han && (latinRest || hangulRest || (hanRest && c.kana >= 2 && h.zhOnly))) drop.push_back(h);
+                else if (h.kind == LabelKind::Hangul && (latinRest || hanRest)) drop.push_back(h);
+            }
+            if (!drop.empty()) cur = cut(cur, drop);
+        }
+    }
+    // Pass 2: Latin labels (Today, Yesterday, Thu, Oct 9) in a CJK line.
+    {
+        std::vector<LabelHit> hits;
+        collect(cur, latin, LabelKind::Latin, hits);
+        if (!hits.empty()) {
+            const ScriptCount c = countScripts(cut(cur, hits));
+            if (c.han + c.kana + c.hangul >= 4 && c.latin <= 3) cur = cut(cur, hits);
+        }
+    }
+    return cur.empty() ? line : cur;
 }
 
 }  // namespace pm::translate

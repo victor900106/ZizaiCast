@@ -389,18 +389,33 @@ std::wstring unescape(const std::wstring& s) {
             continue;
         }
         std::wstring e = s.substr(i + 1, semi - i - 1);
-        wchar_t r = 0;
-        if (e == L"amp") r = L'&';
-        else if (e == L"lt") r = L'<';
-        else if (e == L"gt") r = L'>';
-        else if (e == L"quot") r = L'"';
-        else if (e == L"apos") r = L'\'';
-        else if (e == L"nbsp") r = L' ';
+        std::wstring r;
+        if (e == L"amp") r = L"&";
+        else if (e == L"lt") r = L"<";
+        else if (e == L"gt") r = L">";
+        else if (e == L"quot") r = L"\"";
+        else if (e == L"apos") r = L"'";
+        else if (e == L"nbsp") r = L" ";
+        else if (e == L"hellip") r = L"\u2026";  // a few more that an HTML-escaping provider may emit
+        else if (e == L"ldquo") r = L"\u201C";
+        else if (e == L"rdquo") r = L"\u201D";
+        else if (e == L"lsquo") r = L"\u2018";
+        else if (e == L"rsquo") r = L"\u2019";
+        else if (e == L"ndash") r = L"\u2013";
+        else if (e == L"mdash") r = L"\u2014";
         else if (e.size() > 1 && e[0] == L'#') {
-            unsigned long v = (e[1] == L'x' || e[1] == L'X') ? wcstoul(e.c_str() + 2, nullptr, 16) : wcstoul(e.c_str() + 1, nullptr, 10);
-            if (v > 0 && v < 0x10000) r = static_cast<wchar_t>(v);
+            const bool hex = e[1] == L'x' || e[1] == L'X';
+            wchar_t* endp = nullptr;
+            const wchar_t* digits = e.c_str() + (hex ? 2 : 1);
+            unsigned long v = wcstoul(digits, &endp, hex ? 16 : 10);
+            if (*digits && endp && !*endp) {
+                if (v > 0 && v < 0x10000) r = std::wstring(1, static_cast<wchar_t>(v));
+                else if (v >= 0x10000 && v <= 0x10FFFF)  // outside the BMP: a UTF-16 pair
+                    r = std::wstring{static_cast<wchar_t>(0xD800 + ((v - 0x10000) >> 10)),
+                                     static_cast<wchar_t>(0xDC00 + ((v - 0x10000) & 0x3FF))};
+            }
         }
-        if (!r) {
+        if (r.empty()) {
             o += s[i];
             continue;
         }

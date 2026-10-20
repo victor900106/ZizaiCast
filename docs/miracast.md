@@ -238,7 +238,7 @@ ffmpeg -f lavfi -i testsrc2=size=608x1080:rate=60 -t 6 -vf "pad=1920:1080:656:0:
   pictures/s, 0 dropped, crop `654,0 610×1080` from the first picture, window
   shows 610×1080 (portrait).
 * `--status` before the feature: `WiFiStatus=1 (NotSupported)
-  ListeningStatus=0`, current settings `name="v900106"` (the PC name),
+  ListeningStatus=0`, current settings `name="MY-PC"` (the PC name),
   `auth=2`. After installing the feature (before the reboot): reason
   「…已安裝，請重新開機…」. `--listen` → `Unavailable` with the same reason.
 * Still to do after the reboot: `--status` (expect WiFiStatus 3 Supported),

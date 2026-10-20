@@ -22,7 +22,7 @@ void VideoWindow::setIdleActions(std::vector<IdleAction> actions) {
     std::vector<video::Renderer::Action> ra;
     std::vector<std::function<void()>> fns;
     for (auto& a : actions) {
-        ra.push_back({a.label, a.primary, a.card});
+        ra.push_back({a.label, a.primary, a.card, a.kind, a.on, a.sub});
         fns.push_back(std::move(a.onClick));
     }
     {
@@ -42,8 +42,8 @@ void VideoWindow::setIdleHelpLink(const std::wstring& label, std::function<void(
 
 void VideoWindow::setIdleCards(std::vector<IdleCard> cards) {
     std::vector<video::Renderer::Card> rc;
-    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted});
-    if (rc.size() > 3) rc.resize(3);
+    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted, std::move(c.qr), c.qrSize});
+    if (rc.size() > 4) rc.resize(4);  // 0.8.2: + 遠端操控
     {
         std::lock_guard lk(impl_->m);
         impl_->cardsReq = std::move(rc);
@@ -200,6 +200,14 @@ void VideoWindow::setTheme(Theme t) {
     {
         std::lock_guard lk(impl_->m);
         impl_->themeReq = std::clamp(static_cast<int>(t), 0, 3);
+    }
+    impl_->wake();
+}
+
+void VideoWindow::setIdleQuiet(bool on) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->quietReq = on ? 1 : 0;
     }
     impl_->wake();
 }

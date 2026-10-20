@@ -9,7 +9,8 @@
 //   never sends anything by itself.
 // - Placeholders (ZQA..ZQZ), TrRequest::keep strings and glossary terms are
 //   sent inside markup the provider does not translate (DeepL tag_handling
-//   xml + ignore_tags, Azure textType html + class="notranslate") and put
+//   xml + ignore_tags, Azure textType html + class="notranslate", Google format html
+//   + class="notranslate") and put
 //   back unchanged; TrHypothesis::flags gets "placeholder" when one was lost.
 // - Results are cached in memory only (4,096 entries, cleared with the key).
 //   A call whose texts are all cached sends nothing and decrypts no key.
@@ -136,8 +137,8 @@ Settings fromKv(const Kv& kv) {
     };
     std::string m = get("mode"), p = get("provider");
     s.mode = m == "all" ? Mode::All : m == "escalate" ? Mode::Escalate : Mode::Off;
-    s.provider = p == "deepl" ? Provider::DeepL : p == "azure" ? Provider::Azure : Provider::None;
-    for (Provider q : {Provider::DeepL, Provider::Azure})
+    s.provider = p == "deepl" ? Provider::DeepL : p == "azure" ? Provider::Azure : p == "google" ? Provider::Google : Provider::None;
+    for (Provider q : {Provider::DeepL, Provider::Azure, Provider::Google})
         if (kv.count(consentName(q))) s.setConsent(q, atoi(get(consentName(q)).c_str()));
     // Older files: one "consent" value, given for the provider saved with it.
     if (kv.count("consent") && !kv.count(consentName(s.provider))) s.setConsent(s.provider, atoi(get("consent").c_str()));
@@ -210,8 +211,8 @@ struct Snapshot {
     FILETIME mtime{};
     Kv kv;
     Settings s;
-    bool keyOk[3] = {false, false, false};
-    uint64_t stamp[3] = {0, 0, 0};
+    bool keyOk[4] = {false, false, false, false};
+    uint64_t stamp[4] = {0, 0, 0, 0};
 };
 
 std::mutex g_fileMutex;  // the file and g_snap
@@ -248,7 +249,7 @@ const Snapshot& snapLocked() {
     if (exists) n.mtime = fa.ftLastWriteTime;
     n.kv = exists ? readKv(path) : Kv{};
     n.s = fromKv(n.kv);
-    for (Provider p : {Provider::DeepL, Provider::Azure}) {
+    for (Provider p : {Provider::DeepL, Provider::Azure, Provider::Google}) {
         auto it = n.kv.find(keyName(p));
         std::string blob = it == n.kv.end() ? std::string() : it->second;
         if (!blob.empty()) {
@@ -318,7 +319,7 @@ struct Block {
     int64_t until = 0;      // nowMs(); LLONG_MAX: until the stamp changes
     uint64_t stamp = 0;     // Snapshot::stamp when it was set
 };
-Block g_block[3];
+Block g_block[4];
 
 void setLast(Status s, Provider p, const std::wstring& detail) {
     std::lock_guard lk(g_stateMutex);
@@ -329,6 +330,7 @@ int64_t backoffMs(Status s, unsigned retryAfterSec) {
     switch (s) {
     case Status::BadKey: return LLONG_MAX;
     case Status::QuotaExceeded: return 3600 * 1000;
+    case Status::ApiDisabled: return 5 * 60 * 1000;  // fixed in the provider's console, not by a new key: retried now and then (or 「重試」)
     case Status::Network:
     case Status::Timeout: return 60 * 1000;
     case Status::RateLimited: return (std::max<int64_t>)(30 * 1000, static_cast<int64_t>(retryAfterSec) * 1000);
@@ -376,7 +378,7 @@ Status blockedNow(Provider p, uint64_t stamp, int64_t* remaining) {
 bool fatal(Status s) {
     // Stop sending the rest of the call: it would fail the same way (and
     // each network failure already waited through its retries).
-    return s == Status::BadKey || s == Status::QuotaExceeded || s == Status::Timeout || s == Status::Network ||
+    return s == Status::BadKey || s == Status::QuotaExceeded || s == Status::ApiDisabled || s == Status::Timeout || s == Status::Network ||
            s == Status::RateLimited || s == Status::ServerError || s == Status::NotConfigured;
 }
 
@@ -545,7 +547,8 @@ public:
     bool supports(Lang src, Lang tgt, bool* direct) const override {
         if (direct) *direct = true;  // the providers translate every pair directly (no English pivot)
         if (auto ad = makeAdapter(config().s.provider)) return ad->supports(src, tgt);
-        return makeAdapter(Provider::DeepL)->supports(src, tgt) || makeAdapter(Provider::Azure)->supports(src, tgt);
+        return makeAdapter(Provider::DeepL)->supports(src, tgt) || makeAdapter(Provider::Azure)->supports(src, tgt) ||
+               makeAdapter(Provider::Google)->supports(src, tgt);
     }
     bool installed(Lang src, Lang tgt) const override {
         const Config c = config();
@@ -573,7 +576,7 @@ TestResult runStoredTest(Provider p, const std::wstring& region) {
     if (p != Provider::Azure || normRegion(region) == loadSettings().azureRegion) {
         const uint64_t stamp = stampOf(p);
         if (r.status == Status::Ok) clearBlock(p);
-        else if (r.status == Status::BadKey || r.status == Status::QuotaExceeded) setBlock(p, r.status, stamp);
+        else if (r.status == Status::BadKey || r.status == Status::QuotaExceeded || r.status == Status::ApiDisabled) setBlock(p, r.status, stamp);
     }
     return r;
 }
@@ -599,6 +602,7 @@ bool saveSettings(const Settings& s, StoreError* err) {
     kv.erase("consent");  // replaced by one value per provider
     kv[consentName(Provider::DeepL)] = std::to_string(s.consentDeepL);
     kv[consentName(Provider::Azure)] = std::to_string(s.consentAzure);
+    kv[consentName(Provider::Google)] = std::to_string(s.consentGoogle);
     const std::wstring region = normRegion(s.azureRegion);
     kv["azure_region"] = toUtf8(region);
     if (before.provider != s.provider || s.mode == Mode::Off) clearCache();
@@ -677,6 +681,7 @@ void forgetAll() {
         kv["provider"] = "none";
         kv[consentName(Provider::DeepL)] = "0";
         kv[consentName(Provider::Azure)] = "0";
+        kv[consentName(Provider::Google)] = "0";
         writeKv(configPath(), kv, nullptr);
         invalidateLocked();
     }
@@ -708,6 +713,7 @@ const char* statusId(Status s) {
     case Status::ServerError: return "server-error";
     case Status::Unsupported: return "unsupported";
     case Status::BadResponse: return "bad-response";
+    case Status::ApiDisabled: return "api-disabled";
     }
     return "?";
 }
@@ -718,6 +724,7 @@ const char* planId(Plan p) {
     case Plan::DeepLFree: return "deepl-free";
     case Plan::DeepLPro: return "deepl-pro";
     case Plan::Azure: return "azure";
+    case Plan::Google: return "google";
     }
     return "?";
 }
@@ -771,12 +778,15 @@ Status prefetch(const std::vector<TrRequest>& in, std::vector<TrHypothesis>* out
     return lastStatus();
 }
 
-const char* providerId(Provider p) { return p == Provider::DeepL ? "deepl" : p == Provider::Azure ? "azure" : "none"; }
+const char* providerId(Provider p) {
+    return p == Provider::DeepL ? "deepl" : p == Provider::Azure ? "azure" : p == Provider::Google ? "google" : "none";
+}
 
 const wchar_t* providerName(Provider p) {
     switch (p) {
     case Provider::DeepL: return L"DeepL";
     case Provider::Azure: return L"Microsoft Azure Translator";
+    case Provider::Google: return L"Google Cloud Translation";
     default: return L"";
     }
 }
@@ -784,6 +794,8 @@ const wchar_t* providerTermsUrl(Provider p) {
     switch (p) {
     case Provider::DeepL: return L"https://www.deepl.com/en/pro-license";
     case Provider::Azure: return L"https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure/MCA";
+    // Google Cloud Terms of Service (checked 2026-10-10; the Service Specific Terms are linked from it).
+    case Provider::Google: return L"https://cloud.google.com/terms";
     default: return L"";
     }
 }
@@ -793,6 +805,9 @@ const wchar_t* providerPrivacyUrl(Provider p) {
     // Learn: "Data, privacy, and security for Azure Translator in Foundry
     // Tools" (checked 2026-10-09; no locale in the path: Learn picks it).
     case Provider::Azure: return L"https://learn.microsoft.com/azure/foundry/responsible-ai/translator/data-privacy-security";
+    // "Data usage FAQ" of Cloud Translation: content is used only to provide the service, not to train
+    // Google's translation features (checked 2026-10-10).
+    case Provider::Google: return L"https://cloud.google.com/translate/data-usage";
     default: return L"";
     }
 }
@@ -800,6 +815,8 @@ const wchar_t* providerSignupUrl(Provider p) {
     switch (p) {
     case Provider::DeepL: return L"https://www.deepl.com/pro-api";
     case Provider::Azure: return L"https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation";
+    // Enable-API flow of the Cloud console: pick / create the project, enable Cloud Translation API.
+    case Provider::Google: return L"https://console.cloud.google.com/apis/enableflow?apiid=translate.googleapis.com";
     default: return L"";
     }
 }

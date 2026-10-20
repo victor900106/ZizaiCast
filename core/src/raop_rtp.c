@@ -296,6 +296,21 @@ raop_rtp_init_sockets(raop_rtp_t *raop_rtp, int use_ipv6)
     return -1;
 }
 
+/* PM: hand a pending volume to the callback outside the thread (stream not
+ * running, so no thread reads it); run_mutex not held by the caller */
+static void
+raop_rtp_deliver_pending_volume(raop_rtp_t *raop_rtp)
+{
+    MUTEX_LOCK(raop_rtp->run_mutex);
+    float volume = raop_rtp->volume;
+    int volume_changed = raop_rtp->volume_changed;
+    raop_rtp->volume_changed = 0;
+    MUTEX_UNLOCK(raop_rtp->run_mutex);
+    if (volume_changed && raop_rtp->callbacks.audio_set_volume) {
+        raop_rtp->callbacks.audio_set_volume(raop_rtp->callbacks.cls, volume);
+    }
+}
+
 static int
 raop_rtp_process_events(raop_rtp_t *raop_rtp, void *cb_data)
 {
@@ -424,7 +439,7 @@ raop_rtp_thread_udp(void *arg)
     uint64_t recv_time_kernel = 0;
     uint64_t recv_time_clock = 0;
     /* PM: stream start timing (logged at INFO, see docs/audio.md) */
-    unsigned int pm_nodata_packets = 0;
+    unsigned int pm_nodata_packets = 0, pm_data_packets = 0;
     bool pm_first_datagram = false, pm_first_audio = false, pm_first_dequeued = false;
     /* PM: mid-stream gap tracing (pause -> play without a new SETUP) */
     uint64_t pm_last_dgram_ns = 0, pm_last_data_ns = 0, pm_gap_start_ns = 0;
@@ -683,6 +698,7 @@ raop_rtp_thread_udp(void *arg)
                 pm_gap_resend_req = raop_rtp->pm_resend_requests;
             }
             pm_last_data_ns = pm_now;
+            pm_data_packets++;
             pm_gap_dgrams = 0;
             pm_gap_nodata = 0;
             if (!pm_first_audio) {
@@ -764,6 +780,11 @@ raop_rtp_thread_udp(void *arg)
     raop_rtp->running = false;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
 
+    /* PM: what the stream carried. Only "no data" packets = the phone held an audio
+     * stream open (an app's audio session) without sending any sound. */
+    logger_log(raop_rtp->logger, LOGGER_INFO, "[audio-timing] audio stream ended: %u audio data packets, %u \"no data\" packets%s",
+               pm_data_packets, pm_nodata_packets,
+               (!pm_data_packets && pm_nodata_packets) ? " (stream held open without sound)" : "");
     logger_log(raop_rtp->logger, LOGGER_DEBUG, "raop_rtp exiting thread");
 
     return 0;
@@ -831,7 +852,14 @@ raop_rtp_set_volume(raop_rtp_t *raop_rtp, float volume)
     MUTEX_LOCK(raop_rtp->run_mutex);
     raop_rtp->volume = volume;
     raop_rtp->volume_changed = 1;
+    int running = raop_rtp->running;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    /* PM: no thread to pick it up (the stream ended between the caller's
+     * is_running check and here): apply it now instead of leaving it pending
+     * for the next audio SETUP, which then set an old volume */
+    if (!running) {
+        raop_rtp_deliver_pending_volume(raop_rtp);
+    }
 }
 
 void
@@ -967,6 +995,11 @@ raop_rtp_stop(raop_rtp_t *raop_rtp)
 
     /* Flush buffer into initial state */
     raop_buffer_flush(raop_rtp->buffer, -1);
+
+    /* PM: a SET_PARAMETER volume the thread had not picked up yet (it came
+     * within one 5 ms select round before this TEARDOWN): apply it now. It was
+     * dropped, and replayed as a stale volume at the next audio SETUP. */
+    raop_rtp_deliver_pending_volume(raop_rtp);
 
     /* Mark thread as joined */
     MUTEX_LOCK(raop_rtp->run_mutex);

@@ -88,13 +88,29 @@ double ScrollTracker::score(int d, int step, int* overlap) const {
     return static_cast<double>(s) / (static_cast<double>(n) * kCap) + 0.15 * (1.0 - static_cast<double>(n) / all);
 }
 
-const ScrollTracker::Result& ScrollTracker::update(const ScrollSig& cur) {
-    cur_ = cur;
+void ScrollTracker::setIgnore(const std::vector<char>& cells, int gx, int gy) {
+    ign_ = cells;  // (takes effect with the next picture: the renderer tracks it again)
+    ignGx_ = gx;
+    ignGy_ = gy;
+}
+
+const ScrollTracker::Result& ScrollTracker::update(const ScrollSig& in) {
+    cur_ = in;
     Result r;
-    if (!anchor_.valid() || cur.rows != anchor_.rows) {
+    if (!anchor_.valid() || in.rows != anchor_.rows) {
         last_ = r;  // not ok: another picture size (rotated, cropped)
         return last_;
     }
+    // The ignored cells (a playing video) are the anchor's own.
+    if (!ign_.empty() && ignGx_ > 0 && ignGy_ > 0 && ign_.size() >= static_cast<size_t>(ignGx_) * ignGy_) {
+        for (int y = 0; y < in.rows; ++y) {
+            const int cy = std::min(ignGy_ - 1, y * ignGy_ / in.rows);
+            for (int b = 0; b < kB; ++b)
+                if (ign_[static_cast<size_t>(cy) * ignGx_ + std::min(ignGx_ - 1, b * ignGx_ / kB)])
+                    cur_.v[static_cast<size_t>(y) * kB + b] = anchor_.v[static_cast<size_t>(y) * kB + b];
+        }
+    }
+    const ScrollSig& cur = cur_;
     const int R = cur.rows;
     changed_.clear();
     for (int y = 0; y < R; ++y)

@@ -13,6 +13,7 @@
         (docs/tutorial), except:
           - generated test media: video/testdata/*.png|*.log|*.h264|*.h265|*.mp4|*.bin
           - _ref/, build*/, installer/Output/ (untracked anyway)
+          - launch/_work/ (private work notes and evidence)
           - test material rebuilt from the owner's private screenshots
             (translate/testdata/eval/owner072.ref.json, make_owner_072.py)
         Guard: the archive is refused if any of the OLD mascot / icon art
@@ -50,6 +51,7 @@
 .PARAMETER NoDeps      do not build the deps-source zip.
 .PARAMETER BergamotSrc BergamotTranslatorSharp checkout with initialised submodules
                        (default <repo>\build-translate\bts-src, made by build_bergamot.sh).
+                       onnxruntime.dll is looked up next to it, in <BergamotSrc>\..\ort\.
 .PARAMETER AllowFdkAac allow archiving a revision whose pm_audio still links fdk-aac
                        (fdk-aac's licence is GPL-incompatible: such a revision must not be released).
 .PARAMETER Verify      unzip the source zip to %TEMP%, fetch the Android tools, and do a
@@ -127,6 +129,18 @@ foreach ($k in @($ShippedPorts.Keys)) { $ShippedPorts[$k].Triplet = 'x64-windows
 # bergamot.dll (translate/tools/build_bergamot.sh) links PCRE2 statically (ssplit-cpp)
 $hasTranslate = [bool](Invoke-Git ls-tree --name-only $Commit -- translate/tools/build_bergamot.sh)
 if ($hasTranslate) { $ShippedPorts['pcre2'] = @{ Archive = 'PCRE2Project-pcre2-*'; Url = 'https://github.com/PCRE2Project/pcre2'; Triplet = 'x64-windows-static' } }
+# 遠端操控 (0.8.0, remote/): datachannel.dll (MPL-2.0) with usrsctp / plog / nlohmann-json inside, juice.dll (MPL-2.0),
+# srtp2.dll (BSD-3), opus.dll (BSD-3). MPL-2.0 s.3.2(a): the Source Code Form goes with the binaries.
+$hasRemote = [bool](Invoke-Git ls-tree --name-only $Commit -- remote/CMakeLists.txt)
+if ($hasRemote) {
+    $ShippedPorts['libdatachannel'] = @{ Archive = 'paullouisageneau-libdatachannel-*'; Url = 'https://github.com/paullouisageneau/libdatachannel'; Triplet = 'x64-windows' }
+    $ShippedPorts['libjuice'] = @{ Archive = 'paullouisageneau-libjuice-*'; Url = 'https://github.com/paullouisageneau/libjuice'; Triplet = 'x64-windows' }
+    $ShippedPorts['libsrtp'] = @{ Archive = 'cisco-libsrtp-*'; Url = 'https://github.com/cisco/libsrtp'; Triplet = 'x64-windows' }
+    $ShippedPorts['usrsctp'] = @{ Archive = 'sctplab-usrsctp-*'; Url = 'https://github.com/sctplab/usrsctp'; Triplet = 'x64-windows' }
+    $ShippedPorts['opus'] = @{ Archive = 'xiph-opus-*'; Url = 'https://github.com/xiph/opus'; Triplet = 'x64-windows' }
+    $ShippedPorts['plog'] = @{ Archive = 'SergiusTheBest-plog-*'; Url = 'https://github.com/SergiusTheBest/plog'; Triplet = 'x64-windows' }
+    $ShippedPorts['nlohmann-json'] = @{ Archive = 'nlohmann-json-*'; Url = 'https://github.com/nlohmann/json'; Triplet = 'x64-windows' }
+}
 
 # vcpkg overlay ports of this repository at <Ref> (vcpkg install --overlay-ports=tools/vcpkg-overlay)
 $OverlayPorts = @{}
@@ -285,6 +299,7 @@ part 2d.
 
 "@
 }
+if ($hasRemote) { $depsList += '; 遠端操控 (remote control): libdatachannel, libjuice, libsrtp, usrsctp, opus, plog, nlohmann-json' }
 $buildMd = @"
 # Building ZizaiCast $Version from source
 
@@ -394,6 +409,8 @@ $excludes = @(
     ':(exclude,glob)_ref/**',
     ':(exclude,glob)build*/**',
     ':(exclude,glob)installer/Output/**',
+    # private work notes / evidence (paths, test machines): never published
+    ':(exclude,glob)launch/_work/**',
     # test material rebuilt from the owner's private screenshots (not published)
     ':(exclude)translate/testdata/eval/owner072.ref.json',
     ':(exclude)translate/testdata/make_owner_072.py'
@@ -557,7 +574,7 @@ if (-not $NoDeps) {
             $readme.Add("  $OrtUrl")
             $readme.Add("  (sha256 $OrtSha; translate/tools/get_onnxruntime.sh; the same DLL as")
             $readme.Add("  onnxruntime-win-x64-$OrtVer.zip on https://github.com/microsoft/onnxruntime/releases/tag/v$OrtVer).")
-            $ortDll = Join-Path $Repo 'build-translate\ort\onnxruntime.dll'
+            $ortDll = Join-Path (Split-Path -Parent $BergamotSrc) 'ort\onnxruntime.dll'
             if (Test-Path $ortDll) { $readme.Add("  onnxruntime.dll sha256 $(Get-Sha256 $ortDll)") }
             $readme.Add("  Source: https://github.com/microsoft/onnxruntime/tree/v$OrtVer (MIT does not require it here).")
             $readme.Add("  onnxruntime/LICENSE.txt and onnxruntime/ThirdPartyNotices.txt = the licence and notices shipped")

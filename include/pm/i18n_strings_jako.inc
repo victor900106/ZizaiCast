@@ -1128,8 +1128,8 @@ PM_JAKO(TrOnlineRegion, L"リソースのリージョン",
         L"리소스 지역")
 PM_JAKO(TrOnlineRegionHint, L"例: eastasia、japaneast。リソース作成時に Global を選んだ場合は空欄",
         L"예: eastasia, japaneast. 리소스를 만들 때 Global을 선택했다면 비워 두세요")
-PM_JAKO(TrOnlineTest, L"接続テスト",
-        L"연결 테스트")
+PM_JAKO(TrOnlineTest, L"キーをテスト",
+        L"키 테스트")
 PM_JAKO(TrOnlineTesting, L"テスト中…",
         L"테스트 중…")
 PM_JAKO(TrOnlineSave, L"保存",
@@ -1182,8 +1182,8 @@ PM_JAKO(TrOnlineTestSample, L"訳の例: {0}",
         L"번역 예: {0}")
 PM_JAKO(TrOnlineErrBadKey, L"キーが正しくないか、別のサービスのキーです（Azure ではリージョンも確認してください）",
         L"키가 올바르지 않거나 다른 서비스의 키입니다(Azure는 지역도 확인하세요)")
-PM_JAKO(TrOnlineErrQuota, L"このキーの無料枠は使い切りました",
-        L"이 키의 무료 사용량을 모두 썼습니다")
+PM_JAKO(TrOnlineErrQuota, L"このキーの利用枠を使い切りました（無料枠または設定した上限）",
+        L"이 키의 사용량을 모두 썼습니다(무료 사용량 또는 설정한 한도)")
 PM_JAKO(TrOnlineErrRate, L"リクエストが多すぎます。しばらくしてからやり直してください",
         L"요청이 너무 많습니다. 잠시 후 다시 시도하세요")
 PM_JAKO(TrOnlineErrTimeout, L"サービスから応答がありません。しばらくしてからやり直してください",
@@ -1258,6 +1258,17 @@ PM_JAKO(TrOnlinePrivacyShort, L"オンにすると、認識した文字が HTTPS
         L"켜면 인식한 글자가 HTTPS로 {0}에 전송됩니다. 화면 이미지는 전송되지 않습니다.")
 PM_JAKO(TrOnlinePrivacyOpen, L"{0} のプライバシーポリシー",
         L"{0} 개인정보 처리방침")
+// ---- 0.7.10: Google Cloud Translation (Basic, v2) ----
+PM_JAKO(TrOnlineErrApiDisabled, L"Cloud Translation API が有効になっていないか、このキーでは使えません（キーの API 制限とプロジェクトの課金設定を確認してください）",
+        L"Cloud Translation API가 사용 설정되지 않았거나 이 키로 사용할 수 없습니다(키의 API 제한과 프로젝트 결제 설정을 확인하세요)")
+PM_JAKO(TrOnlineReasonApiDisabled, L"API が未有効",
+        L"API 미사용 설정")
+PM_JAKO(TrOnlineFreeGoogle, L"Cloud Translation Basic は毎月最初の 50 万文字まで無料です。超過分は Google が公表する料金（現在は 100 万文字あたり 20 米ドル）で課金され、プロジェクトに請求先アカウントが必要です。1 日の文字数クォータは初期設定では無制限なので、Google Cloud で予算アラートかクォータの上限を設定することをおすすめします。",
+        L"Cloud Translation Basic은 매월 처음 50만 자까지 무료입니다. 초과분은 Google이 공개한 요금(현재 100만 자당 20달러)으로 청구되며, 프로젝트에 결제 계정이 연결되어 있어야 합니다. 일일 글자 수 할당량은 기본적으로 제한이 없으므로 Google Cloud에서 예산 알림이나 할당량 한도를 설정하는 것을 권장합니다.")
+PM_JAKO(TrOnlineHelpGoogle, L"1) Google Cloud コンソールにサインインし、プロジェクトを作成（または選択）して請求先アカウントをリンクします。2) 「Cloud Translation API」を有効にします。3) 「API とサービス → 認証情報」で「認証情報を作成 → API キー」を選び、キーを上の欄に貼り付けます。4) 推奨：このキーを編集し、「API の制限」で Cloud Translation API だけにチェックを入れます。キーが漏れても他のサービスには使われません。",
+        L"1) Google Cloud 콘솔에 로그인해 프로젝트를 만들거나 선택하고 결제 계정을 연결하세요. 2) 「Cloud Translation API」를 사용 설정합니다. 3) 「API 및 서비스 → 사용자 인증 정보」에서 「사용자 인증 정보 만들기 → API 키」를 선택하고 키를 위 칸에 붙여 넣으세요. 4) 권장: 이 키를 수정해 「API 제한」에서 Cloud Translation API만 선택하세요. 키가 유출되어도 다른 서비스에는 쓸 수 없습니다.")
+PM_JAKO(TrOnlinePrivacyGoogle, L"オンにすると、画面から認識した文字（前後の文字は含みません）が HTTPS で {0} に送信され、翻訳されます。画面の画像は送信されません。文字はこの PC の外に出て、Google Cloud の利用規約に従って扱われ、Google Cloud の利用枠を消費し、無料枠を超えると課金されます。Google は、送信された内容を翻訳機能のトレーニングに使用しないと説明しています（プライバシーのリンクを参照）。キーは Windows の暗号化でこの PC に保存され、ログには書き込まれません。",
+        L"켜면 화면에서 인식한 글자(앞뒤 글자는 제외)가 HTTPS로 {0}에 전송되어 번역됩니다. 화면 이미지는 전송되지 않습니다. 글자는 이 PC 밖으로 나가 Google Cloud 약관에 따라 처리되며, Google Cloud 할당량을 소모하고 무료 사용량을 넘으면 요금이 청구됩니다. Google은 전송된 내용을 번역 기능 학습에 사용하지 않는다고 설명합니다(개인정보 링크 참조). 키는 Windows 암호화로 이 PC에 저장되며 로그에 기록되지 않습니다.")
 PM_JAKO(TrLlmGpuShared, L"この設定は文字認識（OCR）にも使われます。文字認識への反映は Zizai Cast の再起動後です。",
         L"이 설정은 문자 인식(OCR)에도 적용됩니다. 문자 인식에는 Zizai Cast를 다시 시작한 후 반영됩니다.")
 PM_JAKO(TrOcrGpuDownload, L"文字認識のグラフィックスカード高速化をダウンロード（約 {0}）",
@@ -1394,3 +1405,330 @@ PM_JAKO(CardWhy, L"理由を見る",
         L"이유 보기")
 PM_JAKO(CardReinstall, L"インストーラーを入手",
         L"설치 파일 받기")
+// ---- 遠端操控 (0.8.0) ----
+PM_JAKO(MenuRemoteSub, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(MenuRemoteOn, L"リモート操作をオン（スマホでこの PC を操作）",
+        L"원격 제어 켜기(휴대폰으로 이 PC 조작)")
+PM_JAKO(MenuRemoteQr, L"スマホ接続用 QR コードを表示…",
+        L"휴대폰 연결 QR 코드 표시…")
+PM_JAKO(MenuRemoteViewOnly, L"表示のみ（スマホから操作しない）",
+        L"보기 전용(휴대폰으로 조작 안 함)")
+PM_JAKO(MenuRemoteAudio, L"PC の音をスマホへ送る",
+        L"PC 소리를 휴대폰으로 보내기")
+PM_JAKO(MenuRemoteMutePc, L"スマホで音を再生中は PC をミュート",
+        L"휴대폰에서 소리 재생 중 PC 음소거")
+PM_JAKO(MenuRemoteIdle, L"操作がないとき自動で切断",
+        L"조작이 없으면 자동으로 연결 끊기")
+PM_JAKO(MenuRemoteNever, L"切断しない",
+        L"끊지 않음")
+PM_JAKO(RemoteMinutes, L"{0} 分",
+        L"{0}분")
+PM_JAKO(MenuRemoteForget, L"記憶したスマホを消去",
+        L"기억한 휴대폰 지우기")
+PM_JAKO(MenuRemoteKick, L"今のリモート接続を切断",
+        L"현재 원격 연결 끊기")
+PM_JAKO(MenuRemoteHelp, L"リモート操作の説明",
+        L"원격 제어 안내")
+PM_JAKO(RemotePanelTitle, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(RemoteTabLan, L"同じ Wi-Fi",
+        L"같은 Wi-Fi")
+PM_JAKO(RemoteTabTs, L"外出先（Tailscale）",
+        L"외부(Tailscale)")
+PM_JAKO(RemoteScanLan, L"スマホを同じ Wi-Fi につなぎ、カメラで読み取ります",
+        L"휴대폰을 같은 Wi-Fi에 연결하고 카메라로 스캔하세요")
+PM_JAKO(RemoteScanTs, L"スマホで Tailscale をオン（同じアカウント）にして読み取ります",
+        L"휴대폰에서 Tailscale을 켜고(같은 계정) 스캔하세요")
+PM_JAKO(RemoteNoTs, L"この PC には Tailscale が見つかりません。\n\n外出先で使うには、PC とスマホに Tailscale を入れて同じアカウントでログインすると、ここに QR コードが出ます。",
+        L"이 PC에서 Tailscale을 찾지 못했습니다.\n\n외부에서 쓰려면 PC와 휴대폰에 Tailscale을 설치하고 같은 계정으로 로그인하세요. 그러면 여기에 QR 코드가 나타납니다.")
+PM_JAKO(RemoteTsGuide, L"Tailscale の設定方法",
+        L"Tailscale 설정 방법")
+PM_JAKO(RemoteNoteTs, L"モバイル通信では「高画質」は約 10 Mbps 使います。スマホで「なめらか」を選ぶのがおすすめです。",
+        L"모바일 데이터에서는 “선명하게”가 약 10 Mbps를 씁니다. 휴대폰에서 “부드럽게”를 권장합니다.")
+PM_JAKO(RemoteSafety, L"初めて接続するスマホは、この PC で「許可」を押すまで操作できません。Ctrl+D でいつでも切断できます。",
+        L"처음 연결하는 휴대폰은 이 PC에서 “허용”을 눌러야 조작할 수 있습니다. Ctrl+D로 언제든 끊을 수 있습니다.")
+PM_JAKO(RemoteWaiting, L"スマホの接続を待っています…",
+        L"휴대폰 연결을 기다리는 중…")
+PM_JAKO(RemoteAsking, L"{0} が接続しようとしています。表示された画面で「許可」か「拒否」を押してください",
+        L"{0}이(가) 연결하려고 합니다. 표시된 창에서 “허용” 또는 “거부”를 누르세요")
+PM_JAKO(RemoteActiveStatus, L"{0} がこの PC を操作中",
+        L"{0}이(가) 이 PC를 조작 중")
+PM_JAKO(RemoteViewingStatus, L"{0} がこの PC を表示中",
+        L"{0}이(가) 이 PC를 보는 중")
+PM_JAKO(RemoteStop, L"オフにする",
+        L"끄기")
+PM_JAKO(RemoteDone, L"完了",
+        L"완료")
+PM_JAKO(RemoteAskTitle, L"スマホがこの PC を操作しようとしています",
+        L"휴대폰이 이 PC를 조작하려고 합니다")
+PM_JAKO(RemoteAskBody, L"ご自分のスマホのときだけ「許可」してください。許可すると、この PC の画面を見て、マウスとキーボードを操作できます。画面上部に表示が出続けます。Ctrl+D でいつでも切断できます。",
+        L"본인 휴대폰일 때만 “허용”하세요. 허용하면 이 PC 화면을 보고 마우스와 키보드를 조작할 수 있으며, 화면 위쪽에 표시가 계속 나타납니다. Ctrl+D로 언제든 끊을 수 있습니다.")
+PM_JAKO(RemoteAskDevice, L"端末",
+        L"기기")
+PM_JAKO(RemoteAskFrom, L"接続元",
+        L"접속 위치")
+PM_JAKO(RemoteAskViaTs, L"{0}（Tailscale・外出先）",
+        L"{0}(Tailscale, 외부)")
+PM_JAKO(RemoteAskViaLan, L"{0}（同じ Wi-Fi）",
+        L"{0}(같은 Wi-Fi)")
+PM_JAKO(RemoteAllow, L"許可",
+        L"허용")
+PM_JAKO(RemoteDeny, L"拒否",
+        L"거부")
+PM_JAKO(RemoteRemember, L"このスマホを記憶して次から確認しない",
+        L"이 휴대폰을 기억하고 다음부터 묻지 않기")
+PM_JAKO(RemoteBanner, L"リモート操作中 · {0}",
+        L"원격 제어 중 · {0}")
+PM_JAKO(RemoteBannerView, L"リモートで表示中 · {0}",
+        L"원격으로 보는 중 · {0}")
+PM_JAKO(RemoteBannerViewOnly, L"表示のみ",
+        L"보기 전용")
+PM_JAKO(RemoteBannerStop, L"切断（Ctrl+D）",
+        L"끊기(Ctrl+D)")
+PM_JAKO(RemoteOnToast, L"リモート操作をオンにしました：スマホで QR コードを読み取ってください",
+        L"원격 제어가 켜졌습니다: 휴대폰으로 QR 코드를 스캔하세요")
+PM_JAKO(RemoteOffToast, L"リモート操作をオフにしました",
+        L"원격 제어를 껐습니다")
+PM_JAKO(RemoteEndedToast, L"リモート接続が切れました",
+        L"원격 연결이 끊어졌습니다")
+PM_JAKO(RemoteIdleToast, L"スマホの操作がしばらくなかったため、リモート接続を切断しました",
+        L"휴대폰 조작이 오래 없어 원격 연결을 끊었습니다")
+PM_JAKO(RemoteStartFailed, L"リモート操作をオンにできません：この PC はローカルネットワークにつながっていません",
+        L"원격 제어를 켤 수 없습니다: 이 PC가 로컬 네트워크에 연결되어 있지 않습니다")
+PM_JAKO(RemoteBlocked, L"端末（{0}）が間違ったリンクで何度も接続しようとしたため、15 分間ブロックしました",
+        L"기기({0})가 잘못된 링크로 여러 번 연결을 시도해 15분 동안 차단했습니다")
+PM_JAKO(RemoteTrouble, L"スマホ（{0}）はページを開けますが映像が届きません：ファイアウォール、ルーターの AP アイソレーション、または VPN の可能性があります",
+        L"휴대폰({0})이 페이지는 열지만 화면을 받지 못합니다: 방화벽, 공유기의 AP 격리 또는 VPN 때문일 수 있습니다")
+PM_JAKO(RemoteForgotToast, L"記憶したスマホを消去しました。次の接続で確認します",
+        L"기억한 휴대폰을 지웠습니다. 다음 연결 때 다시 묻습니다")
+PM_JAKO(RemoteViewOnlyOn, L"表示のみ：スマホは見るだけで操作できません",
+        L"보기 전용: 휴대폰은 볼 수만 있고 조작할 수 없습니다")
+PM_JAKO(RemoteViewOnlyOff, L"スマホからこの PC を操作できるようになりました",
+        L"휴대폰으로 이 PC를 다시 조작할 수 있습니다")
+PM_JAKO(TipRemote, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(RemoteOnShort, L"オン",
+        L"켜짐")
+PM_JAKO(MenuRemoteAudioSrc, L"音の取得元",
+        L"소리 가져올 장치")
+PM_JAKO(RemoteAudioAuto, L"自動（音が出ている装置）",
+        L"자동(소리가 나는 장치)")
+PM_JAKO(RemoteAudioDefault, L"Windows の既定の再生デバイス",
+        L"Windows 기본 재생 장치")
+PM_JAKO(RemoteAudioAutoShort, L"自動",
+        L"자동")
+PM_JAKO(RemoteAudioDefaultShort, L"既定",
+        L"기본")
+PM_JAKO(RemoteAudioSrcToast, L"PC の音の取得元：{0}",
+        L"PC 소리 가져오기: {0}")
+PM_JAKO(RemoteMutePcOnToast, L"スマホで音を出している間、PC のスピーカーをミュートします（止めるか切断で元に戻ります）",
+        L"휴대폰에서 소리가 나는 동안 PC 스피커를 음소거합니다(끄거나 연결이 끊기면 복원)")
+PM_JAKO(RemoteMutePcOffToast, L"PC のスピーカーのミュートを解除しました",
+        L"PC 스피커 음소거를 해제했습니다")
+PM_JAKO(CardRemoteTitle, L"スマホからこの PC を操作",
+        L"휴대폰으로 이 PC 제어")
+PM_JAKO(CardRemoteBody, L"スマホのブラウザーで画面を見て操作。家では Wi-Fi、外出先では固定リンク",
+        L"휴대폰 브라우저로 화면을 보고 제어합니다. 집에서는 Wi-Fi, 밖에서는 고정 링크")
+PM_JAKO(CardRemoteOnIdle, L"オン · {0} · スマホの接続待ち",
+        L"켜짐 · {0} · 휴대폰 연결 대기 중")
+PM_JAKO(CardRemoteOnActive, L"オン · {0} · {1} 台接続中",
+        L"켜짐 · {0} · 휴대폰 {1}대 연결됨")
+PM_JAKO(CardRemotePathFixed, L"固定リンク",
+        L"고정 링크")
+PM_JAKO(CardRemoteOpen, L"オンにする",
+        L"켜기")
+PM_JAKO(CardRemoteShow, L"接続方法と QR コード",
+        L"연결 방법과 QR 코드")
+PM_JAKO(TabCast, L"スマホ ミラーリング",
+        L"휴대폰 미러링")
+PM_JAKO(TabRemote, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(RemoteSwLabel, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(RemoteSwOff, L"オフ · オンにするとスマホのブラウザーでこの PC を見て操作できます",
+        L"꺼짐 · 켜면 휴대폰 브라우저로 이 PC를 보고 제어할 수 있습니다")
+PM_JAKO(RemoteCardLanTitle, L"家で（同じ Wi-Fi）",
+        L"집에서(같은 Wi-Fi)")
+PM_JAKO(RemoteCardLanBody, L"スマホを同じ Wi-Fi につないで、カメラで QR コードを読み取るだけ",
+        L"휴대폰을 같은 Wi-Fi에 연결하고 카메라로 QR 코드를 스캔")
+PM_JAKO(RemoteShowQr, L"QR コードを表示",
+        L"QR 코드 보기")
+PM_JAKO(RemoteHideQr, L"QR コードを隠す",
+        L"QR 코드 숨기기")
+PM_JAKO(RemoteCardFixedTitle, L"外出先：固定アドレス＋パスワード",
+        L"밖에서: 고정 주소 + 비밀번호")
+PM_JAKO(RemoteCardFixedBodyNew, L"一度パスワードを決めると固定アドレスができます。外出先で開いてパスワードを入れるだけで、先に PC を触る必要はありません。",
+        L"비밀번호를 한 번 정하면 고정 주소가 생깁니다. 밖에서 열고 비밀번호만 입력하면 되며, 먼저 PC를 만질 필요가 없습니다.")
+PM_JAKO(RemoteCardFixedBodyOff, L"パスワードは設定済み。固定アドレスは今オフです。",
+        L"비밀번호는 설정됨. 고정 주소는 지금 꺼져 있습니다.")
+PM_JAKO(RemoteCardFixedBodyOn, L"スマホでこのアドレスを開いてパスワードを入力：",
+        L"휴대폰에서 이 주소를 열고 비밀번호 입력:")
+PM_JAKO(RemoteFixedSetPw, L"パスワードを設定",
+        L"비밀번호 설정")
+PM_JAKO(RemoteFixedOpen, L"オンにする",
+        L"켜기")
+PM_JAKO(RemoteFixedClose, L"オフにする",
+        L"끄기")
+PM_JAKO(RemoteFixedCopy, L"アドレスをコピー",
+        L"주소 복사")
+PM_JAKO(RemoteFixedTemp, L"一時アドレスを使う",
+        L"임시 주소 사용")
+PM_JAKO(RemoteCardPersistent, L"常時外部接続（PC を起動すれば外から使える）",
+        L"상시 외부 접속(PC를 켜면 밖에서 접속 가능)")
+PM_JAKO(RemoteCardTsTitle, L"外出先：Tailscale",
+        L"밖에서: Tailscale")
+PM_JAKO(RemoteCardTsBody, L"スマホにも Tailscale を入れて同じアカウントでログインすれば、家と同じように接続",
+        L"휴대폰에도 Tailscale을 설치하고 같은 계정으로 로그인하면 집처럼 연결")
+PM_JAKO(RemoteNoTsShort, L"この PC にはまだ Tailscale がありません",
+        L"이 PC에는 아직 Tailscale이 없습니다")
+PM_JAKO(RemoteAdvanced, L"詳細設定",
+        L"고급 설정")
+PM_JAKO(RemoteHowTo, L"使い方",
+        L"사용 방법")
+PM_JAKO(MenuRemoteRemembered, L"記憶したスマホ",
+        L"기억한 휴대폰")
+PM_JAKO(RemoteRememberedNone, L"記憶したスマホはまだありません",
+        L"아직 기억한 휴대폰이 없습니다")
+PM_JAKO(RemoteForgetOneHint, L"クリックするとそのスマホを忘れます",
+        L"클릭하면 그 휴대폰을 잊습니다")
+PM_JAKO(RemoteForgotOne, L"{0} を忘れました。次回は PC で許可が必要です",
+        L"{0}을(를) 잊었습니다. 다음에는 PC에서 허용해야 합니다")
+PM_JAKO(RemoteTitleWaiting, L"リモート操作：スマホ待ち（{0}）",
+        L"원격 제어: 휴대폰 대기 중({0})")
+PM_JAKO(RemoteTitleActive, L"リモート操作：{0} が操作中",
+        L"원격 제어: {0} 연결됨")
+PM_JAKO(MenuRemoteTray, L"リモート操作",
+        L"원격 제어")
+PM_JAKO(RemoteTabFixed, L"固定リンク",
+        L"고정 링크")
+PM_JAKO(RemoteFixedTitle, L"常時外部リンク：固定アドレス＋パスワード",
+        L"상시 외부 링크: 고정 주소 + 비밀번호")
+PM_JAKO(RemoteFixedIntro, L"オンにすると、PC の起動時に固定アドレスが用意されます。外出先でスマホから開いてパスワードを入れるだけで、先に PC を触る必要はありません。",
+        L"켜 두면 PC가 켜질 때마다 고정 주소가 준비됩니다. 밖에서 휴대폰으로 열고 비밀번호만 입력하면 되며, 먼저 PC를 만질 필요가 없습니다.")
+PM_JAKO(RemoteFixedStart, L"パスワードを決めてオン",
+        L"비밀번호 정하고 켜기")
+PM_JAKO(RemoteFixedStartNow, L"常時外部リンクをオン",
+        L"상시 외부 링크 켜기")
+PM_JAKO(RemoteFixedStarting, L"固定リンクを準備しています…",
+        L"고정 링크를 켜는 중…")
+PM_JAKO(RemoteScanFixed, L"スマホで読み取るかアドレスを開き、パスワードを入力",
+        L"휴대폰으로 스캔하거나 주소를 열고 비밀번호를 입력")
+PM_JAKO(RemoteFixedNote, L"パスワードを 5 回間違えると 15 分ロックされます。ホーム画面に追加すると次からワンタップで開けます。",
+        L"비밀번호를 5번 틀리면 15분 동안 잠깁니다. 홈 화면에 추가하면 다음부터 한 번에 열립니다.")
+PM_JAKO(RemoteFixedStop, L"常時外部リンクをオフ",
+        L"상시 외부 링크 끄기")
+PM_JAKO(RemoteFixedChangePw, L"パスワード変更",
+        L"비밀번호 변경")
+PM_JAKO(RemoteFixedFailed, L"固定リンクを開始できません：{0}",
+        L"고정 링크를 켜지 못했습니다: {0}")
+PM_JAKO(RemoteFixedViaCf, L"{0}。代わりに Cloudflare の一時アドレスを使います（PC を再起動すると変わります）",
+        L"{0}. 대신 Cloudflare 임시 주소를 씁니다(PC를 다시 시작하면 바뀝니다)")
+PM_JAKO(RemoteFixedWhyNoTs, L"この PC に Tailscale がインストールされていません",
+        L"이 PC에 Tailscale이 설치되어 있지 않습니다")
+PM_JAKO(RemoteFixedWhyNotRunning, L"Tailscale にサインインしていないか、実行されていません",
+        L"Tailscale에 로그인하지 않았거나 실행 중이 아닙니다")
+PM_JAKO(RemoteFixedWhyNoFunnel, L"Tailscale アカウントで Funnel が許可されていません（管理画面の Access controls で有効にします）",
+        L"Tailscale 계정에서 Funnel이 허용되지 않았습니다(관리 페이지의 Access controls에서 켭니다)")
+PM_JAKO(RemoteFixedWhyOther, L"Tailscale Funnel が使えませんでした（{0}）",
+        L"Tailscale Funnel이 작동하지 않았습니다({0})")
+PM_JAKO(RemoteFixedOnToast, L"常時外部リンクをオンにしました：{0}",
+        L"상시 외부 링크를 켰습니다: {0}")
+PM_JAKO(RemoteFixedOffToast, L"常時外部リンクをオフにし、アドレスを削除しました",
+        L"상시 외부 링크를 끄고 주소를 없앴습니다")
+PM_JAKO(RemoteFixedLockedBalloon, L"{0} からパスワードが 5 回間違えられたため、15 分ロックしました",
+        L"{0}에서 비밀번호를 5번 틀려 15분 동안 잠갔습니다")
+PM_JAKO(RemoteAskViaFixed, L"{0}（固定リンク・パスワード正解）",
+        L"{0}(고정 링크, 비밀번호 맞음)")
+PM_JAKO(RemoteBannerFixed, L"固定リンク",
+        L"고정 링크")
+PM_JAKO(RemotePwTitle, L"常時外部リンクのパスワード",
+        L"상시 외부 링크 비밀번호")
+PM_JAKO(RemotePwBody, L"外出先で固定リンクを開くときに入力します。8 文字以上。PC にはハッシュだけを保存し、パスワード自体は保存しません。",
+        L"밖에서 고정 링크를 열 때 입력하는 비밀번호입니다. 8자 이상. PC에는 해시만 저장하고 비밀번호 자체는 저장하지 않습니다.")
+PM_JAKO(RemotePwField1, L"パスワード",
+        L"비밀번호")
+PM_JAKO(RemotePwField2, L"もう一度入力",
+        L"한 번 더 입력")
+PM_JAKO(RemotePwCue1, L"8 文字以上",
+        L"8자 이상")
+PM_JAKO(RemotePwCue2, L"同じパスワード",
+        L"같은 비밀번호")
+PM_JAKO(RemotePwNote, L"変更すると、ログイン済みのスマホもすべて入力し直しになります。",
+        L"바꾸면 로그인한 휴대폰도 모두 다시 입력해야 합니다.")
+PM_JAKO(RemotePwSave, L"保存してオン",
+        L"저장하고 켜기")
+PM_JAKO(RemotePwShort, L"パスワードは 8 文字以上にしてください",
+        L"비밀번호는 8자 이상이어야 합니다")
+PM_JAKO(RemotePwMismatch, L"2 回の入力が一致しません",
+        L"두 비밀번호가 다릅니다")
+PM_JAKO(RemotePwSaved, L"パスワードを保存しました（ハッシュのみ）",
+        L"비밀번호를 저장했습니다(해시만)")
+PM_JAKO(MenuRemotePersistent, L"常時外部リンク（固定アドレス＋パスワード）",
+        L"상시 외부 링크(고정 주소 + 비밀번호)")
+PM_JAKO(MenuRemotePassword, L"常時外部リンクのパスワードを変更…",
+        L"상시 외부 링크 비밀번호 변경…")
+PM_JAKO(MenuRemoteFixedApproval, L"外からの新しいスマホも PC で許可が必要",
+        L"밖에서 접속하는 새 휴대폰도 PC에서 허용 필요")
+PM_JAKO(WhatsNewTitle, L"{0} の新機能",
+        L"{0} 새 기능")
+PM_JAKO(WhatsNewBody, L"このバージョンで増えたこと：",
+        L"이번 버전에서 달라진 점:")
+PM_JAKO(WhatsNewRemote, L"リモート操作がメイン画面に。オンのときは状態も表示",
+        L"원격 제어가 메인 화면으로, 켜져 있으면 상태도 표시")
+PM_JAKO(WhatsNewFixed, L"常時外部リンク：固定アドレス＋パスワード。先に PC を触る必要なし",
+        L"상시 외부 링크: 고정 주소 + 비밀번호, 먼저 PC를 만질 필요 없음")
+PM_JAKO(WhatsNewSound, L"スマホの音量アップ（0–300%）、PC のどのスピーカーの音も届く",
+        L"휴대폰 소리 더 크게(0–300%), PC의 모든 스피커 소리 전달")
+PM_JAKO(WhatsNewMute, L"「スマホで再生中は PC をミュート」が動くように",
+        L"“휴대폰 재생 중 PC 음소거”가 이제 작동")
+PM_JAKO(WhatsNewLabel1, L"メイン画面",
+        L"메인 화면")
+PM_JAKO(WhatsNewLabel2, L"外出先",
+        L"외부")
+PM_JAKO(WhatsNewLabel3, L"音",
+        L"소리")
+PM_JAKO(WhatsNewLabel4, L"修正",
+        L"수정")
+PM_JAKO(WhatsNewOk, L"OK",
+        L"확인")
+PM_JAKO(WhatsNewTry, L"リモート操作を見る",
+        L"원격 제어 보기")
+PM_JAKO(RemotePcOnlyToast, L"スマホからはリモート操作をオフにできません。このボタンは PC でのみ使えます",
+        L"휴대폰에서는 원격 제어를 끌 수 없습니다. 이 버튼은 PC에서만 쓸 수 있습니다")
+PM_JAKO(RemoteTabTsShort, L"Tailscale",
+        L"Tailscale")
+PM_JAKO(RemoteTabTunnel, L"アプリ不要",
+        L"앱 없이 외부")
+PM_JAKO(RemoteTunnelTitle, L"スマホにアプリ不要、外からでも接続",
+        L"휴대폰에 앱 없이 밖에서도 연결")
+PM_JAKO(RemoteTunnelIntro, L"スマホに Tailscale は不要。\nモバイル通信からこの PC に\n接続できます。\n\nCloudflare の無料の一時アドレス\n（trycloudflare.com）で、\n毎回変わります。",
+        L"휴대폰에 Tailscale 없이 모바일 데이터로 이 PC에 연결합니다.\n\nCloudflare의 무료 임시 주소(trycloudflare.com)를 쓰며 매번 바뀝니다.")
+PM_JAKO(RemoteTunnelStart, L"リンクを取得",
+        L"링크 받기")
+PM_JAKO(RemoteTunnelStarting, L"アドレスを取得中…（約 10～20 秒）",
+        L"주소를 받는 중…(약 10~20초)")
+PM_JAKO(RemoteScanTunnel, L"カメラで読み取り（1 回だけ有効）、パスコードを入力",
+        L"카메라로 스캔(한 번만 유효)한 뒤 통행 코드 입력")
+PM_JAKO(RemoteTunnelCode, L"パスコード  {0}",
+        L"통행 코드  {0}")
+PM_JAKO(RemoteTunnelNote, L"3 つの保護：使い捨てリンク・パスコード・この PC で「許可」。\n出かける前に PC のそばで一度つないで「記憶」してください。",
+        L"세 가지 보호: 일회용 링크, 통행 코드, 이 PC에서 “허용”.\n나가기 전에 PC 옆에서 한 번 연결하고 “기억”하세요.")
+PM_JAKO(RemoteTunnelStop, L"リンクを停止",
+        L"링크 중지")
+PM_JAKO(RemoteTunnelFailed, L"リンクを取得できません：{0}",
+        L"링크를 받을 수 없습니다: {0}")
+PM_JAKO(RemoteTunnelRetry, L"再試行",
+        L"다시 시도")
+PM_JAKO(RemoteTunnelMissing, L"cloudflared が見つかりません（リンクに必要です）。Zizai Cast を再インストールしてください。",
+        L"cloudflared가 없습니다(링크에 필요). Zizai Cast를 다시 설치하세요.")
+PM_JAKO(RemoteAskViaTunnel, L"{0}（アプリ不要リンク）",
+        L"{0}(앱 없이 외부 링크)")
+PM_JAKO(MenuRemoteTunnel, L"アプリ不要の外部リンク（モバイル通信からも接続）",
+        L"앱 없이 외부 링크(모바일 데이터로도 연결)")
+PM_JAKO(RemoteTunnelOnToast, L"リンクの準備ができました：QR コードを読み取り、パスコードを入力してください",
+        L"링크가 준비되었습니다: QR 코드를 스캔하고 통행 코드를 입력하세요")
+PM_JAKO(RemoteTunnelUnreachable, L"リンクにまだ外から接続できません（Cloudflare 側の準備中）。「リンクを停止」してから取り直してください",
+        L"링크에 아직 밖에서 연결할 수 없습니다(Cloudflare 준비 중). “링크 중지” 후 다시 받으세요")
+PM_JAKO(RemoteTunnelOffToast, L"アプリ不要リンクを停止しました",
+        L"앱 없이 외부 링크를 중지했습니다")

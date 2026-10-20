@@ -98,6 +98,11 @@ public:
         std::wstring label;
         bool primary = false;
         int card = -1;  // 0.7.8: the button of idle card #card (drawn in it, not in the row)
+        // 0.8.2: 0 button / link, 1 page tab (top), 2 the big switch (in place of the
+        // title; sub = its status line), 3 a check box in its card. on: selected / checked.
+        int kind = 0;
+        bool on = false;
+        std::wstring sub;
     };
     void setHints(std::vector<std::wstring> lines) { hints_ = std::move(lines); }
     // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards (title,
@@ -107,6 +112,8 @@ public:
     struct Card {
         std::wstring title, body, note;
         bool muted = false;
+        std::vector<uint8_t> qr;  // 0.8.2: BGRA QR code (1 px per module + quiet zone) at the card's right
+        int qrSize = 0;
     };
     void setCards(std::vector<Card> cards) { cards_ = std::move(cards); }
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }
@@ -168,11 +175,13 @@ public:
     const std::vector<RECT>& toolbarRects() const { return toolRects_; }
     const RECT& toolbarPill() const { return toolPill_; }
     // User activity: restarts the idle screen's ambient animation.
-    void poke() { ambientUntil_ = clockMs() + kAmbientMs; }
+    void poke() { ambientUntil_ = clockMs() + ambientMs(); }
     // Windows 「顯示動畫」 off (SPI_GETCLIENTAREAANIMATION): no ambient motion
     // (the idle screen is a static picture), no hop / hearts / sparkles /
     // flash, every transition a plain fade of at most 120 ms.
     void setReducedMotion(bool on) { reduced_ = on; }
+    // 0.8.2: a phone is watching this screen (遠端操控): the idle screen is still.
+    void setIdleQuiet(bool on) { quiet_ = on; }
     bool reducedMotion() const { return reduced_; }
 
     // ---- Presentation / theme / recording ----
@@ -251,6 +260,7 @@ public:
     void setOverlayLive(bool on);
     bool overlayLive() const;
     void liveBoxesSet();
+    void setLiveIgnore(const std::vector<char>& cells, int gx, int gy);  // tracker: grid cells to leave out (a video)
     // List panel / markers: item = list number - 1.  hot: under the cursor
     // (-1 none); selected: clicked (reveal: scroll the list to it); scroll in DIPs.
     void setOverlayHot(int item) { ovHot_ = item; }
@@ -380,7 +390,18 @@ public:
 
 private:
     enum class Scene { Idle, Connecting, Live };
-    static constexpr double kAmbientMs = 40000;  // idle animation after activity
+    // Idle animation after activity (0.8.2: 15 s at 20 fps; it was 40 s at 30 fps:
+    // ~10-20 % of a core each time the mouse crossed the window, owner's log 23:14-23:18).
+    // PM_IDLE_ANIM=old: the 0.8.1 values (before / after measurements).
+    static bool oldIdleAnim() {
+        static const bool v = [] {
+            wchar_t b[8] = {};
+            return GetEnvironmentVariableW(L"PM_IDLE_ANIM", b, 8) > 0 && b[0] == L'o';
+        }();
+        return v;
+    }
+    static double ambientMs() { return oldIdleAnim() ? 40000 : 15000; }
+    static double ambientFrameMs() { return oldIdleAnim() ? 1000.0 / 30 : 1000.0 / 20; }
 
     bool createTargets();
     bool createDeviceObjects();
@@ -593,6 +614,18 @@ private:
         float titleSize = 0, cardSize = 0, cardsH = 0, gapCards = 0, block = 0;
     };
     IdlePlan planIdleCards(const Layout& L, bool full);
+    // 0.8.2 (renderer_idle.cpp): the page tabs at the top of the text region and the
+    // big switch; both return their height (draw false: measure only).
+    float drawTabs(const Layout& L, bool draw, bool clickable);
+    bool richIdle() const {  // the big switch, check boxes or QR codes on the idle page
+        for (const auto& c : cards_)
+            if (c.qrSize > 0) return true;
+        for (const auto& a : actions_)
+            if (a.kind == 2 || a.kind == 3) return true;
+        return false;
+    }
+    float drawSwitch(float y, const Layout& L, float maxW, bool draw, bool clickable);
+    void drawCheck(float bx, float by, float box, bool on, float hl);
     bool optionsFit(float size, float regionW);  // every check box label whole (drawOptions trims)
     // A title's size: shrunk up to 25 % so it stays on one line within maxW.
     float oneLineSize(const std::wstring& text, float size, float maxW);
@@ -632,6 +665,7 @@ private:
     Palette pal_;
     int theme_ = 0;
     bool reduced_ = false;  // setReducedMotion
+    bool quiet_ = false;    // setIdleQuiet
     // A transition's duration: as designed, or a plain 120 ms fade with reduced motion.
     double ms(double normal) const { return reduced_ && normal > 120 ? 120 : normal; }
     double lastPictureAt_ = -1e9;  // newest picture shown (REC dot pulses only while pictures flow)

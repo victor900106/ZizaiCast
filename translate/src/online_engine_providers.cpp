@@ -1,12 +1,16 @@
-// Online translation providers: DeepL API (Free / Pro) and Microsoft Azure
-// Translator (Text Translation v3.0, kAzureApiVersion).  Both translate ja / ko / en / zh
-// directly (no English pivot) into Traditional Chinese.  Request formats:
+// Online translation providers: DeepL API (Free / Pro), Microsoft Azure
+// Translator (Text Translation v3.0, kAzureApiVersion) and Google Cloud
+// Translation Basic (v2).  All translate ja / ko / en / zh directly (no
+// English pivot) into Traditional Chinese.  Request formats:
 //   DeepL  POST https://api(-free).deepl.com/v2/translate   (JSON body,
 //          Authorization: DeepL-Auth-Key …, tag_handling xml, ignore_tags k)
 //          GET  /v2/usage  (the key check: bills no characters)
 //   Azure  POST https://api.cognitive.microsofttranslator.com/translate
 //          ?api-version=3.0&from=ja&to=zh-Hant&textType=html
 //          (Ocp-Apim-Subscription-Key / -Region, <span class="notranslate">)
+//   Google POST https://translation.googleapis.com/language/translate/v2
+//          JSON {"q":[...],"target":"zh-TW","source":"ja","format":"html"}
+//          (X-Goog-Api-Key header, <span class="notranslate">)
 #include "online_engine.h"
 
 namespace pm::translate::online {
@@ -259,12 +263,151 @@ public:
     }
 };
 
+// ---------------- Google Cloud Translation Basic (v2) ----------------
+//
+// Docs (checked 2026-10-10):
+//   https://docs.cloud.google.com/translate/docs/reference/rest/v2/translate  (q: at most 128 strings)
+//   https://docs.cloud.google.com/translate/quotas  (request at most 100K bytes, 5K characters recommended;
+//                                                   quota exceeded = HTTP 403 "Daily Limit Exceeded" /
+//                                                   "User Rate Limit Exceeded")
+//   https://docs.cloud.google.com/docs/authentication/api-keys-use  (X-Goog-Api-Key header preferred: a key in
+//                                                                 the URL can leak through URL scans)
+// format is "html" (not "text") on purpose: only html honours <span class="notranslate">, which keeps the
+// placeholders / keep strings / glossary terms; markUp() has escaped & < > already.  Answers are unmarked
+// like Azure's, so HTML entities in them (&#39; &quot; &amp; ...) are decoded.
+
+// Text of an error answer that tells the cases apart: message, status and reason of every entry of
+// "errors" / "details" (not the help links), lower-cased by the caller.
+void collectErrorText(const Json& j, std::wstring& out, int depth = 0) {
+    if (depth > 6) return;
+    if (j.t == Json::T::Str) {
+        out += j.s + L'\n';
+    } else if (j.t == Json::T::Arr) {
+        for (const auto& e : j.a) collectErrorText(e, out, depth + 1);
+    } else if (j.t == Json::T::Obj) {
+        for (const auto& [k, v] : j.o)
+            if (k != L"@type" && k != L"links" && k != L"url" && k != L"domain" && k != L"locationType" && k != L"location")
+                collectErrorText(v, out, depth + 1);
+    }
+}
+
+class Google final : public Adapter {
+public:
+    Provider provider() const override { return Provider::Google; }
+    const char* engineId() const override { return "online-google"; }
+    Markup markup() const override { return Markup::Html; }
+    static const wchar_t* code(Lang l) {
+        switch (l) {
+        case Lang::Ja: return L"ja";
+        case Lang::Ko: return L"ko";
+        case Lang::En: return L"en";
+        case Lang::ZhHans: return L"zh-CN";
+        case Lang::ZhHant: return L"zh-TW";
+        default: return nullptr;  // Unknown: Google detects the source
+        }
+    }
+    bool supports(Lang src, Lang tgt) const override { return code(tgt) && (src == Lang::Unknown || code(src)) && src != tgt; }
+    size_t maxTexts() const override { return 128; }     // Google: at most 128 strings in q
+    size_t maxChars() const override { return 5000; }    // Google's recommended maximum per request (hard limit: 100K bytes)
+    static HttpRequest base(const std::wstring& key) {
+        HttpRequest rq;
+        rq.host = L"translation.googleapis.com";
+        rq.path = L"/language/translate/v2";
+        rq.headers.push_back({L"X-Goog-Api-Key", key});  // header, not ?key=: the URL never carries the key
+        rq.headers.push_back({L"Content-Type", L"application/json; charset=UTF-8"});
+        applyLoopback(rq);
+        return rq;
+    }
+    static std::string body(const std::vector<std::wstring>& texts, Lang src, Lang tgt) {
+        std::string j = "{\"q\":[";
+        for (size_t i = 0; i < texts.size(); ++i) j += (i ? "," : "") + jsonString(texts[i]);
+        j += "],\"target\":" + jsonString(code(tgt));
+        if (const wchar_t* s = code(src)) j += ",\"source\":" + jsonString(s);
+        return j + ",\"format\":\"html\"}";
+    }
+    HttpRequest translateRequest(const Batch& b, const std::wstring& key, const std::wstring&) const override {
+        HttpRequest rq = base(trimmed(key));
+        std::vector<std::wstring> texts;
+        for (const auto& t : b.texts) texts.push_back(t.text);
+        rq.body = body(texts, b.src, b.tgt);  // no context field: each text stands alone
+        return rq;
+    }
+    Status parseTranslate(const HttpResponse& rs, size_t count, std::vector<std::wstring>& out,
+                          std::wstring* detail) const override {
+        Json j;
+        const Json* d = parseJson(rs.body, j) ? j.get(L"data") : nullptr;
+        const Json* tr = d ? d->get(L"translations") : nullptr;
+        if (!tr || tr->t != Json::T::Arr || tr->a.size() != count) {
+            if (detail) *detail = L"unexpected Google answer";
+            return Status::BadResponse;
+        }
+        out.clear();
+        for (const auto& t : tr->a) out.push_back(t.get(L"translatedText") ? t.get(L"translatedText")->str() : std::wstring());
+        return Status::Ok;
+    }
+    Status errorStatus(const HttpResponse& rs, std::wstring* detail) const override {
+        Json j;
+        parseJson(rs.body, j);
+        if (detail) *detail = messageOf(rs, j);
+        std::wstring t;
+        if (const Json* e = j.get(L"error")) collectErrorText(*e, t);
+        for (auto& ch : t) ch = static_cast<wchar_t>(towlower(ch));
+        auto has = [&](const wchar_t* s) { return t.find(s) != std::wstring::npos; };
+        if (rs.status >= 500) return Status::ServerError;
+        if (rs.status == 429) return has(L"daily") || has(L"per day") ? Status::QuotaExceeded : Status::RateLimited;
+        if (rs.status == 401) return Status::BadKey;
+        if (rs.status == 403) {
+            // Quota: 403 "User Rate Limit Exceeded" (per minute) / "Daily Limit Exceeded" (daily).
+            if (has(L"rate limit") || has(L"per minute") || has(L"ratelimitexceeded")) return Status::RateLimited;
+            if (has(L"daily") || has(L"quota") || has(L"resource_exhausted")) return Status::QuotaExceeded;
+            // API not enabled / key limited to other APIs / no billing account.
+            if (has(L"service_disabled") || has(L"accessnotconfigured") || has(L"has not been used") || has(L"is disabled") ||
+                has(L"api_key_service_blocked") || has(L"billing"))
+                return Status::ApiDisabled;
+            return Status::BadKey;  // other key restrictions (IP address, referrer, app), no permission
+        }
+        if (rs.status == 400) {
+            if (has(L"api key not valid") || has(L"api_key_invalid") || has(L"keyinvalid") || has(L"api key expired") ||
+                has(L"api key not found"))
+                return Status::BadKey;
+            if (has(L"language") || has(L"invalid value")) return Status::Unsupported;
+        }
+        return Status::BadResponse;
+    }
+    TestResult testKey(const std::wstring& rawKey, const std::wstring&) const override {
+        TestResult r;
+        std::wstring key = trimmed(rawKey);
+        if (key.empty()) return r;
+        // A real (2-character) translation: it also shows whether the API is enabled for the key.
+        HttpRequest rq = base(key);
+        rq.body = body({L"OK"}, Lang::En, Lang::ZhHant);
+        Status st;
+        std::wstring detail;
+        HttpResponse rs = sendWithRetry(rq, *this, &st, &detail);
+        r.status = st;
+        r.http = rs.status;
+        r.detail = scrub(detail, key);
+        if (st == Status::Ok) {
+            std::vector<std::wstring> out;
+            if (parseTranslate(rs, 1, out, &r.detail) != Status::Ok) {
+                r.status = Status::BadResponse;
+                return r;
+            }
+            r.sample = unmark(out[0], Marked{}, Markup::Html);
+            r.plan = Plan::Google;
+            r.detail = L"Google Cloud Translation";
+        }
+        return r;
+    }
+};
+
 }  // namespace
 
 std::unique_ptr<Adapter> makeAdapter(Provider p) {
     switch (p) {
     case Provider::DeepL: return std::make_unique<DeepL>();
     case Provider::Azure: return std::make_unique<Azure>();
+    case Provider::Google: return std::make_unique<Google>();
     default: return nullptr;
     }
 }

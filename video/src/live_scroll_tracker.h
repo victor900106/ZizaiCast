@@ -40,6 +40,10 @@ public:
     };
     void setAnchor(const ScrollSig& s);
     void clear();
+    // Grid cells (gx x gy, row-major) that keep changing by themselves (a playing video): in the next pictures
+    // they are taken to be as the anchor has them - a video must not make the page look "changed some other
+    // way" (the cards would hide).  Empty: none.
+    void setIgnore(const std::vector<char>& cells, int gx, int gy);
     bool hasAnchor() const { return anchor_.valid(); }
     const Result& update(const ScrollSig& cur);
     const Result& last() const { return last_; }
@@ -51,6 +55,8 @@ private:
     double score(int d, int step, int* overlap) const;
     ScrollSig anchor_, cur_;
     Result last_;
+    std::vector<char> ign_;     // setIgnore()
+    int ignGx_ = 0, ignGy_ = 0;
     float predRows_ = 0;        // the previous shift (rows): preferred among look-alikes
     std::vector<int> changed_;  // rows that differ from the anchor at the same place
     int lo_ = 0, hi_ = 0;       // the changed rows' span (the scrolling area)

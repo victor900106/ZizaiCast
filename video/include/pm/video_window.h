@@ -318,6 +318,13 @@ public:
     // boxes' picture scrolled hides them until the next setTextOverlay).
     // The boxes of setTextOverlay are taken to be of the last grabPicture().
     void setTextOverlayLive(bool on);
+    // The cards stay as they are but are anchored to the picture of the last grabPicture() again (a live run found the same
+    // cards): they follow the scrolling from there, no new layout.
+    void reanchorTextOverlay();
+    // Grid cells (gx x gy, row-major, 1 = ignore) of the picture that keep changing (a playing video): the scroll
+    // tracking leaves them out, so a video does not make the cards look like a page that changed (and hide).
+    // Empty = none.  Cleared by setTextOverlayLive(false).
+    void setTextOverlayLiveIgnore(std::vector<char> cells, int gx, int gy);
     // Centre card with a spinner, e.g. 「正在翻譯…」; empty string hides it.
     void setOverlayBusy(const std::wstring& label);
     // Lets the user drag a rectangle on the picture (crosshair cursor, hint
@@ -344,6 +351,10 @@ public:
     // boxes, toasts, PIN card, spinner, REC badge) and the mascot's accent parts
     // (phone screen, rim light, beam, hearts); its cloud stays white.
     void setTheme(Theme t);
+    // 0.8.2: while the PC is streamed to a phone (遠端操控) the idle screen does
+    // not float at all (a still picture: no CPU / GPU for frames nobody looks at
+    // here, and the remote encoder can skip the unchanged screen).
+    void setIdleQuiet(bool on);
     // { background, card, accent } as 0xRRGGBB, e.g. for matching menus.
     static std::array<uint32_t, 3> themeSwatch(Theme t);
 
@@ -426,6 +437,12 @@ public:
         bool primary = false;
         std::function<void()> onClick;
         int card = -1;
+        // 0.8.2: 0 button / link, 1 page tab (a segmented pill at the top; on = the
+        // page shown), 2 the big on / off switch in place of the title (on; sub = its
+        // status line), 3 a check box inside its card (on = checked).
+        int kind = 0;
+        bool on = false;
+        std::wstring sub;
     };
     void setIdleActions(std::vector<IdleAction> actions);
     // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards side by
@@ -436,6 +453,8 @@ public:
     struct IdleCard {
         std::wstring title, body, note;
         bool muted = false;
+        std::vector<uint8_t> qr;  // 0.8.2: a QR code at the card's right (BGRA, 1 px per module + quiet zone)
+        int qrSize = 0;
     };
     void setIdleCards(std::vector<IdleCard> cards);
     // Shorthand: a single link (e.g. 「怎麼連線？」); empty label hides it.

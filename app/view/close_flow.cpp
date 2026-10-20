@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -16,6 +17,7 @@ void quitApp() {
     g.quitting = true;
     stopRecording();
     stopSharing();
+    stopRemote();
     g.aboutPanel.close();
     g.updatePanel.close();
     g.askPanel.close();

@@ -758,6 +758,182 @@ int main() {
         CHECK(testStoredKey(Provider::None).status == Status::NotConfigured);
     }
 
+    // 14b. Google Cloud Translation Basic (v2): request format, parsing, error
+    //      classification, batch split, key masking.  Fake answers only: no real
+    //      Google key was available, so the live API is NOT verified by this test.
+    std::printf("[google]\n");
+    {
+        const std::wstring kGoogleKey = L"AIzaSyD-FAKEKEY0123456789abcdefghijk";
+        resetBackoff();
+        setKey(Provider::Google, L" " + kGoogleKey + L"\r\n");
+        CHECK(hasKey(Provider::Google) && loadKey(Provider::Google) == kGoogleKey);
+        CHECK(keyHint(Provider::Google) == L"••••hijk");
+        CHECK(fileText(cfg).find("key_google=") != std::string::npos);
+        CHECK(fileText(cfg).find(u8(kGoogleKey)) == std::string::npos && fileText(cfg).find("FAKEKEY") == std::string::npos);
+        enable(Provider::Google, Mode::All);
+        CHECK(loadSettings().enabled() && loadSettings().consented(Provider::Google));
+        CHECK(std::string(eng->id()) == "online-google");
+        CHECK(eng->supports(Lang::Ko, Lang::ZhHant, &direct) && direct);
+        CHECK(fileText(cfg).find("consent_google=1") != std::string::npos);
+
+        auto googleEcho = [](const Req& r) {
+            Json j;
+            if (!parseJson(r.body, j) || !j.get(L"q")) return Resp{400, "{\"error\":{\"code\":400,\"message\":\"bad\"}}"};
+            std::string o = "{\"data\":{\"translations\":[";
+            for (size_t i = 0; i < j.get(L"q")->a.size(); ++i)
+                o += std::string(i ? "," : "") + "{\"translatedText\":" +
+                     jsonString(echo(j.get(L"q")->a[i].s, L"<span class=\"notranslate\">", L"</span>")) + "}";
+            return Resp{200, o + "]}}"};
+        };
+        std::vector<TrHypothesis> out;
+        std::wstring err;
+        srv.handler = googleEcho;
+        srv.reset();
+        TrRequest a = req(L"ZQAは<b>1.5g</b>");
+        a.keep = {L"1.5g"};
+        a.context = L"ignored by Google";
+        CHECK(eng->translate({a, req(L"주의 ZQB", Lang::Ko)}, out, &err));
+        CHECK(srv.count() == 2);
+        Req r = srv.log[0];
+        CHECK(r.method == "POST" && r.path == "/language/translate/v2");  // the key is not in the URL
+        CHECK(r.header("X-Goog-Api-Key") == u8(kGoogleKey));
+        CHECK(r.header("Content-Type").find("application/json") == 0);
+        Json j;
+        CHECK(parseJson(r.body, j) && j.get(L"q") && j.get(L"q")->a.size() == 1);
+        CHECK(j.get(L"target")->s == L"zh-TW" && j.get(L"source")->s == L"ja" && j.get(L"format")->s == L"html");
+        CHECK(j.get(L"q")->at(0).s ==
+              L"<span class=\"notranslate\">ZQA</span>は&lt;b&gt;<span class=\"notranslate\">1.5g</span>&lt;/b&gt;");
+        CHECK(r.body.find("ignored") == std::string::npos && r.body.find("FAKEKEY") == std::string::npos);
+        CHECK(out[0].text == L"ZQA1.5g譯[は<b></b>]");
+        CHECK(out[1].text == L"ZQB譯[주의 ]" && out[1].engine == "online-google");
+        CHECK(parseJson(srv.log[1].body, j) && j.get(L"source")->s == L"ko");
+        // Parsing: HTML entities in the answer are decoded; a wrong count is a bad answer.
+        srv.handler = [](const Req&) {
+            return Resp{200, "{\"data\":{\"translations\":[{\"translatedText\":\"It&#39;s &quot;OK&quot; &amp; &lt;fine&gt; &#x1F600;\"}]}}"};
+        };
+        CHECK(eng->translate({req(L"解析")}, out, &err));
+        CHECK(out[0].text == L"It's \"OK\" & <fine> \U0001F600");
+        srv.handler = [](const Req&) { return Resp{200, "{\"data\":{\"translations\":[]}}"}; };
+        CHECK(!eng->translate({req(L"解析2")}, out, &err) && lastStatus() == Status::BadResponse);
+        srv.handler = [](const Req&) { return Resp{200, "<html>proxy login</html>"}; };
+        CHECK(!eng->translate({req(L"解析3")}, out, &err) && lastStatus() == Status::BadResponse);
+        resetBackoff();
+
+        // Error classification (status, body) -> Status; none carries the key.
+        struct Case {
+            int http;
+            const char* body;
+            Status want;
+            size_t requests;  // 1 = not retried
+        };
+        const Case cases[] = {
+            {400, "{\"error\":{\"code\":400,\"message\":\"API key not valid. Please pass a valid API key.\",\"errors\":[{\"reason\":\"badRequest\"}],\"status\":\"INVALID_ARGUMENT\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\"}]}}", Status::BadKey, 1},
+            {400, "{\"error\":{\"code\":400,\"message\":\"Invalid Value\",\"errors\":[{\"reason\":\"invalid\"}]}}", Status::Unsupported, 1},
+            {401, "{\"error\":{\"code\":401,\"message\":\"API keys are not supported by this API.\",\"status\":\"UNAUTHENTICATED\"}}", Status::BadKey, 1},
+            {403, "{\"error\":{\"code\":403,\"message\":\"Cloud Translation API has not been used in project 123 before or it is disabled.\",\"status\":\"PERMISSION_DENIED\",\"details\":[{\"reason\":\"SERVICE_DISABLED\"}]}}", Status::ApiDisabled, 1},
+            {403, "{\"error\":{\"code\":403,\"message\":\"Requests to this API translate method are blocked.\",\"details\":[{\"reason\":\"API_KEY_SERVICE_BLOCKED\"}]}}", Status::ApiDisabled, 1},
+            {403, "{\"error\":{\"code\":403,\"message\":\"Daily Limit Exceeded\",\"errors\":[{\"reason\":\"dailyLimitExceeded\"}]}}", Status::QuotaExceeded, 1},
+            {403, "{\"error\":{\"code\":403,\"message\":\"User Rate Limit Exceeded\",\"errors\":[{\"reason\":\"userRateLimitExceeded\"}]}}", Status::RateLimited, 3},
+            {403, "{\"error\":{\"code\":403,\"message\":\"Requests from referer <empty> are blocked.\",\"status\":\"PERMISSION_DENIED\"}}", Status::BadKey, 1},
+            {429, "{\"error\":{\"code\":429,\"message\":\"Resource has been exhausted (e.g. check quota).\",\"status\":\"RESOURCE_EXHAUSTED\"}}", Status::RateLimited, 3},
+            {500, "{\"error\":{\"code\":500,\"message\":\"Backend Error\"}}", Status::ServerError, 3},
+        };
+        for (const Case& c : cases) {
+            resetBackoff();
+            setKey(Provider::Google, kGoogleKey);  // ends any latch
+            std::string body = c.body;
+            const int http = c.http;
+            srv.handler = [=](const Req&) { return Resp{http, body}; };
+            srv.reset();
+            const bool ok = eng->translate({req(L"分類" + std::to_wstring(http) + std::to_wstring(&c - cases))}, out, &err);
+            CHECK(!ok);
+            if (lastStatus() != c.want || srv.count() != c.requests)
+                std::printf("  case HTTP %d: got %s after %zu requests, want %s / %zu\n", http, statusId(lastStatus()), srv.count(),
+                            statusId(c.want), c.requests);
+            CHECK(lastStatus() == c.want && srv.count() == c.requests);
+            CHECK(err.find(kGoogleKey) == std::wstring::npos && err.find(L"FAKEKEY") == std::wstring::npos);
+        }
+        // A key echoed back by the server is scrubbed from the detail.
+        resetBackoff();
+        setKey(Provider::Google, kGoogleKey);
+        srv.handler = [&](const Req&) { return Resp{400, "{\"error\":{\"code\":400,\"message\":\"API key not valid: " + u8(kGoogleKey) + "\"}}"}; };
+        CHECK(!eng->translate({req(L"鍵エコー")}, out, &err) && lastStatus() == Status::BadKey);
+        CHECK(err.find(kGoogleKey) == std::wstring::npos && lastError().detail.find(kGoogleKey) == std::wstring::npos);
+        // BadKey latches: nothing is sent until the key is entered again.
+        CHECK(blockedStatus(Provider::Google) == Status::BadKey);
+        srv.reset();
+        CHECK(!eng->translate({req(L"鍵ラッチ")}, out, &err) && srv.count() == 0);
+        resetBackoff();
+        srv.handler = [](const Req&) { return Resp{403, "{\"error\":{\"code\":403,\"message\":\"API disabled\",\"details\":[{\"reason\":\"SERVICE_DISABLED\"}]}}"}; };
+        CHECK(!eng->translate({req(L"無効")}, out, &err) && lastStatus() == Status::ApiDisabled);
+        int64_t left = 0;
+        CHECK(blockedStatus(Provider::Google, &left) == Status::ApiDisabled && left > 200000 && left <= 300000);
+        resetBackoff();
+        CHECK(blockedStatus(Provider::Google) == Status::Ok);
+
+        // Batch split: 128 texts per request.
+        srv.handler = googleEcho;
+        setKey(Provider::Google, kGoogleKey);
+        clearCache();
+        std::vector<TrRequest> many;
+        for (int i = 0; i < 130; ++i) many.push_back(req(L"多" + std::to_wstring(i)));
+        srv.reset();
+        CHECK(prefetch(many, &out) == Status::Ok && srv.count() == 2);
+        CHECK(parseJson(srv.log[0].body, j) && j.get(L"q")->a.size() == 128);
+        CHECK(parseJson(srv.log[1].body, j) && j.get(L"q")->a.size() == 2);
+        CHECK(out.size() == 130 && out[129].text == L"譯[多129]");
+        // ... and 5,000 characters per request: 12 texts of ~900 characters -> 3 requests of at most 5.
+        clearCache();
+        std::vector<TrRequest> longs;
+        for (int i = 0; i < 12; ++i) longs.push_back(req(std::wstring(900, static_cast<wchar_t>(L'あ' + i % 5)) + std::to_wstring(i)));
+        srv.reset();
+        CHECK(prefetch(longs, &out) == Status::Ok && srv.count() == 3);
+        size_t total = 0;
+        for (const auto& q : srv.log) {
+            CHECK(parseJson(q.body, j) && j.get(L"q")->a.size() <= 5);
+            total += j.get(L"q")->a.size();
+        }
+        CHECK(total == 12);
+
+        // testKey: a real 2-character translation; typed key, nothing stored touched.
+        srv.handler = [&](const Req& q) {
+            if (q.header("X-Goog-Api-Key") == u8(kGoogleKey)) return Resp{200, "{\"data\":{\"translations\":[{\"translatedText\":\"&#22909;\"}]}}"};
+            return Resp{400, "{\"error\":{\"code\":400,\"message\":\"API key not valid. Please pass a valid API key.\"}}"};
+        };
+        srv.reset();
+        TestResult t = testKey(Provider::Google, L" " + kGoogleKey + L" ");
+        CHECK(t.status == Status::Ok && t.sample == L"好" && t.plan == Plan::Google && srv.count() == 1);
+        t = testKey(Provider::Google, L"AIzaWRONGKEY");
+        CHECK(t.status == Status::BadKey && t.http == 400 && t.detail.find(L"AIzaWRONGKEY") == std::wstring::npos);
+        CHECK(testKey(Provider::Google, L"").status == Status::NotConfigured);
+        srv.handler = [](const Req&) { return Resp{403, "{\"error\":{\"code\":403,\"message\":\"x\",\"details\":[{\"reason\":\"SERVICE_DISABLED\"}]}}"}; };
+        CHECK(testKey(Provider::Google, kGoogleKey).status == Status::ApiDisabled);
+        srv.handler = [](const Req&) { return Resp{403, "{\"error\":{\"code\":403,\"message\":\"Daily Limit Exceeded\"}}"}; };
+        CHECK(testStoredKey(Provider::Google).status == Status::QuotaExceeded);
+        CHECK(blockedStatus(Provider::Google) == Status::QuotaExceeded);
+        resetBackoff();
+
+        // Masking and display data.
+        CHECK(scrub(L"x " + kGoogleKey + L" y", kGoogleKey) == L"x *** y");
+        CHECK(keyHint(Provider::Google).find(L"FAKEKEY") == std::wstring::npos);
+        CHECK(std::wstring(providerName(Provider::Google)) == L"Google Cloud Translation" && std::string(providerId(Provider::Google)) == "google");
+        CHECK(std::wstring(providerPrivacyUrl(Provider::Google)).find(L"https://") == 0);
+        CHECK(std::wstring(providerTermsUrl(Provider::Google)).find(L"https://") == 0);
+        CHECK(std::wstring(providerSignupUrl(Provider::Google)).find(L"https://") == 0);
+        CHECK(std::string(statusId(Status::ApiDisabled)) == "api-disabled" && std::string(planId(Plan::Google)) == "google");
+        // Consent is per provider: switching from DeepL to Google without it needs the dialog.
+        enable(Provider::DeepL);
+        Settings sg = loadSettings();
+        sg.provider = Provider::Google;
+        sg.consentGoogle = 0;
+        CHECK(sg.needsConsent() && !sg.enabled());
+        forgetAll();  // clears the Google key and consent too
+        CHECK(!hasKey(Provider::Google) && !loadSettings().consented(Provider::Google));
+        setKey(Provider::DeepL, kDeepLKey);
+        setKey(Provider::Azure, kAzureKey);
+        enable(Provider::DeepL);
+    }
+
     // 15. Display data.
     std::printf("[display]\n");
     {

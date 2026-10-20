@@ -7,9 +7,9 @@
 # Zizai Cast 自在投影
 
 **Mirror your iPhone, iPad or Android phone to a Windows PC, wirelessly.**<br>
-No app on the iPhone, and you can drive an Android phone with your mouse and keyboard. Free, open source, no ads, no account.
+No app on the iPhone, and you can drive an Android phone with your mouse and keyboard; or the other way round, control the PC from your phone. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.7.9-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.7.9" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.2.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.2.1" height="40"></a>
 
 [Website](https://victor900106.github.io/ZizaiCast/#en) ・ [All releases](https://github.com/victor900106/ZizaiCast/releases) ・ [How to connect](#start) ・ [FAQ](#faq) ・ [Privacy](#privacy)
 
@@ -31,18 +31,19 @@ What's on your phone often needs a bigger screen: showing an app to a class, mak
 - **Record, screenshot, send to phone**: one click to MP4 (with audio) or PNG, then send several files back to the phone at once.
 - **Magnifier and low-vision colours**: zoom up to 8×, more contrast, greyscale, inverted, yellow on black, freeze the picture.
 - **On-screen translation**: English, Japanese, Korean and Simplified Chinese into English, Traditional Chinese, Japanese or Korean. Text recognition and translation **run offline on your PC**; add the optional on-device AI translation, or turn on online translation with your own key.
+- **Remote control (new)**: see the PC's screen, hear its sound and control it with your fingers from the phone's browser, no app needed. Scan a QR code at home; away from home use a fixed address with a password, Tailscale or a temporary address. Off by default, and a new phone has to be allowed on the PC.
 - **Four UI languages**: English, 繁體中文, 日本語, 한국어; one-click updates when a new version is out (never updates by itself).
-- **Stays on your network**: no telemetry, no account; the only routine internet access is the update check ([privacy](#privacy)).
+- **Stays on your network**: no telemetry, no account; the only routine internet access is the update check, and remote control reaches outside only when you turn that on ([privacy](#privacy)).
 
-## New in 0.7.9
+## New in 0.8.2.1 (since 0.7.9)
 
 | | |
 |---|---|
-| **Live translation follows the screen** | Live translation stays drawn over the original text and moves with it while the phone screen scrolls, so you don't have to translate again. |
-| **Clearer menus** | *Connect a phone ▸* replaces *Android ▸* and starts with *How to connect?*; the screenshot and recording folders are on the first level; *Help ▸ Keyboard shortcuts* (F1). |
-| **Act right after a capture** | When a screenshot or recording is done, click *Open folder* or *Send to phone* on the notice. |
-| **Settings in plain words** | *Picture quality* Standard (smoothest) / High (recommended) / Highest (needs strong Wi‑Fi); *When a second phone connects*: switch to the new one / keep the current one; closing the window can *keep running in the background*, and the app tells you where its icon is. |
-| **Visible before a phone connects** | Screenshot, recording and magnifier are always in the menu, marked “Once a phone is connected” until one is. |
+| **Remote control** | The main window has a new *Remote control* tab: switch it on, scan the QR code with the phone's browser, and you see the PC's screen, hear its sound and control it with your fingers. A new phone has to be allowed on the PC; while connected, a bar at the top of the PC says it is being controlled, and you can end it at any time. |
+| **From outside, too** | A fixed address with your own password (tick *always on* and it works right after the PC starts; 5 wrong tries lock it for 15 minutes); or Tailscale, or a temporary address with nothing to install. |
+| **Sound** | Sound from all PC speakers goes to the phone, with 0–300% volume on the phone; optionally mute the PC while the phone plays it. |
+| **Steadier, more accurate live translation** | Keeps translating while a video plays or the screen scrolls, cards move along without flicker; video subtitles are no longer turned into sentences that aren't there; part numbers and codes in work chats stay as they are. |
+| **Google online translation** | Online translation adds Google Cloud Translation (your own key). |
 
 Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases/latest).
 
@@ -250,6 +251,7 @@ Yes. Zizai Cast is GPL-3.0 open source, built on UxPlay, scrcpy, FFmpeg and othe
 - **DRM video shows black** (blocked on the phone).
 - **Miracast needs the Windows “Wireless Display” feature** and a supporting Wi‑Fi adapter; Miracast audio isn't recorded.
 - **Android wireless debugging needs Android 11+.**
+- **Remote control cannot operate administrator windows, UAC prompts or the lock screen** (a Windows limit); one phone at a time.
 - **YouTube's “AirPlay video” (URL hand-off) mode isn't supported**; use screen mirroring.
 - **The installer is unsigned**, so SmartScreen warns.
 - Windows 10 / 11 64-bit only.
@@ -266,8 +268,9 @@ Yes. Zizai Cast is GPL-3.0 open source, built on UxPlay, scrcpy, FFmpeg and othe
   - To turn it off completely, add the line `update_url=` (empty) to `%LOCALAPPDATA%\PhoneMirror\settings.ini`.
 - **On-screen translation runs entirely offline on your PC** (source: `translate/`): neither the picture nor the text is uploaded. The app asks before the first use and only then downloads the models: translation (Firefox Translations, about 50 MB) from `firefox-settings-attachments.cdn.mozilla.net` / `firefox.settings.services.mozilla.com`, text recognition (PaddleOCR, about 37 MB) from `www.modelscope.cn`; every file is checked with SHA-256 and can be removed under *Manage translation models*. If you decline, nothing is downloaded.
 - **On-device AI translation (optional) also runs on your PC**: only when you choose to download it, the app fetches the llama.cpp runtime (MIT, the official files unchanged) from this project's mirror `victor900106.github.io/ZizaiCast/addons/` (falling back to `github.com`) and a Qwen model (Apache-2.0) from `huggingface.co`, about 1.3 GB (560 MB for the small model); the add-on for text recognition on the graphics card comes from Microsoft's `api.nuget.org`. Every file is checked for size and SHA-256 and can be removed any time.
-- **Online translation (optional) is off by default** (source: `translate/src/online_engine*.cpp`): only after you turn it on, agree and enter your own DeepL or Azure key is the recognised text (never the picture) sent over HTTPS to the service you picked (`api.deepl.com` / `api-free.deepl.com` or `api.cognitive.microsofttranslator.com`). The key is encrypted with Windows DPAPI on this PC and never written to the log. Unless you turn it on, nothing is sent.
+- **Online translation (optional) is off by default** (source: `translate/src/online_engine*.cpp`): only after you turn it on, agree and enter your own DeepL, Azure or Google key is the recognised text (never the picture) sent over HTTPS to the service you picked (`api.deepl.com` / `api-free.deepl.com`, `api.cognitive.microsofttranslator.com` or `translation.googleapis.com`). The key is encrypted with Windows DPAPI on this PC and never written to the log. Unless you turn it on, nothing is sent.
 - **Send to phone stays on your LAN** (source: `share/`): Android gets files over wireless debugging; other phones scan a QR code and download from a page this PC serves temporarily (only connections from the same local network are accepted). No server in between.
+- **Remote control is off by default** (source: `remote/`, `app/remote/`): once on, a phone at home connects straight to this PC (same local network, a random secret in the address); a new phone has to be allowed on the PC, a bar stays on screen while connected, and you can end it at any time. Outside services are used only when you pick them: Tailscale (your own account), the fixed address (Tailscale Funnel, behind the password you set) or the temporary address (Cloudflare's `trycloudflare.com`, through the bundled, unmodified cloudflared).
 - Everything else is local-network traffic: AirPlay discovery (mDNS) and streaming, Miracast (built into Windows), Android wireless debugging (the bundled adb talks only to phones you paired).
 - Settings and the log file live in `%LOCALAPPDATA%\PhoneMirror` (`settings.ini`, `phonemirror.log`) on your PC.
 

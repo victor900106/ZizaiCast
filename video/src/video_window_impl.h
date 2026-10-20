@@ -98,6 +98,7 @@ struct VideoWindow::Impl {
     std::atomic<bool> refsDropped{false};  // a non-IDR AU was dropped before decoding
     // Presentation / theme / recording / mascot requests (-1 = none).
     int themeReq = -1, dimReq = -1, frameReq = -1, recReq = -1, mascotHoverReq = -1;
+    int quietReq = -1;            // setIdleQuiet (0.8.2)
     int motionReq = -1;           // 1 reduced motion (Windows 「顯示動畫」 off), 0 full
     // Pressed element / keyboard focus ring (kind * 1000 + index, -1 none, -2 no request).
     int pressReq = -2, focusReq = -2;
@@ -132,6 +133,11 @@ struct VideoWindow::Impl {
     std::vector<uint8_t> mascotMask;  // copy of the art's hit mask (UI thread)
     UINT maskW = 0, maskH = 0;
     std::atomic<int> liveOvReq{-1};  // setTextOverlayLive (-1 none)
+    std::atomic<bool> liveReanchorReq{false};  // reanchorTextOverlay
+    std::mutex liveIgnoreM;  // setTextOverlayLiveIgnore
+    std::vector<char> liveIgnoreCells;
+    int liveIgnoreGx = 0, liveIgnoreGy = 0;
+    std::atomic<bool> liveIgnoreReq{false};
     std::atomic<int> rotation{0};
     std::atomic<bool> mirrored{false};
     std::atomic<int> srcW{0}, srcH{0};  // visible size of the newest decoded picture
@@ -430,7 +436,7 @@ struct VideoWindow::Impl {
                frameReq >= 0 || recReq >= 0 || mascotHoverReq >= 0 || xformChanged || mascotClickReq || tapChanged ||
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
                toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
-               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq;
+               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0;
     }
 
     // Takes everything queued plus control flags; returns false on stop.

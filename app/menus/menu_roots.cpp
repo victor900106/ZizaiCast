@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "share/share.h"
 #include "translate/translate.h"
 #include "connect/connect.h"
@@ -17,6 +18,7 @@ namespace pm_app {
 std::vector<MenuItem> trayMenuItems() {
     std::vector<MenuItem> v;
     v.push_back(MenuItem::header(tr(S::AppName), !g.dev || g.demoBranding ? L"v" PM_APP_VERSION_STR : tr(S::DevBuild)));
+    if (remoteAvailable()) v.push_back(remoteTrayToggle());  // 0.8.2: 遠端操控 ✓ first (a main feature, not buried in a submenu)
     appendUpdateItem(v);
     MenuItem show = MenuItem::command(CmdShow, tr(S::MenuShowWindow), kIcoShow);
     show.bold = true;  // default (double-click)
@@ -28,6 +30,7 @@ std::vector<MenuItem> trayMenuItems() {
     v.push_back(MenuItem::separator());
     appendCaptureItems(v);
     v.push_back(shareItem());
+    if (remoteAvailable()) v.push_back(remoteItem());  // 遠端操控 ▸ (0.8.0)
     // 0.7.8: 放大鏡 always (greyed without a picture); 翻譯 always (翻成 / 管理翻譯模型).
     v.push_back(magnifierItem());
     v.push_back(MenuItem::submenu(tr(S::MenuTranslateSub), kIcoTranslate, translateItems()));
@@ -64,6 +67,7 @@ std::vector<MenuItem> contextMenuItems() {
     v.push_back(MenuItem::separator());
     appendCaptureItems(v);
     v.push_back(shareItem());
+    if (remoteAvailable()) v.push_back(remoteItem());  // 遠端操控 ▸ (0.8.0)
     v.push_back(MenuItem::submenu(tr(S::MenuView), kIcoDisplay, viewItems()));
     v.push_back(magnifierItem());
     v.push_back(MenuItem::submenu(tr(S::MenuTranslateSub), kIcoTranslate, translateItems()));

@@ -1,6 +1,6 @@
 // Internals of the online translation engine (translate/src/online_engine*.cpp):
 // HTTP over WinHTTP, a small JSON reader / writer, placeholder markup, and the
-// provider adapters (DeepL, Azure Translator).  Public side:
+// provider adapters (DeepL, Azure Translator, Google Cloud Translation).  Public side:
 // pm/online_translate.h (settings / keys / testKey), pm/translator.h (engine).
 #pragma once
 

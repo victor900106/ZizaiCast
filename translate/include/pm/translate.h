@@ -208,6 +208,11 @@ public:
         int lines = 0, blocks = 0, translated = 0;
         Lang source = Lang::Unknown;  // dominant language of the blocks
         bool live = false;            // a 即時翻譯 re-run (the picture changed and settled)
+        // live runs (0.7.10), for the log: why it started ("first" / "settled" / "forced-moving"), grid cells
+        // left out as a playing video, cards kept as they were / new / gone.
+        std::string why;
+        int dynCells = 0, cells = 0, cardsKept = 0, cardsNew = 0, cardsGone = 0;
+        int videoLines = 0;  // 0.7.10.1: OCR lines left out as the playing video's (captions)
     };
     struct Callbacks {
         // Ask whether to download `megabytes` of models for src -> tgt; call
@@ -259,6 +264,10 @@ public:
         long long runs = 0;       // translations started by a change
         long long hidden = 0;     // stale overlays hidden
         double lastSettleMs = 0;  // steady-clock ms (std::chrono::steady_clock) of the last change before a run
+        long long overlaySets = 0;  // live runs: the card list was replaced (setTextOverlay)
+        long long overlayKept = 0;  // live runs: the result matched the cards on screen - left alone, nothing rebuilt
+        long long first = 0, settled = 0, forced = 0;  // runs by trigger: live switched on / picture settled / kept moving
+        int dynCells = 0, cells = 0;  // the last look: grid cells that keep changing (a video), of all
     };
     LiveStats liveStats() const;
     // Overlay on screen (or a run in progress).

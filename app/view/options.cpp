@@ -9,14 +9,20 @@
 #include "translate/translate.h"
 #include "connect/connect.h"
 #include "view/view.h"
+#include "remote/remote.h"
 
 namespace pm_app {
 
 // ---- options (tray menu, context menu and idle screen stay in sync) -------
 void refreshIdleOptions() {
     std::vector<pm::VideoWindow::IdleOption> opts;
-    opts.push_back({OptAutostart, tr(S::OptAutostart), g.autostart});
-    opts.push_back({OptPin, tr(S::OptPin), g.settings.requirePin});
+    if (remoteAvailable() && g.settings.idleTab == 1) {  // 0.8.2 遠端控制 page: its sound options
+        opts.push_back({OptRemoteAudio, tr(S::MenuRemoteAudio), g.settings.remoteAudio});
+        if (g.settings.remoteAudio) opts.push_back({OptRemoteMutePc, tr(S::MenuRemoteMutePc), g.settings.remoteMutePc});
+    } else {
+        opts.push_back({OptAutostart, tr(S::OptAutostart), g.autostart});
+        opts.push_back({OptPin, tr(S::OptPin), g.settings.requirePin});
+    }
     const HWND h = g.hwnd;
     // The callback runs inside the window's click handling: only post, so
     // that setIdleOptions() is never re-entered from its own callback.

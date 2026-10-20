@@ -32,6 +32,7 @@
 #include "raop_rtp_mirror.h"
 #include "raop_ntp.h"
 #include "pm_reqlog.h"
+#include "pm_volume_hud.h"
 
 
 /* libplist-2.3.0  API change */
@@ -87,6 +88,11 @@ struct raop_s {
     uint8_t clientFPSdata;
 
     int audio_delay_micros;
+
+    /* PM 0.7.10.1 (pm_volume_hud.h): GET /info "volumeControlType" (-1 = key
+     * not sent, UxPlay) and "statusFlags" (UxPlay 68) */
+    int pm_volume_control_type;
+    unsigned pm_status_flags;
 
      /* for temporary storage of pin during pair-pin start */
     unsigned short pin;   /* PM: > 9999 = fixed PIN (pin % 10000); else a random PIN per client */
@@ -814,6 +820,8 @@ raop_init(raop_callbacks_t *callbacks) {
     raop->refreshRate = 60;
     raop->maxFPS = 30;
     raop->overscanned = 0;
+    raop->pm_volume_control_type = -1;
+    raop->pm_status_flags = PM_STATUS_FLAGS_UXPLAY;
 
     /* initialise stored pin */
     raop->pin = 0;
@@ -956,6 +964,11 @@ int raop_set_plist(raop_t *raop, const char *plist_item, const int value) {
     } else if (strcmp(plist_item, "pin") == 0) {
         raop->pin = value;
         raop->use_pin = true;
+    } else if (strcmp(plist_item, "pm_volumeControlType") == 0) {
+        raop->pm_volume_control_type = (value >= 0 && value <= 4) ? value : -1;
+        if (raop->pm_volume_control_type != value) retval = 1;
+    } else if (strcmp(plist_item, "pm_statusFlags") == 0) {
+        raop->pm_status_flags = (unsigned) value;
     } else if (strcmp(plist_item, "hls") == 0) {
         raop->hls_support = (value > 0 ? true : false);
     } else {

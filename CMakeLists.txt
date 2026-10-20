@@ -26,7 +26,7 @@ add_library(pm_media_api INTERFACE)
 target_include_directories(pm_media_api INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Each module owns its own directory and CMakeLists.txt.
-foreach(module core video audio recorder miracast android translate share app)
+foreach(module core video audio recorder miracast android translate share remote app)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${module}/CMakeLists.txt)
     add_subdirectory(${module})
   endif()
@@ -36,7 +36,7 @@ endforeach()
 # helpers). Appended after CMake's /O2, so it wins for these targets only.
 if(MSVC)
   foreach(t PhoneMirror pm_app_ui pm_app_base pm_app_help pm_app_share pm_app_translate pm_app_capture
-            pm_app_connect pm_app_view pm_app_update pm_app_menus pm_android pm_share pm_qrcodegen)
+            pm_app_connect pm_app_view pm_app_update pm_app_menus pm_app_remote pm_android pm_share pm_qrcodegen)
     if(TARGET ${t})
       target_compile_options(${t} PRIVATE $<$<CONFIG:Release,MinSizeRel>:/O1>)
     endif()

@@ -1,0 +1,16 @@
+{
+  "name": "自在遠端",
+  "short_name": "Zizai Remote",
+  "description": "用手機操控自己的電腦 / Control your own PC from your phone",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#F5A7A7",
+  "background_color": "#1C1416",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

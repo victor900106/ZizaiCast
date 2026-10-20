@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.7.9)
+set(PM_APP_VERSION 0.8.2.1)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -12,6 +12,13 @@ string(REPLACE "." ";" PM_APP_VERSION_PARTS ${PM_APP_VERSION})
 list(GET PM_APP_VERSION_PARTS 0 PM_VER_MAJOR)
 list(GET PM_APP_VERSION_PARTS 1 PM_VER_MINOR)
 list(GET PM_APP_VERSION_PARTS 2 PM_VER_PATCH)
+# Optional fourth part (0.8.2.1: a fix-up release); 0 when there is none.
+list(LENGTH PM_APP_VERSION_PARTS PM_VER_NPARTS)
+if(PM_VER_NPARTS GREATER 3)
+  list(GET PM_APP_VERSION_PARTS 3 PM_VER_BUILD)
+else()
+  set(PM_VER_BUILD 0)
+endif()
 # 自動更新 manifest URL (JSON {version, url, sha256, notes}); settings.ini
 # update_url overrides it, empty disables the check. Published as a GitHub
 # release asset (302 to the release-assets CDN; WinHTTP follows it).
@@ -36,7 +43,7 @@ endforeach()
 add_library(pm_app_config INTERFACE)
 target_compile_definitions(pm_app_config INTERFACE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
   PM_UPDATE_URL_STR="${PM_UPDATE_URL}" PM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-  PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH})
+  PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH} PM_VER_BUILD=${PM_VER_BUILD})
 target_include_directories(pm_app_config INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(pm_app_config INTERFACE pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share
   pm_translate)
@@ -44,7 +51,9 @@ target_link_libraries(pm_app_config INTERFACE pm_core pm_video pm_audio pm_recor
 # 既有面板與選單繪製（不依賴 main.cpp 拆出的任何函式）。
 add_library(pm_app_ui STATIC popup_menu.cpp popup_menu.h pair_panel.cpp pair_panel.h about_panel.cpp about_panel.h
   ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h
-  settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h volume_ui.cpp volume_ui.h volume_memory.h ui_anim.h)
+  settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h volume_ui.cpp volume_ui.h volume_memory.h ui_anim.h
+  remote_panel.cpp remote_panel.h
+  remote_password_panel.cpp remote_password_panel.h)
 target_link_libraries(pm_app_ui PUBLIC pm_app_config)
 # 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
 if(PM_TRANSLATE_ENGINES)
@@ -83,6 +92,15 @@ target_link_libraries(pm_app_view      PUBLIC pm_app_connect pm_app_translate)
 target_link_libraries(pm_app_update    PUBLIC pm_app_view)
 target_link_libraries(pm_app_menus     PUBLIC pm_app_view)
 
+# 遠端操控 (0.8.0, docs/remote.md): optional like pm_remote itself (libdatachannel / opus
+# from vcpkg). Without it the app builds the same, with no 遠端操控 menu.
+add_library(pm_app_remote STATIC remote/remote.h remote/remote_actions.cpp)
+target_link_libraries(pm_app_remote PUBLIC pm_app_share pm_app_help)
+if(TARGET pm_remote)
+  target_link_libraries(pm_app_remote PRIVATE pm_remote)
+  target_compile_definitions(pm_app_remote PRIVATE PM_APP_REMOTE)
+endif()
+
 # wWinMain 和資源檔留在 exe 自己的來源裡（.rc 放進靜態函式庫不會被連結）。
 add_executable(PhoneMirror WIN32 core/app/main.cpp core/app/app_proc.cpp core/app/commands.cpp core/app/dev_harness.cpp
   core/app/core_app.h resource.h res/app.rc res/app.manifest
@@ -90,7 +108,7 @@ add_executable(PhoneMirror WIN32 core/app/main.cpp core/app/app_proc.cpp core/ap
 # 連結順序：先列出全部 pm_app_*，再接拆檔前的原清單（同順序）。這樣 app 的程式碼在連到
 # winhttp … shcore 之前就全部載入，外部符號的解析和拆檔前一樣（匯入表相同）；若只列
 # pm_app_menus，registry 等 API 會改由後面的 windowsapp.lib 以 api-ms-win-* 匯入。
-target_link_libraries(PhoneMirror PRIVATE pm_app_menus pm_app_update pm_app_view pm_app_connect pm_app_capture
+target_link_libraries(PhoneMirror PRIVATE pm_app_menus pm_app_remote pm_app_update pm_app_view pm_app_connect pm_app_capture
   pm_app_share pm_app_help pm_app_translate pm_app_base pm_app_ui
   pm_core pm_video pm_audio pm_recorder pm_miracast pm_android pm_share pm_translate winhttp bcrypt version wintrust
   shell32 shlwapi ole32 advapi32 comctl32 mfplat mfuuid d2d1 dwrite windowscodecs dwmapi shcore)
@@ -98,7 +116,7 @@ target_link_libraries(PhoneMirror PRIVATE pm_app_menus pm_app_update pm_app_view
 set_target_properties(PhoneMirror PROPERTIES OUTPUT_NAME "自在投影")
 target_compile_definitions(PhoneMirror PRIVATE UNICODE _UNICODE PM_APP_VERSION_STR="${PM_APP_VERSION}"
   PM_UPDATE_URL_STR="${PM_UPDATE_URL}" PM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-  PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH})
+  PM_VER_MAJOR=${PM_VER_MAJOR} PM_VER_MINOR=${PM_VER_MINOR} PM_VER_PATCH=${PM_VER_PATCH} PM_VER_BUILD=${PM_VER_BUILD})
 
 # Ship the VC++ runtime app-local (msvcp140 / msvcp140_1 / vcruntime140 / vcruntime140_1;
 # msvcp140_1 for onnxruntime.dll)
@@ -134,6 +152,19 @@ if(COMMAND pm_android_copy_tools AND EXISTS ${PM_ANDROID_TP}/platform-tools/adb.
     COMMENT "Android tool licences → android-tools")
 else()
   message(WARNING "android tools (adb, scrcpy-server) missing: run android/third_party/fetch_tools.ps1")
+endif()
+
+# 免安裝外網 (0.8.1): cloudflared next to the exe (<bin>/cloudflared: cloudflared.exe,
+# LICENSE, VERSION.txt) — the installer ships that folder as 程式\cloudflared.
+set(PM_CLOUDFLARED_DIR ${CMAKE_SOURCE_DIR}/remote/third_party/cloudflared)
+if(TARGET pm_remote AND EXISTS ${PM_CLOUDFLARED_DIR}/cloudflared.exe)
+  add_custom_command(TARGET PhoneMirror POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:PhoneMirror>/cloudflared
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PM_CLOUDFLARED_DIR}/cloudflared.exe ${PM_CLOUDFLARED_DIR}/LICENSE
+            ${PM_CLOUDFLARED_DIR}/VERSION.txt $<TARGET_FILE_DIR:PhoneMirror>/cloudflared/
+    COMMENT "cloudflared → $<TARGET_FILE_DIR:PhoneMirror>/cloudflared")
+elseif(TARGET pm_remote)
+  message(WARNING "cloudflared missing (免安裝外網 uses an installed one if any): run remote/third_party/fetch_cloudflared.ps1")
 endif()
 
 # 使用教學 / User guide (both languages) next to the exe for dev builds (the

@@ -38,6 +38,7 @@ extern int pm_mirror_quick_ack;  // raop_rtp_mirror.c
 
 #include "pm_clock_latch.h"
 #include "pm_audio_advert.h"
+#include "pm_volume_hud.h"
 
 namespace pm {
 
@@ -957,6 +958,11 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
         s.dnssd = nullptr;
         return false;
     }
+    // iOS volume HUD A/B knobs (settings.ini airplay_volume_control /
+    // airplay_audio_status, pm_volume_hud.h); the TXT records are built at
+    // dnssd_register_* below
+    const pm_volume_hud_t volHud = pm_volume_hud_plan(s.opts.volumeControlType, s.opts.audioStatusFlag);
+    dnssd_pm_set_audio_status(s.dnssd, volHud.audio_status);
     // --- display mode (uxplay "-s wxh@r", "-fps", "-h265") ---
     const Impl::Display disp = s.resolveDisplay();
     s.h265 = disp.h265;
@@ -1017,6 +1023,8 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
         return false;
     }
     raop_set_log_callback(s.raop, Impl::cbLog, &s);
+    raop_set_plist(s.raop, "pm_volumeControlType", volHud.volume_control_type);
+    raop_set_plist(s.raop, "pm_statusFlags", (int) volHud.status_flags);
     raop_set_log_level(s.raop, s.opts.debugLog ? LOGGER_DEBUG : LOGGER_INFO);
     // nohold = 1 below keeps a second client's connection open next to the
     // running session; the policy decides at its SETUP (raop_handlers.h, PM).
@@ -1117,6 +1125,19 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
               "speaker (features bit 9 %s, _raop._tcp not registered). Screen Mirroring and its sound are "
               "unchanged; if a mirroring session has no sound, try airplay_advertise_audio=2 or 1",
               audioAdv.mode, audioAdv.feature_bit9 ? "on" : "OFF");
+    }
+    if (volHud.volume_control_type < 0 && volHud.audio_status) {
+        s.log(LogLevel::Info, "[volume-hud] airplay_volume_control=-1 airplay_audio_status=1 (0.7.10 / UxPlay: "
+              "no volumeControlType in GET /info, statusFlags %u, TXT flags=0x4)", volHud.status_flags);
+    } else {
+        s.log(LogLevel::Warning,
+              "[volume-hud] A/B TEST airplay_volume_control=%d airplay_audio_status=%d: GET /info "
+              "volumeControlType %s%s, statusFlags %u, TXT flags=0x%x. If the mirroring sound or the phone's "
+              "volume buttons stop working, set both back (-1 / 1)",
+              volHud.volume_control_type, volHud.audio_status,
+              volHud.volume_control_type < 0 ? "not sent" : "",
+              volHud.volume_control_type < 0 ? "" : std::to_string(volHud.volume_control_type).c_str(),
+              volHud.status_flags, pm_volume_hud_txt_flags(volHud.audio_status, 0));
     }
     s.logInterfaces("mDNS advertising on", s.currentInterfaces());
 

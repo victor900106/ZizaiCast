@@ -417,6 +417,12 @@ std::vector<Piece> splitFields(const std::wstring& s, Lang src) {
     return out;
 }
 
+namespace {
+// translateTextsEx on this thread: the batch is a technical message (two techLine
+// lines; a technical line on its own counts too - a picture comes in chunks).
+thread_local bool tTechBatch = false;
+}  // namespace
+
 // Names to keep through the engine: companies (ゴディバ ジャパン株式会社,
 // 株式会社美十), kanji names with a small katakana (八ッ橋), known brands.
 struct Entity {
@@ -438,15 +444,31 @@ std::vector<Entity> protectedTokens(const std::wstring& s, Lang src, Lang tgt) {
         static const std::wregex caps(L"\\b[A-Z]{2,}\\b");
         for (std::wsregex_iterator it(s.begin(), s.end(), caps), e; it != e; ++it) ++capsWords;
     }
+    // English technical text for a zh-Hant reader (a work chat: part numbers,
+    // test codes, two-letter team names): its acronyms and codes are kept as
+    // written - 0.7.9's engine translated a team acronym as an everyday word,
+    // respelled a model code and a letter inside an identifier (tech_text.cpp).
+    const bool techEn = src == Lang::En && tgt == Lang::ZhHant && (tTechBatch || techLine(s));
+    const auto codes = techEn ? codeSpans(s) : std::vector<std::pair<size_t, size_t>>{};
+    // A chat message in capitals (PLEASE CHECK THE KX200 SAMPLES ASAP): its words are
+    // words - only its codes are kept (0.7.10 kept the whole message as written).
+    const bool shout = techEn && shoutedLine(s);
+    // Everyday acronyms the engine translates well (NO SMOKING, 10 AM, USA).
+    auto everyday = [](const std::wstring& t) {
+        for (const wchar_t* a : {L"NO", L"OK", L"AM", L"PM", L"US", L"USA", L"UK", L"EU", L"UN", L"TV", L"PC", L"ID"})
+            if (t == a) return true;
+        return false;
+    };
     for (std::wsregex_iterator it(s.begin(), s.end(), re), e; it != e; ++it) {
         const std::wstring t = it->str();
         const bool acronym = t.size() <= 6 && std::all_of(t.begin(), t.end(), [](wchar_t c) { return (c >= L'A' && c <= L'Z') || iswdigit(c) || c == L'&'; });
-        if (acronym && src != Lang::Ja && src != Lang::Ko) continue;  // English text: the engine knows its acronyms
+        if (acronym && src != Lang::Ja && src != Lang::Ko && !(techEn && !shout && !everyday(t))) continue;  // English text: the engine knows its acronyms
         // A hyphenated Latin name in Japanese / Korean text (J-nihongo, a site / brand:
         // 「J-尼洪戈」 in 0.7.6); English text keeps its hyphenated words (Gluten-free).
         const bool hyphenName = t.find(L'-') != std::wstring::npos && !std::any_of(t.begin(), t.end(), [](wchar_t c) { return iswdigit(c) || c == L'_'; });
-        if (hyphenName && src != Lang::Ja && src != Lang::Ko) continue;
-        if (acronym && capsWords >= 2) continue;  // an all-caps English phrase (MADE IN KOREA), not an acronym
+        const bool capsCode = techEn && std::none_of(t.begin(), t.end(), [](wchar_t c) { return c >= L'a' && c <= L'z'; });  // ICT-QA
+        if (hyphenName && src != Lang::Ja && src != Lang::Ko && !capsCode) continue;
+        if (acronym && capsWords >= 2 && (codes.empty() || shout)) continue;  // an all-caps English phrase (MADE IN KOREA), not an acronym
         // A nutrient and its amount (Na1171mg, B12 2.4µg): 鈉1171毫克 - the units are localised.
         static const std::wregex amount(L"[0-9](mg|g|kg|mcg|ug|ml|mL|l|L|kcal|Kcal|kJ|cm|mm|km|m)$");
         if (std::regex_search(t, amount)) continue;
@@ -464,6 +486,51 @@ std::vector<Entity> protectedTokens(const std::wstring& s, Lang src, Lang tgt) {
                 if (t == a) r = z;
         }
         out.push_back({static_cast<size_t>(it->position()), t.size(), r});
+    }
+    // Codes the pattern above does not see (4410278K, 731.2KQX4.0081, CheckDdrTrainLog, NVMe,
+    // QX/V7/RF/FAIL): the whole token, unless it overlaps one found already (the ones inside it give way).
+    for (const auto& [pos, len] : codes) {
+        std::vector<Entity> kept;
+        bool overlap = false;
+        for (const auto& o : out) {
+            if (o.pos >= pos && o.pos + o.len <= pos + len) continue;  // a part of this code
+            overlap |= pos < o.pos + o.len && o.pos < pos + len;
+            kept.push_back(o);
+        }
+        if (overlap) continue;
+        kept.push_back({pos, len, s.substr(pos, len)});
+        out = std::move(kept);
+    }
+    // A line with codes: its words in capitals are codes too (ICT-Q7 - TIMEOUT, not 「時間」).
+    if (techEn && !codes.empty() && !shout) {
+        static const std::wregex capsWord(L"\\b[A-Z][A-Z0-9]{1,11}\\b");
+        for (std::wsregex_iterator it(s.begin(), s.end(), capsWord), e; it != e; ++it) {
+            const size_t pos = static_cast<size_t>(it->position()), len = it->str().size();
+            bool overlap = everyday(it->str());
+            for (const auto& o : out) overlap |= pos < o.pos + o.len && o.pos < pos + len;
+            if (!overlap) out.push_back({pos, len, it->str()});
+        }
+    }
+    if (techEn) {
+        std::sort(out.begin(), out.end(), [](const Entity& a, const Entity& b) { return a.pos < b.pos; });
+        // A code's trailing asterisks (LOT***) inside its placeholder: the engine added one more.
+        for (size_t k = 0; k < out.size(); ++k) {
+            size_t e = out[k].pos + out[k].len;
+            const size_t limit = k + 1 < out.size() ? out[k + 1].pos : s.size();
+            const size_t from = e;
+            while (e < limit && s[e] == L'*') ++e;
+            if (e > from && out[k].zh == s.substr(out[k].pos, out[k].len)) out[k].zh += s.substr(from, e - from), out[k].len = e - out[k].pos;
+        }
+        // An acronym's / a code's 's (Waiting for QA's reply): 「QA的」 - 0.7.10 left
+        // 「等待QA's回覆」 (the placeholder, then the engine kept the 's).
+        for (auto& o : out) {
+            const size_t e = o.pos + o.len;
+            if (e + 2 > s.size() || (s[e] != L'\'' && s[e] != L'’') || s[e + 1] != L's') continue;
+            if (e + 2 < s.size() && iswalpha(s[e + 2])) continue;
+            if (o.zh != s.substr(o.pos, o.len)) continue;
+            o.zh += L"的";
+            o.len += 2;
+        }
     }
     // Transit lines: 2호선 / 2号線 -> 2號線 (the pivot read 「兩條線」).
     if (tgt == Lang::ZhHant && (src == Lang::Ko || src == Lang::Ja)) {
@@ -516,6 +583,9 @@ std::vector<Entity> findEntities(const std::wstring& s, Lang src, Lang tgt) {
     const size_t nTok = out.size();
     for (auto& h : dataGlossaryHits(s, src, tgt))
         if (!inToken(h.pos, h.len)) out.push_back({h.pos, h.len, std::move(h.zh)});
+    if (tTechBatch || techLine(s))
+        for (auto& h : techTermHits(s, src, tgt))  // top fail -> 主要失敗項 (one form on a screen)
+            if (!inToken(h.pos, h.len)) out.push_back({h.pos, h.len, std::move(h.zh)});
     (void)nTok;
     if (src != Lang::Ja) {
         std::sort(out.begin(), out.end(), [](const Entity& a, const Entity& b) { return a.pos < b.pos; });
@@ -744,18 +814,37 @@ std::wstring literal(const std::wstring& v, Lang src, Lang tgt) {
 
 }  // namespace
 
+bool techBatch(const std::vector<std::wstring>& in, Lang src, Lang tgt) {
+    if (src != Lang::En || tgt != Lang::ZhHant) return false;
+    size_t n = 0;
+    for (const auto& t : in) n += techLine(t);
+    return n > 0 && n >= std::min<size_t>(2, in.size());
+}
+
 bool translateTexts(Engine& engine, Lang src, Lang tgt, const std::vector<std::wstring>& in, std::vector<std::wstring>& out,
                     std::wstring* err) {
     Escalator esc(engine);
     return translateTextsEx(engine, &esc, src, tgt, in, {}, out, nullptr, err);
 }
 
-bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const std::vector<std::wstring>& in,
-                      const std::vector<size_t>& labelLen, std::vector<std::wstring>& out, std::vector<TextInfo>* info,
+bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const std::vector<std::wstring>& inRaw,
+                      const std::vector<size_t>& labelLenRaw, std::vector<std::wstring>& out, std::vector<TextInfo>* info,
                       std::wstring* err) {
+    // LINE's floating date label (今天 / 10月9日(四) ...) read into a line of another
+    // language: taken out before anything else looks at the line.
+    std::vector<std::wstring> in(inRaw);
+    std::vector<size_t> labelLen(labelLenRaw);
+    for (size_t i = 0; i < in.size(); ++i) {
+        std::wstring s = stripLineDateLabels(in[i]);
+        if (s == in[i]) continue;
+        in[i] = std::move(s);
+        if (i < labelLen.size()) labelLen[i] = 0;
+    }
     out.assign(in.size(), {});
     if (info) info->assign(in.size(), {});
     const bool fixes = tgt == Lang::ZhHant || tgt == Lang::En;
+    // A technical message (a work chat's report: codes, [labels]): the rules of tech_text.cpp.
+    tTechBatch = techBatch(in, src, tgt);
     // The same text with other numbers, more than once on the picture (全48教材の
     // 一覧, 全59教材の一覧 …): the numbers go through placeholders so that every
     // one gets the same translation, the digits as written (0.7.6: 「全部 48 種
@@ -778,11 +867,15 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             if (std::any_of(t.begin(), t.end(), [](wchar_t c) { return iswdigit(c); })) ++maskCount[numberMask(t)];
     // Pieces sent to the engine (deduplicated); each input is assembled from
     // literal text and engine results.
-    std::vector<std::wstring> engineIn;
-    auto ask = [&](const std::wstring& t) {
-        for (size_t i = 0; i < engineIn.size(); ++i)
-            if (engineIn[i] == t) return i;
+    // The key is the text with what its placeholders stand for: one slot's
+    // result is restored once, so 「Overall ZQA」 for YLD:3.50% and for
+    // YLD:0.00% are two slots (0.7.9 showed the first number on every such line).
+    std::vector<std::wstring> engineIn, engineKey;
+    auto ask = [&](const std::wstring& t, const std::wstring& key) {
+        for (size_t i = 0; i < engineKey.size(); ++i)
+            if (engineKey[i] == key) return i;
         engineIn.push_back(t);
+        engineKey.push_back(key);
         return engineIn.size() - 1;
     };
     struct Part {
@@ -795,11 +888,90 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
     std::vector<std::vector<Part>> plan(in.size());
     // Placeholders the models copy unchanged (measured: ZQA / ZQB survive
     // ja -> en -> zh-Hant; X1 or [1] change the sentence around them).
-    static const wchar_t* const kPh[] = {L"ZQA", L"ZQB", L"ZQC", L"ZQD", L"ZQE", L"ZQF"};
+    // English -> zh-Hant (one model, no pivot) keeps ZQG … ZQL too (measured):
+    // a test report's line holds more than six codes.
+    static const wchar_t* const kPh[] = {L"ZQA", L"ZQB", L"ZQC", L"ZQD", L"ZQE", L"ZQF",
+                                         L"ZQG", L"ZQH", L"ZQI", L"ZQJ", L"ZQK", L"ZQL"};
+    const size_t phMax = src == Lang::En && tgt == Lang::ZhHant ? std::size(kPh) : 6;
     // One value / sentence: glossary, phrase, literal (numbers, addresses,
     // Japanese kanji), or the engine with names protected.
     std::wstring trail;  // addTextCore's trailing arrow (pushed by addText)
-    auto addTextCore = [&](std::vector<Part>& parts, std::wstring t) {
+    std::function<void(std::vector<Part>&, const std::wstring&)> addText;  // (below)
+    // A piece of a line through addText (the line's own trailing arrow kept).
+    auto sub = [&](std::vector<Part>& parts, const std::wstring& s) {
+        const std::wstring keep = trail;
+        addText(parts, s);
+        trail = keep;
+    };
+    // Technical messages, English -> zh-Hant (tech_text.cpp): 「[標籤] 值」 items
+    // one per line with the label in factory words, lines of codes as written,
+    // Chinese kept (its English gloss dropped), English sentences translated.
+    // Chinese and English on one line of an English block: the Chinese as written
+    // (Traditional forms), English sentences translated (tech_text.cpp splitMixed).
+    auto mixed = [&](std::vector<Part>& parts, const std::wstring& t, bool glosses) {
+        if (countScripts(t).han < 2) return false;
+        for (const auto& p : splitMixed(t, glosses)) {
+            if (p.kind == MixedPiece::Drop) {
+                if (!parts.empty() && parts.back().eng == SIZE_MAX)
+                    while (!parts.back().lit.empty() && isSpace(parts.back().lit.back())) parts.back().lit.pop_back();
+                continue;
+            }
+            if (p.kind == MixedPiece::Keep) {
+                parts.push_back({literal(p.text, src, tgt)});
+                continue;
+            }
+            std::wstring e = p.text;
+            while (!e.empty() && isSpace(e.back())) e.pop_back();
+            while (!e.empty() && isSpace(e.front())) e.erase(0, 1);
+            if (!e.empty()) sub(parts, e);
+        }
+        return true;
+    };
+    auto techText = [&](std::vector<Part>& parts, const std::wstring& t) {
+        // Mentions first (@All …): as written, the rest on its own - the engine
+        // dropped the placeholder of a leading mention, then the retry translated
+        // a team acronym as a word.
+        {
+            static const std::wregex mention(L"^((?:[@＠][A-Za-z0-9_.]{1,24}\\s+)+)(.*\\S.*)$");
+            std::wsmatch m;
+            if (std::regex_match(t, m, mention)) {
+                parts.push_back({m[1].str()});
+                sub(parts, m[2].str());
+                return true;
+            }
+        }
+        const auto items = splitBracketItems(t);
+        if (items.size() > 1) {
+            for (size_t k = 0; k < items.size(); ++k) {
+                if (k) parts.push_back({L"\n"});
+                sub(parts, items[k]);
+            }
+            return true;
+        }
+        BracketLine bl;
+        if (parseBracketLine(t, bl)) {
+            parts.push_back({std::wstring(1, bl.open)});
+            if (!bl.labelZh.empty()) parts.push_back({toTraditional(bl.labelZh)});
+            else if (const wchar_t* l = techLabel(bl.label, tgt)) parts.push_back({l});
+            else sub(parts, bl.label);
+            if (bl.colonInside) parts.push_back({L"："});
+            if (bl.close) parts.push_back({std::wstring(1, bl.close)});
+            if (!bl.value.empty()) {
+                // [Label] value, [Label]：value, [Label：value (its closing bracket lost)
+                if (bl.colonAfter || bl.close) parts.push_back({bl.colonAfter ? L"：" : L" "});
+                sub(parts, bl.value);
+            } else if (bl.colonAfter) {
+                parts.push_back({L"："});
+            }
+            return true;
+        }
+        if (codeLine(t)) {
+            parts.push_back({t});
+            return true;
+        }
+        return mixed(parts, t, true);
+    };
+    std::function<void(std::vector<Part>&, std::wstring)> addTextCore = [&](std::vector<Part>& parts, std::wstring t) {
         // Leading bullets / marks stay as they are (※, ●, ・).
         std::wstring lead;
         while (!t.empty() && (wcschr(L"※●・◆■□★☆*＊○◎↑", t[0]) || isSpace(t[0]))) {
@@ -826,6 +998,14 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
                 parts.push_back({t});
                 return;
             }
+        }
+        if (src == Lang::En && tgt == Lang::ZhHant && (tTechBatch || techLine(t))) {
+            // A comma without its space (QA,please check): the engine reads one word.
+            static const std::wregex comma(L"([A-Za-z]),([A-Za-z])");
+            t = std::regex_replace(t, comma, L"$1, $2");
+            if (techText(parts, t)) return;
+        } else if (src == Lang::En && tgt == Lang::ZhHant && mixed(parts, t, false)) {
+            return;
         }
         // A label and its English gloss on one line (文法 Grammar): the label
         // translated, the gloss kept as written.
@@ -940,7 +1120,7 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
                 }
                 std::sort(ents.begin(), ents.end(), [](const Entity& a, const Entity& b) { return a.pos < b.pos; });
             }
-            if (!ents.empty() && ents.size() <= std::size(kPh)) {
+            if (!ents.empty() && ents.size() <= phMax) {
                 prot.clear();
                 size_t at = 0, k = 0;
                 for (const auto& e : ents) {
@@ -983,6 +1163,7 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
                             o[p] = L'串';
                     for (const auto& [ph, r] : part.ph)
                         for (size_t p = o.find(ph); p != std::wstring::npos; p = o.find(ph)) o.replace(p, ph.size(), r);
+                    if (src == Lang::En && tgt == Lang::ZhHant) o = fullWidthPunctuation(o);  // 主要失敗項為：…
                     parts.push_back({o});
                     return;
                 }
@@ -999,11 +1180,12 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
         // acronyms (BMI, AM, MRT), words with digits and placeholders stay.
         static const bool noCaps = std::getenv("PM_TR_NO_CAPS") != nullptr;  // tests: measure the effect
         if (src == Lang::En && fixes && !noCaps) prot = sentenceCase(prot);
-        part.eng = ask(prot);
-        part.plain = t;
+        std::wstring key = prot;
+        for (const auto& [ph, r] : part.ph) key += L'\x1F' + r;
+        part.eng = ask(prot, key);        part.plain = t;
         parts.push_back(std::move(part));
     };
-    auto addText = [&](std::vector<Part>& parts, const std::wstring& t) {
+    addText = [&](std::vector<Part>& parts, const std::wstring& t) {
         addTextCore(parts, t);
         if (!trail.empty() && !parts.empty() && parts.back().lit != trail) parts.push_back({L" " + trail});
         trail.clear();
@@ -1214,11 +1396,14 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             size_t b = at, e = at + ph.size();
             // No spaces between a Chinese name and Chinese text.
             if (tgt != Lang::En) {
-                if (b > 0 && r[b - 1] == L' ' && isCjk(ent.front())) --b;
+                // (a technical English line: 「ZX9_MEM002.004 主要失敗項」 - a code before it keeps the space)
+                if (b > 0 && r[b - 1] == L' ' && isCjk(ent.front()) && !(src == Lang::En && b >= 2 && !isCjk(r[b - 2]) && (tTechBatch || techLine(p.plain)))) --b;
                 if (e < r.size() && r[e] == L' ' && isCjk(ent.back())) ++e;
             }
             r.replace(b, e - b, ent);
         }
+        // English -> zh-Hant: a colon / comma between a Chinese term and a code (主要失敗項為: …).
+        if (src == Lang::En && tgt == Lang::ZhHant && !p.ph.empty()) r = fullWidthPunctuation(r);
         // Words the English pivot flattens (帰国 "go home" -> 回家): fixed
         // where the source has the word and the answer the flat reading.
         if (tgt == Lang::ZhHant && src == Lang::Ja) {

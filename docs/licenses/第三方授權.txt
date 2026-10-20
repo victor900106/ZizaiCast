@@ -332,7 +332,61 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
 
 
 ------------------------------------------------------------------------------
-第三部分　獨立程式（資料夾 程式\android-tools\）
+第二之五部分　遠端操控（0.8.0）：自在投影.exe 旁的 DLL 與程式送給手機的網頁
+------------------------------------------------------------------------------
+只在開啟「遠端操控」時使用（手機瀏覽器經 WebRTC 看與操控這台電腦）。DLL 為未修改
+的 vcpkg 建置；原始碼與 vcpkg port 腳本在 ZizaiCast-<版本>-deps-source.zip
+（MPL-2.0 第 3.2(a) 條的原始碼形式；見 SOURCE.md）。
+
+2e.1 libdatachannel — datachannel.dll
+     版本　　：0.24.6（vcpkg port「libdatachannel」0.24.6，功能 core、srtp）
+     來源　　：https://github.com/paullouisageneau/libdatachannel
+     授權　　：Mozilla Public License 2.0 — 附錄 G
+     著作權　：Copyright (c) 2019-2025 Paul-Louis Ageneau
+     內含　　：usrsctp 0.9.5.0（BSD-3-Clause — 附錄 I.2）、plog 1.1.11
+               （MIT — 附錄 I.4），靜態連結進 datachannel.dll
+
+2e.2 libjuice — juice.dll
+     版本　　：1.7.4（vcpkg port「libjuice」1.7.4）
+     來源　　：https://github.com/paullouisageneau/libjuice
+     授權　　：Mozilla Public License 2.0 — 附錄 G
+     著作權　：Copyright (c) 2020-2025 Paul-Louis Ageneau
+
+2e.3 libSRTP — srtp2.dll
+     版本　　：2.8.1（vcpkg port「libsrtp」2.8.1）
+     來源　　：https://github.com/cisco/libsrtp
+     授權　　：BSD-3-Clause — 附錄 I.1
+     著作權　：Copyright (c) 2001-2017 Cisco Systems, Inc.
+
+2e.4 Opus — opus.dll
+     版本　　：1.6.1（vcpkg port「opus」1.6.1）
+     來源　　：https://opus-codec.org/  https://github.com/xiph/opus
+     授權　　：BSD-3-Clause — 附錄 I.3
+     著作權　：Copyright 2001-2023 Xiph.Org, Skype Limited, Octasic,
+               Jean-Marc Valin, Timothy B. Terriberry, CSIRO, Gregory Maxwell,
+               Mark Borgerding, Erik de Castro Lopo, Mozilla, Amazon
+
+2e.5 OpenSSL（libssl-3-x64.dll、libcrypto-3-x64.dll）— WebRTC 連線的 DTLS；
+     版本與授權同 2.1（libssl-3-x64.dll 是同一套 OpenSSL 的另一個 DLL）。
+
+2e.6 JSON for Modern C++（nlohmann-json），僅標頭檔，編譯進自在投影.exe
+     版本　　：3.12.0（vcpkg port「nlohmann-json」3.12.0#2）
+     來源　　：https://github.com/nlohmann/json
+     授權　　：MIT — 附錄 I.5
+     著作權　：Copyright (c) 2013-2025 Niels Lohmann
+
+2e.7 手機網頁的腳本（由程式傳給手機瀏覽器；原始碼在程式原始碼封存的 remote/web/）
+     trackpad.js — 觸控板手勢，移植自 MoonlightWeb
+       （frontend/js/ui/StreamViewTouch.js，https://github.com/linckosz/moonlight-web），
+       Copyright (C) 2026 Bruno Martin。GPL-3.0-or-later — 附錄 F。
+       為自在投影修改（見檔頭）。
+     vkbd.js — 手機鍵盤處理，移植自 noVNC（app/ui.js，https://github.com/novnc/noVNC），
+       Copyright (C) 2022 The noVNC authors。Mozilla Public License 2.0 — 附錄 G。
+       此檔維持 MPL-2.0，與其餘 GPL-3.0 部分組成「較大作品」（MPL-2.0 第 3.3 條）。
+
+
+------------------------------------------------------------------------------
+第三部分　獨立程式（資料夾 程式\android-tools\、程式\cloudflared\）
 ------------------------------------------------------------------------------
 以下為獨立程式，以個別行程執行並以原樣隨附（「聚集」，GPL-3.0 第 5 條）。
 其授權檔與程式放在同一資料夾。
@@ -359,6 +413,19 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
      授權　　：Apache License 2.0 — 附錄 A；android-tools\LICENSE-scrcpy.txt
      著作權　：Copyright (C) 2018 Genymobile
                Copyright (C) 2018-2026 Romain Vimont
+
+3.3  cloudflared（Cloudflare Tunnel 用戶端；遠端操控「免安裝外網」，0.8.1）
+     檔案　　：程式\cloudflared\cloudflared.exe（另附 LICENSE、VERSION.txt）
+     版本　　：2026.7.2（官方發布檔 cloudflared-windows-amd64.exe，
+               https://github.com/cloudflare/cloudflared/releases/tag/2026.7.2，
+               SHA-256 cdb5d4432f6ae1595654a692a51308b69d2bf7af961f5578d9391837cf072df9，
+               Cloudflare, Inc. 數位簽章，未修改）
+     原始碼　：https://github.com/cloudflare/cloudflared/tree/2026.7.2
+     授權　　：Apache License 2.0 — 附錄 A；cloudflared\LICENSE
+     著作權　：Copyright Cloudflare, Inc.
+     備註　　：只在使用者按「取得外網連結」時以獨立行程執行（quick tunnel，
+               trycloudflare.com，不需帳號）；關閉時與自在投影結束時一併結束。
+               使用 Cloudflare 的服務，適用 Cloudflare 的服務條款。
 
 
 ------------------------------------------------------------------------------
@@ -410,7 +477,7 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
 
 
 ==============================================================================
-附錄 A — Apache License 2.0（OpenSSL、pthreads4w、ALAC、adb、scrcpy-server、PaddleOCR 模型、Qwen 模型適用）
+附錄 A — Apache License 2.0（OpenSSL、pthreads4w、ALAC、adb、scrcpy-server、cloudflared、PaddleOCR 模型、Qwen 模型適用）
 ==============================================================================
 
 
@@ -1299,11 +1366,11 @@ https://jrsoftware.org/
 附錄 F — GNU General Public License 3.0
 ==============================================================================
 
-全文見安裝資料夾中的 LICENSE.txt（原始碼壓縮檔中的 LICENSE）。UxPlay、RPiPlay、PlayFair 及本程式皆適用此授權。
+全文見安裝資料夾中的 LICENSE.txt（原始碼壓縮檔中的 LICENSE）。UxPlay、RPiPlay、PlayFair、trackpad.js 中的 MoonlightWeb 程式碼（2e.7）及本程式皆適用此授權。
 
 
 ==============================================================================
-APPENDIX G — Mozilla Public License 2.0 (BergamotTranslatorSharp, bergamot-translator, Eigen, Firefox Translations models)
+APPENDIX G — Mozilla Public License 2.0 (BergamotTranslatorSharp, bergamot-translator, Eigen, Firefox Translations models, libdatachannel, libjuice, noVNC vkbd.js)
 ==============================================================================
 
 Mozilla Public License Version 2.0
@@ -1777,3 +1844,171 @@ freely, subject to the following restrictions:
 2. Altered source versions must be plainly marked as such, and must not be
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
+
+
+==============================================================================
+APPENDIX I — Licences of the remote-control components (libSRTP, usrsctp, Opus, plog, nlohmann-json)
+==============================================================================
+
+I.1  libSRTP (BSD-3-Clause)
+
+/*
+ *	
+ * Copyright (c) 2001-2017 Cisco Systems, Inc.
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *   Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * 
+ *   Redistributions in binary form must reproduce the above
+ *   copyright notice, this list of conditions and the following
+ *   disclaimer in the documentation and/or other materials provided
+ *   with the distribution.
+ * 
+ *   Neither the name of the Cisco Systems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+I.2  usrsctp (BSD-3-Clause)
+
+Copyright (c) 2015,  Randall Stewart and Michael Tuexen
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of usrsctp nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+I.3  Opus (BSD-3-Clause)
+
+Copyright 2001-2023 Xiph.Org, Skype Limited, Octasic,
+                    Jean-Marc Valin, Timothy B. Terriberry,
+                    CSIRO, Gregory Maxwell, Mark Borgerding,
+                    Erik de Castro Lopo, Mozilla, Amazon
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+- Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+- Neither the name of Internet Society, IETF or IETF Trust, nor the
+names of specific contributors, may be used to endorse or promote
+products derived from this software without specific prior written
+permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Opus is subject to the royalty-free patent licenses which are
+specified at:
+
+Xiph.Org Foundation:
+https://datatracker.ietf.org/ipr/1524/
+
+Microsoft Corporation:
+https://datatracker.ietf.org/ipr/1914/
+
+Broadcom Corporation:
+https://datatracker.ietf.org/ipr/1526/
+
+I.4  plog (MIT)
+
+MIT License
+
+Copyright (c) 2022 Sergey Podobry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+I.5  JSON for Modern C++ (MIT)
+
+MIT License 
+
+Copyright (c) 2013-2025 Niels Lohmann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -585,7 +585,7 @@ void llmAction(int id) {
 
 // ===================================================================== 線上翻譯
 enum OnId {
-    OEnable = 101, ODeepL, OAzure, OModeEscalate, OModeAll,
+    OEnable = 101, ODeepL, OAzure, OModeEscalate, OModeAll, OGoogle,  // (OGoogle last: the other ids stay as dev scripts know them)
     OKey = 110, OKeyShow, ORegion,
     OTest = 120, ODetails, ORetry,
     OTerms = 130, OPrivacy, OGetKey, OSignup, OPrivacyUrl,
@@ -610,6 +610,7 @@ std::wstring statusText(onl::Status s) {
     switch (s) {
     case onl::Status::BadKey: return tr(S::TrOnlineErrBadKey);
     case onl::Status::QuotaExceeded: return tr(S::TrOnlineErrQuota);
+    case onl::Status::ApiDisabled: return tr(S::TrOnlineErrApiDisabled);
     case onl::Status::RateLimited: return tr(S::TrOnlineErrRate);
     case onl::Status::Timeout: return tr(S::TrOnlineErrTimeout);
     case onl::Status::Network: return tr(S::TrOnlineErrNetwork);
@@ -623,6 +624,7 @@ std::wstring statusText(onl::Status s) {
 std::wstring shortReason(onl::Status s) {
     switch (s) {
     case onl::Status::RateLimited: return tr(S::TrOnlineReasonRate);
+    case onl::Status::ApiDisabled: return tr(S::TrOnlineReasonApiDisabled);
     case onl::Status::Timeout: return tr(S::TrOnlineReasonTimeout);
     case onl::Status::Network: return tr(S::TrOnlineReasonNetwork);
     case onl::Status::ServerError: return tr(S::TrOnlineReasonServer);
@@ -645,6 +647,7 @@ std::wstring planName(onl::Plan p) {
     case onl::Plan::DeepLFree: return L"DeepL API Free";
     case onl::Plan::DeepLPro: return L"DeepL API Pro";
     case onl::Plan::Azure: return onl::providerName(onl::Provider::Azure);
+    case onl::Plan::Google: return onl::providerName(onl::Provider::Google);
     default: return {};
     }
 }
@@ -662,13 +665,14 @@ std::vector<Item> onlineItems() {
     const bool on = O.on;
     const onl::Provider p = O.provider;
     const bool azure = p == onl::Provider::Azure;
+    const bool google = p == onl::Provider::Google;
     Item& en = add(Kind::Toggle, tr(S::TrOnlineEnable), OEnable);
     en.on = on;
     en.sub = tr(S::TrOnlineOffNote);
     add(Kind::Rule, L"");
     add(Kind::Heading, tr(S::TrOnlineProvider)).enabled = on;
-    for (onl::Provider x : {onl::Provider::DeepL, onl::Provider::Azure}) {
-        Item& r = add(Kind::Radio, onl::providerName(x), x == onl::Provider::DeepL ? ODeepL : OAzure);
+    for (onl::Provider x : {onl::Provider::DeepL, onl::Provider::Azure, onl::Provider::Google}) {
+        Item& r = add(Kind::Radio, onl::providerName(x), x == onl::Provider::DeepL ? ODeepL : x == onl::Provider::Azure ? OAzure : OGoogle);
         r.on = p == x;
         r.enabled = on && !O.testing;
     }
@@ -728,7 +732,7 @@ std::vector<Item> onlineItems() {
         int64_t ms = 0;
         const onl::Status b = onl::blockedStatus(p, &ms);
         if (b != onl::Status::Ok) {
-            const std::wstring why = b == onl::Status::BadKey || b == onl::Status::QuotaExceeded ? statusText(b) : shortReason(b);
+            const std::wstring why = b == onl::Status::BadKey || b == onl::Status::QuotaExceeded || b == onl::Status::ApiDisabled ? statusText(b) : shortReason(b);
             add(Kind::Status, fmt(S::TrOnlineBlocked, {why})).tone = 2;
             add(Kind::Note, ms < 0 ? std::wstring(tr(S::TrOnlineBlockedKey))
                             : ms < 120000 ? fmt(S::TrOnlineBlockedWait, {std::to_wstring((ms + 999) / 1000)})
@@ -749,13 +753,13 @@ std::vector<Item> onlineItems() {
         lk.buttons.push_back({OGetKey, tr(S::TrOnlineGetKey)});
     }
     if (O.privacyShown) {
-        add(Kind::Note, fmt(S::TrOnlinePrivacy, {onl::providerName(p)}));
+        add(Kind::Note, fmt(google ? S::TrOnlinePrivacyGoogle : S::TrOnlinePrivacy, {onl::providerName(p)}));
         Item& lk = add(Kind::Links, L"");
         lk.buttons.push_back({OPrivacyUrl, fmt(S::TrOnlinePrivacyOpen, {onl::providerName(p)})});
     }
     if (O.helpShown) {
-        add(Kind::Note, tr(azure ? S::TrOnlineHelpAzure : S::TrOnlineHelpDeepL));
-        add(Kind::Note, tr(azure ? S::TrOnlineFreeAzure : S::TrOnlineFreeDeepL));
+        add(Kind::Note, tr(google ? S::TrOnlineHelpGoogle : azure ? S::TrOnlineHelpAzure : S::TrOnlineHelpDeepL));
+        add(Kind::Note, tr(google ? S::TrOnlineFreeGoogle : azure ? S::TrOnlineFreeAzure : S::TrOnlineFreeDeepL));
         Item& lk = add(Kind::Links, L"");
         lk.buttons.push_back({OSignup, tr(S::TrOnlineSignup)});
     }
@@ -763,7 +767,8 @@ std::vector<Item> onlineItems() {
     if (O.storeError) add(Kind::Status, storeErrorText(O.storeError)).tone = 2;
     // 移除金鑰並全部關閉 at the end of the content (not in the footer: on a small
     // screen a second footer row would leave little room to scroll in).
-    const bool anything = onl::hasKey(onl::Provider::DeepL) || onl::hasKey(onl::Provider::Azure) || onl::loadSettings().mode != onl::Mode::Off;
+    const bool anything = onl::hasKey(onl::Provider::DeepL) || onl::hasKey(onl::Provider::Azure) || onl::hasKey(onl::Provider::Google) ||
+                         onl::loadSettings().mode != onl::Mode::Off;
     if (anything) {
         add(Kind::Rule, L"");
         Item& fg = add(Kind::Buttons, L"");
@@ -867,7 +872,7 @@ void onlineTest() {
                 r.status = onl::Status::NotConfigured;
             } else {
                 r.status = onl::Status::Ok;
-                r.plan = p == onl::Provider::DeepL ? onl::Plan::DeepLFree : onl::Plan::Azure;
+                r.plan = p == onl::Provider::DeepL ? onl::Plan::DeepLFree : p == onl::Provider::Google ? onl::Plan::Google : onl::Plan::Azure;
                 if (p == onl::Provider::DeepL) r.used = 12345, r.limit = 500000;
                 else r.sample = L"好的";
             }
@@ -926,8 +931,9 @@ void onlineAction(int id) {
         O.needKey = false;
         break;
     case ODeepL:
-    case OAzure: {
-        const onl::Provider np = id == ODeepL ? onl::Provider::DeepL : onl::Provider::Azure;
+    case OAzure:
+    case OGoogle: {
+        const onl::Provider np = id == ODeepL ? onl::Provider::DeepL : id == OGoogle ? onl::Provider::Google : onl::Provider::Azure;
         if (np == O.provider) return;
         O.provider = np;
         O.hasTest = false;

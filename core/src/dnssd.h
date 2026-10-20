@@ -46,6 +46,9 @@ typedef struct dnssd_s {
     uint32_t features2;
 
     unsigned char pin_pw;
+    /* PM 0.7.10.1: 1 = TXT status flags without bit 2 "audio cable attached"
+     * (settings.ini airplay_audio_status=0, pm_volume_hud.h); 0 = UxPlay */
+    unsigned char pm_no_audio_status;
     void *dnssd_private;
   
 /* p2p support (macOS only) */
@@ -106,6 +109,9 @@ DNSSD_API void dnssd_pm_announce(dnssd_t *dnssd);
 /* build the _raop._tcp TXT record (still served by GET /info "txtRAOP") without
  * registering the service; no network I/O (0 = ok) */
 DNSSD_API int dnssd_pm_build_raop_txt(dnssd_t *dnssd);
+/* PM 0.7.10.1 (pm_volume_hud.h): audio_status 0 drops statusFlags bit 2 from
+ * the TXT records (_airplay flags, _raop sf). Call before dnssd_register_*. */
+DNSSD_API void dnssd_pm_set_audio_status(dnssd_t *dnssd, int audio_status);
 /* 1 if _raop._tcp / _airplay._tcp are currently registered */
 DNSSD_API int dnssd_pm_raop_registered(dnssd_t *dnssd);
 DNSSD_API int dnssd_pm_airplay_registered(dnssd_t *dnssd);

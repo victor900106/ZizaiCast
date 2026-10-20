@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "remote/remote.h"
 #include "help/help.h"
 #include "share/share.h"
 #include "capture/capture.h"
@@ -68,6 +69,7 @@ void applyTheme() {
     g.askPanel.retheme();
     g.closePanel.retheme();
     g.keysPanel.retheme();
+    remoteRetheme();
     pm::ui::trset::retheme();
 }
 
