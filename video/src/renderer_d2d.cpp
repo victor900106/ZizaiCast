@@ -88,6 +88,8 @@ bool Renderer::ensureBrushes() {
 }
 
 void Renderer::releaseD2D() {
+    inkCache_.Reset();  // 0.8.3 簡報畫筆: belongs to the old target
+    inkCacheKey_.clear();
     for (auto& b : layerBmp_) b.Reset();
     layerScale_ = 0;
     beamBrush_.Reset();

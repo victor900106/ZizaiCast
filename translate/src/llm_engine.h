@@ -172,6 +172,8 @@ public:
     ~LlmEngine();
     LlmEngine(const LlmEngine&) = delete;
     LlmEngine& operator=(const LlmEngine&) = delete;
+    // loaded(), device(), family() never wait for a load or a generation;
+    // load() / translate() wait only for the load they need.
     // llama.dll loadable (does not load the model).
     static bool runtimeAvailable(std::wstring* err = nullptr);
     // Loads the model now (else on first translate()).
@@ -207,6 +209,9 @@ private:
     Stats stats_;
 };
 
+// A load is running right now (never blocks).
+bool loadingNow();
+
 // Loads the model on a worker thread now (the translate feature was turned
 // on): the first picture does not wait for it.  No-op when not installed.
 void warmUp();
@@ -220,6 +225,8 @@ public:
     bool installed(Lang src, Lang tgt) const override;
     uint64_t missingBytes(Lang src, Lang tgt) const override;
     TrCost cost() const override;
+    bool ready() const override { return engine_.loaded(); }
+    bool loading() const override;
     bool translate(const std::vector<TrRequest>& in, std::vector<TrHypothesis>& out, std::wstring* err) override;
     LlmEngine& engine() { return engine_; }
 

@@ -71,6 +71,8 @@ void usage() {
         "  --idle-after S --idle-fps N   phone idle after S seconds (default 60) -> N fps (default 15)\n"
         "  --no-keep-awake    let the PC sleep while connected\n"
         "  --test-clipboard T use an in-memory clipboard holding T (the PC clipboard is never touched)\n"
+        "  --upload-dir DIR   files from the phone go to DIR (0.8.3; default: off)  --upload-max BYTES\n"
+        "  --test-files A;B   with --test-clipboard: the files offered as copied in Explorer\n"
         "  --help-file PATH   the guide HTML served at /<token>/help\n"
         "  --no-audio         no audio track\n"
         "  --test-tone        play a very quiet (-70 dBFS) 440 Hz tone so the loopback has sound\n"
@@ -335,6 +337,17 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--view-only") o.viewOnly = true;
         else if (a == L"--idle-minutes") o.idleMinutes = _wtof(next());
         else if (a == L"--test-clipboard") o.testClipboard = true, o.testClipboardText = u8(next());
+        else if (a == L"--upload-dir") o.uploadDir = next();  // 0.8.3: the phone's files go there
+        else if (a == L"--upload-max") o.uploadMaxBytes = _wcstoui64(next(), nullptr, 10);
+        else if (a == L"--test-files") {  // 0.8.3: "a;b" = the files "copied in Explorer" (with --test-clipboard)
+            std::wstring list = next();
+            for (size_t p = 0; p <= list.size();) {
+                const size_t q = list.find(L';', p);
+                if (q != p) o.testClipboardFiles.push_back(list.substr(p, q == std::wstring::npos ? std::wstring::npos : q - p));
+                if (q == std::wstring::npos) break;
+                p = q + 1;
+            }
+        }
         else if (a == L"--help-file") o.helpFile = next();
         else if (a == L"--fixed-fps") o.adaptiveFps = false;
         else if (a == L"--idle-after") o.idleAfterSec = _wtof(next());
@@ -355,7 +368,10 @@ int wmain(int argc, wchar_t** argv) {
             t.freq = 440.0 + 220.0 * double(tones.size());
             tones.push_back(t);
         } else if (a == L"--list-audio") {
-            for (const auto& d : pm::remote::playbackDevices()) printf("%s%s\t%s\n", d.isDefault ? "* " : "  ", d.name.c_str(), d.id.c_str());
+            for (const auto& d : pm::remote::playbackDevices())
+                printf("%s%s\tvolume %.2f (%s)%s, %d playing\t%s\n", d.isDefault ? "* " : "  ", d.name.c_str(), d.volume,
+                       d.hwVolume ? "hardware volume" : "software volume: applied before the loopback", d.muted ? ", MUTED" : "",
+                       d.activeSessions, d.id.c_str());
             return 0;
         } else if (a == L"--audio-source") o.audioSource = u8(next());
         else if (a == L"--tunnel") tunnel = true;
@@ -365,7 +381,9 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--fixed-tunnel") fixedTunnel = true;
         else if (a == L"--tunnel-no-cc") o.tunnelCongestion = false;
         else if (a == L"--mute-pc") o.mutePc = true;
-        else if (a == L"--synthetic-audio") o.audioSynthetic = u8(next());  // music | loud: silent test source
+        else if (a == L"--synthetic-audio") o.audioSynthetic = u8(next());  // music | loud | quiet: silent test source
+        else if (a == L"--no-agc") o.audioAgc = false;               // 0.8.3 A / B
+        else if (a == L"--no-volume-comp") o.audioVolumeComp = false;  // 0.8.3 A / B
         else if (a == L"--tunnel-test-kbps") o.tunnelTestKbps = _wtoi(next());
         else if (a == L"--cloudflared") cloudflared = next();
         else if (a == L"--stamp") o.stamp = true;

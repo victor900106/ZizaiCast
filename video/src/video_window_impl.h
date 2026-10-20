@@ -4,6 +4,7 @@
 
 #include "pm/video_window.h"
 #include "video_window_internal.h"
+#include "ink_layer.h"
 
 namespace pm {
 
@@ -142,6 +143,25 @@ struct VideoWindow::Impl {
     std::atomic<bool> mirrored{false};
     std::atomic<int> srcW{0}, srcH{0};  // visible size of the newest decoded picture
 
+    // ---- 簡報畫筆 / 拖檔到視窗 (0.8.3, vw_ink.cpp) ----
+    video::InkLayer ink;                   // the strokes: edited on the UI thread, drawn by the worker
+    std::atomic<bool> inkOn{false};        // ink mode: left drags draw; nothing reaches the pointer handler
+    std::optional<std::wstring> inkBadgeReq;  // guarded by m: 「畫筆模式」 pill text (empty: none)
+    std::optional<std::pair<std::wstring, std::wstring>> dropHintReq;  // guarded by m: drop hint title / sub
+    std::shared_ptr<std::function<void(int)>> inkFn;  // guarded by m: setInkHandler
+    VideoWindow::InkStyle inkStyle;        // UI thread
+    bool inking = false;                   // UI thread: a stroke in progress (capture held)
+    POINT inkLast{};                       // its last point (client px)
+    HCURSOR penCursor = nullptr;
+    // Client pixel -> U space of the ink (false: not on the picture, unless clamp).
+    bool inkPoint(POINT pt, bool clamp, float& ux, float& uy, float* aspect = nullptr, float* pxPerU = nullptr);
+    bool inkPress(LPARAM lp);
+    void inkMove(LPARAM lp);
+    void inkEnd(bool commit);
+    void inkChanged();                     // UI thread: redraw + the handler (stroke count)
+    void inkDroppedByPicture();            // worker: post inkChanged to the UI thread
+    bool overInkPicture();                 // cursor over the picture in ink mode (pen cursor)
+
     // Frame tap: tapFn is guarded by tapCallM, which the worker holds while
     // calling it (so setFrameTap() returning means the old tap is done).
     std::mutex tapCallM;
@@ -220,6 +240,12 @@ struct VideoWindow::Impl {
     VideoCodec decCodec = VideoCodec::H264;
     bool hwBroken = false;       // HW decode failed once: stay on SW
     bool decoderMissing = false; // no MFT for this codec: drop until codec change
+    // PM 0.8.3: a failed open (also a transient one: device just re-created,
+    // MF busy) used to stop decoding for good for that codec: every new stream
+    // with the same codec stayed black until the app restarted. Retried at a
+    // stream reset and at key frames, at most every kDecoderRetryMs.
+    double decoderMissingAt = -1;
+    int decoderRetries = 0;
     bool waitKey = true;         // need parameter sets + IRAP before decoding
     // Access units since the last key frame (first = the key frame): re-fed
     // after a device loss or a HW -> SW decoder switch.
@@ -436,7 +462,8 @@ struct VideoWindow::Impl {
                frameReq >= 0 || recReq >= 0 || mascotHoverReq >= 0 || xformChanged || mascotClickReq || tapChanged ||
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
                toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
-               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0;
+               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0 ||
+               inkBadgeReq || dropHintReq;
     }
 
     // Takes everything queued plus control flags; returns false on stop.

@@ -104,8 +104,10 @@ Result download(const std::function<void(const DownloadProgress&)>& progress, co
 bool remove(const std::string& model = "");
 // Frees the model's memory now (it is loaded again on the next request).
 void release();
-// Loads the model in the background now - call when the user turns screen
-// translation on, so the first picture does not wait (~1 s).  It is kept
+// Loads the model in the background now - call when the user turns the local
+// AI on or a phone connects (0.8.3: not at the moment of a translation, the
+// load would share the GPU with its OCR).  Never blocks; a picture never
+// waits for a load (it skips the LLM until the model is there).  It is kept
 // loaded while pictures are translated and released 5 minutes after the last.
 void warmUp();
 

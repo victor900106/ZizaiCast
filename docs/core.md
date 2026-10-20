@@ -124,7 +124,7 @@ the exe.
 
 | Event | When |
 |---|---|
-| `onClientConnecting(name, model)` | `report_client_request` = first RTSP SETUP (after pairing/FairPlay). `name` is the phone's own UTF-8 name ("Victor的iPhone"), `model` e.g. `iPhone15,2`. |
+| `onClientConnecting(name, model)` | `report_client_request` = first RTSP SETUP (after pairing/FairPlay). `name` is the phone's own UTF-8 name ("Alex的iPhone"), `model` e.g. `iPhone15,2`. |
 | `onClientDisconnected()` | open connections dropped to 0 (`conn_destroy`; also after `conn_reset`/watchdog relaunch and `stop()`, which close all connections), only if a client was announced or a PIN shown since the last one. Bare `GET /info` probes from other Apple devices don't produce it. |
 | `onPin("1234")` | `requirePin`: the phone sent `POST /pair-pin-start` (UxPlay `display_pin`). |
 | `onPin("")` | PIN no longer needed: SETUP arrived (pairing done), the connection that asked for the PIN closed (user cancelled on the phone, also while another phone mirrors) or all connections closed. |
@@ -437,7 +437,7 @@ picked interface; announcements/goodbyes go out of every interface
 on the interface it came in on (`WSARecvMsg` + `IP_PKTINFO`) with that
 interface's address, so Ethernet and Wi-Fi on different subnets both work.
 Queries arriving on non-advertised interfaces (VPN) are ignored. The start
-log lists them: `mDNS advertising on 1 interface(s): 乙太網路=192.168.1.125`.
+log lists them: `mDNS advertising on 1 interface(s): 乙太網路=192.168.1.20`.
 IPv6 mDNS remains off on Windows (upstream stub).
 
 ### Network changes, sleep/resume (`refreshNetwork()`)
@@ -457,8 +457,8 @@ the existing feedback watchdog / `conn_reset`). The app calls
 (asynchronous, returns at once). Log lines (`[network]`):
 
 ```
-[network] refreshNetwork(): interfaces unchanged: before [乙太網路=192.168.1.125, …], now […]
-[network] mDNS re-opened and re-announced on 3 interface(s): 乙太網路=192.168.1.125, Tailscale=100.64.0.1, 乙太網路 4=192.168.56.1
+[network] refreshNetwork(): interfaces unchanged: before [乙太網路=192.168.1.20, …], now […]
+[network] mDNS re-opened and re-announced on 3 interface(s): 乙太網路=192.168.1.20, Tailscale=100.64.0.1, 乙太網路 4=192.168.56.1
 [network] AirPlay listener on TCP port 65316 still up (wildcard bind); 0 open connection(s) kept
 [network] mDNS announcement repeated
 ```
@@ -469,13 +469,13 @@ change`) and the first network change brings the advertisement up.
 
 Verified (2026-10-07, `py -3 tools/pm_probe/net_check.py`, pm_probe
 `--dynamic-ports` next to the installed app): this PC has Ethernet
-192.168.1.125 (real), VirtualBox host-only 192.168.56.1, Tailscale
+192.168.1.20 (the physical adapter), VirtualBox host-only 192.168.56.1, Tailscale
 100.64.0.1 (Wi-Fi disconnected). Default: advertised on Ethernet only;
 a PTR query sent out of each interface is answered on Ethernet with
-`A 192.168.1.125` and not on the VirtualBox/Tailscale ones. With
+`A 192.168.1.20` and not on the VirtualBox/Tailscale ones. With
 `--allow-virtual` (test hook env `PM_MDNS_ALLOW_VIRTUAL=1`, all three
 advertised) each interface answers with its own A record (192.168.56.1 /
-100.64.0.1 / 192.168.1.125). `--refresh` (pm_probe `--refresh-at 5`, or
+100.64.0.1 / 192.168.1.20). `--refresh` (pm_probe `--refresh-at 5`, or
 press R in pm_probe) shows the `[network]` lines above and the same answers
 afterwards. Automatic notifications could not be exercised without
 toggling adapters (not allowed on this PC); they share the refresh path.
@@ -556,3 +556,121 @@ listed but connecting fails → TCP 7000/7100 blocked or pairing error in log;
   `client_time_received` fix: expect `[clock] timeline offset latched from
   the NTP clock sync` and a `[video-timing]` `lead` without "(NO NTP clock
   sync)".
+
+## 0.8.3 (AirPlay group): core / audio / video review
+
+Branch `airplay-fix`, from 695e65c. Every item: problem, how to reproduce,
+fix, how it is verified. Tests used: `pm_083_test` (new), `pm_robust_test`,
+`pm_buffer_test`, `pm_ntp_test`, `pm_clock_test`, `pm_reqlog_test`,
+`pm_audio_test --idle-test / --session-test / --tap / --flush-test --tap`
+(tap mode: no audio device, no sound), `pm_video_test --offscreen`,
+`tools/pm_probe/takeover_check.py`, `net_check.py --refresh`, and the
+new `tools/pm_probe/idle_check.py`. All loopback or off-screen; nothing
+plays sound, no window is shown on the desktop.
+
+### Network input: length checks (verified by code review only)
+
+These were reviewed and fixed but deliberately **not** exercised with
+crafted packets (no malformed-packet test was written); the normal-traffic
+tests above still pass with the checks in place.
+
+| # | Problem | How it shows | Fix |
+|---|---|---|---|
+| 1 | SETUP 1 copied `eiv` as 16 and `ekey` as 72 bytes whatever their length (heap over-read; the debug dump of `ekey` read past the 72-byte stack copy). The check came after the takeover, so a bad SETUP from a 2nd phone first ended the running session. | A SETUP whose `eiv`/`ekey` plist data is shorter than 16/72 bytes | `raop_handlers.h`: both lengths checked before the PIN/takeover logic; otherwise `400 Bad Request`, running session untouched |
+| 2 | Mirror codec packet (type 0x01), H.264: SPS/PPS sizes from the payload were used unchecked (read as `short`: a size >= 0x8000 became negative, `memcpy` of ~4 GB → crash). | avcC payload whose SPS/PPS size exceeds the packet | `raop_rtp_mirror.c`: `8 + sps + 3 <= size`, `11 + sps + pps <= size`, sizes >= 1, `int` not `short`; else the packet is ignored (logged) |
+| 3 | Same for H.265: offset 0x75 and the VPS/SPS/PPS sizes were never compared with the payload. | hvc1 payload shorter than 0x7a bytes or with oversize parameter sets | each 5-byte header and its size must lie inside the payload (`PM_HVC_FITS` / `PM_HVC_SIZE_OK`) |
+| 4 | NAL length loop read the 4 length bytes before checking 4 bytes were left (up to 3 bytes over-read); a 0-length last unit made the header-byte test read 1 byte past the end. OOM on a frame called `exit(1)`. | frame whose last length field is truncated | check before read, `nc_len >= 1`; a failed `malloc` drops the frame |
+| 5 | `http_request.c`: header field count/size limits were only checked by `raop.c` once a request was complete; until then URL and headers grew without limit (one TCP connection could exhaust memory). `httpd.c`: the reverse-HTTP debug log wrote its NUL at `buffer[1024]` (1-byte stack overflow). | a request that never ends its header block | URL <= 4 KB, <= 64 fields, <= 8 KB per name/value while parsing (parse error → connection closed); `recv` into `sizeof(buffer) - 1` |
+
+### Threads, stale state, mDNS, relaunch
+
+| # | Problem | Reproduce | Fix | Verified |
+|---|---|---|---|---|
+| 6 | TEARDOWN listing both streams (96 and 110) stopped only the audio (`else if`): the mirror thread and its TCP port stayed up, no `onReset`. | TEARDOWN with `streams: [96, 110]` | both handled; the "whole session" branch only when neither is listed | code review; `takeover_check.py` (TEARDOWN paths) unchanged |
+| 7 | `raop_ntp_stop()` could lose its wake-up: it signals the condition variable once, but if the NTP thread was still in its 300 ms receive the signal was lost and the join waited for the following 250 ms (burst) / **3 s** wait. Every takeover / TEARDOWN / disconnect / relaunch paid it. | `pm_083_test` ntp_stop: stop 50-210 ms after start, timing port that never answers | the thread checks `running` under `wait_mutex` before waiting | `pm_083_test`: worst stop **526 ms with the fix disabled → 252 ms** (only the pending 300 ms receive is left; after the burst the old worst case is 3.3 s) |
+| 8 | A new audio stream on the same connection (iPhone pause → TEARDOWN 96, play → SETUP 96) kept the RTP↔NTP sync of the previous stream; its first packets were mapped with it (and the AAC-ELD video-arrival estimate was skipped). | `pm_083_test` rtp_resync: ALAC stream 1 with a sync, restart, packet before the new stream's sync | `raop_rtp_start_audio` clears `initial_sync`, `rtp_sync`, `client_ntp_sync`, `flush` | `pm_083_test`: with the fix disabled the packet is delivered with stream 1's sync (FAIL); fixed: waits for its own sync, then delivered |
+| 9 | Facade: `VideoTiming` was cleared from the httpd thread (`video_reset`) while the mirror thread wrote it (data race); never cleared on a dropped connection, so the first `[video-timing]` window after a reconnect spanned both sessions. | reconnect / takeover while mirroring | other threads set `vtResetPending`; the mirror thread clears before its next frame; also set on last disconnect and relaunch (`badVideoFrames` reset per session) | code review; `takeover_check.py` 47 checks ok |
+| 10 | `mdnsd_stop()` closed the sockets while the mDNS thread could still be in `select`/`recv` on them; a socket opened meanwhile (RTP, mirror) could get the same handle and the mDNS thread read its packets. | network change (`refreshNetwork`) during a session | join first (thread woken through its wake socket), then close | `net_check.py --refresh`: answered on Ethernet before and after the refresh |
+| 11 | mDNS was announced once at start (RFC 6762 8.3 wants at least two, 1 s apart) and not at all after an httpd relaunch; a failed mDNS re-open waited for the next network notification (possibly never). | start / feedback-watchdog relaunch | `scheduleAnnounce`: two more announcements at start (+1 s, +2 s) and two after a relaunch; a failed re-open is retried after 2, 4 … 60 s | pm_probe log: `mDNS announcement repeated` at +1.0 / +2.0 s and at relaunch +0 / +1.0 s; the watchdog still relaunches after 16 s; `/info` answered after the relaunch |
+| 12 | A failed httpd relaunch (`raop_start_httpd` error) left the receiver without a listener until the app restarted. | port briefly unavailable at relaunch | the supervisor retries after 1, 2, 4 … 30 s | **not exercised** (could not make the bind fail on demand); code review |
+
+### Audio
+
+| # | Problem | Fix | Verified |
+|---|---|---|---|
+| 13 | After a disconnect (or an audio TEARDOWN with no new SETUP) the WASAPI stream stayed open, rendering silence every device period, until the next phone connected (`resetSession`). | `AudioPlayer`: ring empty and no packet for 3 s → stream released (log `no audio packets for 3.0 s: WASAPI stream closed`); the next packet reopens it (prefill 30 ms covers the 10-30 ms open). The core's audio sockets were already closed on TEARDOWN / disconnect (`raop_rtp_stop` / `conn_destroy`). | `pm_audio_test --idle-test` (tap mode): output open while streaming, closed after 3 s, reopened by the next packet and audible again; `--session-test`, `--tap`, `--flush-test --tap` unchanged. The WASAPI branch itself was **not** run (no device use allowed). |
+| 14 | `onFormat` whose decoder could not be created (e.g. ALAC without the port) still set the format: WASAPI opened and held silence for the whole stream. | no decoder → no format, output closed | `--idle-test`: onFormat with an undecodable codec → output closed |
+| 15 | Render thread polled every 50 ms (tap: 20 ms) while no format was set. | waits for its event without timeout (5 s only while the "stream idle" stats line is still due) | `--idle-test` / `--session-test` |
+
+### Video
+
+| # | Problem | Fix | Verified |
+|---|---|---|---|
+| 16 | One hardware decode error (`decodeOne`) switched to software decoding for the rest of the session; only a new D3D device reset it. Software HEVC cannot keep up with 1440p60. | `swSince` is set: hardware again at a key frame after 30 s (same as the watchdog fallback) | code review (no fault hook produces a decode error HRESULT); `pm_video_test --offscreen` device-loss + decoder-stall faults recover as before |
+| 17 | A failed decoder open set `decoderMissing`, and nothing cleared it for the same codec: every later stream stayed black until the app restarted (also after a transient failure). | retried at the next stream reset and at key frames, at most every 10 s (`kDecoderRetryMs`) | code review; `pm_video_test --offscreen --churn 30` (HEVC) and the fault run unchanged |
+
+Buffer limits were reviewed and are bounded already: AU queue 32 / hard 600
+AUs or 128 MB, GOP cache 1800 AUs / 64 MB, held pictures 40, texture pool
+`kMaxPool`, stats samples 2^20 per series, mirror payload 32 MB, HTTP body
+16 MB, audio ring 120 ms.
+
+### Polling → events, idle CPU and wake-ups
+
+`core/src/pm_wake.c`: a loopback UDP socket connected to itself;
+`pm_wake_signal()` sends a byte, the owner thread `select()`s on it next to
+its sockets. If it cannot be created the old timeout is used.
+
+| Thread | Before | After |
+|---|---|---|
+| httpd | `select` 1.005 s | until a socket, wake (stop, pending removal) or the earliest 60 s inactivity deadline; no timeout with no connection |
+| audio RTP | `select` 5 ms | sockets + wake (volume, flush, metadata, progress, DACP, stop) |
+| mirror | `select` 5 ms | socket + wake (stop) |
+| mDNS | `select` 250 ms | socket + wake (stop) |
+| supervisor | 1 s always | 1 s tick only with an open connection, a PIN on screen or a relaunch retry; otherwise kicked (conn_init, PIN, reset, stop) |
+| network watch | 250 ms always | until the debounce / announcement / retry deadline or a notification |
+| AudioPlayer render | 50 ms without a format | event only |
+
+Stop latency of an idle thread (`pm_083_test` stop_latency): audio 15.5 →
+0.2 ms, mirror 15.7 → 0.2 ms, httpd 807 → 0.2 ms.
+
+`py -3 tools/pm_probe/idle_check.py --exe <pm_probe.exe> --seconds 60`
+(pm_probe, 60 s after a 5 s settle; "session" = one simulated phone with
+mirror + audio SETUP and a `/feedback` every 2 s, no media data):
+
+| scenario | build | run | CPU (60 s) | % of one core | wake-ups/s |
+|---|---|---|---|---|---|
+| noclient | 695e65c | 1 / 2 | 0.0 / 15.6 ms | 0.000 / 0.026 % | 20.8 / 20.5 |
+| noclient | 0.8.3 | 1 / 2 | 15.6 / 15.6 ms | 0.026 / 0.026 % | **12.2 / 11.9** |
+| session | 695e65c | 1 / 2 | 140.6 / 203.1 ms | 0.234 / 0.338 % | 157.2 / 164.2 |
+| session | 0.8.3 | 1 / 2 | **31.2 / 31.2 ms** | **0.052 / 0.052 %** | **15.2 / 14.3** |
+
+(CPU time has a 15.6 ms granularity; "noclient" is at that resolution limit
+both times. About 5 of the remaining 12 wake-ups/s in "noclient" are
+pm_probe's own console loop (`Sleep(200)` + `_kbhit`), not the core.)
+
+Wake-ups = context switches of all threads (psutil). The before numbers
+depend on the system timer resolution: the 5 ms polls ran at ~64/s each
+with the default 15.6 ms timer and would be ~200/s each with a 1 ms timer
+(another app raising it). The remaining wake-ups in "session" are the
+heartbeat requests (every 2 s), the NTP requests (every 3 s, 300 ms receive
+timeout) and the supervisor's 1 s tick. The whole app (`--dev
+--test-offscreen --test-feed`, after the feed ended) was smoke-tested only:
+0 errors in the log; its idle wake-ups (~170/s) are dominated by the window
+/ UI threads, not the core; no before value was taken for the app.
+
+### Not verified
+
+* Malformed-packet behaviour of items 1-5 (code review only, by decision).
+* A real iPhone (all of the above is loopback / simulated).
+* Relaunch retry (item 12) and mDNS re-open retry (11, failure branch).
+* The WASAPI branch of the idle close (13): only the tap clock was run.
+* Video items 16-17 at runtime (no fault hook for a decode-error HRESULT or
+  a failed decoder open).
+* `takeover_check.py` reports one failure, `B cancelled: onPin("")`, with
+  the 695e65c binary as well: the check predates the PIN staying visible
+  after the pair-pin-start connection closes (see "Session events and
+  PIN"); not changed here.
+* `pm_robust_test` (3 PIN-try checks) and `pm_ntp_test` (worst error 3.4 ms)
+  each failed once, on the first run right after the first build of this
+  branch while the machine was busy, and passed on every later run
+  (robust + ntp 5/5 in a row at the end); the cause was not determined.

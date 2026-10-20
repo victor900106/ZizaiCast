@@ -337,7 +337,14 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
         } else if (hl > 0.003f) {
             fillShape(brush(pal_.accent, 0.26f * hl * a));
         }
-        if (icons && it.glyph) {
+        if (it.swatch >= 0) {  // 畫筆 (0.8.3): colour / thickness as a disc (ringed: black and white stay visible)
+            const uint32_t c = static_cast<uint32_t>(it.swatch);
+            const float dr = btn * (0.07f + 0.15f * std::clamp(it.swatchSize, 0.f, 1.f));
+            const D2D1_POINT_2F cc{(ib.left + ib.right) / 2, (ib.top + ib.bottom) / 2};
+            d2dTarget_->FillEllipse({cc, dr, dr},
+                                    brush(D2D1::ColorF(((c >> 16) & 255) / 255.f, ((c >> 8) & 255) / 255.f, (c & 255) / 255.f), a));
+            d2dTarget_->DrawEllipse({cc, dr + 0.75f, dr + 0.75f}, brush(ink, 0.55f * a), 1.f);
+        } else if (icons && it.glyph) {
             const wchar_t g[2] = {it.glyph, 0};
             d2dTarget_->DrawText(g, 1, icons.Get(), ib, brush(ink, a));
         }

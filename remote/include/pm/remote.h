@@ -55,6 +55,10 @@ std::string tailscaleIp();
 struct AudioDevice {
     std::string id, name;
     bool isDefault = false;
+    float volume = -1;       // 0.8.3: master volume (0..1), hwVolume: applied in hardware (after the loopback)
+    bool hwVolume = false;
+    bool muted = false;
+    int activeSessions = 0;  // programs playing to it now
 };
 std::vector<AudioDevice> playbackDevices();
 
@@ -167,12 +171,32 @@ struct Options {
     bool tunnelCongestion = true;
     // Tests: "music" / "loud" = the PC sound comes from a silent synthetic source (nothing is played or captured).
     std::string audioSynthetic;
+    // 0.8.3: the PC's sound for the phone: automatic gain (quiet material raised up to +12 dB)
+    // and volume compensation (a device whose volume Windows applies in software: the
+    // phone's level does not follow the PC's slider). false = as 0.8.2 (A / B tests).
+    bool audioAgc = true;
+    bool audioVolumeComp = true;
     // 常駐外網 (0.8.2): the fixed link (Tailscale Funnel :8443 or a cloudflared fallback ->
     // 127.0.0.2:<port>), logins with the owner's password.
     std::string fixedPasswordHash;  // hashPassword(); empty = no logins
     std::string fixedSecret;        // signs the login tokens (30 days); a new one ends every login
     bool fixedNeedApproval = false; // 外面的新手機也要電腦按允許
     std::function<void(const std::string& ip, bool ok, int fails, bool locked)> onLogin;
+    // 0.8.3: 中斷 on the PC ends that phone's fixed-link login (its token id; expiry in epoch
+    // seconds): keep it (settings) and hand it back here, so a restart does not let it in again.
+    std::vector<std::string> revokedLogins;  // "<token id>:<expiry>"
+    std::function<void(const std::string& tokenId, long long expiry)> onLoginRevoked;
+    // 0.8.3: the phone (fixed link) lifted 僅觀看 for its session with the password.
+    std::function<void(const Peer&)> onUnlocked;
+    // 0.8.3 files (never in 僅觀看): the phone's uploads go to uploadDir (empty = off),
+    // in pieces (POST up), each file at most uploadMaxBytes; names are cleaned (no path,
+    // no reserved device names), an existing file is never overwritten. The other way:
+    // files copied in Explorer (the clipboard's CF_HDROP; nothing else on the PC) are
+    // offered to the phone, each behind a one-time download key (10 minutes).
+    std::wstring uploadDir;
+    uint64_t uploadMaxBytes = 2ull * 1024 * 1024 * 1024;
+    std::function<void(const Peer&, const std::string& fileName, uint64_t bytes)> onUploaded;
+    std::vector<std::wstring> testClipboardFiles;  // with testClipboard: the "copied files" (tests)
     // Tests: the tunnel's writer sends at most this many kbps (a slow phone link, 0 = no limit).
     int tunnelTestKbps = 0;
 
@@ -198,8 +222,9 @@ public:
     void approve(const std::string& session, bool allow, bool remember = false);
     void kick(const std::string& why);
     void setViewOnly(bool on);
-    bool viewOnly() const;
-    bool active() const;                // a phone is allowed and connected
+    bool viewOnly() const;              // 0.8.3: for the current session (false once the phone lifted it with the password)
+    bool viewOnlyUnlocked() const;      // 0.8.3: the current session lifted 僅觀看 with the password
+    bool active() const;               // a phone is allowed and connected
     Peer peer() const;                  // the current one (pending or active)
     // Milliseconds since the phone last clicked / pressed a key on this PC
     // (injected), -1 = never. A PC control that a remote click could reach
@@ -235,6 +260,14 @@ public:
     bool fixedOn() const;
     void setFixedOptions(const std::string& passwordHash, const std::string& secret, bool needApproval);
     std::string fixedOrigin() const;  // "http://127.0.0.2:<port>"
+    // 0.8.3: which relay serves the fixed link: cloudflared (its CF-Connecting-IP is the
+    // phone) or Tailscale Funnel (false, the default: the last X-Forwarded-For entry).
+    // Only that relay's own header is believed.
+    void setFixedViaCloudflared(bool on);
+    // 0.8.3: the app locks this PC when a session ends (遠端斷線後自動鎖定電腦): outside =
+    // the fixed link / the 外網連結, lan = the LAN / Tailscale. Only shown on the page
+    // (next to 中斷); the locking itself is the app's (onEnded: Peer::tunnel / fixed).
+    void setLockAfterSession(bool outside, bool lan);
 
 private:
     struct Impl;

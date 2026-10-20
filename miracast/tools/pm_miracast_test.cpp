@@ -10,6 +10,9 @@
 //       Plays a local file through the same MediaPlayer frame-server path
 //       (FramePump) into a VideoWindow and prints frame statistics each
 //       second.  Exit code 0 if frames were delivered.
+//   pm_miracast_test --selftest
+//       Offline checks (no window, no sound, no Miracast): the frozen-picture
+//       watchdog's decisions (FreezeDetector).  Exit code 0 = all passed.
 #include <windows.h>
 
 #include <winrt/Windows.Foundation.h>
@@ -25,6 +28,7 @@
 #include <thread>
 
 #include "frame_pump.h"
+#include "freeze_detector.h"
 #include "pm/miracast_receiver.h"
 #include "pm/video_window.h"
 
@@ -183,6 +187,106 @@ int cmdFile(const std::wstring& file, int seconds, const std::wstring& snapshot,
     return delivered > 0 ? 0 : 3;
 }
 
+int g_pass = 0, g_fail = 0;
+void check(bool ok, const char* what, int line) {
+    if (ok) {
+        ++g_pass;
+    } else {
+        ++g_fail;
+        std::printf("  FAIL line %d: %s\n", line, what);
+    }
+}
+#define CHECK(c) check((c), #c, __LINE__)
+
+// Feeds the detector like the receiver's watchdog: every 500 ms, counters
+// growing at `fps` while `flowing(t)` says so.
+int cmdSelftest() {
+    using pm::miracast::FreezeDetector;
+    using A = FreezeDetector::Action;
+    std::printf("== FreezeDetector\n");
+    FreezeDetector::Config cfg;  // defaults: first 15 s, stall 10 s, pipeline 3 s, 3 retries 2/4/8 s
+    {
+        // A healthy cast: never a retry.
+        FreezeDetector d(cfg);
+        d.start(0);
+        long long n = 0;
+        bool any = false;
+        for (int64_t t = 500; t <= 120000; t += 500) any |= d.tick(t, n += 15, n, false) != A::None;
+        CHECK(!any);
+    }
+    {
+        // Picture stops at 20 s: retry at 30 s (stall 10 s), then after 2, 4, 8 s, then give up.
+        FreezeDetector d(cfg);
+        d.start(0);
+        long long n = 0;
+        std::vector<int64_t> retries;
+        int64_t gaveUp = -1;
+        for (int64_t t = 500; t <= 80000; t += 500) {
+            if (t <= 20000) n += 15;
+            const A a = d.tick(t, n, n, false);
+            if (a == A::Retry) retries.push_back(t);
+            if (a == A::GiveUp && gaveUp < 0) gaveUp = t;
+        }
+        CHECK(retries.size() == 3);
+        if (retries.size() == 3) {
+            CHECK(retries[0] == 30000);
+            CHECK(retries[1] - retries[0] == 2000 && retries[2] - retries[1] == 4000);  // exponential
+        }
+        CHECK(gaveUp == (retries.empty() ? 0 : retries.back()) + 8000);
+        std::printf("  frozen at 20 s: retries at");
+        for (auto t : retries) std::printf(" %.1f s", double(t) / 1000);
+        std::printf(", gave up at %.1f s\n", double(gaveUp) / 1000);
+    }
+    {
+        // Recovers after the second retry: no give-up; a later freeze starts over at retry 1.
+        FreezeDetector d(cfg);
+        d.start(0);
+        long long n = 0;
+        int retries = 0, giveUps = 0;
+        for (int64_t t = 500; t <= 100000; t += 500) {
+            const bool flowing = t <= 20000 || (t > 33000 && t <= 60000);
+            if (flowing) n += 15;
+            const A a = d.tick(t, n, n, false);
+            retries += a == A::Retry;
+            giveUps += a == A::GiveUp;
+            if (t == 59000) CHECK(d.retries() == 0);  // forgotten after stableMs of pictures
+        }
+        CHECK(giveUps == 1 && retries == 2 + 3);
+    }
+    {
+        // Pictures arrive but none is shown (our pipeline stuck): retry after 3 s, not 10 s.
+        FreezeDetector d(cfg);
+        d.start(0);
+        long long shown = 0, arrived = 0;
+        int64_t first = -1;
+        for (int64_t t = 500; t <= 30000 && first < 0; t += 500) {
+            arrived += 15;
+            if (t <= 10000) shown += 15;
+            if (d.tick(t, shown, arrived, false) == A::Retry) first = t;
+        }
+        CHECK(first == 13000);
+    }
+    {
+        // MediaFailed: retry at once.
+        FreezeDetector d(cfg);
+        d.start(0);
+        long long n = 0;
+        CHECK(d.tick(500, n += 15, n, false) == A::None);
+        CHECK(d.tick(1000, n += 15, n, true) == A::Retry);
+    }
+    {
+        // Nothing ever shown: waits firstFrameMs (15 s) before the first retry.
+        FreezeDetector d(cfg);
+        d.start(0);
+        int64_t first = -1;
+        for (int64_t t = 500; t <= 30000 && first < 0; t += 500)
+            if (d.tick(t, 0, 0, false) == A::Retry) first = t;
+        CHECK(first == 15000);
+    }
+    std::printf("\n%d passed, %d failed\n", g_pass, g_fail);
+    return g_fail ? 1 : 0;
+}
+
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
@@ -192,7 +296,7 @@ int wmain(int argc, wchar_t** argv) {
     bool crop = true;
     for (int i = 1; i < argc; ++i) {
         const std::wstring a = argv[i];
-        if (a == L"--status" || a == L"--listen") mode = a;
+        if (a == L"--status" || a == L"--listen" || a == L"--selftest") mode = a;
         else if (a == L"--file" && i + 1 < argc) mode = a, file = argv[++i];
         else if (a == L"--name" && i + 1 < argc) name = argv[++i];
         else if (a == L"--seconds" && i + 1 < argc) seconds = _wtoi(argv[++i]);
@@ -200,9 +304,10 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--no-crop") crop = false;
     }
     if (mode == L"--status") return cmdStatus();
+    if (mode == L"--selftest") return cmdSelftest();
     if (mode == L"--listen") return cmdListen(name, seconds);
     if (mode == L"--file") return cmdFile(file, seconds, snapshot, crop);
-    std::printf("usage: pm_miracast_test --status | --listen [--name N] [--seconds S] | --file F [--seconds S] "
-                "[--snapshot out.png] [--no-crop]\n");
+    std::printf("usage: pm_miracast_test --status | --selftest | --listen [--name N] [--seconds S] | --file F "
+                "[--seconds S] [--snapshot out.png] [--no-crop]\n");
     return 1;
 }

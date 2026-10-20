@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <initguid.h>  // PKEY_Device_FriendlyName defined in this file
 #include <audioclient.h>
+#include <audiopolicy.h>
 #include <endpointvolume.h>
 #include <mmdeviceapi.h>
 #include <propkeydef.h>
@@ -105,6 +106,10 @@ struct Cap {
     float winPeak = 0, lastWin = 0, statPeak = 0;
     float wins[4] = {0, 0, 0, 0};  // the last ~1 s of window peaks
     int winIdx = 0;
+    // 0.8.3 volume compensation: the endpoint's master volume (dB) when Windows applies it in software
+    ComPtr<IAudioEndpointVolume> vol;
+    bool hwVolume = false;
+    float comp = 1.f, compDb = 0.f;
 
     bool open() {
         if (FAILED(dev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(ac.GetAddressOf())))) return false;
@@ -206,6 +211,35 @@ struct Cap {
 
 }  // namespace
 
+// 0.8.3: how many programs play to this device right now (sessions in the Active state).
+int activeSessionsOf(IMMDevice* dev) {
+    ComPtr<IAudioSessionManager2> mgr;
+    if (!dev || FAILED(dev->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(mgr.GetAddressOf()))))
+        return 0;
+    ComPtr<IAudioSessionEnumerator> e;
+    int n = 0, active = 0;
+    if (FAILED(mgr->GetSessionEnumerator(&e)) || FAILED(e->GetCount(&n))) return 0;
+    for (int i = 0; i < n; ++i) {
+        ComPtr<IAudioSessionControl> c;
+        AudioSessionState st = AudioSessionStateInactive;
+        if (SUCCEEDED(e->GetSession(i, &c)) && SUCCEEDED(c->GetState(&st)) && st == AudioSessionStateActive) ++active;
+    }
+    return active;
+}
+
+// The master volume scalar and whether it is applied in hardware (read only).
+void volumeOf(IMMDevice* dev, float& scalar, bool& hw, bool& muted) {
+    scalar = -1, hw = false, muted = false;
+    ComPtr<IAudioEndpointVolume> v;
+    if (!dev || FAILED(dev->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(v.GetAddressOf())))) return;
+    DWORD mask = 0;
+    if (SUCCEEDED(v->QueryHardwareSupport(&mask))) hw = (mask & ENDPOINT_HARDWARE_SUPPORT_VOLUME) != 0;
+    float s = -1;
+    if (SUCCEEDED(v->GetMasterVolumeLevelScalar(&s))) scalar = s;
+    BOOL m = FALSE;
+    if (SUCCEEDED(v->GetMute(&m))) muted = m != FALSE;
+}
+
 std::vector<PlaybackDevice> playbackDevicesList() {
     std::vector<PlaybackDevice> v;
     const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);  // an STA caller (UI thread) keeps its STA
@@ -223,6 +257,8 @@ std::vector<PlaybackDevice> playbackDevicesList() {
                     p.id = idOf(d.Get());
                     p.name = nameOf(d.Get());
                     p.isDefault = p.id == def;
+                    volumeOf(d.Get(), p.volume, p.hwVolume, p.muted);
+                    p.activeSessions = activeSessionsOf(d.Get());
                     v.push_back(std::move(p));
                 }
         }
@@ -418,7 +454,12 @@ void LoopbackAudio::loop() {
             auto c = std::make_unique<Cap>();
             c->id = d->id, c->name = d->name, c->dev = d->dev;
             if (c->open()) {
-                logf("audio: capturing %s (%d ch, %d Hz %s%d)", c->name.c_str(), c->channels, c->rate, c->isFloat ? "float" : "int", c->bits);
+                if (SUCCEEDED(c->dev->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(c->vol.GetAddressOf())))) {
+                    DWORD mask = 0;
+                    if (SUCCEEDED(c->vol->QueryHardwareSupport(&mask))) c->hwVolume = (mask & ENDPOINT_HARDWARE_SUPPORT_VOLUME) != 0;
+                }
+                logf("audio: capturing %s (%d ch, %d Hz %s%d, %s)", c->name.c_str(), c->channels, c->rate, c->isFloat ? "float" : "int", c->bits,
+                     c->hwVolume ? "hardware volume: the loopback is at full level" : "software volume: compensated in the loopback (0.8.3)");
                 next.push_back(std::move(c));
                 nextF.emplace_back();
             }
@@ -457,7 +498,9 @@ void LoopbackAudio::loop() {
         fifos.resize(2);
         synthPos.assign(2, 0);
         std::lock_guard<std::mutex> lk(mu_);
-        curName_ = synth == "loud" ? "mix: synthetic A 440 Hz 0.9 + synthetic B 660 Hz 0.9" : "mix: synthetic music (3 s on / 3 s off) + synthetic noise floor 0.02";
+        curName_ = synth == "loud"    ? "mix: synthetic A 440 Hz 0.9 + synthetic B 660 Hz 0.9"
+                   : synth == "quiet" ? "mix: synthetic quiet music 0.03 (3 s on / 3 s off) + synthetic noise floor 0.002"
+                                      : "mix: synthetic music (3 s on / 3 s off) + synthetic noise floor 0.02";
         logf("audio: TEST synthetic source \"%s\" (no device captured, nothing played): %s", synth.c_str(), curName_.c_str());
     }
     dirty_ = synth.empty();
@@ -468,6 +511,10 @@ void LoopbackAudio::loop() {
     float mixWin = 0, mixWins[4] = {0, 0, 0, 0};
     int mixWinIdx = 0;
     float limGain = 1;
+    float agcG = 1, agcLoud = 0;  // 0.8.3 AGC: its gain, the smoothed RMS of the material
+    const bool agcOn = agc_.load(), compOn = comp_.load();
+    logf("audio: level: AGC %s, volume compensation %s", agcOn ? "on (up to +12 dB towards -18 dBFS RMS)" : "off",
+         compOn ? "on (software-volume devices, up to +18 dB)" : "off");
     while (!stop_ && en) {
         if (dirty_.exchange(false)) {
             if (notify && notify->defaultChanged.exchange(false)) logf("audio: the Windows default playback device changed");
@@ -484,6 +531,9 @@ void LoopbackAudio::loop() {
                     const double t = double(synthPos[i]) / kRate;
                     float x = 0;
                     if (synth == "loud") x = float(0.9 * std::sin(2 * 3.14159265358979 * (i ? 660 : 440) * t));
+                    else if (synth == "quiet")  // 0.8.3: quiet material (-33 dBFS peak) 3 s on / 3 s off over a -54 dBFS noise floor
+                        x = i == 0 ? (std::fmod(t, 6.0) < 3.0 ? float(0.03 * std::sin(2 * 3.14159265358979 * 440 * t)) : 0.f)
+                                   : (noise = noise * 1664525u + 1013904223u, 0.002f * (float(noise >> 8) / 8388608.f - 1.f));
                     else if (i == 0) x = std::fmod(t, 6.0) < 3.0 ? float(0.5 * std::sin(2 * 3.14159265358979 * 440 * t)) : 0.f;
                     else noise = noise * 1664525u + 1013904223u, x = 0.02f * (float(noise >> 8) / 8388608.f - 1.f);
                     f.s.push_back(x), f.s.push_back(x);
@@ -559,10 +609,31 @@ void LoopbackAudio::loop() {
                     continue;
                 }
                 const float* p = &f.s[f.head * 2];
-                for (size_t k = 0; k < have * 2; ++k) mixed[k] += p[k];
+                const float cg = i < caps.size() ? caps[i]->comp : 1.f;  // 0.8.3: the device's volume compensation
+                for (size_t k = 0; k < have * 2; ++k) mixed[k] += p[k] * cg;
                 capUs = std::min(capUs, f.firstUs);
                 f.head += have;
                 f.firstUs += int64_t(have) * 1000000 / kRate;
+            }
+            // 0.8.3 AGC: raise quiet material towards -18 dBFS RMS (at most x4 = +12 dB), never
+            // below x1; it only follows frames above -34 dBFS (music, speech), and in quieter
+            // stretches its gain drifts back to x1 (a noise floor is not pumped up).
+            if (agcOn) {
+                double sq = 0;
+                for (float x : mixed) sq += double(x) * x;
+                const float rms = float(std::sqrt(sq / double(mixed.size())));
+                float want = 1.f;
+                if (rms > 0.02f) {
+                    agcLoud = agcLoud > 0 ? agcLoud * 0.95f + rms * 0.05f : rms;
+                    want = std::clamp(0.125f / std::max(agcLoud, 1e-4f), 1.f, 4.f);
+                } else {
+                    want = std::max(1.f, agcG * 0.996f);  // ~ -0.7 dB/s back to x1
+                }
+                const float from = agcG;
+                agcG = want < agcG ? std::max(want, agcG * 0.9f) : std::min(want, agcG * 1.02f);  // down fast, up ~ +8.6 dB/s
+                if (from != 1.f || agcG != 1.f)
+                    for (size_t k = 0; k < mixed.size(); ++k) mixed[k] *= from + (agcG - from) * float(k) / float(mixed.size());
+                agcGain_ = agcG;
             }
             // Soft limiter: above 0.9 the gain eases down (fast attack, 1 s release), then a gentle clip.
             float peak = 0;
@@ -594,6 +665,21 @@ void LoopbackAudio::loop() {
         }
         if (now < nextWin) continue;
         nextWin = now + kWindowUs;
+        // 0.8.3: each software-volume device's compensation follows its volume slider.
+        float compMax = 1.f;
+        for (auto& cp : caps) {
+            Cap& c = *cp;
+            float db = 0.f;
+            const bool sw = compOn && c.vol && !c.hwVolume && SUCCEEDED(c.vol->GetMasterVolumeLevel(&db));
+            const float want = sw ? std::clamp(std::pow(10.f, -db / 20.f), 1.f, 7.94f) : 1.f;  // at most +18 dB
+            if (std::fabs(want - c.comp) > 0.01f) {
+                if (std::fabs(db - c.compDb) >= 1.f || want == 1.f)
+                    logf("audio: %s volume %.1f dB -> the loopback is raised x%.2f (%+.1f dB)", c.name.c_str(), db, want, 20 * std::log10(want));
+                c.comp = want, c.compDb = db;
+            }
+            compMax = std::max(compMax, c.comp);
+        }
+        compGain_ = compMax;
         // Level windows (250 ms): per device (the log), and of what the phone gets.
         for (auto& cp : caps) {
             Cap& c = *cp;

@@ -135,6 +135,26 @@ struct AudioPlayer::Impl {
     std::atomic<bool> deviceChanged{false};
     HANDLE wake = nullptr;
 
+    // PM 0.8.3: the output (WASAPI stream / tap clock) is closed after
+    // kIdleCloseNs without packets and an empty ring, and reopened by the next
+    // packet. After a disconnect or a TEARDOWN of the audio stream the stream
+    // used to stay open (and the render thread woke every device period
+    // rendering silence) until the next phone connected.
+    static constexpr int64_t kIdleCloseNs = 3'000'000'000;
+    std::atomic<bool> idleClosed{false};
+    // ring empty and no packet since max(last packet, output opened) + kIdleCloseNs
+    bool idleExpired(int64_t openedNs) {
+        std::lock_guard<std::mutex> lk(ringMu);
+        const int64_t last = std::max(lastPacketNs, openedNs);
+        return count == 0 && nowNs() - last > kIdleCloseNs;
+    }
+    // the render thread's wait while no output is wanted (no format, or idle):
+    // no timeout, except while the "stream idle" stats line is still due
+    void waitIdle() {
+        WaitForSingleObject(wake, statFlowing ? 5000 : INFINITE);
+        maybeLogStats();
+    }
+
     // Push decoded PCM. Drops oldest on overflow. Never blocks for long.
     void push(const int16_t* pcm, size_t frames, int pcmCh, int64_t arrivalNs) {
         std::lock_guard<std::mutex> lk(ringMu);
@@ -146,6 +166,7 @@ struct AudioPlayer::Impl {
             markWhat = nullptr;
         }
         lastPacketNs = arrivalNs;
+        if (idleClosed.exchange(false)) SetEvent(wake);  // PM 0.8.3: reopen the output
         if (frames > capFrames) {
             droppedFrames += frames - capFrames;
             pcm += (frames - capFrames) * ch;
@@ -319,16 +340,23 @@ void AudioPlayer::Impl::runTap() {
     while (running) {
         int r, c;
         uint64_t gen;
-        if (!currentFormat(r, c, gen)) {
-            WaitForSingleObject(wake, 20);
+        if (!currentFormat(r, c, gen) || (idleClosed && idleExpired(0))) {
+            waitIdle();
             continue;
         }
+        idleClosed = false;
         deviceOpen = true;
         ++deviceReopens;
         auto t0 = clock::now();
+        const int64_t openedNs = nowNs();
         uint64_t rendered = 0;
         while (running) {
             WaitForSingleObject(wake, 5);
+            if (idleExpired(openedNs)) {
+                idleClosed = true;
+                logf("no audio packets for %.1f s: output closed (reopens with the next packet)", kIdleCloseNs / 1e9);
+                break;
+            }
             double el = std::chrono::duration<double>(clock::now() - t0).count();
             uint64_t due = uint64_t(el * r);
             if (due <= rendered) continue;
@@ -341,6 +369,7 @@ void AudioPlayer::Impl::runTap() {
             cfg.pcmTap(sbuf.data(), n, c, r);
             rendered += n;
         }
+        deviceOpen = false;
     }
     deviceOpen = false;
 }
@@ -365,11 +394,11 @@ void AudioPlayer::Impl::runWasapi() {
     while (running && enumr) {
         int r, c;
         uint64_t gen;
-        if (!currentFormat(r, c, gen)) {
-            WaitForSingleObject(wake, 50);
-            maybeLogStats();
+        if (!currentFormat(r, c, gen) || (idleClosed && idleExpired(0))) {
+            waitIdle();  // PM 0.8.3: was a 50 ms poll
             continue;
         }
+        idleClosed = false;  // a packet came (or a new stream): open
         deviceChanged = false;
         const int64_t openStartNs = nowNs();
 
@@ -424,10 +453,16 @@ void AudioPlayer::Impl::runWasapi() {
              1000.0 * bufFrames / r, (nowNs() - openStartNs) / 1e6);
 
         HANDLE waits[2] = {audioEvent, wake};
+        const int64_t openedNs = nowNs();
+        bool idle = false;
         while (running && !deviceChanged) {
             DWORD w = WaitForMultipleObjects(2, waits, FALSE, 200);
             if (!running || deviceChanged) break;
             maybeLogStats();
+            if (idleExpired(openedNs)) {
+                idle = true;
+                break;
+            }
             if (w == WAIT_OBJECT_0 + 1) {
                 // Woken: format change / flush; check generation via pull below.
             }
@@ -448,12 +483,15 @@ void AudioPlayer::Impl::runWasapi() {
         }
         if (FAILED(hr)) logf("WASAPI stream error (hr=0x%08lx); reopening", (unsigned long)hr);
         else if (deviceChanged) logf("default audio device changed; reopening");
+        else if (idle) logf("no audio packets for %.1f s: WASAPI stream closed (reopens with the next packet)",
+                            kIdleCloseNs / 1e9);
         client->Stop();
         safeRelease(render);
         safeRelease(client);
         safeRelease(dev);
         deviceOpen = false;
         deviceBufferMs = 0;
+        if (idle) idleClosed = true;  // after the release: a packet from now on reopens
         if (FAILED(hr)) WaitForSingleObject(wake, 200);
     }
 
@@ -525,9 +563,26 @@ void AudioPlayer::onFormat(AudioCodec codec, int sampleRate, int channels, int s
                    err.c_str());
     else
         d_->logf("onFormat ct=%d %d Hz %d ch spf=%d", int(codec), sampleRate, channels, samplesPerFrame);
+    const bool haveDec = dec != nullptr;
     {
         std::lock_guard<std::mutex> lk(d_->decMu);
         d_->dec = std::move(dec);
+    }
+    if (!haveDec) {
+        // PM 0.8.3: no decoder, nothing to play: no output either. The format
+        // used to be set anyway, so WASAPI was opened and held with silence
+        // for the whole stream.
+        {
+            std::lock_guard<std::mutex> lk(d_->ringMu);
+            d_->rate = d_->ch = 0;
+            d_->capFrames = d_->prefillFrames = 0;
+            d_->ring.clear();
+            d_->rd = d_->count = 0;
+            d_->primed = false;
+            ++d_->formatGen;
+        }
+        SetEvent(d_->wake);
+        return;
     }
     {
         std::lock_guard<std::mutex> lk(d_->ringMu);

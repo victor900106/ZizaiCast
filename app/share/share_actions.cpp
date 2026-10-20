@@ -139,6 +139,7 @@ void setAutoShare(bool on) {
     if (g.share.live()) {
         g.sharePanel.close();
         g.share.stop();
+        shareClipOff();
     }
     g.window->showToast(tr(S::ShareAutoOff), 3000);
 }
@@ -147,7 +148,8 @@ void setAutoShare(bool on) {
 void autoSend(const fs::path& f) {
     g.log->write("info", "share: auto-send " + toUtf8(f.filename().wstring()));
     if (androidPushPath()) queuePush({f});
-    else sendViaQr({f}, false);
+    else if (liveShareOn()) addToLive({f}, false);
+    else startShareQr({f}, g.settings.autoShare, 0, true, 0);  // started by itself: no 電腦剪貼簿 (0.8.3)
 }
 
 void shareCommand(UINT cmd) {
@@ -167,6 +169,7 @@ void shareCommand(UINT cmd) {
             g.share.stop();
             g.window->showToast(tr(S::ShareStopped));
         }
+        shareClipOff();
         break;
     }
 }
@@ -199,6 +202,7 @@ void stopSharing() {
     g.sharePicker.close();
     g.sharePanel.close();
     g.share.stop();
+    shareClipOff();
     g.testPush.reset();
 }
 

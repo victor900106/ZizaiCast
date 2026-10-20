@@ -10,10 +10,14 @@
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Media.Miracast.h>
 
+#include <chrono>
+#include <condition_variable>
 #include <cstdarg>
 #include <mutex>
+#include <thread>
 
 #include "frame_pump.h"
+#include "freeze_detector.h"
 #include "pm/video_window.h"
 #include "wireless_display.h"
 
@@ -73,6 +77,13 @@ const wchar_t* kReasonHardware =
 const wchar_t* kReasonPolicy = L"Android 投影（Miracast 接收）已被系統管理原則停用。";
 const wchar_t* kReasonBusy =
     L"Miracast 接收暫時無法使用：可能是 Windows「連線」應用程式或其他投影接收程式正在使用，或 Wi-Fi 已關閉。";
+const wchar_t* kReasonFrozen = L"Android 投影的畫面凍結，重試後仍沒有畫面，已中斷這次投影；請在手機上重新投放。";
+const wchar_t* kReasonCantPlay = L"無法播放手機傳來的投影畫面，已中斷這次投影；請在手機上重新投放。";
+
+int64_t steadyMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
 
 }  // namespace
 
@@ -92,6 +103,15 @@ struct MiracastReceiver::Impl : std::enable_shared_from_this<Impl> {
     winrt::event_token tokStatus{}, tokConn{}, tokMedia{}, tokDisc{};
     std::unique_ptr<FramePump> pump;
     std::mutex pumpMutex;  // play/stop of the pump (outside m)
+
+    // Frozen-picture watchdog (own thread while listening; see freeze_detector.h).
+    std::thread watchdog;
+    std::condition_variable wcv;
+    bool wquit = false;          // under m
+    bool casting = false;        // under m: a media source is playing
+    std::atomic<bool> playerFailed{false};
+    miracast::FreezeDetector freeze;  // under m
+    miracast::FreezeDetector::Config freezeConfig;
 
     void logf(const char* fmt, ...) {
         if (!log) return;
@@ -208,8 +228,17 @@ struct MiracastReceiver::Impl : std::enable_shared_from_this<Impl> {
                 a.Connection().Disconnect(wmm::MiracastReceiverDisconnectReason::AppSpecificError);
             } catch (...) {
             }
+            endCast("cannot play the media source", true, kReasonCantPlay);  // said, not a silent hang
             return;
         }
+        {
+            std::lock_guard lk(m);
+            casting = true;
+            playerFailed = false;
+            freeze = miracast::FreezeDetector(freezeConfig);
+            freeze.start(steadyMs());
+        }
+        wcv.notify_all();
         setStatus(Status::Connected, name, true);
         decltype(ev.onConnected) cb;
         {
@@ -240,14 +269,16 @@ struct MiracastReceiver::Impl : std::enable_shared_from_this<Impl> {
         endCast("phone disconnected", true);
     }
 
-    // Cast ended (Disconnected event, disconnect(), or stop()).
-    void endCast(const char* why, bool report) {
+    // Cast ended (Disconnected event, disconnect(), or stop()).  detail: why,
+    // for the Idle status that follows (empty = a normal end).
+    void endCast(const char* why, bool report, const std::wstring& detail = {}) {
         bool had;
         {
             std::lock_guard lk(m);
             had = conn != nullptr;
             conn = nullptr;
             deviceName.clear();
+            casting = false;
         }
         {
             std::lock_guard pl(pumpMutex);
@@ -263,14 +294,89 @@ struct MiracastReceiver::Impl : std::enable_shared_from_this<Impl> {
             cb = ev.onDisconnected;
         }
         if (cb) cb();
-        setStatus(Status::Idle, L"", true);
+        setStatus(Status::Idle, detail, true);
         refreshFromReceiver();
+    }
+
+    // Every 500 ms while a cast plays (asleep otherwise): is the picture frozen?
+    void watchdogLoop() {
+        std::unique_lock lk(m);
+        while (!wquit) {
+            if (!casting) {
+                wcv.wait(lk);  // woken by onMediaSourceCreated / stopWatchdog
+                continue;
+            }
+            wcv.wait_for(lk, std::chrono::milliseconds(500));
+            if (wquit) break;
+            if (!casting) continue;
+            lk.unlock();
+            FramePump::Stats s{};
+            {
+                std::lock_guard pl(pumpMutex);
+                if (pump) s = pump->stats();
+            }
+            const bool failed = playerFailed.exchange(false);
+            miracast::FreezeDetector::Action act;
+            int attempt;
+            {
+                std::lock_guard l2(m);
+                act = casting ? freeze.tick(steadyMs(), s.framesDelivered, s.framesAvailable, failed)
+                              : miracast::FreezeDetector::Action::None;
+                attempt = freeze.retries();
+            }
+            if (act == miracast::FreezeDetector::Action::Retry) {
+                logf("miracast: picture frozen (delivered %lld, available %lld%s): retry %d", s.framesDelivered,
+                     s.framesAvailable, failed ? ", player failed" : "", attempt);
+                bool ok;
+                {
+                    std::lock_guard pl(pumpMutex);
+                    ok = pump && pump->retry(attempt);
+                }
+                if (!ok) act = miracast::FreezeDetector::Action::GiveUp;
+            }
+            if (act == miracast::FreezeDetector::Action::GiveUp) {
+                logf("miracast: picture still frozen after %d retries: ending the cast", attempt);
+                wmm::MiracastReceiverConnection c{nullptr};
+                {
+                    std::lock_guard l2(m);
+                    c = conn;
+                }
+                try {
+                    if (c) c.Disconnect(wmm::MiracastReceiverDisconnectReason::AppSpecificError);
+                } catch (const winrt::hresult_error& e) {
+                    logf("miracast: Disconnect 0x%08lx", static_cast<long>(e.code()));
+                }
+                endCast("picture frozen", true, kReasonFrozen);
+            }
+            lk.lock();
+        }
+    }
+
+    void startWatchdog() {
+        {
+            std::lock_guard lk(m);
+            if (watchdog.joinable()) return;
+            wquit = false;
+        }
+        watchdog = std::thread([this] { watchdogLoop(); });
+    }
+
+    void stopWatchdog() {
+        {
+            std::lock_guard lk(m);
+            wquit = true;
+        }
+        wcv.notify_all();
+        if (watchdog.joinable() && watchdog.get_id() != std::this_thread::get_id()) watchdog.join();
     }
 };
 
 MiracastReceiver::MiracastReceiver() : impl_(std::make_shared<Impl>()) {}
 
-MiracastReceiver::~MiracastReceiver() { stop(); }
+MiracastReceiver::~MiracastReceiver() {
+    stop();
+    impl_->stopWatchdog();
+}
 
 std::wstring MiracastReceiver::unsupportedReason() {
     ensureMta();
@@ -319,6 +425,16 @@ bool MiracastReceiver::start(const std::wstring& friendlyName, VideoWindow* wind
     {
         std::lock_guard pl(I.pumpMutex);
         I.pump = std::make_unique<FramePump>(window, I.log);
+        // MediaFailed / MediaEnded on a live cast = a frozen picture: the watchdog retries at once.
+        std::weak_ptr<Impl> wk = impl_;
+        auto failed = [wk] {
+            if (auto i = wk.lock()) {
+                i->playerFailed = true;
+                i->wcv.notify_all();
+            }
+        };
+        I.pump->onFailed = [failed](const std::wstring&) { failed(); };
+        I.pump->onEnded = failed;
         if (!I.pump->init()) {
             I.pump.reset();
             I.setStatus(Status::Unavailable, L"無法初始化 Direct3D 11。", true);
@@ -412,6 +528,7 @@ bool MiracastReceiver::start(const std::wstring& friendlyName, VideoWindow* wind
             return false;
         }
         I.logf("miracast: listening as \"%s\"", narrow(friendlyName).c_str());
+        I.startWatchdog();
     } catch (const winrt::hresult_error& e) {
         I.logf("miracast: start failed 0x%08lx %s", static_cast<long>(e.code()), narrow(std::wstring(e.message())).c_str());
         stop();

@@ -32,6 +32,7 @@
 #include "mirror_buffer.h"
 #include "stream.h"
 #include "utils.h"
+#include "pm_wake.h"
 
 #define NO_FLUSH (-42)
 
@@ -114,6 +115,10 @@ struct raop_rtp_s {
 
     /* audio compression type: ct = 2 (ALAC), ct = 8 (AAC_ELD) (ct = 4 would be AAC-MAIN) */
     unsigned char ct;
+
+    /* PM 0.8.3: set_volume / flush / metadata / stop wake the thread; it used
+     * to poll every 5 ms (200 wake-ups/s while an audio stream existed) */
+    pm_wake_t wake;
 };
 
 static int
@@ -185,6 +190,7 @@ raop_rtp_init(logger_t *logger, raop_callbacks_t *callbacks, raop_ntp_t *ntp, co
     raop_rtp->dsock = -1;
 
     MUTEX_CREATE(raop_rtp->run_mutex);
+    pm_wake_open(&raop_rtp->wake);
     return raop_rtp;
 }
 
@@ -193,6 +199,7 @@ raop_rtp_destroy(raop_rtp_t *raop_rtp)
 {
     if (raop_rtp) {
         raop_rtp_stop(raop_rtp);
+        pm_wake_close(&raop_rtp->wake);
         MUTEX_DESTROY(raop_rtp->run_mutex);
         raop_buffer_destroy(raop_rtp->buffer);
         free(raop_rtp->metadata);
@@ -497,8 +504,17 @@ raop_rtp_thread_udp(void *arg)
         FD_ZERO(&rfds);
         FD_SET(raop_rtp->csock, &rfds);
         FD_SET(raop_rtp->dsock, &rfds);
+        /* PM 0.8.3: block until a datagram or a wake-up (stop, volume, flush ...) */
+        if (raop_rtp->wake.fd != -1) {
+            FD_SET(raop_rtp->wake.fd, &rfds);
+            if (raop_rtp->wake.fd >= nfds) nfds = raop_rtp->wake.fd + 1;
+        }
 
-        int ret = select(nfds, &rfds, NULL, NULL, &tv);
+        int ret = select(nfds, &rfds, NULL, NULL, raop_rtp->wake.fd != -1 ? NULL : &tv);
+        if (ret > 0 && raop_rtp->wake.fd != -1 && FD_ISSET(raop_rtp->wake.fd, &rfds)) {
+            pm_wake_drain(&raop_rtp->wake);
+            ret--;
+        }
         if (ret == 0) {
             /* Timeout happened */
             continue;
@@ -813,6 +829,15 @@ raop_rtp_start_audio(raop_rtp_t *raop_rtp,  unsigned short *control_rport, unsig
 
     raop_rtp->ct = *ct;
     raop_rtp->rtp_clock_rate = SECOND_IN_NSECS / *sr;
+    /* PM 0.8.3: a new audio stream on the same connection (the iPhone TEARs
+     * DOWN type 96 on pause and SETs it UP again on play) kept the RTP <-> NTP
+     * sync of the previous stream: its first packets were mapped with that
+     * stale sync (and the video-arrival estimate for AAC-ELD before the first
+     * sync packet was skipped). Start like the first stream of a session. */
+    raop_rtp->initial_sync = false;
+    raop_rtp->rtp_sync = 0;
+    raop_rtp->client_ntp_sync = 0;
+    raop_rtp->flush = NO_FLUSH;
 
     /* Initialize ports and sockets */
     raop_rtp->control_lport = *control_lport;
@@ -854,6 +879,7 @@ raop_rtp_set_volume(raop_rtp_t *raop_rtp, float volume)
     raop_rtp->volume_changed = 1;
     int running = raop_rtp->running;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
     /* PM: no thread to pick it up (the stream ended between the caller's
      * is_running check and here): apply it now instead of leaving it pending
      * for the next audio SETUP, which then set an old volume */
@@ -882,6 +908,7 @@ raop_rtp_set_metadata(raop_rtp_t *raop_rtp, const char *data, int datalen)
     raop_rtp->metadata = metadata;
     raop_rtp->metadata_len = datalen;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
 }
 
 void
@@ -904,6 +931,7 @@ raop_rtp_set_coverart(raop_rtp_t *raop_rtp, const char *data, int datalen)
     raop_rtp->coverart = coverart;
     raop_rtp->coverart_len = datalen;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
 }
 
 void
@@ -926,6 +954,7 @@ raop_rtp_remote_control_id(raop_rtp_t *raop_rtp, const char *dacp_id, const char
     }
     raop_rtp->active_remote_header = strdup(active_remote_header);
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
 }
 
 void
@@ -940,6 +969,7 @@ raop_rtp_set_progress(raop_rtp_t *raop_rtp, uint32_t start, uint32_t curr, uint3
     raop_rtp->progress_end = end;
     raop_rtp->progress_changed = 1;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
 }
 
 void
@@ -951,6 +981,7 @@ raop_rtp_flush(raop_rtp_t *raop_rtp, int next_seq)
     MUTEX_LOCK(raop_rtp->run_mutex);
     raop_rtp->flush = next_seq;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3 */
 }
 
 void
@@ -967,6 +998,7 @@ raop_rtp_stop(raop_rtp_t *raop_rtp)
     }
     raop_rtp->running = 0;
     MUTEX_UNLOCK(raop_rtp->run_mutex);
+    pm_wake_signal(&raop_rtp->wake);  /* PM 0.8.3: the thread no longer polls */
     /* PM: make the TEARDOWN of the audio stream (iPhone pause) visible in the log */
     logger_log(raop_rtp->logger, LOGGER_INFO, "[audio-timing] audio stream stopped (TEARDOWN) after %.1f ms",
                (double) (raop_ntp_get_local_time() - raop_rtp->ntp_start_time) / 1e6);

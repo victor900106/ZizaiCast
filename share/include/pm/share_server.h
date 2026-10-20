@@ -73,6 +73,20 @@ public:
         std::wstring appName = L"自在投影";
         Palette palette;
         uint16_t port = 0;     // 0 = random free port in 20000..60999
+        // 0.8.3 電腦剪貼簿: set = the page gets a 「電腦剪貼簿」 card with the PC's
+        // copied text and a 複製 button (GET /<token>/clip -> {"text":"…"};
+        // never logged).  Called on a server thread: quick and thread-safe.
+        // The app sets it only for a share the owner opened himself.
+        std::function<std::wstring()> clipboard;
+        // 0.8.3 texts not in pm/i18n_strings.inc yet (the app passes them in
+        // the page language; defaults: English).
+        struct Texts083 {
+            std::wstring clipTitle = L"PC clipboard", clipCopy = L"Copy", clipCopied = L"Copied", clipRefresh = L"Refresh",
+                         clipEmpty = L"Nothing copied on the PC yet. Press Ctrl+C on the PC, then tap Refresh.",
+                         clipFail = L"Could not copy automatically: long-press the text to select and copy it",
+                         clipNote = L"Only while “Send to phone” is open on the PC; it stops when you close it.",
+                         downloadFile = L"Download file", fileTip = L"Tap Download file to save it (iPhone: Files app → Downloads)";
+        } texts083;
     };
     struct Access {            // one answered request
         std::string ip;        // peer

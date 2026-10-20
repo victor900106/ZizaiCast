@@ -172,6 +172,11 @@ public:
         bool optional = false;
         float slider = -1;
         std::wstring label;
+        // 0.8.3 (畫筆 colour / thickness): swatch >= 0 draws a filled disc of
+        // that colour (0xRRGGBB, thin ring around it) instead of the glyph;
+        // swatchSize 0..1 = its size (thin .. thick).
+        int swatch = -1;
+        float swatchSize = 1;
     };
     void setLiveToolbar(std::vector<ToolbarItem> items, std::function<void(int id)> onClick);
     // One-time introduction (0.7.8): shows the toolbar by itself for holdMs
@@ -422,6 +427,44 @@ public:
     // character) comes as vk 0, down, ch.  Every forwarded down gets its up
     // (also on focus loss).
     void setKeyHandler(std::function<void(unsigned vk, bool down, wchar_t ch)> handler);
+
+    // ---- 簡報畫筆 (0.8.3): drawing over the live picture ----
+    // Ink mode: a left drag on the picture draws a stroke (pen cursor); the
+    // pointer handler gets nothing meanwhile (no taps, drags, hover or wheel
+    // for an Android phone; a press in progress is released first).  Keys
+    // still go to the key handler.  Ctrl+left drag still pans a magnified
+    // picture, a right click opens the context menu, the toolbar works.
+    // badge: a small 「畫筆模式」 pill at the top left of the picture (empty:
+    // none).  Strokes stay after ink mode ends, until inkClear().
+    // Strokes are kept in the phone picture's own coordinates: they follow
+    // the magnifier, setRotation and setMirrored; a picture of another shape
+    // (the phone turned) drops them (the ink handler hears about it).
+    // Snapshots include them while setInkCapture(inSnapshots), recordings
+    // (the frame tap) while setInkCapture(.., inRecordings) -- both on by
+    // default; grabPicture (OCR) never.  No strokes and ink mode off: nothing
+    // is drawn and nothing animates (no cost).  UI thread.
+    enum class InkTool { Pen, Highlighter, Arrow };
+    struct InkStyle {
+        InkTool tool = InkTool::Pen;
+        uint32_t color = 0xFF3B30;  // 0xRRGGBB
+        float widthDip = 5;         // at zoom 1 (strokes grow with the magnifier)
+    };
+    void setInkMode(bool on, const std::wstring& badge = {});
+    bool inkMode() const;
+    void setInkStyle(const InkStyle& style);  // the next strokes
+    bool inkUndo();                           // the last stroke; false if none
+    void inkClear();
+    int inkCount() const;                     // strokes on the picture
+    void setInkCapture(bool inSnapshots, bool inRecordings);
+    // fn(strokes) on the UI thread after the user drew / the strokes were
+    // dropped (not after inkUndo / inkClear calls).
+    void setInkHandler(std::function<void(int strokes)> fn);
+
+    // ---- 拖檔到視窗 (0.8.3) ----
+    // While files are dragged over the window: a veil, a dashed frame and a
+    // centred card with title (e.g. 「放開以傳到手機」) and sub line; empty
+    // title hides it.  Any thread; static (redrawn only when it changes).
+    void setDropHint(const std::wstring& title, const std::wstring& sub = {});
 
     // Clickable actions on the idle screen, in one centred row under the
     // hints / check boxes (wrapping to more rows when the window is narrow).

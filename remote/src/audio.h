@@ -36,6 +36,10 @@ struct PlaybackDevice {
     std::string id;    // UTF-8 IMMDevice id
     std::string name;  // FriendlyName, e.g. "喇叭 (Razer Leviathan V2)"
     bool isDefault = false;  // Windows default (eConsole)
+    float volume = -1;       // 0.8.3: master volume scalar (0..1; -1 unknown)
+    bool hwVolume = false;   // the volume is applied in hardware (else in Windows' mixer, before the loopback)
+    bool muted = false;
+    int activeSessions = 0;  // programs playing to it right now (AudioSessionStateActive)
 };
 std::vector<PlaybackDevice> playbackDevicesList();  // active render endpoints
 
@@ -52,7 +56,16 @@ public:
     // 手機播聲音時電腦靜音 (0.8.2: while running too): every captured device is muted
     // (endpoint mute) and restored when this goes off or the capture stops.
     void setMute(bool on);
-    // Tests: "music" / "loud" = a silent synthetic source instead of WASAPI (set before start()).
+    // 0.8.3 (set before start()): agc = an automatic gain on the mix (quiet material is raised
+    // up to +12 dB towards -18 dBFS RMS, never lowered: the limiter does that; it does not
+    // adapt below -34 dBFS, so a noise floor is not pumped up); compensate = a device whose
+    // volume Windows applies in software (no hardware volume: the loopback gets the sound
+    // after it) is raised by that volume's attenuation (up to +18 dB), so the phone's level
+    // does not follow the PC's volume slider.
+    void setLevelOptions(bool agc, bool compensate) { agc_ = agc, comp_ = compensate; }
+    float agcGain() const { return agcGain_.load(); }    // the AGC's gain now (1 = none)
+    float compGain() const { return compGain_.load(); }  // the largest volume compensation now (1 = none)
+    // Tests: "music" / "loud" / "quiet" (0.8.3) = a silent synthetic source instead of WASAPI (set before start()).
     void setSynthetic(const std::string& mode) {
         std::lock_guard<std::mutex> lk(mu_);
         synthetic_ = mode;
@@ -80,6 +93,8 @@ private:
     std::atomic<int64_t> latSumUs_{0};
     std::atomic<int> peakMicro_{0};
     std::atomic<float> recentPeak_{0};
+    std::atomic<bool> agc_{true}, comp_{true};
+    std::atomic<float> agcGain_{1}, compGain_{1};
 };
 
 }  // namespace pm::remote

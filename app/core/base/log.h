@@ -8,16 +8,36 @@ namespace pm_app {
 
 class Log {
 public:
-    explicit Log(const fs::path& file) : out_((rotate(file), file), std::ios::app) {}
-    // Over 8 MB at start: kept as phonemirror.old.log (the video module logs
-    // a summary line every 5 s while mirroring).
-    static void rotate(const fs::path& file) {
+    // 0.8.3: phonemirror.log is rotated while the program runs too (it used to be checked only at
+    // start): over kMaxBytes it becomes phonemirror.old.log, the older ones shift to .old2.log and
+    // .old3.log, the oldest is deleted. At most kKeep + 1 files of kMaxBytes each (4 x 4 MB).
+    static constexpr std::uintmax_t kMaxBytes = 4u << 20;
+    static constexpr int kKeep = 3;
+
+    explicit Log(const fs::path& file) : file_(file) {
+        rotate(file_);  // (the video module logs a summary line every 5 s while mirroring)
+        std::error_code ec;
+        const auto size = fs::file_size(file_, ec);
+        bytes_ = ec ? 0 : size;
+        out_.open(file_, std::ios::app);
+    }
+    // phonemirror.log -> .old.log -> .old2.log -> .old3.log when the file is over kMaxBytes.
+    static void rotate(const fs::path& file, bool force = false) {
         std::error_code ec;
         const auto size = fs::file_size(file, ec);
-        if (ec || size < (8u << 20)) return;
+        if (ec || (!force && size < kMaxBytes)) return;
+        for (int i = kKeep; i >= 1; --i) {
+            const fs::path to = oldName(file, i);
+            if (i == kKeep) fs::remove(to, ec);
+            else fs::rename(oldName(file, i), oldName(file, i + 1), ec);
+        }
+        fs::rename(file, oldName(file, 1), ec);
+        if (ec) fs::remove(file, ec);  // cannot keep it (locked?): start empty rather than grow forever
+    }
+    static fs::path oldName(const fs::path& file, int n) {
         fs::path old = file;
-        old.replace_extension(L".old.log");
-        fs::rename(file, old, ec);
+        old.replace_extension(n == 1 ? L".old.log" : (L".old" + std::to_wstring(n) + L".log"));
+        return old;
     }
     void write(const char* level, const std::string& msg) {
         std::lock_guard<std::mutex> lock(mu_);
@@ -27,12 +47,21 @@ public:
         char ts[32];
         std::strftime(ts, sizeof ts, "%Y-%m-%d %H:%M:%S", &tm);
         std::string line = std::string(ts) + " [" + level + "] " + msg + "\n";
+        if (bytes_ + line.size() >= kMaxBytes && out_.is_open()) {  // rotate now, then this line opens the new file
+            out_.close();
+            rotate(file_, true);
+            out_.open(file_, std::ios::app);
+            bytes_ = 0;
+        }
         out_ << line;
         out_.flush();
+        bytes_ += line.size();
         OutputDebugStringA(line.c_str());
     }
 
 private:
+    fs::path file_;
+    std::uintmax_t bytes_ = 0;
     std::mutex mu_;
     std::ofstream out_;
 };

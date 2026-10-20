@@ -53,6 +53,21 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 body.sheet-open #silent{display:none!important}
 #badge{position:absolute;left:50%;transform:translateX(-50%);top:calc(6px + var(--st));z-index:4;padding:3px 10px;border-radius:12px;background:rgba(0,0,0,.6);
   font-size:13px;display:none;white-space:nowrap}
+#badge.unl{border:1px solid var(--ac);cursor:pointer}
+#badge.unl b{color:var(--ac);font-weight:600}
+/* 0.8.3: 解除僅觀看 with the password (fixed link) */
+#unlIn{width:100%;box-sizing:border-box;margin:10px 0 4px;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.3);color:var(--fg);font:500 17px/1.3 system-ui,sans-serif}
+#unlErr{min-height:1.2em;color:var(--ac)}
+#lockNote{margin-top:6px;text-align:right}
+/* 0.8.3 files both ways */
+#fileS .fl{list-style:none;margin:6px 0 0;padding:0;max-height:34vh;overflow:auto}
+#fileS .fl li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px}
+#fileS .fl .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fileS .fl .st{flex:0 0 auto;opacity:.75;font-variant-numeric:tabular-nums}
+#fileS .fl a{color:var(--ac);text-decoration:none}
+#fileS .fl a.used{opacity:.45;pointer-events:none}
+#fileS progress{width:64px;height:6px}
+#upIn{display:none}
 /* "sound on" call to action, shown until used */
 #cta{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(64px + var(--sb));z-index:4;display:none;align-items:center;gap:8px;
   padding:10px 18px;border-radius:24px;border:0;background:var(--ac);color:#2a1a1c;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -143,6 +158,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div id="bar">
   <button class="ib" id="bSnd"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path id="sndWave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="sndX" d="m16 9 6 6m0-6-6 6"/></svg></button>
   <button class="ib" id="bZoom"><svg viewBox="0 0 24 24"><g id="zIn"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></g><g id="zFit"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g></svg></button>
+  <button class="ib" id="bFile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3-3 3 3"/></svg></button>
   <button class="ib" id="bKb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
   <button class="ib" id="bSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </div>
@@ -164,7 +180,28 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
   <div class="row" id="rowFs" style="display:none"><label for="swFs" id="lFs"></label><input type="checkbox" class="sw" id="swFs"></div>
   <div class="row"><label for="swHud"><span id="lHud"></span><span class="sub" id="lHudSub"></span></label><input type="checkbox" class="sw" id="swHud"></div>
   <div class="btnrow"><button class="btn" id="bHelp"></button><button class="btn warn" id="bBye"></button></div>
+  <div class="sub" id="lockNote" style="display:none"></div>
   <div id="app"></div>
+</div>
+
+<div class="sheet" id="fileS">
+  <h3><span id="fileT"></span><button id="fileClose"></button></h3>
+  <b id="upT"></b><span class="sub" id="upHint"></span>
+  <input type="file" id="upIn" multiple>
+  <div class="btnrow"><button class="btn" id="upPick"></button></div>
+  <ul class="fl" id="upList"></ul>
+  <div style="height:14px"></div>
+  <b id="dlT"></b><span class="sub" id="dlHint"></span>
+  <div class="btnrow"><button class="btn" id="dlRefresh"></button></div>
+  <ul class="fl" id="dlList"></ul>
+</div>
+
+<div class="sheet" id="unl">
+  <h3><span id="unlT"></span><button id="unlClose"></button></h3>
+  <span class="sub" id="unlS"></span>
+  <input id="unlIn" type="password" autocomplete="current-password" maxlength="256" aria-label="password">
+  <div id="unlErr" class="sub"></div>
+  <div class="btnrow"><button class="btn warn" id="unlGo"></button></div>
 </div>
 
 <div class="sheet" id="help">
@@ -353,6 +390,27 @@ const T = {
     ['Tap where you want to click (left click)', 'Hold for half a second: right click', 'Touch and move: drag', 'Two fingers: scroll; pinch: zoom', 'Three-finger tap: keyboard'],
     ['押した場所をクリック（左クリック）', '0.5 秒押さえる：右クリック', '押さえたまま動かす：ドラッグ', '2 本指：スクロール、ピンチ：拡大', '3 本指タップ：キーボード'],
     ['누른 곳을 클릭(왼쪽 클릭)', '반 초 누르기: 오른쪽 클릭', '누른 채 움직이기: 드래그', '두 손가락: 스크롤, 핀치: 확대', '세 손가락 탭: 키보드']],
+  // 0.8.3
+  unlock: ['解除僅觀看', 'Lift view only', '表示のみを解除', '보기 전용 해제'],
+  unlockSub: ['再輸入一次「常駐外網」的密碼，這支手機就能完整操控電腦（只限這次連線；電腦上可以隨時再按「僅觀看」）。', 'Enter the “Always-on link” password again to fully control the PC from this phone (this connection only; “View only” on the PC turns it back on).', '「常時外部リンク」のパスワードをもう一度入力すると、このスマホからパソコンを完全に操作できます（この接続のみ。パソコンの「表示のみ」でいつでも戻せます）。', '“상시 외부 링크” 비밀번호를 다시 입력하면 이 휴대폰으로 PC를 완전히 조작할 수 있습니다(이번 연결만, PC에서 “보기 전용”을 누르면 다시 잠깁니다).'],
+  unlockOk: ['已解除僅觀看：現在可以操作電腦', 'View only lifted: you can control the PC now', '表示のみを解除しました。パソコンを操作できます', '보기 전용이 해제되었습니다. 이제 PC를 조작할 수 있습니다'],
+  unlockBusy: ['請 {0} 秒後再試', 'Try again in {0} s', '{0} 秒後にもう一度お試しください', '{0}초 후 다시 시도하세요'],
+  clipDenied: ['「僅觀看」時不能使用剪貼簿', 'The clipboard is off in “View only”', '「表示のみ」の間はクリップボードを使えません', '“보기 전용”에서는 클립보드를 쓸 수 없습니다'],
+  files: ['檔案', 'Files', 'ファイル', '파일'],
+  upT: ['傳檔到電腦', 'Send files to the PC', 'パソコンへファイルを送る', 'PC로 파일 보내기'],
+  upHint: ['存到電腦的「下載\\自在投影遠端」資料夾，一次可選多個，單檔最大 {0}。', 'Saved on the PC in Downloads\\自在投影遠端; pick several at once, up to {0} each.', 'パソコンの「ダウンロード\\自在投影遠端」に保存します。複数選択可、1 ファイル最大 {0}。', 'PC의 “다운로드\\自在投影遠端” 폴더에 저장됩니다. 여러 개 선택 가능, 파일당 최대 {0}.'],
+  upPick: ['選擇檔案', 'Choose files', 'ファイルを選ぶ', '파일 선택'],
+  upDone: ['已傳到電腦', 'On the PC', '送信済み', '전송됨'],
+  upFail: ['失敗', 'Failed', '失敗', '실패'],
+  upTooBig: ['太大（上限 {0}）', 'Too big (max {0})', '大きすぎます（上限 {0}）', '너무 큼(최대 {0})'],
+  upDisk: ['電腦磁碟空間不足', 'Not enough space on the PC', 'パソコンの空き容量が足りません', 'PC 저장 공간 부족'],
+  upOff: ['電腦沒有開放接收檔案', 'The PC does not take files', 'パソコンはファイルを受け付けていません', 'PC가 파일을 받지 않습니다'],
+  dlT: ['從電腦下載', 'Download from the PC', 'パソコンからダウンロード', 'PC에서 다운로드'],
+  dlHint: ['在電腦的檔案總管選好檔案按 Ctrl+C，再按「重新整理」。每個下載連結只能用一次，10 分鐘內有效。', 'On the PC, select files in File Explorer and press Ctrl+C, then tap “Refresh”. Each download link works once, for 10 minutes.', 'パソコンのエクスプローラーでファイルを選んで Ctrl+C を押し、「更新」をタップ。各リンクは 1 回だけ、10 分間有効です。', 'PC의 파일 탐색기에서 파일을 선택해 Ctrl+C를 누른 뒤 “새로 고침”을 누르세요. 각 링크는 한 번, 10분 동안만 쓸 수 있습니다.'],
+  dlRefresh: ['重新整理', 'Refresh', '更新', '새로 고침'],
+  dlNone: ['電腦上沒有複製的檔案', 'No files are copied on the PC', 'パソコンでコピーされたファイルはありません', 'PC에서 복사한 파일이 없습니다'],
+  filesDenied: ['「僅觀看」時不能傳檔案', 'Files are off in “View only”', '「表示のみ」の間はファイルを送受信できません', '“보기 전용”에서는 파일을 주고받을 수 없습니다'],
+  lockNote: ['中斷後，電腦會自動鎖定（電腦設定：遠端斷線後自動鎖定電腦）', 'When you disconnect, the PC locks itself (PC setting: Lock the PC after remote control ends)', '切断すると、パソコンは自動でロックされます（パソコンの設定：リモート切断後に自動ロック）', '연결을 끊으면 PC가 자동으로 잠깁니다(PC 설정: 원격 연결이 끊기면 PC 잠그기)'],
   gNote: ['以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面無法從手機操作。', 'Windows running as administrator, UAC prompts and the lock screen can’t be controlled from the phone.', '管理者として実行中のウィンドウ、UAC の確認画面、ロック画面はスマホから操作できません。', '관리자 권한으로 실행 중인 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다.'],
 };
 const t = k => (T[k] || [k])[LANG] || T[k][1];
@@ -375,13 +433,17 @@ const store = {
   set(k, x) { try { localStorage.setItem('pm.' + k, JSON.stringify(x)); } catch {} },
 };
 const prefs = {
-  mode: store.get('mode', 'trackpad'),
+  // 0.8.3: 直接點 is the default (a finger on the picture clicks right there); 觸控板 stays one tap away.
+  // A new key: 0.8.2 kept 'mode' = trackpad for everyone who opened the settings once.
+  mode: store.get('mode083', 'direct'),
   sens: store.get('sens', 1.0),
   q: store.get('q', PM.tailscale || TUN ? 0 : PM.quality),
   mon: store.get('mon', 0),
   fill: store.get('fill', false),
   hud: store.get('hud', false),
-  gain: store.get('gain', 150),  // 0.8.2: phone volume boost, % (owner: "聲音有點小")
+  // 0.8.3: 100 % (the PC raises quiet sound itself now: AGC + volume compensation); a new key, so
+  // 0.8.2's 150 % default ("聲音有點小") does not stack on top of it.
+  gain: store.get('gain083', 100),
   lock: store.get('lock', false),
   auto: store.get('auto', true),
 };
@@ -830,6 +892,9 @@ async function connect(reason) {
   sessId = o.id;
   S.monitors = o.monitors || [];
   S.viewOnly = !!o.viewOnly;
+  S.unlockable = !!o.unlockable;  // 0.8.3: fixed link: 僅觀看 can be lifted with the password
+  S.upload = o.upload !== false; S.uploadMax = o.uploadMax || 2147483648;  // 0.8.3 files
+  $('lockNote').style.display = o.lockAfter ? '' : 'none';  // 0.8.3: the PC locks itself when this ends
   S.audioOffered = o.audio !== false;
   prefs.mon = o.monitor || 0;
   applyViewOnly();
@@ -1031,6 +1096,22 @@ function onDc(e) {
   } else if (m.t === 'clip') {
     $('clipOut').value = m.s || '';
     $('clipOut').placeholder = t('clipEmpty');
+  } else if (m.t === 'files') {  // 0.8.3: the files copied on the PC, one-time links
+    showFiles(m.list || []);
+  } else if (m.t === 'files-denied') {
+    if ($('fileS').style.display === 'block') closeSheets();
+    toast(t('filesDenied'), 3000);
+  } else if (m.t === 'clip-denied') {  // 0.8.3: no clipboard in 僅觀看
+    if ($('clipS').style.display === 'block') closeSheets();
+    toast(t('clipDenied'), 3000);
+  } else if (m.t === 'unlock') {  // 0.8.3: the answer to 解除僅觀看
+    $('unlGo').disabled = false;
+    if (m.ok) { if ($('unl').style.display === 'block') closeSheets(); toast(t('unlockOk'), 3000); }
+    else if (m.notHere) closeSheets();
+    else if (m.noPassword) $('unlErr').textContent = t('pwNone');
+    else if (m.locked) $('unlErr').textContent = tf('pwLocked', Math.max(1, Math.ceil((m.retryAfter || 900) / 60)));
+    else if (m.left !== undefined && m.left > 0) $('unlErr').textContent = tf('pwWrong', m.left);
+    else $('unlErr').textContent = tf('unlockBusy', m.retryAfter || 1);
   } else if (m.t === 'clip-ok') {
     toast(m.ok ? t('clipSent') : 'clipboard: failed', 3000);
   } else if (m.t === 'notice') {
@@ -1053,8 +1134,14 @@ function onDc(e) {
 }
 setInterval(() => send({t: 'ping', id: ++pingId, c: performance.now()}), 500);
 function applyViewOnly(announce) {
-  $('badge').textContent = t('viewOnly');
-  $('badge').style.display = S.viewOnly ? 'block' : 'none';
+  const b = $('badge');
+  b.textContent = t('viewOnly');
+  b.classList.toggle('unl', !!(S.viewOnly && S.unlockable));
+  if (S.viewOnly && S.unlockable) { const x = document.createElement('b'); x.textContent = ' · ' + t('unlock'); b.appendChild(x); }
+  b.style.display = S.viewOnly ? 'block' : 'none';
+  if (!S.viewOnly && $('unl').style.display === 'block') closeSheets();
+  $('bFile').style.display = S.viewOnly ? 'none' : '';  // 0.8.3: no files in 僅觀看
+  if (S.viewOnly && $('fileS').style.display === 'block') closeSheets();
   $('bKb').style.display = S.viewOnly ? 'none' : '';
   if (S.viewOnly) showKb(false);
   if (announce && S.viewOnly) toast(t('viewOnlyToast'));
@@ -1107,6 +1194,14 @@ setInterval(() => {
   if (rvfc) S.fps = fpsN * 1000 / (now - fpsT);
   fpsN = 0; fpsT = now;
   if (S.lat.length) { const a = S.lat.slice().sort((x, y) => x - y); S.latShow = a[a.length >> 1]; S.latP95 = a[Math.min(a.length - 1, Math.floor(a.length * .95))]; }
+  // 0.8.3: end to end (finger -> the PC -> the picture of it on this phone), from what is measured:
+  // the input's way to the PC (half the DataChannel / WebSocket round trip: the same channel), the
+  // wait for the next captured frame (half a frame slot at the current rate) and capture -> shown
+  // here (the stamp, or the tunnel's capture times).
+  const fpsNow = S.srv && S.srv.fpsNow > 0 ? S.srv.fpsNow : 60;
+  S.e2e = isFinite(S.latShow) && isFinite(S.rtt) ? S.rtt / 2 + 500 / fpsNow + S.latShow : NaN;
+  S.e2eP95 = isFinite(S.latP95) && isFinite(S.rtt) ? S.rtt / 2 + 1000 / fpsNow + S.latP95 : NaN;
+  window.__pmLat = {lat: S.latShow, latP95: S.latP95, rtt: S.rtt, e2e: S.e2e, e2eP95: S.e2eP95, fps: S.fps, fpsNow};
 }, 1000);
 
 // ---- getStats ----
@@ -1146,7 +1241,7 @@ setInterval(() => {
   const s = S.srv;
   hud.textContent =
     S.state + '  ' + S.w + 'x' + S.h + '  ' + f1(S.fps) + ' fps  ' + f0(S.kbps) + ' kbps\n' +
-    'RTT ' + f1(S.rtt) + ' ms (min ' + f1(S.rttMin) + ')  lat ' + f0(S.latShow) + ' ms (p95 ' + f0(S.latP95) + ')\n' +
+    'RTT ' + f1(S.rtt) + ' ms (min ' + f1(S.rttMin) + ')  lat ' + f0(S.latShow) + ' ms (p95 ' + f0(S.latP95) + ')  e2e ' + f0(S.e2e) + ' ms\n' +
     (s ? 'PC ' + f1(s.c2s_avg) + ' ms  CPU ' + f1(s.cpu1) + '%  ' + s.encoder + (s.gpuPath ? '' : ' (CPU)') + '\n' : '') +
     'dec ' + f1(S.dec) + ' ms  jb ' + f1(S.jb) + ' ms  lost ' + S.lost + (S.aud ? '  audio ' + S.aud.packets : '') + '\n' + S.pair +
     (s && s.aDev ? '\n♪ ' + s.aDev + '  ' + (s.aPeak || 0).toFixed(3) : '');
@@ -1155,7 +1250,7 @@ setInterval(() => {
   const a = S.lat.slice().sort((x, y) => x - y);
   const pct = p => a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : null;
   send({t: 'report', ua: navigator.userAgent, state: S.state, rtt: S.rtt, rttMin: S.rttMin, fps: S.fps, lat_n: a.length, lat_p50: pct(.5),
-        lat_p95: pct(.95), dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
+        lat_p95: pct(.95), e2e_ms: isFinite(S.e2e) ? Math.round(S.e2e) : null, e2e_p95: isFinite(S.e2eP95) ? Math.round(S.e2eP95) : null, dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
         sent: S.sent, playErr: S.playErr, ttff_ms: S.ttff || null, aud: S.aud, muted: v.muted,
         rmsIn: S.rmsIn, rmsOut: S.rmsOut, gain: prefs.gain, gainPath: snd.elementFallback ? 'element' : snd.srcStream || tun.media ? 'webaudio' : '', mode: prefs.mode, sens: prefs.sens,
         q: prefs.q, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
@@ -1353,11 +1448,108 @@ vk.onModsChange = mods => { for (const b of document.querySelectorAll('#keys but
 
 // ---- settings sheet ----
 function closeSheets() {
-  for (const id of ['set', 'help']) $(id).style.display = 'none';
+  for (const id of ['set', 'help', 'unl', 'fileS']) $(id).style.display = 'none';
+  $('bFile').classList.remove('on');
+  $('unlIn').value = '';
   if ($('clipS').style.display === 'block') { $('clipS').style.display = 'none'; send({t: 'clip-stop'}); }
   $('bSet').classList.remove('on'); syncSheetFlag();
 }
-function syncSheetFlag() { document.body.classList.toggle('sheet-open', ['set', 'help', 'kb', 'clipS'].some(id => $(id).style.display === 'block')); }
+function syncSheetFlag() { document.body.classList.toggle('sheet-open', ['set', 'help', 'kb', 'clipS', 'unl', 'fileS'].some(id => $(id).style.display === 'block')); }
+// ---- 0.8.3: files both ways (never in 僅觀看) ----
+const mb = n => n >= 1073741824 ? (n / 1073741824).toFixed(n >= 10737418240 ? 0 : 1) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+$('bFile').setAttribute('aria-label', t('files'));
+$('fileT').textContent = t('files');
+$('fileClose').textContent = t('close');
+$('fileClose').onclick = closeSheets;
+$('upT').textContent = t('upT');
+$('upPick').textContent = t('upPick');
+$('dlT').textContent = t('dlT');
+$('dlHint').textContent = t('dlHint');
+$('dlRefresh').textContent = t('dlRefresh');
+$('bFile').onclick = () => {
+  if (S.viewOnly) { toast(t('filesDenied'), 3000); return; }
+  const open = $('fileS').style.display === 'block';
+  showKb(false); closeSheets();
+  if (open) return;
+  $('upHint').textContent = tf('upHint', mb(S.uploadMax || 2147483648));
+  $('fileS').style.display = 'block'; $('bFile').classList.add('on'); syncSheetFlag();
+  send({t: 'files-get'});
+};
+$('dlRefresh').onclick = () => send({t: 'files-get'});
+$('upPick').onclick = () => { if (S.upload === false) { toast(t('upOff'), 3000); return; } $('upIn').click(); };
+function showFiles(list) {
+  const ul = $('dlList'); ul.textContent = '';
+  if (!list.length) { const li = document.createElement('li'); li.className = 'sub'; li.textContent = t('dlNone'); ul.appendChild(li); return; }
+  for (const f of list) {
+    const li = document.createElement('li'), a = document.createElement('a'), st = document.createElement('span');
+    a.className = 'nm'; a.textContent = f.n; a.href = BASE + 'dl/' + encodeURIComponent(f.k); a.download = f.n; a.rel = 'noopener';
+    a.onclick = () => setTimeout(() => a.classList.add('used'), 0);  // one use
+    st.className = 'st'; st.textContent = mb(f.s);
+    li.append(a, st); ul.appendChild(li);
+  }
+}
+const upStat = {bytes: 0, ms: 0, files: 0, errors: 0};
+window.__pmUp = upStat;
+async function uploadFile(f) {
+  const li = document.createElement('li'), nm = document.createElement('span'), pr = document.createElement('progress'), st = document.createElement('span');
+  nm.className = 'nm'; nm.textContent = f.name; st.className = 'st'; pr.max = 1; pr.value = 0;
+  li.append(nm, pr, st); $('upList').prepend(li);
+  if (f.size > (S.uploadMax || 2147483648)) { pr.remove(); st.textContent = tf('upTooBig', mb(S.uploadMax)); upStat.errors++; return; }
+  // Pieces: 4 MB on the LAN, 1 MB through a tunnel / the fixed link / Tailscale (slower links, smaller retries).
+  const piece = TUN || FIXED || PM.tailscale ? 1 << 20 : 4 << 20;
+  const fid = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
+  const t0 = performance.now();
+  let off = 0, done = false, fails = 0;
+  while (!done) {
+    if (S.viewOnly) throw new Error('viewOnly');
+    const end = Math.min(f.size, off + piece);
+    const q = 'up?id=' + encodeURIComponent(sessId) + '&f=' + fid + '&n=' + encodeURIComponent(f.name) + '&o=' + off + '&t=' + f.size;
+    let r = null, j = null;
+    try { r = await post(q, f.slice(off, end)); j = await r.json(); } catch { r = null; }
+    if (!r || (r.status >= 500 && r.status !== 507)) {  // a dropped piece: again from where the PC is
+      if (++fails > 4) { st.textContent = t('upFail'); upStat.errors++; return; }
+      await new Promise(res => setTimeout(res, 800 * fails));
+      continue;
+    }
+    if (r.status === 409 && j && typeof j.got === 'number' && !j.noSession) { off = j.got; continue; }
+    if (!r.ok || !j || !j.ok) {
+      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && j.viewOnly ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
+      pr.remove(); upStat.errors++; return;
+    }
+    fails = 0; off = j.got; done = !!j.done;
+    pr.value = f.size ? off / f.size : 1;
+    const ms = performance.now() - t0;
+    st.textContent = done ? t('upDone') : Math.round(off * 100 / Math.max(1, f.size)) + '% · ' + (off / 1048576 / Math.max(0.001, ms / 1000)).toFixed(1) + ' MB/s';
+    if (done) { pr.remove(); upStat.bytes += f.size; upStat.ms += ms; upStat.files++; nm.textContent = j.name || f.name; }
+  }
+}
+$('upIn').onchange = async () => {
+  const files = Array.from($('upIn').files || []);
+  $('upIn').value = '';
+  for (const f of files) { try { await uploadFile(f); } catch { upStat.errors++; } }
+};
+// ---- 0.8.3: 解除僅觀看 (fixed link): the password again, checked on the PC (same limits as the login) ----
+$('unlT').textContent = t('unlock');
+$('unlS').textContent = t('unlockSub');
+$('unlClose').textContent = t('cancel');
+$('unlGo').textContent = t('unlock');
+$('unlClose').onclick = closeSheets;
+$('badge').onclick = () => {
+  if (!S.viewOnly || !S.unlockable) return;
+  showKb(false); closeSheets();
+  $('unlErr').textContent = '';
+  $('unl').style.display = 'block'; syncSheetFlag();
+  setTimeout(() => { try { $('unlIn').focus(); } catch {} }, 60);
+};
+const unlockGo = () => {
+  const pw = $('unlIn').value;
+  if (!pw || $('unlGo').disabled) return;
+  $('unlGo').disabled = true; $('unlIn').value = ''; $('unlErr').textContent = '';
+  send({t: 'unlock', pw});
+  setTimeout(() => { $('unlGo').disabled = false; }, 6000);
+};
+$('unlGo').onclick = unlockGo;
+$('unlIn').addEventListener('keydown', e => { if (e.key === 'Enter') unlockGo(); });
 // ---- F7: clipboard text both ways (http pages have no clipboard API: a text box each way) ----
 $('clipT').textContent = t('clip');
 $('bClip').textContent = t('clip');
@@ -1370,6 +1562,7 @@ $('clipFromPc').textContent = t('clipFromPc');
 $('clipFromPcHint').textContent = t('clipFromPcHint');
 $('clipCopy').textContent = t('clipCopy');
 function openClip() {
+  if (S.viewOnly) { toast(t('clipDenied'), 3000); return; }
   showKb(false); closeSheets();
   $('clipS').style.display = 'block';
   $('clipOut').value = '';
@@ -1423,7 +1616,7 @@ $('lVolSub').textContent = t('volSub');
 const showVol = () => { $('vol').value = prefs.gain; $('volV').textContent = prefs.gain + '%'; };
 showVol();
 $('vol').oninput = () => {
-  prefs.gain = Math.max(0, Math.min(300, +$('vol').value | 0)); store.set('gain', prefs.gain); showVol();
+  prefs.gain = Math.max(0, Math.min(300, +$('vol').value | 0)); store.set('gain083', prefs.gain); showVol();
   if (snd.gain) snd.gain.gain.setTargetAtTime(prefs.gain / 100, snd.ctx.currentTime, 0.03);
 };
 $('bHelp').textContent = t('gestures');
@@ -1446,7 +1639,7 @@ function syncSettings() {
   $('swAuto').checked = prefs.auto;
   hud.style.display = prefs.hud ? 'block' : 'none';
 }
-function setMode(m) { prefs.mode = m; store.set('mode', m); trackpad.mode = m; syncSettings(); return true; }
+function setMode(m) { prefs.mode = m; store.set('mode083', m); trackpad.mode = m; syncSettings(); return true; }
 function setQuality(q) {
   q = Math.max(0, Math.min(2, q | 0));
   if (q === prefs.q && q === curQ) return true;
@@ -1585,6 +1778,7 @@ document.addEventListener('fullscreenchange', () => { $('swFs').checked = !!docu
 $('bBye').onclick = () => {
   closeSheets();
   send({t: 'release'});
+  send({t: 'leave'});  // 0.8.3: the PC ends it at once (and locks itself if it is set to)
   S.bye = 'me'; gen++; clearTimeout(retryTimer);
   setTimeout(stopPc, 50);
   S.state = 'ended';
@@ -1628,6 +1822,8 @@ if (AUTO) setTimeout(async function snap() {
   c.toBlob(b => { if (b) post('snap', b).catch(() => {}); }, 'image/png');
 }, 6000);
 
+// 0.8.3: the tab / the app is closing: tell the PC (else it waits 15 s for the pings to stop).
+addEventListener('pagehide', e => { if (!e.persisted && sessId && !S.bye) { try { send({t: 'leave'}); } catch {} } });
 if (FIXED) startFixed(); else if (TUN && !PM.verified) askPass(); else connect();
 </script>
 </body>

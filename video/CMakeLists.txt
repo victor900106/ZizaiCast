@@ -55,6 +55,9 @@ add_library(pm_video STATIC
   src/renderer_freeze.cpp
   src/renderer_magnifier.cpp
   src/renderer_tap.cpp
+  src/renderer_ink.cpp
+  src/ink_layer.h
+  src/ink_layer.cpp
   src/text_overlay_util.h
   src/text_overlay_layout.cpp
   src/text_overlay_draw.cpp
@@ -78,6 +81,7 @@ add_library(pm_video STATIC
   src/vw_input.cpp
   src/vw_magnifier.cpp
   src/vw_overlay_select.cpp
+  src/vw_ink.cpp
   src/vw_wndproc.cpp
   src/video_log.cpp
   ${PM_TOUTOU_HEADERS}

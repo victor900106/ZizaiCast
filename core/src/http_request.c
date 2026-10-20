@@ -44,10 +44,23 @@ struct http_request_s {
     int complete;
 };
 
+/* PM 0.8.3: limits while parsing. raop.c rejects requests with more than 20
+ * header fields / 64-byte names / 1024-byte values, but only once the request
+ * is complete: until then a client could stream an endless URL or endless
+ * headers and the parser kept realloc()ing (memory exhaustion of the whole
+ * app from one TCP connection). Generous margins over the raop.c limits. */
+#define PM_HTTP_MAX_URL     4096u
+#define PM_HTTP_MAX_FIELDS  64      /* name + value strings = 2 per field */
+#define PM_HTTP_MAX_HEADER  8192u   /* one name or one value */
+
 static int
 on_url(llhttp_t *parser, const char *at, size_t length)
 {
     http_request_t *request = parser->data;
+    if (request->url_len + length > PM_HTTP_MAX_URL) {
+        llhttp_set_error_reason(parser, "request URL too long");
+        return HPE_USER;
+    }
 
     char *new_url = realloc(request->url, request->url_len + length + 1); 
     if (!new_url) {
@@ -106,6 +119,10 @@ on_header_field(llhttp_t *parser, const char *at, size_t length)
     /* Allocate space for new field-value pair */
     if (request->headers_index == request->headers_size) {
         int new_size = request->headers_size + 2;
+        if (new_size > 2 * PM_HTTP_MAX_FIELDS) {  /* PM 0.8.3 */
+            llhttp_set_error_reason(parser, "too many header fields");
+            return HPE_USER;
+        }
 
         char **new_headers = realloc(request->headers, new_size * sizeof(char*));
         if (!new_headers) {
@@ -122,12 +139,20 @@ on_header_field(llhttp_t *parser, const char *at, size_t length)
     
     /* Allocate space in the current header string */
     if (request->headers[request->headers_index] == NULL) {
+        if (length > PM_HTTP_MAX_HEADER) {  /* PM 0.8.3 */
+            llhttp_set_error_reason(parser, "header field too long");
+            return HPE_USER;
+        }
         request->headers[request->headers_index] = calloc(1, length + 1);
         if (!request->headers[request->headers_index]) {
             return HPE_USER;
         }
     } else {
         orig_len = strlen(request->headers[request->headers_index]);
+        if (orig_len + length > PM_HTTP_MAX_HEADER) {  /* PM 0.8.3 */
+            llhttp_set_error_reason(parser, "header field too long");
+            return HPE_USER;
+        }
         char *new_buf =  realloc( request->headers[request->headers_index], orig_len + length + 1);
         if (!new_buf) {
             return HPE_USER;
@@ -158,12 +183,20 @@ on_header_value(llhttp_t *parser, const char *at, size_t length)
     
     /* Allocate space in the current header string */
     if (request->headers[request->headers_index] == NULL) {
+        if (length > PM_HTTP_MAX_HEADER) {  /* PM 0.8.3 */
+            llhttp_set_error_reason(parser, "header field too long");
+            return HPE_USER;
+        }
         request->headers[request->headers_index] = calloc(1, length + 1);
         if (!request->headers[request->headers_index]) {
             return HPE_USER;
         }
     } else {
         orig_len =  strlen(request->headers[request->headers_index]);
+        if (orig_len + length > PM_HTTP_MAX_HEADER) {  /* PM 0.8.3 */
+            llhttp_set_error_reason(parser, "header field too long");
+            return HPE_USER;
+        }
 
         char *new_buf = realloc(request->headers[request->headers_index], orig_len + length + 1);
         if (!new_buf) {

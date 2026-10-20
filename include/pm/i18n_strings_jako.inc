@@ -600,6 +600,110 @@ PM_JAKO(ModAndMirroring, L"ミラーリング中：{0}",
         L"미러링 중: {0}")
 PM_JAKO(ModAndLost, L"スマホとの接続が切れました",
         L"휴대폰 연결이 끊겼습니다")
+PM_JAKO(ModMiraFrozen, L"Android キャストの画面が止まり、再試行しても映らないため終了しました。スマホからもう一度キャストしてください。",
+        L"Android 캐스트 화면이 멈춰 다시 시도해도 나오지 않아 종료했습니다. 휴대폰에서 다시 캐스트하세요.")
+PM_JAKO(ModMiraCantPlay, L"スマホからの映像を再生できないため終了しました。スマホからもう一度キャストしてください。",
+        L"휴대폰 화면을 재생할 수 없어 캐스트를 종료했습니다. 휴대폰에서 다시 캐스트하세요.")
+PM_JAKO(ModAndReconnecting, L"スマホとの接続が切れました。再接続中（{0} 回目）…",
+        L"휴대폰 연결이 끊겼습니다. 다시 연결 중({0}번째)…")
+PM_JAKO(ModAndReconnectFail, L"接続が切れ、再接続できませんでした（ワイヤレスデバッグまたは USB デバッグがオンか確認してください）",
+        L"연결이 끊겼고 다시 연결하지 못했습니다(무선 디버깅 또는 USB 디버깅이 켜져 있는지 확인하세요)")
+PM_JAKO(ModAndCaptureFail, L"スマホが画面を取り込めませんでした（ビデオエンコーダーのエラー）。もう一度お試しください。繰り返す場合はスマホを再起動してください",
+        L"휴대폰이 화면을 캡처하지 못했습니다(비디오 인코더 오류). 다시 시도하고, 계속되면 휴대폰을 다시 시작하세요")
+PM_JAKO(ModAndServerExit, L"scrcpy-server が予期せず終了しました（終了コード {0}）",
+        L"scrcpy-server가 예기치 않게 종료되었습니다(종료 코드 {0})")
+PM_JAKO(ModAndServerError, L"scrcpy-server エラー：{0}",
+        L"scrcpy-server 오류: {0}")
+PM_JAKO(ModAndUsbLooking, L"USB 接続のスマホを探しています…",
+        L"USB로 연결된 휴대폰을 찾는 중…")
+PM_JAKO(ModAndUsbAllow, L"スマホで USB デバッグを許可してください（「このパソコンを常に許可」にチェックして「許可」）",
+        L"휴대폰에서 USB 디버깅을 허용하세요(\"이 컴퓨터에서 항상 허용\" 선택 후 \"허용\")")
+PM_JAKO(ModAndUsbNone, L"USB 接続のスマホが見つかりません（ケーブルを確認し、開発者向けオプションで「USB デバッグ」をオンに）",
+        L"USB로 연결된 휴대폰이 없습니다(케이블을 확인하고 개발자 옵션에서 \"USB 디버깅\"을 켜세요)")
+PM_JAKO(ModAndUsbNotAllowed, L"USB デバッグがまだ許可されていません。スマホで「許可」をタップしてもう一度お試しください",
+        L"아직 USB 디버깅이 허용되지 않았습니다. 휴대폰에서 \"허용\"을 누르고 다시 시도하세요")
+PM_JAKO(ModAndUsbNoAnswer, L"USB 接続のスマホが応答しません（ケーブルを抜き差ししてください）",
+        L"USB로 연결된 휴대폰이 응답하지 않습니다(케이블을 뽑았다가 다시 꽂으세요)")
+PM_JAKO(ModAndNoAudioOld, L"このスマホは Android 11 未満のため音声は出ません",
+        L"이 휴대폰은 Android 11 미만이라 소리가 나오지 않습니다")
+PM_JAKO(ModAndNoAudio, L"スマホの音声を取り込めないため、今回は音声なしです",
+        L"휴대폰 소리를 캡처할 수 없어 이번에는 소리가 없습니다")
+PM_JAKO(ModAndInputDenied, L"操作に必要な権限が拒否されました（Xiaomi/Redmi は開発者向けオプションで「USB デバッグ（セキュリティ設定）」をオンに）",
+        L"조작에 필요한 권한이 거부되었습니다(샤오미/레드미는 개발자 옵션에서 \"USB 디버깅(보안 설정)\"을 켜세요)")
+PM_JAKO(ModAndPushOk, L"スマホの Download フォルダーに送りました：{0}",
+        L"휴대폰의 Download 폴더로 보냈습니다: {0}")
+PM_JAKO(ModAndPushNoPhone, L"スマホが接続されていないため送れません",
+        L"연결된 휴대폰이 없어 파일을 보낼 수 없습니다")
+PM_JAKO(ModAndPushNoFile, L"送るファイルが見つかりません",
+        L"보낼 파일을 찾을 수 없습니다")
+PM_JAKO(ModAndPushFolder, L"送れるのはファイルだけで、フォルダーは送れません",
+        L"파일만 보낼 수 있고 폴더는 보낼 수 없습니다")
+PM_JAKO(ModAndPushTimeout, L"送信がタイムアウトしました（Wi-Fi が遅いか、スマホが応答しません）",
+        L"전송 시간이 초과되었습니다(Wi-Fi가 느리거나 휴대폰이 응답하지 않음)")
+PM_JAKO(ModAndPushNoSpace, L"スマホの空き容量が足りません",
+        L"휴대폰 저장 공간이 부족합니다")
+PM_JAKO(ModAndPushDenied, L"スマホの Download フォルダーに書き込めません",
+        L"휴대폰의 Download 폴더에 쓸 수 없습니다")
+PM_JAKO(ModAndPushLost, L"接続が切れたため送れませんでした",
+        L"연결이 끊겨 보내지 못했습니다")
+PM_JAKO(ModAndFileFail, L"送信に失敗しました：{0}",
+        L"전송 실패: {0}")
+PM_JAKO(ModAndFileFailPlain, L"送信に失敗しました",
+        L"전송 실패")
+PM_JAKO(ModAndApkOk, L"スマホにインストールしました：{0}",
+        L"휴대폰에 설치했습니다: {0}")
+PM_JAKO(ModAndApkNoPhone, L"スマホが接続されていないためインストールできません",
+        L"연결된 휴대폰이 없어 앱을 설치할 수 없습니다")
+PM_JAKO(ModAndApkOnly, L"インストールできるのは .apk ファイルだけです",
+        L".apk 파일만 설치할 수 있습니다")
+PM_JAKO(ModAndApkSplit, L"分割パッケージ（.apks/.xapk/.aab）です。単一の .apk を使ってください",
+        L"분할 패키지(.apks/.xapk/.aab)입니다. 단일 .apk 파일을 사용하세요")
+PM_JAKO(ModAndApkMissing, L"インストールする APK が見つかりません",
+        L"설치할 APK 파일을 찾을 수 없습니다")
+PM_JAKO(ModAndApkTimeout, L"インストールがタイムアウトしました。スマホで「インストール」や「許可」を待っていないか確認してください",
+        L"설치 시간이 초과되었습니다. 휴대폰에서 \"설치\"나 \"허용\"을 기다리는지 확인하세요")
+PM_JAKO(ModAndApkNoAdb, L"adb を実行できません。アプリを再起動してください",
+        L"adb를 실행할 수 없습니다. 앱을 다시 시작하세요")
+PM_JAKO(ModAndApkDowngrade, L"新しいバージョンが入っているため古い版に戻せません（先にスマホでアンインストールしてください）",
+        L"더 새 버전이 설치되어 있어 이전 버전으로 바꿀 수 없습니다(먼저 휴대폰에서 삭제하세요)")
+PM_JAKO(ModAndApkSignature, L"同じ名前で署名の異なるアプリがあります。スマホでアンインストールしてからやり直してください",
+        L"이름은 같고 서명이 다른 앱이 있습니다. 휴대폰에서 삭제한 뒤 다시 시도하세요")
+PM_JAKO(ModAndApkStorage, L"空き容量が足りません。空きを作ってからインストールしてください",
+        L"저장 공간이 부족합니다. 공간을 확보한 뒤 설치하세요")
+PM_JAKO(ModAndApkNewerAndroid, L"このアプリにはより新しい Android が必要で、このスマホには入りません",
+        L"이 앱은 더 새 Android 버전이 필요해 이 휴대폰에 설치할 수 없습니다")
+PM_JAKO(ModAndApkTooOld, L"このアプリは古すぎるため、このスマホの Android ではインストールできません",
+        L"이 앱은 너무 오래되어 이 휴대폰의 Android에서 설치할 수 없습니다")
+PM_JAKO(ModAndApkAbi, L"このアプリはこのスマホのプロセッサーに対応していません",
+        L"이 앱은 이 휴대폰의 프로세서를 지원하지 않습니다")
+PM_JAKO(ModAndApkSplitNeeded, L"このアプリは複数のファイル（.apks/.xapk）が必要で、この APK だけでは入りません",
+        L"이 앱은 여러 설치 파일(.apks/.xapk)이 필요해 이 APK만으로는 설치되지 않습니다")
+PM_JAKO(ModAndApkCorrupt, L"完全な APK ではありません（ダウンロード不完全か破損）",
+        L"완전한 APK가 아닙니다(다운로드가 덜 되었거나 손상됨)")
+PM_JAKO(ModAndApkUserRestricted, L"スマホが PC からのインストールを拒否しました。スマホで許可してください（Xiaomi/Redmi は開発者向けオプションで「USB 経由でインストール」をオン）",
+        L"휴대폰이 PC에서의 설치를 거부했습니다. 휴대폰에서 허용하세요(샤오미/레드미는 개발자 옵션에서 \"USB를 통해 설치\"를 켜세요)")
+PM_JAKO(ModAndApkAborted, L"スマホでインストールがキャンセルされました（スマホで「インストール」か「許可」をタップ）",
+        L"휴대폰에서 설치가 취소되었습니다(휴대폰에서 \"설치\" 또는 \"허용\"을 누르세요)")
+PM_JAKO(ModAndApkPlayProtect, L"スマホのセキュリティチェック（Play プロテクト）がインストールを拒否しました",
+        L"휴대폰의 보안 검사(Play 프로텍트)가 이 앱 설치를 거부했습니다")
+PM_JAKO(ModAndApkPermConflict, L"別のアプリと権限が競合するためインストールできません",
+        L"다른 앱과 권한이 충돌해 설치할 수 없습니다")
+PM_JAKO(ModAndApkTestOnly, L"テスト用 APK のため直接インストールできません",
+        L"테스트용 APK라 바로 설치할 수 없습니다")
+PM_JAKO(ModAndApkExists, L"このアプリはすでにインストールされています",
+        L"이 앱은 이미 설치되어 있습니다")
+PM_JAKO(ModAndApkConflict, L"別のアプリと競合するためインストールできません",
+        L"다른 앱과 충돌해 설치할 수 없습니다")
+PM_JAKO(ModAndApkMediaUnavailable, L"スマホのストレージが現在使えません",
+        L"휴대폰 저장 공간을 지금 사용할 수 없습니다")
+PM_JAKO(ModAndApkLost, L"接続が切れたためインストールできませんでした",
+        L"연결이 끊겨 설치하지 못했습니다")
+PM_JAKO(ModAndApkDenied, L"スマホが PC からのアプリのインストールを拒否しました",
+        L"휴대폰이 PC에서 앱 설치를 거부했습니다")
+PM_JAKO(ModAndApkFail, L"インストールに失敗しました：{0}",
+        L"설치 실패: {0}")
+PM_JAKO(ModAndApkFailPlain, L"インストールに失敗しました",
+        L"설치 실패")
 PM_JAKO(ModAndStopped, L"ミラーリングを停止しました",
         L"미러링 중지됨")
 PM_JAKO(MenuShareLastShot, L"最後のスクリーンショットをスマホに送る",
@@ -1406,8 +1510,8 @@ PM_JAKO(CardWhy, L"理由を見る",
 PM_JAKO(CardReinstall, L"インストーラーを入手",
         L"설치 파일 받기")
 // ---- 遠端操控 (0.8.0) ----
-PM_JAKO(MenuRemoteSub, L"リモート操作",
-        L"원격 제어")
+PM_JAKO(MenuRemoteSub, L"リモート操作の設定",
+        L"원격 제어 설정")
 PM_JAKO(MenuRemoteOn, L"リモート操作をオン（スマホでこの PC を操作）",
         L"원격 제어 켜기(휴대폰으로 이 PC 조작)")
 PM_JAKO(MenuRemoteQr, L"スマホ接続用 QR コードを表示…",
@@ -1528,14 +1632,14 @@ PM_JAKO(RemoteMutePcOffToast, L"PC のスピーカーのミュートを解除し
         L"PC 스피커 음소거를 해제했습니다")
 PM_JAKO(CardRemoteTitle, L"スマホからこの PC を操作",
         L"휴대폰으로 이 PC 제어")
-PM_JAKO(CardRemoteBody, L"スマホのブラウザーで画面を見て操作。家では Wi-Fi、外出先では固定リンク",
-        L"휴대폰 브라우저로 화면을 보고 제어합니다. 집에서는 Wi-Fi, 밖에서는 고정 링크")
+PM_JAKO(CardRemoteBody, L"スマホのブラウザーで画面を見て操作。家では Wi-Fi、外出先では固定アドレス",
+        L"휴대폰 브라우저로 화면을 보고 제어합니다. 집에서는 Wi-Fi, 밖에서는 고정 주소")
 PM_JAKO(CardRemoteOnIdle, L"オン · {0} · スマホの接続待ち",
         L"켜짐 · {0} · 휴대폰 연결 대기 중")
 PM_JAKO(CardRemoteOnActive, L"オン · {0} · {1} 台接続中",
         L"켜짐 · {0} · 휴대폰 {1}대 연결됨")
-PM_JAKO(CardRemotePathFixed, L"固定リンク",
-        L"고정 링크")
+PM_JAKO(CardRemotePathFixed, L"固定アドレス",
+        L"고정 주소")
 PM_JAKO(CardRemoteOpen, L"オンにする",
         L"켜기")
 PM_JAKO(CardRemoteShow, L"接続方法と QR コード",
@@ -1574,8 +1678,8 @@ PM_JAKO(RemoteFixedCopy, L"アドレスをコピー",
         L"주소 복사")
 PM_JAKO(RemoteFixedTemp, L"一時アドレスを使う",
         L"임시 주소 사용")
-PM_JAKO(RemoteCardPersistent, L"常時外部接続（PC を起動すれば外から使える）",
-        L"상시 외부 접속(PC를 켜면 밖에서 접속 가능)")
+PM_JAKO(RemoteCardPersistent, L"常時外部接続（PC の起動後すぐ使える）",
+        L"상시 외부 접속(PC 켜면 바로 사용)")
 PM_JAKO(RemoteCardTsTitle, L"外出先：Tailscale",
         L"밖에서: Tailscale")
 PM_JAKO(RemoteCardTsBody, L"スマホにも Tailscale を入れて同じアカウントでログインすれば、家と同じように接続",
@@ -1600,28 +1704,28 @@ PM_JAKO(RemoteTitleActive, L"リモート操作：{0} が操作中",
         L"원격 제어: {0} 연결됨")
 PM_JAKO(MenuRemoteTray, L"リモート操作",
         L"원격 제어")
-PM_JAKO(RemoteTabFixed, L"固定リンク",
-        L"고정 링크")
-PM_JAKO(RemoteFixedTitle, L"常時外部リンク：固定アドレス＋パスワード",
-        L"상시 외부 링크: 고정 주소 + 비밀번호")
+PM_JAKO(RemoteTabFixed, L"固定アドレス",
+        L"고정 주소")
+PM_JAKO(RemoteFixedTitle, L"常時外部接続：固定アドレス＋パスワード",
+        L"상시 외부 접속: 고정 주소 + 비밀번호")
 PM_JAKO(RemoteFixedIntro, L"オンにすると、PC の起動時に固定アドレスが用意されます。外出先でスマホから開いてパスワードを入れるだけで、先に PC を触る必要はありません。",
         L"켜 두면 PC가 켜질 때마다 고정 주소가 준비됩니다. 밖에서 휴대폰으로 열고 비밀번호만 입력하면 되며, 먼저 PC를 만질 필요가 없습니다.")
 PM_JAKO(RemoteFixedStart, L"パスワードを決めてオン",
         L"비밀번호 정하고 켜기")
-PM_JAKO(RemoteFixedStartNow, L"常時外部リンクをオン",
-        L"상시 외부 링크 켜기")
-PM_JAKO(RemoteFixedStarting, L"固定リンクを準備しています…",
-        L"고정 링크를 켜는 중…")
+PM_JAKO(RemoteFixedStartNow, L"常時外部接続をオン",
+        L"상시 외부 접속 켜기")
+PM_JAKO(RemoteFixedStarting, L"固定アドレスを準備しています…",
+        L"고정 주소를 켜는 중…")
 PM_JAKO(RemoteScanFixed, L"スマホで読み取るかアドレスを開き、パスワードを入力",
         L"휴대폰으로 스캔하거나 주소를 열고 비밀번호를 입력")
 PM_JAKO(RemoteFixedNote, L"パスワードを 5 回間違えると 15 分ロックされます。ホーム画面に追加すると次からワンタップで開けます。",
         L"비밀번호를 5번 틀리면 15분 동안 잠깁니다. 홈 화면에 추가하면 다음부터 한 번에 열립니다.")
-PM_JAKO(RemoteFixedStop, L"常時外部リンクをオフ",
-        L"상시 외부 링크 끄기")
+PM_JAKO(RemoteFixedStop, L"常時外部接続をオフ",
+        L"상시 외부 접속 끄기")
 PM_JAKO(RemoteFixedChangePw, L"パスワード変更",
         L"비밀번호 변경")
-PM_JAKO(RemoteFixedFailed, L"固定リンクを開始できません：{0}",
-        L"고정 링크를 켜지 못했습니다: {0}")
+PM_JAKO(RemoteFixedFailed, L"固定アドレスを開始できません：{0}",
+        L"고정 주소를 켜지 못했습니다: {0}")
 PM_JAKO(RemoteFixedViaCf, L"{0}。代わりに Cloudflare の一時アドレスを使います（PC を再起動すると変わります）",
         L"{0}. 대신 Cloudflare 임시 주소를 씁니다(PC를 다시 시작하면 바뀝니다)")
 PM_JAKO(RemoteFixedWhyNoTs, L"この PC に Tailscale がインストールされていません",
@@ -1632,20 +1736,20 @@ PM_JAKO(RemoteFixedWhyNoFunnel, L"Tailscale アカウントで Funnel が許可�
         L"Tailscale 계정에서 Funnel이 허용되지 않았습니다(관리 페이지의 Access controls에서 켭니다)")
 PM_JAKO(RemoteFixedWhyOther, L"Tailscale Funnel が使えませんでした（{0}）",
         L"Tailscale Funnel이 작동하지 않았습니다({0})")
-PM_JAKO(RemoteFixedOnToast, L"常時外部リンクをオンにしました：{0}",
-        L"상시 외부 링크를 켰습니다: {0}")
-PM_JAKO(RemoteFixedOffToast, L"常時外部リンクをオフにし、アドレスを削除しました",
-        L"상시 외부 링크를 끄고 주소를 없앴습니다")
+PM_JAKO(RemoteFixedOnToast, L"常時外部接続をオンにしました：{0}",
+        L"상시 외부 접속를 켰습니다: {0}")
+PM_JAKO(RemoteFixedOffToast, L"常時外部接続をオフにし、アドレスを削除しました",
+        L"상시 외부 접속를 끄고 주소를 없앴습니다")
 PM_JAKO(RemoteFixedLockedBalloon, L"{0} からパスワードが 5 回間違えられたため、15 分ロックしました",
         L"{0}에서 비밀번호를 5번 틀려 15분 동안 잠갔습니다")
-PM_JAKO(RemoteAskViaFixed, L"{0}（固定リンク・パスワード正解）",
-        L"{0}(고정 링크, 비밀번호 맞음)")
-PM_JAKO(RemoteBannerFixed, L"固定リンク",
-        L"고정 링크")
-PM_JAKO(RemotePwTitle, L"常時外部リンクのパスワード",
-        L"상시 외부 링크 비밀번호")
-PM_JAKO(RemotePwBody, L"外出先で固定リンクを開くときに入力します。8 文字以上。PC にはハッシュだけを保存し、パスワード自体は保存しません。",
-        L"밖에서 고정 링크를 열 때 입력하는 비밀번호입니다. 8자 이상. PC에는 해시만 저장하고 비밀번호 자체는 저장하지 않습니다.")
+PM_JAKO(RemoteAskViaFixed, L"{0}（固定アドレス・パスワード正解）",
+        L"{0}(고정 주소, 비밀번호 맞음)")
+PM_JAKO(RemoteBannerFixed, L"固定アドレス",
+        L"고정 주소")
+PM_JAKO(RemotePwTitle, L"常時外部接続のパスワード",
+        L"상시 외부 접속 비밀번호")
+PM_JAKO(RemotePwBody, L"外出先で固定アドレスを開くときに入力します。8 文字以上。PC にはハッシュだけを保存し、パスワード自体は保存しません。",
+        L"밖에서 고정 주소를 열 때 입력하는 비밀번호입니다. 8자 이상. PC에는 해시만 저장하고 비밀번호 자체는 저장하지 않습니다.")
 PM_JAKO(RemotePwField1, L"パスワード",
         L"비밀번호")
 PM_JAKO(RemotePwField2, L"もう一度入力",
@@ -1664,36 +1768,40 @@ PM_JAKO(RemotePwMismatch, L"2 回の入力が一致しません",
         L"두 비밀번호가 다릅니다")
 PM_JAKO(RemotePwSaved, L"パスワードを保存しました（ハッシュのみ）",
         L"비밀번호를 저장했습니다(해시만)")
-PM_JAKO(MenuRemotePersistent, L"常時外部リンク（固定アドレス＋パスワード）",
-        L"상시 외부 링크(고정 주소 + 비밀번호)")
-PM_JAKO(MenuRemotePassword, L"常時外部リンクのパスワードを変更…",
-        L"상시 외부 링크 비밀번호 변경…")
+PM_JAKO(MenuRemotePersistent, L"常時外部接続（固定アドレス＋パスワード）",
+        L"상시 외부 접속(고정 주소 + 비밀번호)")
+PM_JAKO(MenuRemotePassword, L"常時外部接続のパスワードを変更…",
+        L"상시 외부 접속 비밀번호 변경…")
 PM_JAKO(MenuRemoteFixedApproval, L"外からの新しいスマホも PC で許可が必要",
         L"밖에서 접속하는 새 휴대폰도 PC에서 허용 필요")
 PM_JAKO(WhatsNewTitle, L"{0} の新機能",
         L"{0} 새 기능")
 PM_JAKO(WhatsNewBody, L"このバージョンで増えたこと：",
         L"이번 버전에서 달라진 점:")
-PM_JAKO(WhatsNewRemote, L"リモート操作がメイン画面に。オンのときは状態も表示",
-        L"원격 제어가 메인 화면으로, 켜져 있으면 상태도 표시")
-PM_JAKO(WhatsNewFixed, L"常時外部リンク：固定アドレス＋パスワード。先に PC を触る必要なし",
-        L"상시 외부 링크: 고정 주소 + 비밀번호, 먼저 PC를 만질 필요 없음")
-PM_JAKO(WhatsNewSound, L"スマホの音量アップ（0–300%）、PC のどのスピーカーの音も届く",
-        L"휴대폰 소리 더 크게(0–300%), PC의 모든 스피커 소리 전달")
-PM_JAKO(WhatsNewMute, L"「スマホで再生中は PC をミュート」が動くように",
-        L"“휴대폰 재생 중 PC 음소거”가 이제 작동")
-PM_JAKO(WhatsNewLabel1, L"メイン画面",
-        L"메인 화면")
-PM_JAKO(WhatsNewLabel2, L"外出先",
-        L"외부")
-PM_JAKO(WhatsNewLabel3, L"音",
-        L"소리")
-PM_JAKO(WhatsNewLabel4, L"修正",
+PM_JAKO(WhatsNewLabel1, L"ペン",
+        L"펜")
+PM_JAKO(WhatsNewInk, L"ミラーリング中に Ctrl+E で、画面に線を引いたり強調したりできます",
+        L"미러링 중 Ctrl+E로 화면에 선을 긋고 강조할 수 있습니다")
+PM_JAKO(WhatsNewLabel2, L"ファイル",
+        L"파일")
+PM_JAKO(WhatsNewDrop, L"ファイルをウィンドウにドラッグ：Android はそのまま受信（APK はインストール）、iPhone は QR コードで",
+        L"파일을 창으로 끌어 놓기: Android는 바로 받고(APK는 설치), iPhone은 QR 코드로")
+PM_JAKO(WhatsNewLabel3, L"Android",
+        L"Android")
+PM_JAKO(WhatsNewAndroid, L"クリップボード同期、USB ケーブル接続、操作中はスマホの画面オフ、接続中はスリープしない",
+        L"클립보드 동기화, USB 케이블 연결, 조작 중 휴대폰 화면 끄기, 연결 중 절전 안 함")
+PM_JAKO(WhatsNewLabel4, L"リモート",
+        L"원격")
+PM_JAKO(WhatsNewRemote, L"スマホと PC でファイルをやり取り、切断後に PC をロック、接続履歴、タッチした所をクリック、60 fps",
+        L"휴대폰과 PC 간 파일 주고받기, 연결이 끊기면 PC 잠그기, 연결 기록, 터치한 곳 바로 클릭, 60 fps")
+PM_JAKO(WhatsNewLabel5, L"修正",
         L"수정")
+PM_JAKO(WhatsNewFixes, L"AirPlay と Android の再接続が安定、初回の翻訳は約 3 秒、省電力に",
+        L"AirPlay·Android 재연결이 더 안정적, 첫 번역 약 3초, 전력 사용 감소")
+PM_JAKO(WhatsNewTry, L"使い方を見る",
+        L"사용법 보기")
 PM_JAKO(WhatsNewOk, L"OK",
         L"확인")
-PM_JAKO(WhatsNewTry, L"リモート操作を見る",
-        L"원격 제어 보기")
 PM_JAKO(RemotePcOnlyToast, L"スマホからはリモート操作をオフにできません。このボタンは PC でのみ使えます",
         L"휴대폰에서는 원격 제어를 끌 수 없습니다. 이 버튼은 PC에서만 쓸 수 있습니다")
 PM_JAKO(RemoteTabTsShort, L"Tailscale",
@@ -1704,31 +1812,159 @@ PM_JAKO(RemoteTunnelTitle, L"スマホにアプリ不要、外からでも接続
         L"휴대폰에 앱 없이 밖에서도 연결")
 PM_JAKO(RemoteTunnelIntro, L"スマホに Tailscale は不要。\nモバイル通信からこの PC に\n接続できます。\n\nCloudflare の無料の一時アドレス\n（trycloudflare.com）で、\n毎回変わります。",
         L"휴대폰에 Tailscale 없이 모바일 데이터로 이 PC에 연결합니다.\n\nCloudflare의 무료 임시 주소(trycloudflare.com)를 쓰며 매번 바뀝니다.")
-PM_JAKO(RemoteTunnelStart, L"リンクを取得",
-        L"링크 받기")
-PM_JAKO(RemoteTunnelStarting, L"アドレスを取得中…（約 10～20 秒）",
-        L"주소를 받는 중…(약 10~20초)")
+PM_JAKO(RemoteTunnelStart, L"一時アドレスを取得",
+        L"임시 주소 받기")
+PM_JAKO(RemoteTunnelStarting, L"一時アドレスを取得中…（約 10～20 秒）",
+        L"임시 주소를 받는 중…(약 10~20초)")
 PM_JAKO(RemoteScanTunnel, L"カメラで読み取り（1 回だけ有効）、パスコードを入力",
         L"카메라로 스캔(한 번만 유효)한 뒤 통행 코드 입력")
 PM_JAKO(RemoteTunnelCode, L"パスコード  {0}",
         L"통행 코드  {0}")
-PM_JAKO(RemoteTunnelNote, L"3 つの保護：使い捨てリンク・パスコード・この PC で「許可」。\n出かける前に PC のそばで一度つないで「記憶」してください。",
-        L"세 가지 보호: 일회용 링크, 통행 코드, 이 PC에서 “허용”.\n나가기 전에 PC 옆에서 한 번 연결하고 “기억”하세요.")
-PM_JAKO(RemoteTunnelStop, L"リンクを停止",
-        L"링크 중지")
-PM_JAKO(RemoteTunnelFailed, L"リンクを取得できません：{0}",
-        L"링크를 받을 수 없습니다: {0}")
+PM_JAKO(RemoteTunnelNote, L"3 つの保護：使い捨てアドレス・パスコード・この PC で「許可」。\n出かける前に PC のそばで一度つないで「記憶」してください。",
+        L"세 가지 보호: 일회용 주소, 통행 코드, 이 PC에서 “허용”.\n나가기 전에 PC 옆에서 한 번 연결하고 “기억”하세요.")
+PM_JAKO(RemoteTunnelStop, L"一時アドレスを停止",
+        L"임시 주소 중지")
+PM_JAKO(RemoteTunnelFailed, L"一時アドレスを取得できません：{0}",
+        L"임시 주소를 받을 수 없습니다: {0}")
 PM_JAKO(RemoteTunnelRetry, L"再試行",
         L"다시 시도")
-PM_JAKO(RemoteTunnelMissing, L"cloudflared が見つかりません（リンクに必要です）。Zizai Cast を再インストールしてください。",
-        L"cloudflared가 없습니다(링크에 필요). Zizai Cast를 다시 설치하세요.")
-PM_JAKO(RemoteAskViaTunnel, L"{0}（アプリ不要リンク）",
-        L"{0}(앱 없이 외부 링크)")
-PM_JAKO(MenuRemoteTunnel, L"アプリ不要の外部リンク（モバイル通信からも接続）",
-        L"앱 없이 외부 링크(모바일 데이터로도 연결)")
-PM_JAKO(RemoteTunnelOnToast, L"リンクの準備ができました：QR コードを読み取り、パスコードを入力してください",
-        L"링크가 준비되었습니다: QR 코드를 스캔하고 통행 코드를 입력하세요")
-PM_JAKO(RemoteTunnelUnreachable, L"リンクにまだ外から接続できません（Cloudflare 側の準備中）。「リンクを停止」してから取り直してください",
-        L"링크에 아직 밖에서 연결할 수 없습니다(Cloudflare 준비 중). “링크 중지” 후 다시 받으세요")
-PM_JAKO(RemoteTunnelOffToast, L"アプリ不要リンクを停止しました",
-        L"앱 없이 외부 링크를 중지했습니다")
+PM_JAKO(RemoteTunnelMissing, L"cloudflared が見つかりません（一時アドレスに必要です）。Zizai Cast を再インストールしてください。",
+        L"cloudflared가 없습니다(임시 주소에 필요). Zizai Cast를 다시 설치하세요.")
+PM_JAKO(RemoteAskViaTunnel, L"{0}（一時アドレス）",
+        L"{0}(임시 주소)")
+PM_JAKO(MenuRemoteTunnel, L"アプリ不要の外部接続（一時アドレス、モバイル通信からも接続）",
+        L"앱 없이 외부 접속(임시 주소, 모바일 데이터로도 연결)")
+PM_JAKO(RemoteTunnelOnToast, L"一時アドレスの準備ができました：QR コードを読み取り、パスコードを入力してください",
+        L"임시 주소가 준비되었습니다: QR 코드를 스캔하고 통행 코드를 입력하세요")
+PM_JAKO(RemoteTunnelUnreachable, L"一時アドレスにまだ外から接続できません（Cloudflare 側の準備中）。「一時アドレスを停止」してから取り直してください",
+        L"임시 주소에 아직 밖에서 연결할 수 없습니다(Cloudflare 준비 중). “임시 주소 중지” 후 다시 받으세요")
+PM_JAKO(RemoteTunnelOffToast, L"一時アドレスを停止しました",
+        L"임시 주소를 중지했습니다")
+PM_JAKO(MenuRemoteLock, L"リモート切断後に PC をロック",
+        L"원격 연결이 끊기면 PC 잠그기")
+PM_JAKO(MenuRemoteLockOutside, L"外部から接続したとき（固定／一時アドレス）",
+        L"외부에서 연결했을 때(고정/임시 주소)")
+PM_JAKO(MenuRemoteLockLan, L"自宅（LAN／Tailscale）から接続したとき",
+        L"집(LAN/Tailscale)에서 연결했을 때")
+PM_JAKO(MenuRemoteLog, L"接続履歴…",
+        L"연결 기록…")
+PM_JAKO(RemoteLogTitle, L"リモート操作の接続履歴（最新 50 件）",
+        L"원격 제어 연결 기록(최근 50건)")
+PM_JAKO(RemoteLogEmpty, L"接続履歴はまだありません。",
+        L"아직 연결 기록이 없습니다.")
+PM_JAKO(RemoteLogSrcLan, L"LAN",
+        L"LAN")
+PM_JAKO(RemoteLogSrcTs, L"Tailscale",
+        L"Tailscale")
+PM_JAKO(RemoteLogSrcFixed, L"固定アドレス",
+        L"고정 주소")
+PM_JAKO(RemoteLogSrcTunnel, L"一時アドレス",
+        L"임시 주소")
+PM_JAKO(RemoteLogSrcOutside, L"外部",
+        L"외부")
+PM_JAKO(RemoteLogOk, L"接続",
+        L"성공")
+PM_JAKO(RemoteLogWrongPw, L"パスワード違い",
+        L"비밀번호 오류")
+PM_JAKO(RemoteLogBlocked, L"ブロック",
+        L"차단됨")
+PM_JAKO(RemoteLogDenied, L"拒否",
+        L"거부됨")
+PM_JAKO(RemoteUnlockedToast, L"{0} がパスワードで「表示のみ」を解除しました。この PC を操作できます（「表示のみ」で戻せます）",
+        L"{0}이(가) 비밀번호로 “보기 전용”을 해제했습니다. 이제 이 PC를 조작할 수 있습니다(“보기 전용”으로 다시 잠금)")
+PM_JAKO(RemoteWrongPwBalloon, L"外部から {0} 回続けてパスワードが間違えられました（{1}）",
+        L"외부에서 비밀번호가 {0}번 연속 틀렸습니다({1})")
+PM_JAKO(RemoteUploadedToast, L"スマホからファイルを受信しました：{0}（ダウンロード\\自在投影遠端）",
+        L"휴대폰에서 파일을 받았습니다: {0}(다운로드\\自在投影遠端)")
+PM_JAKO(ExpAudioOnly, L"実験：画面ミラーリングのみ（AirPlay スピーカーにしない）",
+        L"실험: 화면 미러링만(AirPlay 스피커로 쓰지 않음)")
+PM_JAKO(ExpOnAfter, L"実験をオンにしました：このミラーリングの終了後に適用されます",
+        L"실험을 켰습니다: 이번 미러링이 끝난 뒤 적용됩니다")
+PM_JAKO(ExpOffAfter, L"実験をオフにしました：このミラーリングの終了後に適用されます",
+        L"실험을 껐습니다: 이번 미러링이 끝난 뒤 적용됩니다")
+PM_JAKO(ExpOn, L"実験をオンにしました：画面ミラーリングのみ",
+        L"실험을 켰습니다: 화면 미러링만")
+PM_JAKO(ExpOff, L"実験をオフにしました：既定に戻しました",
+        L"실험을 껐습니다: 기본값으로 되돌렸습니다")
+PM_JAKO(RemoteCopied, L"アドレスをコピーしました",
+        L"주소 복사됨")
+
+// 0.8.3 feat-ux (簡報畫筆, 拖檔到視窗, Android 操控, 傳到手機 page)
+PM_JAKO(InkMenu, L"ペン", L"펜")
+PM_JAKO(InkModeToggle, L"ペンモード", L"펜 모드")
+PM_JAKO(ToolLabelInk, L"ペン", L"펜")
+PM_JAKO(TipInkOn, L"ペン（Ctrl+E）：画面に書き込み・強調", L"펜(Ctrl+E): 화면에 그리기·강조")
+PM_JAKO(TipInkOff, L"ペンを終了（Ctrl+E／Esc）", L"펜 끝내기(Ctrl+E / Esc)")
+PM_JAKO(InkPen, L"ペン", L"펜")
+PM_JAKO(InkHighlighter, L"蛍光ペン", L"형광펜")
+PM_JAKO(InkArrow, L"矢印", L"화살표")
+PM_JAKO(TipInkTool, L"ツール：{0}（クリックで切替）", L"도구: {0}(클릭하여 변경)")
+PM_JAKO(InkColor, L"色", L"색")
+PM_JAKO(TipInkColor, L"色：{0}（クリックで切替）", L"색: {0}(클릭하여 변경)")
+PM_JAKO(InkRed, L"赤", L"빨강")
+PM_JAKO(InkYellow, L"黄", L"노랑")
+PM_JAKO(InkBlue, L"青", L"파랑")
+PM_JAKO(InkGreen, L"緑", L"초록")
+PM_JAKO(InkWhite, L"白", L"흰색")
+PM_JAKO(InkBlack, L"黒", L"검정")
+PM_JAKO(InkWidth, L"太さ", L"굵기")
+PM_JAKO(TipInkWidth, L"太さ：{0}（クリックで切替）", L"굵기: {0}(클릭하여 변경)")
+PM_JAKO(InkThin, L"細い", L"가늘게")
+PM_JAKO(InkMedium, L"普通", L"보통")
+PM_JAKO(InkThick, L"太い", L"굵게")
+PM_JAKO(InkUndo, L"最後の線を取り消す", L"마지막 획 실행 취소")
+PM_JAKO(InkClear, L"すべて消去", L"모두 지우기")
+PM_JAKO(TipInkUndo, L"元に戻す（Ctrl+Z）", L"실행 취소(Ctrl+Z)")
+PM_JAKO(TipInkClear, L"すべて消去（Ctrl+Shift+E）", L"모두 지우기(Ctrl+Shift+E)")
+PM_JAKO(InkInShots, L"スクリーンショットに書き込みを含める", L"스크린샷에 그림 포함")
+PM_JAKO(InkInRec, L"録画に書き込みを含める", L"녹화에 그림 포함")
+PM_JAKO(InkBadge, L"ペンモード · Esc で終了", L"펜 모드 · Esc로 끝내기")
+PM_JAKO(InkOnToast, L"ペンモード：画面をドラッグして書き込み（Esc で終了）", L"펜 모드: 화면을 드래그해 그리세요(Esc로 끝내기)")
+PM_JAKO(InkOnToastAndroid, L"ペンモード：マウスでのスマホ操作を一時停止中。ドラッグで書き込み（Esc で終了）",
+        L"펜 모드: 마우스로 휴대폰 조작을 잠시 멈춥니다. 드래그해 그리세요(Esc로 끝내기)")
+PM_JAKO(InkOffToast, L"ペンを終了（書き込みは残ります。Ctrl+Shift+E で消去）", L"펜 끝(그림은 남아 있습니다. Ctrl+Shift+E로 지우기)")
+PM_JAKO(InkOffToastEmpty, L"ペンを終了しました", L"펜을 껐습니다")
+PM_JAKO(InkCleared, L"書き込みを消去しました", L"그림을 지웠습니다")
+PM_JAKO(InkNothing, L"取り消せる書き込みはありません", L"실행 취소할 그림이 없습니다")
+PM_JAKO(DropHintShare, L"ドロップしてスマホに送る", L"놓으면 휴대폰으로 보냅니다")
+PM_JAKO(DropHintInstall, L"ドロップしてアプリをインストール", L"놓으면 앱을 설치합니다")
+PM_JAKO(DropHintBoth, L"ドロップしてアプリをインストール／ファイルを送る", L"놓으면 앱 설치 / 파일 전송")
+PM_JAKO(DropSubQr, L"スマホで QR コードを読み取ってダウンロード", L"휴대폰으로 QR 코드를 스캔해 내려받기")
+PM_JAKO(DropSubAndroid, L"「{0}」に直接送信", L"“{0}”(으)로 바로 전송")
+PM_JAKO(DropInstalling, L"インストール中：{0}…", L"설치 중: {0}…")
+PM_JAKO(DropInstalled, L"インストールしました：{0}", L"설치했습니다: {0}")
+PM_JAKO(DropInstallFail, L"インストールできませんでした：{0}（{1}）", L"설치하지 못했습니다: {0}({1})")
+PM_JAKO(DropPushed, L"スマホに送りました：{0}", L"휴대폰으로 보냈습니다: {0}")
+PM_JAKO(DropPushFail, L"送信できませんでした：{0}（{1}）", L"보내지 못했습니다: {0}({1})")
+PM_JAKO(DropNoFiles, L"ドロップできるのはファイルだけです（フォルダーは不可）", L"파일만 놓을 수 있습니다(폴더 불가)")
+PM_JAKO(DropTooMany, L"一度に送れるのは {0} 個までです。残りは追加されませんでした", L"한 번에 최대 {0}개까지입니다. 나머지는 추가하지 않았습니다")
+PM_JAKO(DropAddedShare, L"「スマホに送る」に追加しました：{0}", L"휴대폰으로 보내기에 추가했습니다: {0}")
+PM_JAKO(AndCtrlCaption, L"Android 操作", L"Android 제어")
+PM_JAKO(AndClipSync, L"クリップボードを同期", L"클립보드 동기화")
+PM_JAKO(AndScreenOff, L"操作中はスマホの画面をオフ", L"제어하는 동안 휴대폰 화면 끄기")
+PM_JAKO(AndStayAwake, L"接続中はスリープしない", L"연결된 동안 절전 모드 해제")
+PM_JAKO(AndUsb, L"USB ケーブルで接続", L"USB 케이블로 연결")
+PM_JAKO(AndUsbNote, L"スマホで「USB デバッグ」をオンに", L"휴대폰에서 ‘USB 디버깅’을 켜세요")
+PM_JAKO(AndUsbTrying, L"USB で接続中…", L"USB로 연결하는 중…")
+PM_JAKO(AndUsbNone, L"USB 接続の Android スマホが見つかりません。ケーブルを差し、スマホで USB デバッグを許可してください",
+        L"USB로 연결된 Android 휴대폰이 없습니다. 케이블을 꽂고 휴대폰에서 USB 디버깅을 허용하세요")
+PM_JAKO(AndUsbBusy, L"別の Android スマホをペアリング中または接続中です。終わってから USB ケーブルで接続してください",
+        L"다른 Android 휴대폰을 페어링하거나 연결하는 중입니다. 끝난 뒤 USB 케이블로 다시 연결하세요")
+PM_JAKO(AndOptOn, L"{0}：オン", L"{0}: 켬")
+PM_JAKO(AndOptOff, L"{0}：オフ", L"{0}: 끔")
+PM_JAKO(AndOptNext, L"（次回の Android 接続から）", L"(다음 Android 연결부터 적용)")
+PM_JAKO(PgClipTitle, L"PC のクリップボード", L"PC 클립보드")
+PM_JAKO(PgClipCopy, L"コピー", L"복사")
+PM_JAKO(PgClipCopied, L"コピーしました", L"복사했습니다")
+PM_JAKO(PgClipRefresh, L"更新", L"새로 고침")
+PM_JAKO(PgClipEmpty, L"PC でまだ何もコピーされていません。PC で Ctrl+C を押してから「更新」をタップしてください。",
+        L"PC에서 아직 복사한 텍스트가 없습니다. PC에서 Ctrl+C를 누른 뒤 ‘새로 고침’을 누르세요.")
+PM_JAKO(PgClipFail, L"自動でコピーできませんでした。テキストを長押しして選択・コピーしてください",
+        L"자동으로 복사하지 못했습니다. 텍스트를 길게 눌러 선택해 복사하세요")
+PM_JAKO(PgClipNote, L"PC で「スマホに送る」を開いている間だけ表示。閉じると止まります。",
+        L"PC에서 ‘휴대폰으로 보내기’를 연 동안만 제공되며, 닫으면 멈춥니다.")
+PM_JAKO(PgDownloadFile, L"ファイルをダウンロード", L"파일 다운로드")
+PM_JAKO(ShareClipStatus, L"スマホのページに PC のクリップボードの文字も表示されます（共有を止めると止まります）",
+        L"휴대폰 페이지에 PC 클립보드의 텍스트도 표시됩니다(공유를 멈추면 함께 멈춤)")
+PM_JAKO(PgFileTip, L"「ファイルをダウンロード」で保存（iPhone：「ファイル」App →「ダウンロード」）",
+        L"‘파일 다운로드’를 눌러 저장(iPhone: 파일 앱 → 다운로드)")

@@ -8,6 +8,7 @@
 #include "connect/connect.h"
 #include "view/view.h"
 #include "menus/menus.h"
+#include "connect/android_control.h"
 
 namespace pm_app {
 
@@ -195,7 +196,7 @@ std::vector<MenuItem> settingsItems() {
     v.push_back(languageItem());
     if (audioAdvertItemVisible()) {
         v.push_back(MenuItem::separator());
-        v.push_back(checkItem(CmdAudioAdvertAB, L"實驗：只提供螢幕鏡像（不當 AirPlay 喇叭）", kIcoFlip,
+        v.push_back(checkItem(CmdAudioAdvertAB, tr(S::ExpAudioOnly), kIcoFlip,
                               g.settings.advertiseAudio != 1,
                               g.settings.advertiseAudio == 2 ? L"=2" : L""));
     }
@@ -223,6 +224,7 @@ std::vector<MenuItem> androidItems() {
     v.push_back(MenuItem::separator());
     v.push_back(androidPairItem());
     if (g.androidOk) v.push_back(checkItem(CmdAndroidAuto, tr(S::OptAndroidAuto), kIcoConnect, g.settings.androidAuto));
+    appendAndroidControlItems(v);  // 0.8.3 Android 操控
     if (g.miracastUnsupported) {
         v.push_back(MenuItem::separator());
         v.push_back(miracastUnavailableItem());

@@ -27,6 +27,9 @@
 #include "update/update.h"
 #include "menus/menus.h"
 #include "core/app/core_app.h"
+#include "view/ink.h"
+#include "share/drop.h"
+#include "connect/android_control.h"
 
 namespace pm_app {
 
@@ -175,6 +178,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         }
         log.write(level, s);
     });
+    // pm_translate's lines (0.8.3): local AI load (backend, GPU layers, memory), release, engine errors.
+    pm::translate::setLogHandler([&log](const char* level, const std::string& s) { log.write(level, "translate: " + s); });
     pm::VideoWindow window;
     if (background) SetEnvironmentVariableW(L"PM_VIDEO_START_HIDDEN", L"1");  // no flash before it hides
     const bool created = window.create(g.idleTitle.c_str(), 540, 960);
@@ -210,7 +215,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     }
     if (g.settings.topmost) applyTopmost();
     refreshIdleOptions();
-    SetTimer(hwnd, kOrientationTimer, 300, nullptr);
+    // (kOrientationTimer is started by the first WM_PM_STATE that is not idle; see app_proc.cpp)
     pm::ui::warmUp();  // D2D/DWrite factories now, so the first menu opens fast
     applyTheme();             // 主題: idle screen + menus
     applyView(false);         // 畫面: rotation, flip, iPhone frame
@@ -231,6 +236,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     }
     createTranslator();       // 翻譯 (pm_translate; bergamot.dll next to the exe)
     window.setViewHandler([](const pm::VideoWindow::ViewState&) { refreshToolbar(); });  // Ctrl+wheel / drag zoom
+    inkInit();                // 0.8.3 簡報畫筆: style, screenshot / recording options
+    dropInit();               // 0.8.3 拖檔到視窗 (IDropTarget on the window)
 
     // 錄影
     pm::Recorder recorder;
@@ -341,6 +348,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     };
     android.events.onConnected = [hwnd](const std::wstring& name) { postSource(hwnd, AndConnected, name); };
     android.events.onDisconnected = [hwnd]() { postSource(hwnd, AndDisconnected); };
+    android.events.onNotice = [hwnd](const std::wstring& text) { postSource(hwnd, AndNotice, text); };
     const fs::path toolsDir = exePath().parent_path() / L"android-tools";
     g.android = &android;
     g_android = &android;
@@ -350,7 +358,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         log.write("warn", "android: tools missing or unusable in " + toUtf8(toolsDir.wstring()));
     if (g.settings.androidPaired < 0) {  // settings from before 0.7.9: has a phone ever connected? (the log says)
         bool seen = false;
-        for (const wchar_t* f : {L"phonemirror.log", L"phonemirror.old.log"}) {
+        for (const wchar_t* f : {L"phonemirror.log", L"phonemirror.old.log", L"phonemirror.old2.log", L"phonemirror.old3.log"}) {
             std::ifstream in(dir / f, std::ios::binary);
             for (std::string l; !seen && std::getline(in, l);) seen = l.find("] android connected: ") != std::string::npos;
         }
@@ -432,6 +440,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     feedStop = true;
     g.askPanel.close();
     window.setViewHandler(nullptr);
+    dropShutdown();
+    androidControlShutdown();
+    window.setInkHandler(nullptr);
     g.translator.reset();  // before the window object goes
     if (feed.joinable()) feed.join();
     if (feed2.joinable()) feed2.join();
@@ -458,5 +469,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (single) CloseHandle(single);  // the update installer waits for this mutex to go
     runPendingInstaller();
     pm::VideoWindow::setLogHandler(nullptr);
+    pm::translate::setLogHandler(nullptr);
     return rc;
 }

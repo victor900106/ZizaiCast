@@ -61,6 +61,10 @@ std::vector<pm::ui::SettingsPanel::Item> shortcutItems() {
     key(tr(S::MenuTrScreen), L"Ctrl+L");
     key(tr(S::MenuTrRegion), L"Ctrl+Shift+L");
     key(tr(S::MenuTranslateOriginal), L"Ctrl+O");
+    head(tr(S::InkMenu));  // 0.8.3 簡報畫筆
+    key(tr(S::InkModeToggle), L"Ctrl+E");
+    key(tr(S::InkUndo), L"Ctrl+Z");
+    key(tr(S::InkClear), L"Ctrl+Shift+E");
     head(tr(S::KeysGroupAndroid));
     if (g.settings.rightClickMenu) {  // 0.7.8 UX (p7) 右鍵行為 = 開啟選單: Back is on the toolbar only
         key(tr(S::KeysMenu), tr(S::KeyRightClick));

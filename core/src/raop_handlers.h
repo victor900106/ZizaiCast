@@ -711,9 +711,31 @@ raop_handler_setup(raop_conn_t *conn,
 
         // First setup
 
+        /* PM 0.8.3: eiv (16 bytes) and ekey (72 bytes) are copied with fixed
+         * sizes below; a shorter one was read past its heap buffer (and a
+         * longer ekey past the 72-byte stack copy by the debug dump). Checked
+         * here, before the takeover, so a malformed SETUP can neither crash the
+         * receiver nor end the running session. */
+        {
+            char *pm_eiv = NULL, *pm_ekey = NULL;
+            uint64_t pm_eiv_len = 0, pm_ekey_len = 0;
+            plist_get_data_val(req_eiv_node, &pm_eiv, &pm_eiv_len);
+            plist_get_data_val(req_ekey_node, &pm_ekey, &pm_ekey_len);
+            free(pm_eiv);
+            free(pm_ekey);
+            if (pm_eiv_len != sizeof(aesiv) || pm_ekey_len != sizeof(eaeskey)) {
+                logger_log(raop->logger, LOGGER_ERR, "refusing SETUP: eiv %llu bytes (need 16), ekey %llu bytes (need 72)",
+                           (unsigned long long) pm_eiv_len, (unsigned long long) pm_ekey_len);
+                http_response_init(response, "RTSP/1.0", 400, "Bad Request");
+                plist_free(res_root_node);
+                plist_free(req_root_node);
+                return;
+            }
+        }
+
         char *deviceID = NULL;
         plist_t req_deviceid_node = plist_dict_get_item(req_root_node, "deviceID");
-        plist_get_string_val(req_deviceid_node, &deviceID);  
+        plist_get_string_val(req_deviceid_node, &deviceID);
 
 
         /* RFC2617 Digest authentication (md5 hash) of uxplay client-access password, if set */
@@ -922,7 +944,7 @@ raop_handler_setup(raop_conn_t *conn,
         }
 
         plist_get_data_val(req_eiv_node, &eiv, &eiv_len);
-        memcpy(aesiv, eiv, 16);
+        memcpy(aesiv, eiv, 16);  /* PM 0.8.3: length checked above */
         free(eiv);	
         logger_log(raop->logger, LOGGER_DEBUG, "eiv_len = %llu", eiv_len);
         if (logger_debug) {
@@ -1098,7 +1120,7 @@ raop_handler_setup(raop_conn_t *conn,
         for (int i = 0; i < count; i++) {
             plist_t req_stream_node = plist_array_get_item(req_streams_node, i);
             plist_t req_stream_type_node = plist_dict_get_item(req_stream_node, "type");
-            uint64_t type;
+            uint64_t type = 0;  /* PM 0.8.3: was uninitialised for a stream without "type" */
             plist_get_uint_val(req_stream_type_node, &type);
             logger_log(raop->logger, LOGGER_DEBUG, "type = %llu", type);
 
@@ -1475,7 +1497,11 @@ raop_handler_teardown(raop_conn_t *conn,
                 raop->callbacks.audio_stop_coverart_rendering(raop->callbacks.cls);
             }
         }
-    } else if (teardown_110) {
+    }
+    /* PM 0.8.3: was "else if": a TEARDOWN listing both streams (96 and 110)
+     * stopped only the audio; the mirror thread and its TCP port stayed up and
+     * the video sink never got its reset (stale picture, port still taken). */
+    if (teardown_110) {
         /* PM: stop (join) the mirror thread before the reset callback: it reset
          * state the mirror thread was still writing (video timing) */
         if (conn->raop_rtp_mirror) {
@@ -1487,7 +1513,7 @@ raop_handler_teardown(raop_conn_t *conn,
         } else {
             raop->callbacks.video_reset(raop->callbacks.cls, RESET_TYPE_RTP_SHUTDOWN);
         }
-    } else {
+    } else if (!teardown_96) {
         /* Destroy our sessions */
         if (conn->raop_rtp) {
             raop_rtp_destroy(conn->raop_rtp);

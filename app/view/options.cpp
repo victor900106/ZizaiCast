@@ -57,11 +57,22 @@ void setPinOption(bool on) {
     refreshIdleOptions();
 }
 
-// 設定 ▸ 實驗：只提供螢幕鏡像 (A/B test, 0.7.6). Hidden: the row shows only with
-// Shift held while the menu opens, in --dev, or while the test is on (so it can
-// be turned back off). Fixed strings (zh-TW + English): it is not a product option.
+// Experimental rows (0.8.3): kept out of the menus unless Shift is held while the menu opens
+// (the menus are built at that moment), or the experiment is on (so it can be turned off).
+// --dev: PM_SHIFT_MENU=1 stands for the held key (offscreen screenshots).
+// Today there is one: 設定 ▸ 實驗：只提供螢幕鏡像 (A/B test, 0.7.6). Fixed strings
+// (zh-TW + English): it is not a product option.
+bool experimentalItemsVisible() {
+    if (GetKeyState(VK_SHIFT) < 0) return true;
+    if (g.dev) {
+        wchar_t v[8] = {};
+        if (GetEnvironmentVariableW(L"PM_SHIFT_MENU", v, 8) > 0 && v[0] == L'1') return true;
+    }
+    return false;
+}
+
 bool audioAdvertItemVisible() {
-    return g.dev || g.settings.advertiseAudio != 1 || GetKeyState(VK_SHIFT) < 0;
+    return g.settings.advertiseAudio != 1 || experimentalItemsVisible();
 }
 
 void toggleAudioAdvertAB() {
@@ -75,12 +86,10 @@ void toggleAudioAdvertAB() {
     const bool on = g.settings.advertiseAudio != 1;
     if (g.sessionActive) {
         g.restartPending = true;
-        g.window->showToast(on ? L"實驗已開啟：投影結束後套用 (A/B test on after this session)"
-                               : L"實驗已關閉：投影結束後套用 (A/B test off after this session)");
+        g.window->showToast(tr(on ? S::ExpOnAfter : S::ExpOffAfter));
     } else {
         restartServer();
-        g.window->showToast(on ? L"實驗已開啟：只提供螢幕鏡像 (A/B test on)"
-                               : L"實驗已關閉：恢復預設 (A/B test off)");
+        g.window->showToast(tr(on ? S::ExpOn : S::ExpOff));
     }
 }
 

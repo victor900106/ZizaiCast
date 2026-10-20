@@ -368,6 +368,32 @@ ShutdownBlockReasonUninstallingApp=正在解除安裝 %1。
 ; The custom messages below aren't used by Setup itself, but if you make
 ; use of them in your scripts, you'll want to translate them.
 
+; 6.5 messages (archive extraction, downloads, signature checks, retry dialog): added in 0.8.3 so that no
+; dialog falls back to English. Setup does not download or extract anything today.
+DownloadingLabel2=正在下載檔案...
+ExtractingLabel=正在解壓縮檔案...
+ButtonStopExtraction=停止解壓縮(&S)
+StopExtraction=確定要停止解壓縮嗎?
+ErrorExtractionAborted=解壓縮已中止
+ErrorExtractionFailed=解壓縮失敗: %1
+ArchiveIncorrectPassword=密碼不正確
+ArchiveIsCorrupted=封存檔已損毀
+ArchiveUnsupportedFormat=不支援此封存檔格式
+RetryCancelSelectAction=選擇動作
+RetryCancelRetry=重試(&T)
+RetryCancelCancel=取消
+StatusDownloadFiles=正在下載檔案...
+SourceVerificationFailed=來源檔案驗證失敗: %1
+VerificationSignatureDoesntExist=簽章檔 "%1" 不存在
+VerificationSignatureInvalid=簽章檔 "%1" 無效
+VerificationKeyNotFound=簽章檔 "%1" 使用了未知的金鑰
+VerificationFileNameIncorrect=檔案名稱不正確
+VerificationFileTagIncorrect=檔案標籤不正確
+VerificationFileSizeIncorrect=檔案大小不正確
+VerificationFileHashIncorrect=檔案雜湊值不正確
+ErrorDownloading=下載檔案時發生錯誤:
+ErrorExtracting=解壓縮封存檔時發生錯誤:
+
 [CustomMessages]
 
 NameAndVersion=%1 版本 %2

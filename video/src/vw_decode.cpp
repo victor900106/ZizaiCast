@@ -278,7 +278,14 @@ void VideoWindow::Impl::remember(AccessUnit& au) {
 }
 
 void VideoWindow::Impl::decodeOne(AccessUnit& au) {
-    if (decoderMissing) return;
+    if (decoderMissing) {
+        // PM 0.8.3: try again at a key frame (a decoder can only start there)
+        if (!au.irap || deviceLost || nowMs() - decoderMissingAt < kDecoderRetryMs) return;
+        ++decoderRetries;
+        if (decoderRetries == 1 || decoderRetries % 10 == 0)
+            log("no decoder for this stream: retrying at a key frame (attempt %d)", decoderRetries);
+        if (!openDecoder()) return;
+    }
     if (waitKey) {
         if (!au.irap) {  // cannot start mid-GOP
             dg.auSkipped.fetch_add(1, std::memory_order_relaxed);
@@ -322,8 +329,12 @@ void VideoWindow::Impl::decodeOne(AccessUnit& au) {
     } else {
         log("decode error hr=0x%08lx (%s)", hr, dec.hardware() ? "hw" : "sw");
         if (dec.hardware()) {
-            log("falling back to software decoding");
+            log("falling back to software decoding (hardware again at a key frame in %.0f s)", kHwRetryMs / 1000);
             hwBroken = true;
+            // PM 0.8.3: one hardware error used to mean software decoding for
+            // the rest of the session (only a new D3D device reset it); software
+            // HEVC cannot keep up with 1440p60. Same retry as the watchdog's.
+            swSince = nowMs();
             dec.close();
             if (openDecoder()) {
                 const size_t n = au.irap ? 0 : gopTruncated ? std::min<size_t>(gop.size(), 1) : gop.size();

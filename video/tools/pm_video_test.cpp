@@ -400,7 +400,7 @@ void runDemo2(pm::VideoWindow& win, At at, Feed feed) {
     at(6000); mouse(0.42f, 0.86f, true);        // second line
     at(7400); mouse(0.95f, 0.05f, false);
     step("setConnecting: happy hop");
-    win.setConnecting(L"Victor 的 iPhone");     // (7750 hop)
+    win.setConnecting(L"Alex 的 iPhone");     // (7750 hop)
     at(9000); step("frames, device frame on");
     win.setDeviceFrame(true);
     std::thread frames([&] { feed(2); });        // 9.0-11 portrait, 11-13 landscape, 13-15 portrait, ...
@@ -507,7 +507,7 @@ void runMascotTour(pm::VideoWindow& win, At at, const std::wstring& dir) {
         swprintf_s(n, L"idle_seq_%02d", i);
         shot(n);
     }
-    win.setConnecting(L"Victor 的 iPhone");
+    win.setConnecting(L"Alex 的 iPhone");
     at(11400); shot(L"connect_intro");
     at(12600); shot(L"connecting");
     at(13000); shot(L"connecting2");
@@ -522,7 +522,7 @@ void runMascotTour(pm::VideoWindow& win, At at, const std::wstring& dir) {
     // layouts
     setClient(1280, 720);
     at(17400); shot(L"landscape_idle");
-    win.setConnecting(L"Victor 的 iPhone");
+    win.setConnecting(L"Alex 的 iPhone");
     at(19200); shot(L"landscape_connecting");
     win.onReset();
     setClient(400, 800);
@@ -1249,7 +1249,7 @@ void runAnimShots(pm::VideoWindow& win, const std::wstring& dir) {
     sleep(300);
     strip(L"idle_dots_breath", [] {}, {0, 450, 900, 1350});
     // 「Found a phone」: surprised face, eyes to the phone, sparkles, then the hop.
-    strip(L"found_phone", [&] { win.setConnecting(L"Victor 的 Pixel"); },
+    strip(L"found_phone", [&] { win.setConnecting(L"Alex 的 Pixel"); },
           {0, 80, 160, 260, 420, 600, 800, 1000, 1300});
     win.onReset();
     sleep(1200);
@@ -2154,7 +2154,7 @@ int wmain(int argc, wchar_t** argv) {
                                    });
             });
             at(3000);
-            win.setConnecting(L"Victor 的 iPhone");
+            win.setConnecting(L"Alex 的 iPhone");
             at(5000);
             std::thread frames([&] { feedStream(main, -1, loops, 0); });
             at(6000);

@@ -33,6 +33,11 @@ std::wstring langName(Lang l);   // in the UI language: 日文 / Japanese …
 // The translation target that matches the UI language (繁體中文: ZhHant, English: En, 日本語: Ja, 한국어: Ko).
 Lang defaultTarget();
 
+// Process-wide: the library's log lines (local AI load / device / GPU layers /
+// release, engine errors, warm-up) with a level ("info" / "warn" / "error");
+// any thread.  Lines always go to stderr too.  nullptr: stderr only.
+void setLogHandler(std::function<void(const char* level, const std::string& line)> fn);
+
 // ---- OCR (PaddleOCR via ONNX Runtime; Windows.Media.Ocr fallback) ----
 struct OcrLine {
     std::wstring text;            // words joined (no spaces between CJK characters)

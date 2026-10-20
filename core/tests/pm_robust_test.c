@@ -117,6 +117,9 @@ static void test_httpd(logger_t *logger) {
     for (int i = 0; i < 300 && g_select_fail > 0; i++) Sleep(10);  /* the thread may sit in a 1 s select */
     SOCKET c2 = connect_loopback(port);
     check(wait_for(&g_conn_init, 2, 3000), "accepted after 3 select() failures");
+    /* PM 0.8.3: the idle thread no longer polls; the failures are hit on the
+     * select() calls after c2 woke it */
+    for (int i = 0; i < 300 && g_select_fail > 0; i++) Sleep(10);
     check(g_select_fail == 0 && httpd_is_running(h), "still running after select() failures");
 
     httpd_stop(h);

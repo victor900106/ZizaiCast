@@ -14,7 +14,8 @@ namespace pm_app {
 
 enum RemoteEvent : WPARAM {
     RemRequest = 1, RemActive, RemEnded, RemBlocked, RemTrouble, RemTunnelUrl, RemTunnelEnd, RemTunnelLink, RemTunnelCheck,
-    RemFixedUp, RemFixedFail, RemFixedCfUrl, RemFixedCfEnd, RemFixedLogin, RemFixedStale  // 常駐外網 (0.8.2)
+    RemFixedUp, RemFixedFail, RemFixedCfUrl, RemFixedCfEnd, RemFixedLogin, RemFixedStale,  // 常駐外網 (0.8.2)
+    RemLoginRevoked, RemUnlocked, RemUploaded  // 0.8.3
 };
 
 bool remoteAvailable();
@@ -49,5 +50,6 @@ MenuItem remoteTrayToggle();      // the tray menu's first row: 遠端操控 ✓
 // remote_password.png, whats_new.png), 6 the 新功能 note now, 7 fill a too-short one + save,
 // 8 進階設定 as remote_advanced.png, 9 close the 新功能 note (知道了).
 void remoteDevFixed(int how);
+void remoteDevLog(int how);       // --dev DevCommand 965 (0.8.3): 1 = the 連線紀錄 text into the log, 2 = 中斷 from the PC
 
 }  // namespace pm_app

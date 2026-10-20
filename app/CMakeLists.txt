@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.2.1)
+set(PM_APP_VERSION 0.8.3)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -69,15 +69,15 @@ target_link_libraries(pm_app_base PUBLIC pm_app_ui)
 
 add_library(pm_app_help STATIC help/help.h help/shortcuts.cpp help/tutorial.cpp help/about.cpp)
 add_library(pm_app_share STATIC share/share.h share/share_internal.h share/share_files.cpp share/share_qr.cpp
-  share/share_push.cpp share/share_actions.cpp)
+  share/share_push.cpp share/share_actions.cpp share/drop.h share/drop.cpp share/share_clip.cpp)
 add_library(pm_app_translate STATIC translate/translate.h translate/magnifier.cpp translate/translate_actions.cpp
   translate/models.cpp translate/translator_host.cpp)
 add_library(pm_app_capture STATIC capture/capture.h capture/screenshot.cpp capture/recording.cpp)
 add_library(pm_app_connect STATIC connect/connect.h connect/connect_internal.h connect/airplay.cpp
   connect/airplay_events.cpp connect/sources.cpp connect/idle_hints.cpp connect/miracast.cpp connect/android.cpp
-  connect/session.cpp)
+  connect/session.cpp connect/android_control.h connect/android_control.cpp)
 add_library(pm_app_view STATIC view/view.h view/window_fit.cpp view/options.cpp view/picture.cpp view/close_flow.cpp
-  view/language.cpp)
+  view/language.cpp view/ink.h view/ink.cpp)
 add_library(pm_app_update STATIC update/update.h update/update_check.cpp update/update_install.cpp
   update/local_updates.cpp update/updater.cpp update/updater.h)
 add_library(pm_app_menus STATIC menus/menus.h menus/menu_items.cpp menus/menu_view_translate.cpp menus/menu_roots.cpp
@@ -102,7 +102,7 @@ if(TARGET pm_remote)
 endif()
 
 # wWinMain 和資源檔留在 exe 自己的來源裡（.rc 放進靜態函式庫不會被連結）。
-add_executable(PhoneMirror WIN32 core/app/main.cpp core/app/app_proc.cpp core/app/commands.cpp core/app/dev_harness.cpp
+add_executable(PhoneMirror WIN32 core/app/main.cpp core/app/app_proc.cpp core/app/commands.cpp core/app/dev_harness.cpp core/app/dev_083.cpp
   core/app/core_app.h resource.h res/app.rc res/app.manifest
   ${CMAKE_SOURCE_DIR}/include/pm/i18n.h ${CMAKE_SOURCE_DIR}/include/pm/i18n_strings.inc)
 # 連結順序：先列出全部 pm_app_*，再接拆檔前的原清單（同順序）。這樣 app 的程式碼在連到

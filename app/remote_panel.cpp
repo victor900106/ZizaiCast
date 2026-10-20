@@ -513,7 +513,7 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
                 rt->DrawBitmap(qrBitmap, rc(leftPx / sc, topPx / sc, drawPx / sc, drawPx / sc), 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
             }
             text(std::wstring(fixUrl_.begin(), fixUrl_.end()), f.url.Get(), rc(kPad - 8, kUrlY, kW - 2 * kPad + 16, 18), t.dim);
-            link(tr(S::SharePanelCopy), kCopyY, HitCopy, copyW_);
+            link(tr(S::RemoteFixedCopy), kCopyY, HitCopy, copyW_);
         } else {
             fill(rc(cardX - 10, kQrY, kQrCard + 20, kQrCard), withA(t.fg, 0.06f), 14);
             if (fixState_ == 1) {
@@ -551,7 +551,7 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
                                                          : std::wstring(tunCode_.begin(), tunCode_.end());
             text(pm::i18n::fmt(S::RemoteTunnelCode, {c}), f.code.Get(), rc(kPad, kUrlY - 6, kW - 2 * kPad, 28), t.accent);
             float cw = 0;
-            link(tr(S::SharePanelCopy), kCopyY + 6, HitCopy, cw);
+            link(tr(S::RemoteFixedCopy), kCopyY + 6, HitCopy, cw);
             copyW_ = cw;
         } else {
             fill(rc(cardX - 10, kQrY, kQrCard + 20, kQrCard), withA(t.fg, 0.06f), 14);
@@ -589,7 +589,7 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
         }
         const std::string& u = tab_ ? tsUrl_ : lanUrl_;
         text(std::wstring(u.begin(), u.end()), f.url.Get(), rc(kPad - 8, kUrlY, kW - 2 * kPad + 16, 18), t.dim);
-        link(tr(S::SharePanelCopy), kCopyY, HitCopy, copyW_);
+        link(tr(S::RemoteFixedCopy), kCopyY, HitCopy, copyW_);
     }
     if (!status_.empty()) text(status_, f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, 40), active_ ? t.accent : t.fg);
     text(tr(tab_ ? S::RemoteNoteTs : S::RemoteSafety), f.note.Get(), rc(kPad, kNoteY, kW - 2 * kPad, 44), t.dim);

@@ -76,6 +76,7 @@ constexpr UINT WM_PM_TOOL = WM_APP + 8;    // wp: Command (live toolbar button)
 constexpr UINT WM_PM_LOCALDIR = WM_APP + 9;  // 本機更新: something changed in <install>\安裝檔
 constexpr UINT WM_PM_SHARE = WM_APP + 20;   // 傳到手機: wp ShareEvent, lp owned payload (see onShareEvent)
 constexpr UINT WM_PM_REMOTE = WM_APP + 21;  // 遠端操控: wp RemoteEvent, lp owned RemoteMsg* (app/remote)
+constexpr UINT WM_PM_DROP = WM_APP + 22;    // 0.8.3 拖檔到視窗: an Android push / install finished, lp owned DropDone* (app/share/drop.cpp)
 enum EventKind : WPARAM { EvConnecting = 1, EvDisconnected, EvPin, EvTakeover };
 // Miracast / Android events (posted from their threads as WM_PM_SRCEV).
 enum SourceEvent : WPARAM {
@@ -90,6 +91,7 @@ enum SourceEvent : WPARAM {
     AndConnected,       // text = phone name
     AndDisconnected,
     AndTestConnected,   // --test-source android: fake phone (no adb)
+    AndNotice,          // 0.8.3: text = AndroidSource::Events::onNotice (mirroring goes on)
 };
 
 // ---------------------------------------------------------------------------
@@ -251,11 +253,37 @@ enum Command : UINT {
     CmdRemoteTsHelp,         // 怎麼設定 Tailscale
     CmdRemoteForgetDev0,     // 已記住的手機 ▸ one phone (up to 16)
     CmdRemoteForgetDevLast = CmdRemoteForgetDev0 + 15,
+    // 0.8.3
+    CmdRemoteLockOutside,    // 遠端斷線後自動鎖定電腦 ▸ 從外網連線時 ✓
+    CmdRemoteLockLan,        // 遠端斷線後自動鎖定電腦 ▸ 區網／Tailscale 連線時 ✓
+    CmdRemoteLog,            // 連線紀錄…
     CmdIdleTabCast,          // main window page 手機投影
     CmdIdleTabRemote,        // main window page 遠端控制
+    // 0.8.3 簡報畫筆 (app/view/ink.cpp); fixed ids for --dev DevCommand scripts.
+    CmdInkToggle = 400,      // 畫筆模式 (Ctrl+E, toolbar)
+    CmdInkToolPen,           // 筆 / 螢光筆 / 箭頭 (+ Settings::inkTool)
+    CmdInkToolHighlighter,
+    CmdInkToolArrow,
+    CmdInkToolCycle,         // toolbar 工具
+    CmdInkColor0 = 405,      // + Settings::inkColor (0..5)
+    CmdInkColorLast = CmdInkColor0 + 5,
+    CmdInkColorCycle = 411,  // toolbar 顏色
+    CmdInkWidth0 = 412,      // + Settings::inkWidth (0..2)
+    CmdInkWidthLast = CmdInkWidth0 + 2,
+    CmdInkWidthCycle = 415,  // toolbar 粗細
+    CmdInkUndo,              // Ctrl+Z (in ink mode / with strokes and no Android phone)
+    CmdInkClear,             // Ctrl+Shift+E
+    CmdInkInShots,           // 截圖包含筆跡 ✓
+    CmdInkInRec,             // 錄影包含筆跡 ✓
+    // 0.8.3 Android 操控 (app/connect/android_control.cpp)
+    CmdAndClipSync = 430,    // 剪貼簿同步 ✓
+    CmdAndScreenOff,         // 操控時關掉手機螢幕 ✓
+    CmdAndStayAwake,         // 連線期間不休眠 ✓
+    CmdAndUsb,               // 用 USB 線連線
 };
 enum IdleOptionId : int { OptAutostart = 1, OptPin = 2, OptRemoteAudio = 3, OptRemoteMutePc = 4 };
 constexpr UINT_PTR kOrientationTimer = 1;
+constexpr UINT kOrientationMs = 300;  // 0.8.3: runs only while a picture is showing (WM_PM_STATE not idle)
 constexpr UINT_PTR kSyncTimer = 2;     // every 1 s while 影音同步 is on
 constexpr UINT_PTR kLostTimer = 3;     // ends the "connection lost" hold
 constexpr UINT_PTR kResumeTimer = 4;   // checks for a stale picture after resume

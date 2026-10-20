@@ -83,7 +83,7 @@ Get-ChildItem -Recurse $Pub | Where-Object { $_.FullName -match 'yuyu|悠悠|mas
 cd $Pub
 git init -b main
 git add -A
-git -c user.name="v900106" -c user.email="victor900106@gmail.com" commit -m "自在投影 Zizai Cast $Ver" -m "Source snapshot of $Commit (private history not published)."
+git -c user.name="v900106" -c user.email="victor900106@users.noreply.github.com" commit -m "自在投影 Zizai Cast $Ver" -m "Source snapshot of $Commit (private history not published)."
 git remote add origin "https://github.com/$Owner.git"
 ```
 
@@ -173,7 +173,7 @@ Copy-Item -Recurse "$Repo\launch\site" $Site
 cd $Site
 New-Item .nojekyll -ItemType File | Out-Null
 git init -b gh-pages; git add -A
-git -c user.name="v900106" -c user.email="victor900106@gmail.com" commit -m "Landing page"
+git -c user.name="v900106" -c user.email="victor900106@users.noreply.github.com" commit -m "Landing page"
 git remote add origin "https://github.com/$Owner.git"
 git push -f origin gh-pages
 gh api -X POST "repos/$Owner/pages" -f "source[branch]=gh-pages" -f "source[path]=/"

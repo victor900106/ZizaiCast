@@ -7,6 +7,7 @@
 #include "capture/capture.h"
 #include "connect/connect.h"
 #include "connect/connect_internal.h"
+#include "connect/android_control.h"
 
 namespace pm_app {
 
@@ -101,7 +102,9 @@ void onAndroidConnected(const std::wstring& rawName, bool test) {
     bringToFront();
     setAndroidInput(true);
     armConnectWatch();
-    if (!test && !g.android->start(g.androidVideo, g.androidAudio)) {
+    const bool started = test || g.android->start(g.androidVideo, g.androidAudio);
+    if (started) androidControlApply(test ? "test phone" : "connected");  // 0.8.3 Android 操控
+    if (!started) {
         g.log->write("error", "android: start() refused");
         setAndroidInput(false);
         releaseSource(SrcAndroid);
@@ -279,6 +282,7 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
         const std::wstring detail = text.size() > 1 ? text.substr(1) : L"";
         g.log->write("info", "android state " + std::to_string(static_cast<int>(s)) +
                                  (detail.empty() ? "" : ": " + toUtf8(detail)));
+        androidUsbState(s, detail);  // 0.8.3 用 USB 線連線: its progress / result as toasts
         // Start-up failed (or ended) before the first picture: the window
         // showed 連線中 for this phone and owned the source, so nothing else
         // (an iPhone, auto-reconnect) could get in. Give it back, say why.
@@ -350,6 +354,10 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
             g.status->forceIdle();
             androidGoneUi();
         }
+        break;
+    case AndNotice:  // 0.8.3: e.g. no sound from this phone; mirroring goes on
+        g.log->write("info", "android notice: " + toUtf8(text));
+        if (androidLive() && !text.empty()) g.window->showToast(moduleText(text), 5000);
         break;
     default: break;
     }

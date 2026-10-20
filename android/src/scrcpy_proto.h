@@ -101,8 +101,14 @@ private:
 enum class MsgType : uint8_t {
     InjectKeycode = 0, InjectText = 1, InjectTouch = 2, InjectScroll = 3, BackOrScreenOn = 4,
     ExpandNotificationPanel = 5, ExpandSettingsPanel = 6, CollapsePanels = 7, GetClipboard = 8,
-    SetClipboard = 9, SetDisplayPower = 10, RotateDevice = 11,
+    SetClipboard = 9, SetDisplayPower = 10, RotateDevice = 11, ResetVideo = 17,
 };
+enum CopyKey : uint8_t { kCopyKeyNone = 0, kCopyKeyCopy = 1, kCopyKeyCut = 2 };
+// SC_CONTROL_MSG_CLIPBOARD_TEXT_MAX_LENGTH (control_msg.h): 256 KiB message
+// minus type (1), sequence (8), paste (1) and length (4).
+constexpr size_t kClipboardTextMax = (size_t(1) << 18) - 14;
+// DEVICE_MSG_MAX_SIZE: a device message never exceeds this.
+constexpr size_t kDeviceMsgMax = size_t(1) << 18;
 constexpr uint64_t kPointerMouse = ~0ull;            // -1
 constexpr uint64_t kPointerGenericFinger = ~0ull - 1; // -2
 enum KeyAction : uint8_t { kKeyDown = 0, kKeyUp = 1 };
@@ -119,6 +125,46 @@ std::vector<uint8_t> msgScroll(int32_t x, int32_t y, uint16_t w, uint16_t h, flo
                                uint32_t buttons);
 std::vector<uint8_t> msgBackOrScreenOn(uint8_t action);
 std::vector<uint8_t> msgSimple(MsgType t);
+// GET_CLIPBOARD: the device answers with a clipboard device message (after
+// pressing COPY / CUT first if copyKey says so).
+std::vector<uint8_t> msgGetClipboard(uint8_t copyKey);
+// SET_CLIPBOARD: sequence != 0 asks for an ACK_CLIPBOARD; paste = also press
+// PASTE on the device (Android 7+).  Text truncated to kClipboardTextMax on a
+// UTF-8 boundary.
+std::vector<uint8_t> msgSetClipboard(uint64_t sequence, bool paste, const std::string& utf8);
+// SET_DISPLAY_POWER: on = false turns the phone's panel off while mirroring
+// continues (scrcpy --turn-screen-off); the server's cleanup process turns
+// it back on if the client vanishes.
+std::vector<uint8_t> msgSetDisplayPower(bool on);
+// RESET_VIDEO: restart the capture / encoder (stalled stream recovery).
+inline std::vector<uint8_t> msgResetVideo() { return msgSimple(MsgType::ResetVideo); }
+
+// ---- device messages (device → client, on the control socket) ----
+// Incremental parser for scrcpy v5 device_msg.c: CLIPBOARD (0: len32 +
+// UTF-8), ACK_CLIPBOARD (1: sequence64), UHID_OUTPUT (2: id16 + size16 +
+// data).  Unknown types / oversize messages fail the parser (the stream
+// cannot be resynchronised), like scrcpy's receiver.
+class DeviceMsgParser {
+public:
+    struct Callbacks {
+        std::function<void(const std::string& utf8)> onClipboard;
+        std::function<void(uint64_t sequence)> onAckClipboard;
+        std::function<void(uint16_t id, const uint8_t* data, size_t len)> onUhidOutput;
+    };
+    explicit DeviceMsgParser(Callbacks cb) : cb_(std::move(cb)) {}
+    bool feed(const uint8_t* data, size_t len);
+    bool failed() const { return failed_; }
+    const std::string& error() const { return error_; }
+
+private:
+    bool fail(std::string why) { failed_ = true; error_ = std::move(why); return false; }
+    // Size of the complete message at the front of buf_, 0 = need more bytes.
+    size_t messageSize(bool& bad);
+    Callbacks cb_;
+    std::vector<uint8_t> buf_;
+    bool failed_ = false;
+    std::string error_;
+};
 
 // Ctrl / Alt / Shift as held on the calling thread right now (GetKeyState),
 // as scrcpy meta flags.

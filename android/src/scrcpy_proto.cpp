@@ -210,6 +210,70 @@ std::vector<uint8_t> msgScroll(int32_t x, int32_t y, uint16_t w, uint16_t h, flo
 std::vector<uint8_t> msgBackOrScreenOn(uint8_t action) { return {uint8_t(MsgType::BackOrScreenOn), action}; }
 std::vector<uint8_t> msgSimple(MsgType t) { return {uint8_t(t)}; }
 
+std::vector<uint8_t> msgGetClipboard(uint8_t copyKey) { return {uint8_t(MsgType::GetClipboard), copyKey}; }
+
+std::vector<uint8_t> msgSetClipboard(uint64_t sequence, bool paste, const std::string& utf8) {
+    const size_t n = utf8Truncation(utf8, kClipboardTextMax);
+    std::vector<uint8_t> v{uint8_t(MsgType::SetClipboard)};
+    v.reserve(14 + n);
+    wr64(v, sequence);
+    v.push_back(paste ? 1 : 0);
+    wr32(v, uint32_t(n));
+    v.insert(v.end(), utf8.begin(), utf8.begin() + n);
+    return v;
+}
+
+std::vector<uint8_t> msgSetDisplayPower(bool on) { return {uint8_t(MsgType::SetDisplayPower), uint8_t(on ? 1 : 0)}; }
+
+// --------------------------------------------------------- device msgs --
+
+size_t DeviceMsgParser::messageSize(bool& bad) {
+    bad = false;
+    if (buf_.empty()) return 0;
+    switch (buf_[0]) {
+        case 0: {  // CLIPBOARD
+            if (buf_.size() < 5) return 0;
+            const uint32_t len = rd32(&buf_[1]);
+            if (len > kDeviceMsgMax - 5) { bad = true; return 0; }
+            return buf_.size() >= 5 + size_t(len) ? 5 + size_t(len) : 0;
+        }
+        case 1:  // ACK_CLIPBOARD
+            return buf_.size() >= 9 ? 9 : 0;
+        case 2: {  // UHID_OUTPUT
+            if (buf_.size() < 5) return 0;
+            const size_t size = (size_t(buf_[3]) << 8) | buf_[4];
+            return buf_.size() >= 5 + size ? 5 + size : 0;
+        }
+        default:
+            bad = true;
+            return 0;
+    }
+}
+
+bool DeviceMsgParser::feed(const uint8_t* data, size_t len) {
+    if (failed_) return false;
+    buf_.insert(buf_.end(), data, data + len);
+    for (;;) {
+        bool bad = false;
+        const size_t n = messageSize(bad);
+        if (bad) return fail(buf_.empty() ? "?" : "bad device message type " + std::to_string(int(buf_[0])));
+        if (n == 0) return true;
+        switch (buf_[0]) {
+            case 0:
+                if (cb_.onClipboard) cb_.onClipboard(std::string(reinterpret_cast<const char*>(&buf_[5]), n - 5));
+                break;
+            case 1:
+                if (cb_.onAckClipboard) cb_.onAckClipboard(rd64(&buf_[1]));
+                break;
+            case 2:
+                if (cb_.onUhidOutput)
+                    cb_.onUhidOutput(uint16_t((buf_[1] << 8) | buf_[2]), buf_.data() + 5, n - 5);
+                break;
+        }
+        buf_.erase(buf_.begin(), buf_.begin() + ptrdiff_t(n));
+    }
+}
+
 // ------------------------------------------------------------------ keys --
 
 uint32_t vkToAndroidKeycode(unsigned vk) {

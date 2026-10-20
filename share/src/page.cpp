@@ -104,6 +104,14 @@ ol{margin:6px 4px 0;padding-left:24px;font-size:15px}li{margin:5px 0}
 footer{color:var(--dim);font-size:12.5px;text-align:center;margin:6px 16px 0}
 .gone{text-align:center;padding:28px 18px}
 .gone h1{margin:14px 0 8px}
+.clip .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 10px}
+.clip .head b{font-size:16px}
+.btn.small{width:auto;margin:0;padding:7px 14px;font-size:14px}
+.clip textarea{display:block;width:100%;min-height:88px;max-height:42vh;border-radius:13px;border:1px solid var(--line);background:rgba(0,0,0,.22);color:var(--fg);font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:10px 12px;resize:vertical;-webkit-user-select:text;user-select:text}
+.clip .empty{padding:14px 8px}
+.clip .note2{color:var(--dim);font-size:12.5px;margin:9px 4px 0;text-align:center}
+.file .fileicon{display:grid;place-items:center;height:96px;border-radius:13px;background:rgba(0,0,0,.22)}
+.file .fileicon svg{width:44px;height:44px}
 )CSS";
     h += "</style></head><body><main";
     return h;  // the caller closes <main ...>
@@ -164,13 +172,28 @@ std::string zipTips(const T& t, const std::string& kind) {
     return h;
 }
 
-std::string card(const T& t, const PageFile& f, const std::string& kind) {
+// A document / other file (0.8.3, 拖檔到視窗): no preview, just its name and 下載檔案.
+std::string fileIcon(const PagePalette& p) {
+    return "<div class=\"fileicon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"" + hex(p.accent) +
+           "\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">"
+           "<path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/>"
+           "<path d=\"M9 13h6\"/><path d=\"M9 17h4\"/></svg></div>";
+}
+bool isPicture(const PageFile& f) { return f.type.rfind("image/", 0) == 0; }
+
+std::string card(const T& t, const PageFile& f, const std::string& kind, const PageExtra& ex, const PagePalette& pal) {
     const std::string i = std::to_string(f.index);
     const std::string name = htmlEscape(f.name);
-    std::string h = "<section class=\"card\" data-i=\"" + i + "\" data-name=\"" + name + "\" data-type=\"" +
-                    htmlEscape(f.type) + "\" data-size=\"" + std::to_string(f.size) + "\" data-video=\"" +
-                    (f.video ? "1" : "0") + "\">";
-    if (!f.video) {
+    const bool file = !f.video && !isPicture(f);
+    std::string h = std::string("<section class=\"card") + (file ? " file" : "") + "\" data-i=\"" + i + "\" data-name=\"" +
+                    name + "\" data-type=\"" + htmlEscape(f.type) + "\" data-size=\"" + std::to_string(f.size) +
+                    "\" data-video=\"" + (f.video ? "1" : "0") + "\"" + (file ? " data-file=\"1\"" : "") + ">";
+    if (file) {
+        h += fileIcon(pal);
+        h += "<div class=\"meta\"><span>" + name + "</span><span>" + sizeText(f.size) + "</span></div>";
+        h += "<div class=\"tip\">" + htmlEscape(ex.fileTip) + "</div>";
+        h += "<a class=\"btn\" href=\"d/" + i + "\" download data-save=\"" + i + "\">" + htmlEscape(ex.downloadFile) + "</a>";
+    } else if (!f.video) {
         h += "<img class=\"media\" src=\"v/" + i + "\" alt=\"" + name + "\">";
         h += "<div class=\"meta\"><span>" + name + "</span><span>" + sizeText(f.size) + "</span></div>";
         h += imgTips(t, kind);
@@ -249,8 +272,9 @@ std::string sizeText(uint64_t b) {
 
 std::string sharePage(int lang, const std::wstring& appName, const PagePalette& pal,
                       const std::vector<PageFile>& files, const std::string& kind, const std::string& untilHHMM,
-                      int ttlSeconds, bool live) {
+                      int ttlSeconds, bool live, const PageExtra* extra) {
     const T t{static_cast<Lang>(lang)};
+    const PageExtra ex = extra ? *extra : PageExtra{};
     const bool ios = kind == "ios", android = kind == "android";
     std::string h = head(lang, t(S::PgTitle), pal);
     h += std::string(" data-live=\"") + (live ? "1" : "0") + "\" data-n=\"" + std::to_string(files.size()) + "\">";
@@ -260,6 +284,16 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
          (files.size() == 1 ? t(S::PgSubOne, {app}) : t(S::PgSubMany, {app, count})) + "</p>";
     if (live) h += "<p class=\"live\" id=\"live\"><i></i>" + t(S::PgLive) + "</p>";
     h += "</div></header>";
+    // 0.8.3 電腦剪貼簿: the PC's copied text + 複製 (only while the owner shares; the script refreshes it).
+    if (ex.clip) {
+        h += "<section class=\"card clip\" id=\"clip\"><div class=\"head\"><b>" + htmlEscape(ex.clipTitle) +
+             "</b><button class=\"btn ghost small\" id=\"cliprefresh\" type=\"button\">" + htmlEscape(ex.clipRefresh) +
+             "</button></div><textarea id=\"cliptext\" readonly rows=\"4\"" + (ex.clipText.empty() ? " hidden" : "") + ">" +
+             htmlEscape(ex.clipText) + "</textarea><p class=\"empty\" id=\"clipempty\"" + (ex.clipText.empty() ? "" : " hidden") +
+             ">" + htmlEscape(ex.clipEmpty) + "</p><button class=\"btn\" id=\"clipcopy\" type=\"button\"" +
+             (ex.clipText.empty() ? " disabled" : "") + ">" + htmlEscape(ex.clipCopy) + "</button>"
+             "<p class=\"hint\" id=\"clipmsg\" hidden></p><p class=\"note2\">" + htmlEscape(ex.clipNote) + "</p></section>";
+    }
     // 「全部下載（ZIP）」 for every browser (a plain link: works without the
     // script too); where the browser can share files (https / localhost only
     // -- not the LAN page's http) the script swaps it for 「全部儲存」.
@@ -275,9 +309,9 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
              t(S::PgWaiting) + "</section>";
     h += "<div id=\"list\">";
     if (live)  // the newest first: new ones appear at the top
-        for (auto it = files.rbegin(); it != files.rend(); ++it) h += card(t, *it, kind);
+        for (auto it = files.rbegin(); it != files.rend(); ++it) h += card(t, *it, kind, ex, pal);
     else
-        for (const PageFile& f : files) h += card(t, f, kind);
+        for (const PageFile& f : files) h += card(t, f, kind, ex, pal);
     h += "</div>";
     if (live)
         h += "<footer>" + t(S::PgLiveFooter, {std::to_wstring((ttlSeconds + 1799) / 3600)}) + "</footer>";
@@ -304,6 +338,12 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
     jsonField(j, "ended", t(S::PgEnded));
     jsonField(j, "offline", t(S::PgOffline));
     jsonField(j, "shareFail", t(S::PgShareFail));
+    jsonField(j, "downloadFile", ex.downloadFile);
+    jsonField(j, "fileTip", htmlEscape(ex.fileTip));
+    jsonField(j, "fileIcon", fileIcon(pal));
+    jsonField(j, "clipCopy", ex.clipCopy);
+    jsonField(j, "clipCopied", ex.clipCopied);
+    jsonField(j, "clipFail", ex.clipFail);
     j += "}";
     h += "</main><script type=\"application/json\" id=\"pm-t\">" + j + "</script><script src=\"app.js\"></script>"
          "</body></html>\n";
@@ -320,6 +360,12 @@ std::string expiredPage(int lang, const std::wstring& appName, const PagePalette
     if (const size_t p = h.find(from); p != std::string::npos)
         h.replace(p, from.size(), "<section class=\"card gone\"><div class=\"logo\" style=\"margin:0 auto\"");
     return h;
+}
+
+std::string clipJson(const std::string& textUtf8) {
+    std::string j = "{";
+    jsonField(j, "text", textUtf8, true);
+    return j + "}";
 }
 
 std::string listJson(const std::vector<PageFile>& files, bool live) {
@@ -382,9 +428,10 @@ function say(s) { note.textContent = s || ''; note.hidden = !s; }
 function adopt(c) {
   var it = { i: +c.getAttribute('data-i'), name: c.getAttribute('data-name'), type: c.getAttribute('data-type'),
     size: +c.getAttribute('data-size'), video: c.getAttribute('data-video') === '1', card: c,
-    blob: null, failed: false, saved: false, btn: c.querySelector('[data-save]') };
+    blob: null, failed: false, saved: false, btn: c.querySelector('[data-save]'),
+    file: c.getAttribute('data-file') === '1' };
   items.push(it); byI[it.i] = it;
-  if (canFiles && it.btn && it.size <= CAP) {
+  if (canFiles && it.btn && it.size <= CAP && !it.file) {
     it.btn.textContent = T.save;
     it.btn.classList.remove('ghost');  // the share sheet saves to Photos: now the main way
     it.btn.addEventListener('click', function (ev) { if (!it.blob) return; ev.preventDefault(); share([it]); });
@@ -394,6 +441,18 @@ function adopt(c) {
   return it;
 }
 function card(f) {
+  if (!f.video && String(f.type).indexOf('image/') !== 0) {  // 0.8.3: a document / other file
+    var fc = el('section', 'card file new'), fi = String(f.i);
+    fc.setAttribute('data-i', fi); fc.setAttribute('data-name', f.name); fc.setAttribute('data-type', f.type);
+    fc.setAttribute('data-size', String(f.size)); fc.setAttribute('data-video', '0'); fc.setAttribute('data-file', '1');
+    fc.insertAdjacentHTML('beforeend', T.fileIcon);
+    var fm = el('div', 'meta'); fm.appendChild(el('span', null, f.name)); fm.appendChild(el('span', null, f.sizeText));
+    fc.appendChild(fm);
+    fc.insertAdjacentHTML('beforeend', '<div class="tip">' + T.fileTip + '</div>');
+    var fa = el('a', 'btn', T.downloadFile); fa.href = 'd/' + fi; fa.setAttribute('download', ''); fa.setAttribute('data-save', fi);
+    fc.appendChild(fa);
+    return fc;
+  }
   var c = el('section', 'card new'), i = String(f.i), m;
   c.setAttribute('data-i', i); c.setAttribute('data-name', f.name); c.setAttribute('data-type', f.type);
   c.setAttribute('data-size', String(f.size)); c.setAttribute('data-video', f.video ? '1' : '0');
@@ -410,7 +469,7 @@ function card(f) {
   else { c.insertAdjacentHTML('beforeend', T.imgTips); c.appendChild(a); }
   return c;
 }
-function pending() { return items.filter(function (x) { return !x.saved && !x.failed && x.size <= CAP; }); }
+function pending() { return items.filter(function (x) { return !x.saved && !x.failed && x.size <= CAP && !x.file; }); }
 function update() {
   sub.textContent = items.length === 1 ? fill(T.subOne, [T.app]) : fill(T.subMany, [T.app, items.length]);
   if (empty) empty.hidden = items.length > 0;
@@ -473,6 +532,37 @@ function poll() {
     fails++;
     if (fails >= 2) say(T.offline);
     setTimeout(poll, Math.min(10000, 1500 * fails));
+  });
+}
+// 0.8.3 電腦剪貼簿: refresh / copy (http page: no async clipboard API -> a selected textarea + execCommand)
+var clip = document.getElementById('clip');
+if (clip) {
+  var ct = document.getElementById('cliptext'), ce = document.getElementById('clipempty');
+  var cb = document.getElementById('clipcopy'), cm = document.getElementById('clipmsg');
+  var showClip = function (t) { ct.value = t; ct.hidden = !t; ce.hidden = !!t; cb.disabled = !t; cm.hidden = true; };
+  var loadClip = function () {
+    fetch('clip', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j) showClip(j.text || ''); }, function () {});
+  };
+  document.getElementById('cliprefresh').addEventListener('click', loadClip);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) loadClip(); });
+  cb.addEventListener('click', function () {
+    var t = ct.value;
+    if (!t) return;
+    var done = function (ok) {
+      cm.textContent = ok ? T.clipCopied : T.clipFail; cm.hidden = false;
+      if (ok) { cb.textContent = T.clipCopied; setTimeout(function () { cb.textContent = T.clipCopy; }, 1600); }
+    };
+    var legacy = function () {
+      var ok = false;
+      ct.readOnly = false; ct.focus(); ct.select(); ct.setSelectionRange(0, t.length);
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ct.readOnly = true; ct.blur();
+      if (window.getSelection) window.getSelection().removeAllRanges();
+      done(ok);
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(function () { done(true); }, legacy);
+    else legacy();
   });
 }
 var cards = list.querySelectorAll('.card[data-i]');

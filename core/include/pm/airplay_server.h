@@ -133,7 +133,7 @@ public:
     struct Events {
         // A phone asked to connect (RTSP SETUP, after pairing; before any
         // video arrives). deviceName as the phone sends it (UTF-8, e.g.
-        // "Victor's iPhone"), model e.g. "iPhone15,2".
+        // "Alex's iPhone"), model e.g. "iPhone15,2".
         std::function<void(const std::string& deviceName, const std::string& model)> onClientConnecting;
         // The last open connection closed (or the session was reset), after
         // an onClientConnecting/onPin. Not sent for bare GET /info probes.

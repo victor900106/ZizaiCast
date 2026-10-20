@@ -23,6 +23,8 @@
 
 namespace pm::video {
 
+class InkLayer;  // ink_layer.h (0.8.3 簡報畫筆)
+
 // Monotonic milliseconds (QPC).
 double clockMs();
 
@@ -152,6 +154,10 @@ public:
         // 0.7.8: short caption under the icon (all or none: none when the
         // window is too narrow for the buttons they widen).
         std::wstring label;
+        // 0.8.3 (畫筆): >= 0 = a filled disc of this colour (0xRRGGBB) instead of
+        // the glyph, swatchSize = its size (0..1 of the largest).
+        int swatch = -1;
+        float swatchSize = 1;
     };
     // One-time introduction: shown by itself for holdMs (pending until the
     // toolbar is available on a live picture) with note in a callout under it.
@@ -207,6 +213,21 @@ public:
     // followed by a horizontal mirror: the mapping the vertex shader uses.
     static void screenToPicture(int rot, bool mirror, float tx, float ty, float& sx, float& sy);
 
+    // ---- 簡報畫筆 (0.8.3, ink_layer.h) ----
+    // The strokes (owned by VideoWindow) drawn over the live picture, into
+    // snapshots while ink->inShots(); badge: the 「畫筆模式」 pill (empty: none).
+    void setInk(InkLayer* ink) { ink_ = ink; }
+    void setInkBadge(std::wstring badge) { inkBadge_ = std::move(badge); }
+    // True (once) when the strokes were dropped because the picture's aspect changed.
+    bool takeInkDropped() { return std::exchange(inkDropped_, false); }
+    ID2D1Factory* d2dFactory() const { return d2d_.Get(); }
+    // 拖檔到視窗 (0.8.3): files dragged over the window -- a dashed frame and a
+    // card 「放開以傳到手機」 + sub line over everything; empty title hides it.
+    void setDropHint(std::wstring title, std::wstring sub) {
+        dropTitle_ = std::move(title);
+        dropSub_ = std::move(sub);
+    }
+
     // ---- Magnifier / high-contrast filters / freeze / text overlay ----
     // Coordinates: "viewport" v = 0..1 over pictureRect(); "display" t =
     // 0..1 over the whole displayed picture (rotated + mirrored, unzoomed):
@@ -221,6 +242,10 @@ public:
     static View clampView(View v);
     void setView(const View& v);
     const View& view() const { return view_; }
+    // 簡報畫筆: U space of the ink (aspect ax : ay, see ink_layer.h) -> target
+    // coordinates of a picture drawn into `target` with rot / mirror / view.
+    static D2D1_MATRIX_3X2_F inkMatrix(float ax, float ay, int rot, bool mirror, const View& view,
+                                       const D2D1_RECT_F& target);
     // Freeze: keeps a copy of the current picture on screen while decoding
     // (and the frame tap / recorder) go on with the live stream.  A CPU copy
     // of it is kept too, so a device loss does not swap it for another
@@ -431,7 +456,20 @@ private:
     void drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp) {
         drawPicture(rtv, vp, shown(), view_, mirror_);
     }
-    bool renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror);
+    bool renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror, bool ink = false);
+    // 簡報畫筆 (renderer_ink.cpp): the strokes over the picture (DIPs), the badge.
+    void drawInk(const D2D1_RECT_F& pic);
+    void drawInkBadge(const D2D1_RECT_F& pic, float radius);
+    InkLayer* ink_ = nullptr;
+    std::wstring inkBadge_;
+    bool inkDropped_ = false;
+    // The strokes as a bitmap of the picture's size, re-rendered only when they
+    // or the view (zoom, rotation, size) change: a live picture redraws them
+    // with one DrawBitmap per frame instead of re-tessellating every stroke.
+    ComPtr<ID2D1BitmapRenderTarget> inkCache_;
+    std::vector<float> inkCacheKey_;
+    void drawDropHint();  // renderer_ink.cpp
+    std::wstring dropTitle_, dropSub_;
     // Magnifier / freeze / overlay UI (DIPs; pic = the picture viewport).
     void drawTextOverlay(const D2D1_RECT_F& pic, float radius);
     // 即時翻譯 (live_overlay.cpp): live_ is created on first use.

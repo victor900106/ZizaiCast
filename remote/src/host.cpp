@@ -10,6 +10,8 @@
 #include <bcrypt.h>
 #include <mfapi.h>
 #include <timeapi.h>
+#include <shellapi.h>  // DragQueryFileW (0.8.3: files copied in Explorer)
+#pragma comment(lib, "shell32.lib")
 
 #include <rtc/rtc.hpp>
 #include <nlohmann/json.hpp>
@@ -26,6 +28,8 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <filesystem>
+#include <cwctype>
 
 #include "audio.h"
 #include "capture.h"
@@ -189,6 +193,64 @@ bool getClipboardText(std::wstring& out) {
     return true;
 }
 
+// ---- 0.8.3 files ----
+std::string pctDecode(const std::string& s) {
+    std::string o;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '%' && i + 2 < s.size() && isxdigit(static_cast<unsigned char>(s[i + 1])) && isxdigit(static_cast<unsigned char>(s[i + 2]))) {
+            o += char(std::stoi(s.substr(i + 1, 2), nullptr, 16));
+            i += 2;
+        } else o += s[i] == '+' ? ' ' : s[i];
+    }
+    return o;
+}
+// A file name from the phone, safe to create in the upload folder: the last path part
+// only, no control characters or <>:"/\|?*, no trailing dots / spaces, never a reserved
+// device name (CON, NUL, COM1 ...), never empty or dots only; at most 120 characters.
+std::wstring cleanFileName(const std::string& utf8) {
+    std::wstring w = widen(utf8);
+    if (const size_t p = w.find_last_of(L"/\\"); p != std::wstring::npos) w = w.substr(p + 1);
+    std::wstring o;
+    for (wchar_t c : w)
+        if (c >= 32 && !wcschr(L"<>:\"/\\|?*", c) && c != 0x7F) o += c;
+    while (!o.empty() && (o.back() == L'.' || o.back() == L' ')) o.pop_back();
+    while (!o.empty() && o.front() == L' ') o.erase(o.begin());
+    if (o.find_first_not_of(L'.') == std::wstring::npos) o = L"file";
+    if (o.size() > 120) {
+        const size_t dot = o.rfind(L'.');
+        const std::wstring ext = dot != std::wstring::npos && o.size() - dot <= 12 ? o.substr(dot) : L"";
+        o = o.substr(0, 120 - ext.size()) + ext;
+    }
+    std::wstring base = o.substr(0, o.find(L'.'));
+    for (wchar_t& c : base) c = wchar_t(towupper(c));
+    static const wchar_t* const kReserved[] = {L"CON", L"PRN", L"AUX", L"NUL", L"CONIN$", L"CONOUT$"};
+    bool reserved = false;
+    for (const wchar_t* r : kReserved) reserved |= base == r;
+    if (base.size() == 4 && (base.rfind(L"COM", 0) == 0 || base.rfind(L"LPT", 0) == 0) && ((base[3] >= L'0' && base[3] <= L'9') || base[3] == 0xB9 || base[3] == 0xB2 || base[3] == 0xB3))
+        reserved = true;
+    if (reserved) o = L"_" + o;
+    return o;
+}
+// The files copied in Explorer (CF_HDROP), regular files only, at most 32.
+std::vector<std::wstring> clipboardFiles() {
+    std::vector<std::wstring> v;
+    if (!IsClipboardFormatAvailable(CF_HDROP) || !openClipboardRetry()) return v;
+    if (HANDLE h = GetClipboardData(CF_HDROP)) {
+        if (auto drop = static_cast<HDROP>(GlobalLock(h))) {
+            const UINT n = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+            for (UINT i = 0; i < n && v.size() < 32; ++i) {
+                wchar_t p[MAX_PATH * 4] = {};
+                if (DragQueryFileW(drop, i, p, UINT(std::size(p))) == 0) continue;
+                const DWORD a = GetFileAttributesW(p);
+                if (a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY)) v.push_back(p);
+            }
+            GlobalUnlock(h);
+        }
+    }
+    CloseClipboard();
+    return v;
+}
+
 }  // namespace
 
 // ---- public helpers ----------------------------------------------------------
@@ -216,7 +278,7 @@ Quality qualityPreset(int level) {
 
 std::vector<AudioDevice> playbackDevices() {
     std::vector<AudioDevice> v;
-    for (const PlaybackDevice& d : playbackDevicesList()) v.push_back(AudioDevice{d.id, d.name, d.isDefault});
+    for (const PlaybackDevice& d : playbackDevicesList()) v.push_back(AudioDevice{d.id, d.name, d.isDefault, d.volume, d.hwVolume, d.muted, d.activeSessions});
     return v;
 }
 
@@ -402,6 +464,10 @@ struct Session {
     std::mutex gmu;
     std::condition_variable gcv;
     bool gathered = false;
+    // 0.8.3
+    std::string jti;                      // fixed link: the login token's id (中斷 revokes it)
+    std::atomic<bool> unlocked{false};    // fixed link: 僅觀看 lifted for this session with the password again
+    std::atomic<int64_t> discUs{0};       // WebRTC "disconnected" since (LAN: closed only if it stays so for 4 s)
 
     Peer toPeer() const { return Peer{id, device, peer, label, tailscale, viaTunnel && !viaFixed, viaFixed}; }
 };
@@ -497,6 +563,7 @@ struct Host::Impl {
     HttpServer::Response snap(const HttpServer::Request& r);
     bool buildPeerConnection(const std::shared_ptr<Session>& s, std::string& sdp);
     void onDcMessage(const std::shared_ptr<Session>& s, const std::string& m);
+    void onDcMessageImpl(const std::shared_ptr<Session>& s, const std::string& m);
     void closeSession(const std::shared_ptr<Session>& s, const std::string& why, bool fromCallback = false);
     void endPending(const std::string& why);
     void notifyEnded(const std::shared_ptr<Session>& s, const std::string& why);
@@ -533,12 +600,40 @@ struct Host::Impl {
     std::string fixedHash, fixedSecret;  // guarded by tunMu
     bool fixedApproval = false;          // guarded by tunMu
     std::mutex loginMu;                  // one password check at a time (it also paces guessing)
-    int pwFails = 0;
-    int64_t pwLockedUntil = 0;
+    // 0.8.3: wrong passwords are counted per address (5 in a row = that address out
+    // for 15 minutes); for everyone together only a pace (more than 20 wrong in 15
+    // minutes from all addresses = 3 s per try), never a lock: a stranger can no
+    // longer lock the owner out (0.8.2 locked every address after 5).
+    struct PwIp {
+        int fails = 0;
+        int64_t lockedUntil = 0, lastUs = 0;
+    };
+    std::map<std::string, PwIp> pwIps;   // guarded by loginMu
+    std::deque<int64_t> pwWrongAll;      // guarded by loginMu
+    struct PwResult {
+        bool ok = false, locked = false, noPassword = false;
+        int left = 0, retryAfter = 0, delayMs = 0;
+    };
+    PwResult checkPassword(const std::string& ip, const std::string& pw, int64_t now, const char* what);
+    // 0.8.3: logins ended by 中斷 (their token id -> expiry, epoch seconds); guarded by tunMu.
+    std::map<std::string, long long> revoked;
     HttpServer::Response routeFixed(const HttpServer::Request& r);
     HttpServer::Response login(const HttpServer::Request& r, int64_t now);
     std::string makeToken(const std::string& secret) const;
     static bool tokenOk(const std::string& tok, const std::string& secret);
+    bool tokenRevoked(const std::string& tok);
+    static std::string tokenId(const std::string& tok) {  // "<exp>.<nonce>.<mac>" -> nonce
+        const size_t a = tok.find('.'), b = tok.rfind('.');
+        return a == std::string::npos || b == a ? std::string() : tok.substr(a + 1, b - a - 1);
+    }
+    static long long tokenExp(const std::string& tok) { return atoll(tok.substr(0, tok.find('.')).c_str()); }
+    // 0.8.3: 解除僅觀看 from the phone (fixed link, password again): checked off the DataChannel's thread.
+    std::thread unlockThread;
+    std::atomic<bool> unlockBusy{false};
+    void unlockRequest(const std::shared_ptr<Session>& s, const std::string& pw);
+    std::atomic<bool> lockOutside{false}, lockLan{false};  // 0.8.3: the app locks the PC when a session ends (the page says so)
+    bool vo(const std::shared_ptr<Session>& s) const { return viewOnly && !(s && s->unlocked); }  // 僅觀看 for this session
+    std::mutex offerMu;  // 0.8.3: one session set-up at a time (two at once left an orphan that could still control)
     // ---- 外網連結 (0.8.1) ----
     mutable std::mutex tunMu;
     bool tunnelOn = false;
@@ -571,6 +666,47 @@ struct Host::Impl {
         return l && l->media;
     }
     HttpServer::Response candidate(const HttpServer::Request& r);
+    // ---- capture only while a phone is there (0.8.3) ----
+    // 0.8.2 opened the capture + the hardware encoder at start and kept them (owner,
+    // 常駐外網 on, no phone: 118 threads, 246 MB private, ~120 MB VRAM). Now a session
+    // request (once its link / password is right) wakes the capture thread, which
+    // opens them for that session's monitor and quality while ICE runs; 30 s after
+    // the last session they are released and the thread sleeps on capCv.
+    std::mutex capMu;
+    std::condition_variable capCv;
+    int hintQuality = -1, hintMonitor = 0;  // guarded by capMu: a session on its way
+    int64_t hintUs = 0;
+    void wakeCapture(int quality, int monitor) {
+        {
+            std::lock_guard<std::mutex> lk(capMu);
+            hintQuality = quality, hintMonitor = monitor, hintUs = nowUs();
+        }
+        capCv.notify_all();
+    }
+    // ---- files (0.8.3) ----
+    struct Upload {
+        std::wstring part;      // <uploadDir>\<clean name>.<upload id>.part while it comes in
+        std::wstring name;      // the clean name
+        std::string session;
+        uint64_t total = 0, got = 0;
+        int64_t lastUs = 0;
+    };
+    struct Download {
+        std::wstring path;
+        std::string name, session;
+        int64_t untilUs = 0;    // one use, 10 minutes
+    };
+    std::mutex fmu;
+    std::map<std::string, Upload> uploads;    // upload id -> state
+    std::map<std::string, Download> downloads;  // one-time key -> file
+    HttpServer::Response upload(const HttpServer::Request& r);
+    HttpServer::Response download(const HttpServer::Request& r, const std::string& key);
+    void filesList(const std::shared_ptr<Session>& s);
+    void dropUploads(const std::string& session, const char* why, int64_t olderThanUs);
+    std::thread houseThread;  // housekeeping, once a second (0.8.3: no longer inside the capture loop)
+    void houseLoop();
+    std::atomic<bool> capOpen{false};
+    int64_t lastIdleLogUs = 0;
     void captureLoop();
     void onEncoded(std::vector<uint8_t>&& au, int64_t captureUs, bool idr);
     void sendFrame(Encoded&& f);
@@ -602,7 +738,14 @@ std::string Host::tailscaleUrl() const {
 std::string Host::ip() const { return d_->bindIp; }
 uint16_t Host::port() const { return d_->http.port(); }
 bool Host::running() const { return d_->running; }
-bool Host::viewOnly() const { return d_->viewOnly; }
+bool Host::viewOnly() const {
+    std::lock_guard<std::mutex> lk(d_->smu);
+    return d_->viewOnly && !(d_->session && d_->session->unlocked);
+}
+bool Host::viewOnlyUnlocked() const {
+    std::lock_guard<std::mutex> lk(d_->smu);
+    return d_->session && d_->session->unlocked;
+}
 
 bool Host::active() const {
     std::lock_guard<std::mutex> lk(d_->smu);
@@ -695,6 +838,18 @@ bool Host::start(const Options& o) {
          o.injectGuard ? ", test guard: only into the test window" : "");
     if (FAILED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) return logf("host: MFStartup failed"), false;
     d.mfStarted = true;
+    // 0.8.3: a body over 64 KB only for the tests' snapshot upload on the right LAN link.
+    d.http.setBodyLimit([&d](const HttpServer::Request& r) -> size_t {
+        const std::string prefix = "/" + d.token + "/";
+        if (!d.opt.snapDir.empty() && !r.tunnel && r.method == "POST" && r.path == prefix + "snap") return 8u * 1024 * 1024;
+        // 0.8.3: a file piece (at most 4 MB) only from the current session (its id is the session's secret).
+        if (r.method == "POST" && r.path.size() > 3 && r.path.compare(r.path.size() - 3, 3, "/up") == 0 && !d.opt.uploadDir.empty()) {
+            auto s = d.current();
+            if (s && !s->closed && constantTimeEq(queryParam(r.query, "id"), s->id)) return 4u * 1024 * 1024 + 4096;
+        }
+        return 64u * 1024;
+    });
+    d.http.setFixedViaCloudflared(false);
     if (!d.http.start(binds, o.port, [&d](const HttpServer::Request& r) { return d.route(r); })) {
         MFShutdown(), d.mfStarted = false;
         return false;
@@ -707,12 +862,28 @@ bool Host::start(const Options& o) {
         d.fixedHash = o.fixedPasswordHash, d.fixedSecret = o.fixedSecret, d.fixedApproval = o.fixedNeedApproval;
         d.fixedOn = false;
         d.tunnelKbps = 0;
+        d.revoked.clear();
+        const long long nowS = epochMs() / 1000;
+        for (const std::string& e : o.revokedLogins) {  // "<token id>:<expiry>"
+            const size_t c = e.find(':');
+            const long long exp = c == std::string::npos ? 0 : atoll(e.c_str() + c + 1);
+            if (c != std::string::npos && c > 0 && exp > nowS) d.revoked[e.substr(0, c)] = exp;
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lk(d.loginMu);
+        d.pwIps.clear(), d.pwWrongAll.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lk(d.capMu);
+        d.hintQuality = -1, d.hintUs = 0;
     }
     d.stopSender = false;
     d.running = true;
     d.warmThread = std::thread([&d] { d.prewarm(); });
     if (!o.inlineSend) d.sendThread = std::thread([&d] { d.senderLoop(); });
     d.capThread = std::thread([&d] { d.captureLoop(); });
+    d.houseThread = std::thread([&d] { d.houseLoop(); });
     logf("host: started, approval %s, view-only %s, audio %s, quality %d", o.requireApproval ? "required for new devices" : "OFF (test)",
          o.viewOnly ? "on" : "off", o.audio ? "offered" : "off", int(d.curQuality));
     return true;
@@ -734,10 +905,13 @@ void Host::stop() {
     d.endPending("host stopping");
     d.http.stop();
     if (d.warmThread.joinable()) d.warmThread.join();
+    if (d.unlockThread.joinable()) d.unlockThread.join();
     {
         std::lock_guard<std::mutex> lk(d.amu);
         d.audio.stop();
     }
+    d.capCv.notify_all();
+    if (d.houseThread.joinable()) d.houseThread.join();
     if (d.capThread.joinable()) d.capThread.join();
     d.enc.close();
     {
@@ -798,6 +972,20 @@ void Host::kick(const std::string& why) {
             d.allowedDevices.erase(s->device);
             d.kickedDevices.insert(s->device);  // the next connection asks again
         }
+        // 0.8.3: the fixed link's login goes too. The device id is the page's own (a new
+        // one is just a new random string), so 0.8.2's "kicked device" alone let the same
+        // login straight back in; now that phone needs the password again.
+        if (s->viaFixed && !s->jti.empty()) {
+            long long exp = 0;
+            {
+                std::lock_guard<std::mutex> lk(d.tunMu);
+                exp = Impl::tokenExp(s->cred.substr(6));
+                d.revoked[s->jti] = exp;
+                if (d.revoked.size() > 200) d.revoked.erase(d.revoked.begin());
+            }
+            logf("fixed: the login of %s (%s) is revoked: the password is needed again", s->label.c_str(), s->peer.c_str());
+            if (d.opt.onLoginRevoked) d.opt.onLoginRevoked(s->jti, exp);
+        }
         logf("host: session of %s (%s) ended on the PC: %s", s->label.c_str(), s->peer.c_str(), why.c_str());
         {
             std::lock_guard<std::mutex> lk(d.smu);
@@ -813,9 +1001,13 @@ void Host::kick(const std::string& why) {
 void Host::setViewOnly(bool on) {
     Impl& d = *d_;
     d.viewOnly = on;
+    auto s = d.current();
+    // 僅觀看 turned on on the PC also ends a 解除 the phone did with the password (0.8.3).
+    if (on && s && s->unlocked.exchange(false)) logf("host: view-only back on from the PC (the phone's 解除 ends)");
+    if (on && s) s->clipWatch = false;  // 0.8.3: no clipboard in 僅觀看
     if (on && d.input) d.input->releaseAll();
     logf("host: view-only %s", on ? "ON (input dropped)" : "off");
-    if (auto s = d.current()) d.sendDc(s, json{{"t", "mode"}, {"viewOnly", on}});
+    if (s) d.sendDc(s, json{{"t", "mode"}, {"viewOnly", d.vo(s)}});
 }
 
 // ---- HTTP ----------------------------------------------------------------
@@ -861,7 +1053,22 @@ bool Host::Impl::badTry(const std::string& ip, int64_t now, const char* what) {
             q.clear();
             block = true;
         }
-        if (badTries.size() > 256) badTries.clear();  // bounded (many addresses = noise, the per-address cap still holds)
+        // Bounded. 0.8.3: the address with the fewest tries goes (the oldest of those): 0.8.2
+        // cleared every count once 257 addresses had tried, so a few hundred throw-away
+        // addresses reset the count of the one that was about to be blocked.
+        while (badTries.size() > 256) {
+            auto pick = badTries.end();
+            for (auto it2 = badTries.begin(); it2 != badTries.end(); ++it2) {
+                if (it2->first == ip) continue;
+                if (pick == badTries.end() || it2->second.size() < pick->second.size() ||
+                    (it2->second.size() == pick->second.size() && !it2->second.empty() && !pick->second.empty() && it2->second.back() < pick->second.back()))
+                    pick = it2;
+            }
+            if (pick == badTries.end()) break;
+            badTries.erase(pick);
+        }
+        if (blockedUntil.size() > 256)  // expired blocks go (they are also dropped on the next request)
+            for (auto it2 = blockedUntil.begin(); it2 != blockedUntil.end();) it2 = now >= it2->second ? blockedUntil.erase(it2) : std::next(it2);
     }
     if (block) {
         logf("http: %s used %s %d times in 10 minutes -> blocked for 15 minutes", ip.c_str(), what, fails);
@@ -890,10 +1097,12 @@ HttpServer::Response Host::Impl::routeRest(const HttpServer::Request& r, const s
         return {200, "text/html; charset=utf-8", body};
     }
     if (std::string type, body; r.method == "GET" && webAsset(rest, type, body)) return {200, type, body};  // 加到主畫面
+    if (r.method == "GET" && rest.rfind("dl/", 0) == 0) return download(r, rest.substr(3));  // 0.8.3: a copied file, one-time key
     if (r.method != "POST") return {405, "text/plain", "method not allowed"};
     if (rest == "session") return sessionRequest(r, cred);
     if (rest == "answer") return answer(r);
     if (rest == "candidate") return candidate(r);
+    if (rest == "up") return upload(r);  // 0.8.3: a piece of a file from the phone
     if (rest == "snap") return snap(r);
     if (rest == "diag") {  // page capabilities / failures, works even when WebRTC does not
         std::string b = r.body.substr(0, 4096);
@@ -944,6 +1153,10 @@ HttpServer::Response Host::Impl::page(const HttpServer::Request& r, const std::s
         cfg["ice"] = opt.stunServers;
     }
     html = replaceAll(html, "/*PM_CONFIG*/{}", scriptJson(cfg));
+    // 0.8.3: a phone with the right link is on its way: the capture and the encoder start
+    // opening now, while the page loads and asks for its session (first picture sooner).
+    // Not for the fixed link's public "/" (anybody may load it): there after the login check.
+    if (cred.empty() && r.method == "GET") wakeCapture(r.tailscale ? 0 : int(curQuality), 0);
     return {200, "text/html; charset=utf-8", html};
 }
 
@@ -974,7 +1187,8 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         return offerFor(s);
     }
 
-    std::string device = body.value("device", std::string());
+    // 0.8.3: a string or nothing (json::value() throws on another type: a 500 instead of a 400)
+    const std::string device = body.contains("device") && body["device"].is_string() ? body["device"].get<std::string>() : std::string();
     if (!validDevice(device)) return {400, "text/plain", "bad device id"};
     auto s = std::make_shared<Session>();
     s->id = randomString(16);
@@ -993,9 +1207,17 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         std::lock_guard<std::mutex> lk(tunMu);
         fixedNeedsOk = fixedApproval;
     }
-    s->quality = std::clamp(body.value("q", int(curQuality)), 0, kQualityLevels - 1);
-    s->monitor = std::clamp(body.value("m", 0), 0, std::max(0, int(enumMonitors().size()) - 1));
+    if (viaFixedReq) s->jti = tokenId(cred.substr(6));
+    {
+        const json& q = body.contains("q") && body["q"].is_number_integer() ? body["q"] : json(int(curQuality));
+        const json& m = body.contains("m") && body["m"].is_number_integer() ? body["m"] : json(0);
+        s->quality = std::clamp(q.get<int>(), 0, kQualityLevels - 1);
+        s->monitor = std::clamp(m.get<int>(), 0, std::max(0, int(enumMonitors().size()) - 1));
+    }
     s->lastPollUs = nowUs();
+    // 0.8.3: the capture + encoder open now, for this session's screen and quality,
+    // while the PC asks / ICE runs (nothing is sent before the session is allowed).
+    wakeCapture(s->quality, s->monitor);
     bool ask = false;
     std::shared_ptr<Session> replacedPending;
     {
@@ -1050,6 +1272,12 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
 }
 
 HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
+    // 0.8.3: one at a time. Two requests at once each closed "the old one", built their
+    // own connection and set itself current: the loser stayed connected, out of reach
+    // of 中斷, and its DataChannel still drove the input.
+    std::lock_guard<std::mutex> offerLock(offerMu);
+    if (stop || s->state == Session::State::Ended) return {409, "text/plain", "no such session"};
+    wakeCapture(s->quality, s->monitor);  // (again: 允許 may have taken longer than the capture's 30 s grace)
     if (auto old = current()) {
         {
             std::lock_guard<std::mutex> lk(smu);
@@ -1067,8 +1295,10 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
     json mons = json::array();
     for (const Monitor& m : monitors()) mons.push_back(json{{"w", m.w}, {"h", m.h}, {"primary", m.primary}});
     json j{{"id", s->id},          {"type", "offer"},       {"sdp", sdp},   {"monitors", mons},
-           {"monitor", s->monitor}, {"quality", s->quality}, {"viewOnly", bool(viewOnly)},
-           {"audio", opt.audio},    {"inject", opt.inject}};
+           {"monitor", s->monitor}, {"quality", s->quality}, {"viewOnly", vo(s)},
+           {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed},
+           {"lockAfter", s->viaTunnel ? bool(lockOutside) : bool(lockLan)},
+           {"upload", !opt.uploadDir.empty()}, {"uploadMax", opt.uploadMaxBytes}};
     return {200, "application/json", j.dump()};
 }
 
@@ -1101,7 +1331,15 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
                          types[std::clamp(int(rc.type()), 0, 4)], rc.address().value_or("?").c_str(), rc.port().value_or(0));
                 }
                 sp->pcUp = true;
+                if (sp->discUs.exchange(0)) logf("webrtc[%s]: back from disconnected", sp->id.substr(0, 6).c_str());
                 markActive(sp, sp->viaTunnel ? "direct WebRTC through the 外網連結" : "WebRTC");
+            }
+            // 0.8.3: "disconnected" often comes back by itself (a Wi-Fi hiccup): on the LAN
+            // the session waits 4 s (housekeeping) before it is closed.
+            if (st == rtc::PeerConnection::State::Disconnected && !sp->viaTunnel && !sp->closed) {
+                sp->discUs = nowUs();
+                logf("webrtc[%s]: disconnected: waiting 4 s before closing", sp->id.substr(0, 6).c_str());
+                return;
             }
             if (st == rtc::PeerConnection::State::Failed || st == rtc::PeerConnection::State::Disconnected ||
                 st == rtc::PeerConnection::State::Closed) {
@@ -1214,7 +1452,7 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
             if (auto sp = ws.lock()) {
                 sp->dcOpen = true;
                 logf("webrtc[%s]: DataChannel open", sp->id.substr(0, 6).c_str());
-                sendDc(sp, json{{"t", "mode"}, {"viewOnly", bool(viewOnly)}});
+                sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
             }
         });
         s->dc->onClosed([this, ws] {
@@ -1284,7 +1522,8 @@ HttpServer::Response Host::Impl::candidate(const HttpServer::Request& r) {
     std::string kinds;
     for (const auto& c : j["c"]) {
         if (!c.is_object() || added + mdns + bad >= 32) continue;
-        const std::string cand = c.value("candidate", std::string()), mid = c.value("mid", std::string());
+        auto str = [&c](const char* k) { return c.contains(k) && c[k].is_string() ? c[k].get<std::string>() : std::string(); };
+        const std::string cand = str("candidate"), mid = str("mid");
         if (cand.empty() || cand.size() > 512) continue;
         if (cand.find(".local") != std::string::npos) {
             ++mdns;
@@ -1375,9 +1614,16 @@ HttpServer::Response Host::Impl::routeFixed(const HttpServer::Request& r) {
     if (p.rfind("/k/", 0) == 0) {
         const size_t e = p.find('/', 3);
         const std::string tok = e == std::string::npos ? std::string() : p.substr(3, e - 3);
+        if (!tok.empty() && tokenOk(tok, secret) && tokenRevoked(tok)) {
+            logf("fixed: %s used a login ended by 中斷 -> the password again", r.peer.c_str());
+            return {401, "application/json", json{{"needLogin", true}, {"revoked", true}}.dump()};
+        }
         if (!tok.empty() && tokenOk(tok, secret)) {
             const std::string rest = p.substr(e + 1);
-            if (rest == "check" && r.method == "POST") return {204, "text/plain", ""};
+            if (rest == "check" && r.method == "POST") {
+                wakeCapture(0, 0);  // 0.8.3: a valid login: the phone is on its way (the page asks for 流暢 outside)
+                return {204, "text/plain", ""};
+            }
             return routeRest(r, rest, "/k/" + tok + "/", "fixed:" + tok);
         }
         if (tok != "-") badTry(r.peer, now, "an expired / wrong login token");  // "-": the page before the password
@@ -1388,45 +1634,151 @@ HttpServer::Response Host::Impl::routeFixed(const HttpServer::Request& r) {
     return {404, "text/plain", "not found"};
 }
 
-// POST /login {"password": "..."}: 5 wrong in a row = 15 minutes locked for every
-// address (the attacker may change addresses); each wrong one waits longer
-// (0.25, 0.5, 1, 2, 4 s) and the checks run one at a time.
-HttpServer::Response Host::Impl::login(const HttpServer::Request& r, int64_t now) {
-    std::lock_guard<std::mutex> lk(loginMu);
-    if (now < pwLockedUntil) {
-        const int left = int((pwLockedUntil - now) / 1000000) + 1;
-        logf("fixed: login from %s refused: locked for %d s more", r.peer.c_str(), left);
-        return {429, "application/json", json{{"ok", false}, {"locked", true}, {"retryAfter", left}}.dump()};
-    }
-    std::string hash, secret;
+// 0.8.3: one password check (POST /login and 解除僅觀看 on the phone). Per address:
+// 5 wrong in a row = that address out for 15 minutes, each wrong one answered later
+// (0.25, 0.5, 1, 2, 4 s; one try at a time per address). All addresses together:
+// more than 20 wrong in 15 minutes = one try every 3 s (429 + retryAfter, no lock;
+// an address that logged in before is not paced). 0.8.2 locked EVERY address after
+// 5 wrong ones: anybody with the address could keep the owner out.
+Host::Impl::PwResult Host::Impl::checkPassword(const std::string& ip, const std::string& pwIn, int64_t now, const char* what) {
+    PwResult res;
+    std::string hash;
     {
         std::lock_guard<std::mutex> lk2(tunMu);
-        hash = fixedHash, secret = fixedSecret;
+        hash = fixedHash;
     }
-    if (hash.empty() || secret.empty()) return {503, "application/json", json{{"ok", false}, {"noPassword", true}}.dump()};
-    json j = json::parse(r.body.substr(0, 1024), nullptr, false);
-    std::string pw = !j.is_discarded() && j.is_object() ? j.value("password", std::string()) : std::string();
+    if (hash.empty()) return res.noPassword = true, res;
+    static int64_t lastPacedUs = 0;  // guarded by loginMu
+    static std::set<std::string> busy, good;
+    {
+        std::lock_guard<std::mutex> lk(loginMu);
+        if (pwIps.size() > 512) {  // bounded: the oldest address goes
+            auto oldest = std::min_element(pwIps.begin(), pwIps.end(), [](const auto& a, const auto& b) { return a.second.lastUs < b.second.lastUs; });
+            pwIps.erase(oldest);
+        }
+        PwIp& st = pwIps[ip];
+        st.lastUs = now;
+        if (now < st.lockedUntil) {
+            res.locked = true, res.retryAfter = int((st.lockedUntil - now) / 1000000) + 1;
+            logf("fixed: %s from %s refused: this address is locked for %d s more", what, ip.c_str(), res.retryAfter);
+            return res;
+        }
+        if (busy.count(ip)) return res.retryAfter = 1, res;  // one try at a time per address
+        while (!pwWrongAll.empty() && now - pwWrongAll.front() > 900000000LL) pwWrongAll.pop_front();
+        if (pwWrongAll.size() > 20 && !good.count(ip)) {
+            if (now < lastPacedUs + 3000000) {
+                res.retryAfter = int((lastPacedUs + 3000000 - now) / 1000000) + 1;
+                logf("fixed: %s from %s paced (%zu wrong passwords from all addresses in 15 minutes): try again in %d s", what, ip.c_str(),
+                     pwWrongAll.size(), res.retryAfter);
+                return res;
+            }
+            lastPacedUs = now;
+        }
+        busy.insert(ip);
+    }
+    std::string pw = pwIn;
     if (pw.size() > 256) pw.resize(256);
     const int64_t t0 = nowUs();
     const bool ok = !pw.empty() && verifyPassword(pw, hash);
+    std::fill(pw.begin(), pw.end(), '\0');
     const double ms = (nowUs() - t0) / 1000.0;
+    int fails = 0;
+    {
+        std::lock_guard<std::mutex> lk(loginMu);
+        busy.erase(ip);
+        PwIp& st = pwIps[ip];
+        if (ok) {
+            st.fails = 0;
+            good.insert(ip);
+            if (good.size() > 64) good.erase(good.begin());
+        } else {
+            fails = ++st.fails;
+            pwWrongAll.push_back(now);
+            res.delayMs = std::min(4000, 250 << std::min(fails - 1, 4));
+            if (fails >= 5) st.lockedUntil = now + 900000000LL, st.fails = 0, res.locked = true, res.retryAfter = 900;
+            res.left = res.locked ? 0 : 5 - fails;
+        }
+    }
     if (ok) {
-        pwFails = 0;
-        logf("fixed: password right from %s (checked in %.0f ms) -> a 30-day login", r.peer.c_str(), ms);
-        if (opt.onLogin) opt.onLogin(r.peer, true, 0, false);
+        logf("fixed: password right from %s for %s (checked in %.0f ms)", ip.c_str(), what, ms);
+        if (opt.onLogin) opt.onLogin(ip, true, 0, false);
+        res.ok = true;
+        return res;
+    }
+    logf("fixed: WRONG password from %s for %s (%d in a row from this address)%s", ip.c_str(), what, fails,
+         res.locked ? " -> this address is locked for 15 minutes" : "");
+    badTry(ip, now, "a wrong password");
+    if (opt.onLogin) opt.onLogin(ip, false, fails, res.locked);
+    Sleep(DWORD(res.delayMs));  // this address waits (others do not)
+    return res;
+}
+
+bool Host::Impl::tokenRevoked(const std::string& tok) {
+    const std::string id = tokenId(tok);
+    std::lock_guard<std::mutex> lk(tunMu);
+    return !id.empty() && revoked.count(id) > 0;
+}
+
+// POST /login {"password": "..."} -> a signed 30-day login (see checkPassword for the limits).
+HttpServer::Response Host::Impl::login(const HttpServer::Request& r, int64_t now) {
+    std::string secret;
+    {
+        std::lock_guard<std::mutex> lk2(tunMu);
+        secret = fixedSecret;
+    }
+    if (secret.empty()) return {503, "application/json", json{{"ok", false}, {"noPassword", true}}.dump()};
+    json j = json::parse(r.body.substr(0, 1024), nullptr, false);
+    const std::string pw = !j.is_discarded() && j.is_object() && j.contains("password") && j["password"].is_string() ? j["password"].get<std::string>() : std::string();
+    const PwResult res = checkPassword(r.peer, pw, now, "the login");
+    if (res.noPassword) return {503, "application/json", json{{"ok", false}, {"noPassword", true}}.dump()};
+    if (res.ok) {
+        logf("fixed: %s -> a 30-day login", r.peer.c_str());
         return {200, "application/json", json{{"ok", true}, {"token", makeToken(secret)}}.dump()};
     }
-    ++pwFails;
-    const int delayMs = std::min(4000, 250 << std::min(pwFails - 1, 4));
-    const int fails = pwFails;
-    bool locked = false;
-    if (pwFails >= 5) pwLockedUntil = now + 900000000LL, pwFails = 0, locked = true;
-    logf("fixed: WRONG password from %s (%d in a row)%s", r.peer.c_str(), fails, locked ? " -> locked for 15 minutes" : "");
-    badTry(r.peer, now, "a wrong password");
-    if (opt.onLogin) opt.onLogin(r.peer, false, fails, locked);
-    Sleep(DWORD(delayMs));  // inside loginMu: the next try waits as well
+    if (res.delayMs == 0)  // refused before the check (locked / paced / busy)
+        return {429, "application/json", json{{"ok", false}, {"locked", res.locked}, {"retryAfter", res.retryAfter}}.dump()};
     return {403, "application/json",
-            json{{"ok", false}, {"left", locked ? 0 : 5 - fails}, {"locked", locked}, {"retryAfter", locked ? 900 : 0}, {"delayMs", delayMs}}.dump()};
+            json{{"ok", false}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.locked ? 900 : 0}, {"delayMs", res.delayMs}}.dump()};
+}
+
+// 0.8.3: 解除僅觀看 from the phone: only over the fixed link, only with the password
+// (the same limits as the login), only for this session. Answered on the phone with
+// {"t":"unlock", ok, left, locked, retryAfter}; the PC is told (onUnlocked).
+void Host::Impl::unlockRequest(const std::shared_ptr<Session>& s, const std::string& pw) {
+    if (!s->viaFixed || !fixedOn) {
+        logf("page %s: 解除僅觀看 refused (only over the fixed link with the password)", s->peer.c_str());
+        sendDc(s, json{{"t", "unlock"}, {"ok", false}, {"notHere", true}});
+        return;
+    }
+    if (!viewOnly || s->unlocked) {
+        sendDc(s, json{{"t", "unlock"}, {"ok", true}});
+        return;
+    }
+    if (unlockBusy.exchange(true)) {
+        sendDc(s, json{{"t", "unlock"}, {"ok", false}, {"retryAfter", 1}});
+        return;
+    }
+    if (unlockThread.joinable()) unlockThread.join();
+    std::weak_ptr<Session> wk = s;
+    unlockThread = std::thread([this, wk, pw = std::string(pw)]() mutable {
+        auto sp = wk.lock();
+        if (sp && !stop) {
+            const PwResult res = checkPassword(sp->peer, pw, nowUs(), "解除僅觀看");
+            std::fill(pw.begin(), pw.end(), '\0');
+            const bool still = !sp->closed && current() == sp;
+            if (res.ok && still) {
+                sp->unlocked = true;
+                if (input) input->releaseAll();
+                logf("host: 僅觀看 lifted for this session by %s (%s) with the password (fixed link)", sp->label.c_str(), sp->peer.c_str());
+                sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
+                if (opt.onUnlocked) opt.onUnlocked(sp->toPeer());
+            }
+            if (still)
+                sendDc(sp, json{{"t", "unlock"}, {"ok", res.ok}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.retryAfter},
+                                {"noPassword", res.noPassword}});
+        }
+        unlockBusy = false;
+    });
 }
 
 // ---- 外網連結 (0.8.1) ----------------------------------------------------------
@@ -1492,7 +1844,7 @@ HttpServer::Response Host::Impl::routeTunnel(const HttpServer::Request& r) {
 // POST pass {"code":"123456"}: the 通行碼 shown on the PC. 5 wrong: this path is dead.
 HttpServer::Response Host::Impl::passcodeCheck(const HttpServer::Request& r, const std::string& cred, int64_t now) {
     json j = json::parse(r.body.substr(0, 256), nullptr, false);
-    const std::string code = !j.is_discarded() && j.is_object() ? j.value("code", std::string()) : std::string();
+    const std::string code = !j.is_discarded() && j.is_object() && j.contains("code") && j["code"].is_string() ? j["code"].get<std::string>() : std::string();
     bool ok = false, dead = false;
     int left = 0;
     {
@@ -1528,12 +1880,12 @@ HttpServer::Response Host::Impl::websocket(const HttpServer::Request& r, const s
         link->cc = opt.tunnelCongestion;
         link->testKbps = opt.tunnelTestKbps;
         auto old = sp->link.exchange(link);
-        if (old) old->shutdown();  // a reconnect replaces it
+        if (old) old->shutdown(), old->closeWs();  // a reconnect replaces it (0.8.3: its connection ends too)
         link->writer = std::thread([link] { link->runWriter(); });
         const int64_t t0 = nowUs();
         logf("tunnel[%s]: WebSocket open from %s (%.0f ms after the offer request)", sp->id.substr(0, 6).c_str(), conn.peer.c_str(),
              (t0 - sp->startUs) / 1000.0);
-        sendDc(sp, json{{"t", "mode"}, {"viewOnly", bool(viewOnly)}});
+        sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
         conn.run([this, sp](const std::string& m) { onDcMessage(sp, m); });
         {
             std::lock_guard<std::mutex> lk(link->m);
@@ -1581,6 +1933,155 @@ HttpServer::Response Host::Impl::snap(const HttpServer::Request& r) {
     return {204, "text/plain", ""};
 }
 
+// ---- files (0.8.3) -------------------------------------------------------------
+
+// POST up?id=<session>&f=<upload id>&n=<name>&o=<offset>&t=<total>, body = the next piece
+// (in order; a piece that does not start where the file is now gets 409 + where it is).
+// Only the current, connected session, never in 僅觀看, only into uploadDir.
+HttpServer::Response Host::Impl::upload(const HttpServer::Request& r) {
+    auto s = current();
+    const std::string id = queryParam(r.query, "id"), fid = queryParam(r.query, "f");
+    if (!s || s->closed || !constantTimeEq(id, s->id) || !s->activeNotified) return {409, "application/json", json{{"ok", false}, {"noSession", true}}.dump()};
+    if (vo(s)) {
+        logf("files: upload from %s refused (僅觀看)", s->peer.c_str());
+        return {403, "application/json", json{{"ok", false}, {"viewOnly", true}}.dump()};
+    }
+    if (opt.uploadDir.empty()) return {404, "application/json", json{{"ok", false}, {"off", true}}.dump()};
+    bool fidOk = fid.size() >= 8 && fid.size() <= 32;
+    for (char c : fid) fidOk &= isalnum(static_cast<unsigned char>(c)) != 0;
+    const uint64_t off = strtoull(queryParam(r.query, "o").c_str(), nullptr, 10), total = strtoull(queryParam(r.query, "t").c_str(), nullptr, 10);
+    if (!fidOk) return {400, "application/json", json{{"ok", false}}.dump()};
+    if (total > opt.uploadMaxBytes) {
+        logf("files: upload from %s refused: %.1f MB is over the %.0f MB limit", s->peer.c_str(), total / 1048576.0, opt.uploadMaxBytes / 1048576.0);
+        return {413, "application/json", json{{"ok", false}, {"tooBig", true}, {"max", opt.uploadMaxBytes}}.dump()};
+    }
+    s->lastActUs = nowUs();  // sending a file is using it (no idle disconnect meanwhile)
+    std::lock_guard<std::mutex> lk(fmu);
+    auto it = uploads.find(fid);
+    if (it == uploads.end()) {
+        if (off != 0) return {409, "application/json", json{{"ok", false}, {"got", 0}}.dump()};
+        int mine = 0;
+        for (const auto& [k, u] : uploads) mine += u.session == s->id;
+        if (mine >= 4) return {429, "application/json", json{{"ok", false}, {"busy", true}}.dump()};
+        std::error_code ec;
+        std::filesystem::create_directories(opt.uploadDir, ec);
+        ULARGE_INTEGER freeBytes{};
+        if (GetDiskFreeSpaceExW(opt.uploadDir.c_str(), &freeBytes, nullptr, nullptr) && freeBytes.QuadPart < total + 256ull * 1024 * 1024) {
+            logf("files: upload refused: not enough disk space (%.0f MB free)", freeBytes.QuadPart / 1048576.0);
+            return {507, "application/json", json{{"ok", false}, {"diskFull", true}}.dump()};
+        }
+        Upload u;
+        u.name = cleanFileName(pctDecode(queryParam(r.query, "n")));
+        u.part = opt.uploadDir + L"\\" + u.name + L"." + widen(fid) + L".part";
+        u.session = s->id, u.total = total;
+        HANDLE h = CreateFileW(u.part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (h == INVALID_HANDLE_VALUE) return {500, "application/json", json{{"ok", false}}.dump()};
+        CloseHandle(h);
+        logf("files: %s sends \"%s\" (%.2f MB)", s->peer.c_str(), narrow(u.name).c_str(), total / 1048576.0);
+        it = uploads.emplace(fid, std::move(u)).first;
+    }
+    Upload& u = it->second;
+    if (u.session != s->id) return {409, "application/json", json{{"ok", false}, {"noSession", true}}.dump()};
+    if (off != u.got || u.got + r.body.size() > u.total) return {409, "application/json", json{{"ok", false}, {"got", u.got}}.dump()};
+    HANDLE h = CreateFileW(u.part.c_str(), FILE_APPEND_DATA, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    DWORD wrote = 0;
+    const bool ok = h != INVALID_HANDLE_VALUE && (r.body.empty() || WriteFile(h, r.body.data(), DWORD(r.body.size()), &wrote, nullptr)) && wrote == r.body.size();
+    if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
+    if (!ok) {
+        DeleteFileW(u.part.c_str());
+        uploads.erase(it);
+        return {500, "application/json", json{{"ok", false}}.dump()};
+    }
+    u.got += wrote, u.lastUs = nowUs();
+    if (u.got < u.total) return {200, "application/json", json{{"ok", true}, {"got", u.got}}.dump()};
+    // Done: the final name, never over an existing file ("name (2).ext" ...).
+    const size_t dot = u.name.rfind(L'.');
+    const std::wstring stem = dot == std::wstring::npos || dot == 0 ? u.name : u.name.substr(0, dot), ext = stem.size() == u.name.size() ? L"" : u.name.substr(dot);
+    std::wstring finalName = u.name;
+    bool moved = false;
+    for (int n = 1; n < 1000 && !moved; ++n) {
+        if (n > 1) finalName = stem + L" (" + std::to_wstring(n) + L")" + ext;
+        moved = MoveFileExW(u.part.c_str(), (opt.uploadDir + L"\\" + finalName).c_str(), 0) != 0;
+        if (!moved && GetLastError() != ERROR_ALREADY_EXISTS && GetLastError() != ERROR_FILE_EXISTS) break;
+    }
+    const uint64_t savedBytes = u.total;
+    const std::string nameU8 = narrow(finalName);
+    if (!moved) DeleteFileW(u.part.c_str());
+    uploads.erase(it);
+    if (!moved) return {500, "application/json", json{{"ok", false}}.dump()};
+    logf("files: \"%s\" from %s saved (%.2f MB)", nameU8.c_str(), s->peer.c_str(), savedBytes / 1048576.0);
+    if (opt.onUploaded) opt.onUploaded(s->toPeer(), nameU8, savedBytes);
+    return {200, "application/json", json{{"ok", true}, {"got", savedBytes}, {"done", true}, {"name", nameU8}}.dump()};
+}
+
+void Host::Impl::dropUploads(const std::string& sid, const char* why, int64_t olderThanUs) {
+    std::lock_guard<std::mutex> lk(fmu);
+    const int64_t now = nowUs();
+    for (auto it = uploads.begin(); it != uploads.end();) {
+        const bool drop = (sid.empty() || it->second.session == sid) && (olderThanUs == 0 || now - it->second.lastUs > olderThanUs);
+        if (!drop) {
+            ++it;
+            continue;
+        }
+        logf("files: unfinished \"%s\" removed (%s)", narrow(it->second.name).c_str(), why);
+        DeleteFileW(it->second.part.c_str());
+        it = uploads.erase(it);
+    }
+    for (auto it = downloads.begin(); it != downloads.end();) {
+        const bool drop = now > it->second.untilUs || (olderThanUs == 0 && (sid.empty() || it->second.session == sid));
+        it = drop ? downloads.erase(it) : std::next(it);
+    }
+}
+
+// The files copied in Explorer -> the phone: names, sizes and a one-time key each (10 minutes).
+void Host::Impl::filesList(const std::shared_ptr<Session>& s) {
+    if (vo(s)) {
+        logf("files: list for %s refused (僅觀看)", s->peer.c_str());
+        sendDc(s, json{{"t", "files-denied"}});
+        return;
+    }
+    const std::vector<std::wstring> paths = opt.testClipboard ? opt.testClipboardFiles : clipboardFiles();
+    json list = json::array();
+    const int64_t now = nowUs();
+    std::lock_guard<std::mutex> lk(fmu);
+    for (auto it = downloads.begin(); it != downloads.end();) it = it->second.session == s->id || now > it->second.untilUs ? downloads.erase(it) : std::next(it);
+    for (const std::wstring& p : paths) {
+        WIN32_FILE_ATTRIBUTE_DATA fa{};
+        if (!GetFileAttributesExW(p.c_str(), GetFileExInfoStandard, &fa) || (fa.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        const uint64_t size = (uint64_t(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
+        const std::string key = randomString(24);
+        const size_t slash = p.find_last_of(L"\\/");
+        Download d{p, narrow(slash == std::wstring::npos ? p : p.substr(slash + 1)), s->id, now + 600000000LL};
+        list.push_back(json{{"n", d.name}, {"s", size}, {"k", key}});
+        downloads.emplace(key, std::move(d));
+    }
+    logf("files: %zu copied file(s) offered to %s (one-time links, 10 minutes)", list.size(), s->peer.c_str());
+    sendDc(s, json{{"t", "files"}, {"list", list}});
+}
+
+// GET dl/<key>: once, for the session it was offered to, not in 僅觀看.
+HttpServer::Response Host::Impl::download(const HttpServer::Request& r, const std::string& key) {
+    auto s = current();
+    Download d;
+    {
+        std::lock_guard<std::mutex> lk(fmu);
+        auto it = key.size() == 24 ? downloads.find(key) : downloads.end();
+        if (it == downloads.end() || nowUs() > it->second.untilUs) {
+            if (it != downloads.end()) downloads.erase(it);
+            logf("files: %s used a spent / expired download link", r.peer.c_str());
+            return {410, "text/plain; charset=utf-8", "this download link was used or has expired"};
+        }
+        d = it->second;
+        downloads.erase(it);  // one use
+    }
+    if (!s || s->closed || s->id != d.session) return {410, "text/plain", "session ended"};
+    if (vo(s)) return {403, "text/plain", "view only"};
+    logf("files: %s downloads \"%s\"", s->peer.c_str(), d.name.c_str());
+    HttpServer::Response resp{200, "application/octet-stream", ""};
+    resp.file = d.path, resp.fileName = d.name;
+    return resp;
+}
+
 void Host::Impl::sendDc(const std::shared_ptr<Session>& s, const json& j) {
     if (!s) return;
     if (s->dc && s->dcOpen) {
@@ -1602,7 +2103,7 @@ void Host::Impl::markActive(const std::shared_ptr<Session>& sp, const char* via)
     }
     if (notify) {
         logf("host: %s (%s%s) is now %s this PC (%s)", sp->label.c_str(), sp->peer.c_str(),
-             sp->viaTunnel ? ", 外網連結" : sp->tailscale ? ", Tailscale" : "", viewOnly ? "VIEWING" : "CONTROLLING", via);
+             sp->viaTunnel ? ", 外網連結" : sp->tailscale ? ", Tailscale" : "", vo(sp) ? "VIEWING" : "CONTROLLING", via);
         if (opt.onActive) opt.onActive(sp->toPeer());
     }
 }
@@ -1628,6 +2129,7 @@ void Host::Impl::closeSession(const std::shared_ptr<Session>& s, const std::stri
         if (session == s) session.reset(), last = true;
     }
     logf("webrtc[%s]: closing (%s)", s->id.substr(0, 6).c_str(), why.c_str());
+    dropUploads(s->id, "the session ended", 0);  // 0.8.3: its unfinished uploads and its download links
     if (auto l = s->link.load()) l->closeWs();
     if (input) input->releaseAll();
     if (last) {
@@ -1684,6 +2186,7 @@ void Host::Impl::setAudio(const std::shared_ptr<Session>& s, bool on) {
         logf("host: PC sound -> phone ON (capture still open, nothing reopened)");
     } else if (opt.audio) {
         audio.setSynthetic(opt.audioSynthetic);
+        audio.setLevelOptions(opt.audioAgc, opt.audioVolumeComp);  // 0.8.3
         audio.start(
             [this](std::vector<uint8_t>&& pkt, double, int64_t captureUs) {
                 auto cur = current();
@@ -1773,6 +2276,13 @@ void Host::setFixedOptions(const std::string& passwordHash, const std::string& s
     d_->fixedHash = passwordHash, d_->fixedSecret = secret, d_->fixedApproval = needApproval;
 }
 std::string Host::fixedOrigin() const { return "http://127.0.0.2:" + std::to_string(d_->http.port()); }
+void Host::setLockAfterSession(bool outside, bool lan) {
+    d_->lockOutside = outside, d_->lockLan = lan;
+}
+void Host::setFixedViaCloudflared(bool on) {
+    d_->http.setFixedViaCloudflared(on);
+    logf("fixed: the phone's address is taken from %s", on ? "CF-Connecting-IP (cloudflared fallback)" : "the last X-Forwarded-For entry (Tailscale Funnel)");
+}
 
 bool Host::tunnelOn() const {
     std::lock_guard<std::mutex> lk(d_->tunMu);
@@ -1802,11 +2312,11 @@ void Host::setAudioOffered(bool on) {
     if (!on) {
         if (auto s = d_->current()) {
             s->wantAudio = false;
-            d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", bool(d_->viewOnly)}, {"audio", false}});
+            d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", d_->vo(s)}, {"audio", false}});
         }
         d_->stopAudioNow("電腦聲音傳到手機 turned off");
     } else if (auto s = d_->current()) {
-        d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", bool(d_->viewOnly)}, {"audio", true}});
+        d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", d_->vo(s)}, {"audio", true}});
     }
     logf("host: PC sound offered to the phone: %s", on ? "yes" : "no");
 }
@@ -1826,19 +2336,48 @@ void Host::setAudioSource(const std::string& source) {
 
 // ---- DataChannel ------------------------------------------------------------
 
+// 0.8.3: a message of the wrong shape (e.g. {"t":"ping","id":"x"}: json::value() throws
+// on a type mismatch) used to escape the DataChannel / WebSocket callback and end the
+// whole program (std::terminate). Every message is handled inside a try now.
 void Host::Impl::onDcMessage(const std::shared_ptr<Session>& s, const std::string& m) {
+    try {
+        onDcMessageImpl(s, m);
+    } catch (const std::exception& e) {
+        logf("page %s: message ignored (%s): %s", s ? s->peer.c_str() : "?", e.what(), m.substr(0, 80).c_str());
+    } catch (...) {
+        logf("page %s: message ignored: %s", s ? s->peer.c_str() : "?", m.substr(0, 80).c_str());
+    }
+}
+
+void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::string& m) {
     if (m.size() > 8192 || s->closed) return;
+    // 0.8.3: only the current session is listened to (a replaced / orphaned one is closed).
+    if (current() != s) {
+        if (!s->closed) closeSession(s, "not the current session any more", true);
+        return;
+    }
     json j = json::parse(m, nullptr, false);
     if (j.is_discarded() || !j.is_object() || !j.contains("t") || !j["t"].is_string()) return;
     const std::string t = j["t"];
     const int64_t now = nowUs();
     s->lastMsgUs = now;
+    if (t == "ka") return;  // the tunnel's keep-alive (0.8.3)
+    if (t == "leave") {     // 0.8.3: the page is closing / 中斷連線 on the phone: end it now
+        logf("page %s: leaving (closed / 中斷連線 on the phone)", s->peer.c_str());
+        if (input) input->releaseAll();
+        closeSession(s, "the phone left", true);
+        return;
+    }
     // Anything the person did on the phone (not the page's own pings / reports).
     if (t != "ping" && t != "report" && t != "stamp" && t != "bitrate" && t != "idr" && t != "pause" && t != "release" &&
-        t != "clip-stop" && t != "ack" && t != "path" && t != "ws-media")
+        t != "clip-stop" && t != "ack" && t != "path" && t != "ws-media" && t != "unlock")
         s->lastActUs = now;
     if (t == "ack") {  // 外網連結: the page got video frame n
         if (auto l = s->link.load()) l->ack(uint32_t(j.value("n", 0)));
+        return;
+    }
+    if (t == "unlock") {  // 0.8.3: 解除僅觀看 with the password (fixed link only)
+        unlockRequest(s, j.contains("pw") && j["pw"].is_string() ? j["pw"].get<std::string>() : std::string());
         return;
     }
     if (t == "ws-media") {  // 外網連結: picture + sound over the WebSocket (WebRTC did not connect) or not
@@ -1908,7 +2447,15 @@ void Host::Impl::onDcMessage(const std::shared_ptr<Session>& s, const std::strin
         return;
     }
     if (t == "clip-get") {  // the clipboard panel opened (F7): PC clipboard text to the phone
-        s->clipWatch = j.value("watch", true);
+        // 0.8.3: not in 僅觀看 (0.8.2 sent the PC's clipboard to a view-only phone, and kept
+        // pushing every change while its panel was open).
+        if (vo(s)) {
+            s->clipWatch = false;
+            logf("page %s: clipboard refused (僅觀看)", s->peer.c_str());
+            sendDc(s, json{{"t", "clip-denied"}});
+            return;
+        }
+        s->clipWatch = j.contains("watch") && j["watch"].is_boolean() ? j["watch"].get<bool>() : true;
         std::string text;
         clipGet(text);
         clipSeq = clipSeqNow();
@@ -1919,7 +2466,11 @@ void Host::Impl::onDcMessage(const std::shared_ptr<Session>& s, const std::strin
         s->clipWatch = false;
         return;
     }
-    if (viewOnly) return;  // 僅觀看: no input at all
+    if (t == "files-get") {  // 0.8.3: the files copied in Explorer (never in 僅觀看)
+        filesList(s);
+        return;
+    }
+    if (vo(s)) return;  // 僅觀看: no input at all (unless this session lifted it with the password, 0.8.3)
     if (t == "clip-set") {  // phone text -> PC clipboard (and typed, if asked)
         std::string text = j.value("s", std::string());
         if (text.size() > 64 * 1024) text.resize(64 * 1024);
@@ -2089,6 +2640,12 @@ void Host::Impl::housekeeping(int64_t now) {
         }
     }
     if (dead) closeSession(dead, "never connected (20 s)");
+    dropUploads("", "no piece for 2 minutes", 120000000LL);  // 0.8.3: stalled uploads, expired download links
+    // 0.8.3: a LAN session "disconnected" for 4 s is closed (it did not come back by itself).
+    if (auto c = current(); c && !c->closed && c->discUs && now - c->discUs > 4000000) {
+        c->pcUp = false;
+        closeSession(c, "connection disconnected (4 s)");
+    }
     {
         // 外網連結: an unused one-time link expires after 10 minutes; a new one replaces it.
         std::string path;
@@ -2111,6 +2668,16 @@ void Host::Impl::housekeeping(int64_t now) {
     }
     auto s = current();
     if (input) input->flushLog(false);
+    // 0.8.3: a page that went away without a word (tab closed, phone off the network): its
+    // pings (every 0.5 s) stop. 0.8.2 kept such a session "connected" until ICE gave up or
+    // the next phone replaced it (measured: still current 8+ s after the tab was closed),
+    // with the 「正在被遠端操控」 bar up. 15 s of silence (10 minutes while the page said it
+    // is in the background: iOS stops its timers there) ends it.
+    if (s && s->activeNotified && !s->closed && s->lastMsgUs > 0 && now - s->lastMsgUs > (s->paused ? 600000000LL : 15000000LL)) {
+        logf("host: no message from the page for %.0f s -> ending the session", (now - s->lastMsgUs) / 1e6);
+        closeSession(s, "the phone page went silent");
+        return;
+    }
     if (input && s && input->anyHeld() && now - s->lastMsgUs > 2000000) {
         logf("input: page silent for %.1f s with a button held -> releasing", (now - s->lastMsgUs) / 1e6);
         input->releaseAll();
@@ -2129,12 +2696,29 @@ void Host::Impl::housekeeping(int64_t now) {
         return;
     }
     // PC clipboard -> phone while its clipboard panel is open (F7).
-    if (s && s->clipWatch && s->dcOpen) {
+    if (s && s->clipWatch && (s->dcOpen || s->link.load()) && !vo(s)) {
         const DWORD seq = clipSeqNow();
         if (seq != clipSeq) {
             clipSeq = seq;
             std::string text;
             if (clipGet(text)) sendDc(s, json{{"t", "clip"}, {"s", text}});
+        }
+    }
+}
+
+// 0.8.3: housekeeping on its own thread, once a second (0.8.2 ran it inside the
+// capture loop, which therefore never slept even with no phone at all).
+void Host::Impl::houseLoop() {
+    while (!stop) {
+        {
+            std::unique_lock<std::mutex> lk(capMu);
+            capCv.wait_for(lk, std::chrono::seconds(1), [this] { return stop.load(); });
+        }
+        if (stop) break;
+        try {
+            housekeeping(nowUs());
+        } catch (const std::exception& e) {
+            logf("host: housekeeping failed: %s", e.what());
         }
     }
 }
@@ -2163,8 +2747,37 @@ void Host::Impl::captureLoop() {
     int64_t lastCurSeq = -1, lastCurUs = 0;
     bool lastCurVisible = true;
 
+    int64_t lastWantUs = 0, lastChangeUs = 0;  // 0.8.3: lastChangeUs = the picture changed (full rate while it moves)
     while (!stop) {
         auto s = current();
+        // 0.8.3: capture + encoder only while a phone is there (or on its way: a session
+        // request woke us), released 30 s after the last one; until then this thread sleeps.
+        {
+            int hq = -1, hm = 0;
+            int64_t hus = 0;
+            {
+                std::lock_guard<std::mutex> lk(capMu);
+                hq = hintQuality, hm = hintMonitor, hus = hintUs;
+            }
+            const int64_t t = nowUs();
+            const bool hinted = hq >= 0 && t - hus < 30000000;
+            if (s || hinted) lastWantUs = t;
+            if (!s && hinted && !open) curQuality = hq, curMonitor = hm;  // open it for the session on its way
+            if (!s && !hinted && (open || encOpen) && t - lastWantUs > 30000000) {
+                enc.close();  // the encoder first (it holds pool textures of the capture)
+                cap.close();
+                open = encOpen = false;
+                openQuality = openMonitor = -1;
+                capOpen = false;
+                logf("host: no phone for 30 s -> screen capture and video encoder released");
+            }
+            if (!s && !hinted && !open) {
+                if (awake) awake = false, SetThreadExecutionState(ES_CONTINUOUS);
+                std::unique_lock<std::mutex> lk(capMu);
+                capCv.wait_for(lk, std::chrono::seconds(60), [&] { return stop.load() || hintUs != hus; });
+                continue;
+            }
+        }
         // The session decides the monitor and the quality; reopen on a change.
         if (s && (s->quality != openQuality || s->monitor != openMonitor)) {
             if (open) logf("host: switching to monitor %d, quality %d", s->monitor, s->quality);
@@ -2177,12 +2790,14 @@ void Host::Impl::captureLoop() {
             // the encoder holds pool textures of the old capture: close it first
             enc.close();
             encOpen = false;
+            const int64_t t0 = nowUs();
             open = cap.open(co);
             if (!open) {
                 Sleep(1000);
                 continue;
             }
             openQuality = curQuality, openMonitor = curMonitor;
+            if (!capOpen.exchange(true)) logf("host: screen capture opened in %.0f ms (a phone is there / on its way)", (nowUs() - t0) / 1000.0);
             deskW = cap.desktopWidth(), deskH = cap.desktopHeight();
             if (input) input->setScreen(cap.desktopRect());
         }
@@ -2212,7 +2827,12 @@ void Host::Impl::captureLoop() {
         // (+1.5 s), half otherwise, idleFps after idleAfterSec untouched,
         // nothing while the page is in the background.
         int fps = q.fps;
-        if (opt.adaptiveFps && s) {
+        // 0.8.3: a picture that moves (a video, an animation, scrolling on the PC) keeps the
+        // full rate even without a touch on the phone (0.8.2 halved it after 1.5 s untouched
+        // and went to 15 fps after 60 s: a video watched on the phone ran at 30 / 15 fps).
+        // A still picture costs nothing at any rate (unchanged frames are not encoded).
+        const bool moving = lastChangeUs && now - lastChangeUs < 1000000;
+        if (opt.adaptiveFps && s && !moving) {
             const int64_t sinceAct = s->lastActUs > 0 ? now - s->lastActUs : INT64_MAX;
             if (sinceAct < 1500000) fps = q.fps;
             else if (sinceAct > int64_t(opt.idleAfterSec * 1e6)) fps = std::min(q.fps, std::max(1, opt.idleFps));
@@ -2220,7 +2840,7 @@ void Host::Impl::captureLoop() {
         }
         if (fps != tierFps && s && (s->videoOpen || wsMedia(s))) {
             logf("host: frame rate %d -> %d fps (%s)", tierFps, fps,
-                 fps == q.fps ? "phone in use" : fps == std::max(1, q.fps / 2) ? "phone not touched" : "phone idle");
+                 fps == q.fps ? (moving ? "the picture moves" : "phone in use") : fps == std::max(1, q.fps / 2) ? "phone not touched" : "phone idle");
             tierFps = fps;
         }
         const int64_t period = 1000000 / std::max(1, fps);
@@ -2262,6 +2882,7 @@ void Host::Impl::captureLoop() {
             continue;
         }
         now = nowUs();
+        if (changed) lastChangeUs = now;
         // Frame slots every `period`: a changed picture is encoded at once if
         // its slot is (nearly) open. Unchanged pictures are not encoded at all
         // (skipStatic) except a refresh every staticRefreshMs; without
@@ -2314,7 +2935,6 @@ void Host::Impl::captureLoop() {
         if (now - lastStats >= 1000000) {
             const double secs = (now - lastStats) / 1e6;
             lastStats = now;
-            housekeeping(now);
             const auto a = c2s.take(), e = encMs.take(), rd = renderMs.take(), ce = c2e.take();
             double cpuAll = 0, cpu1 = 0;
             cpu.sample(cpuAll, cpu1);
@@ -2330,7 +2950,7 @@ void Host::Impl::captureLoop() {
                        {"encoder", enc.name()},  {"hw", enc.hardware()},       {"gpuPath", enc.gpuInput()},
                        {"w", int(outW)},         {"h", int(outH)},             {"deskW", int(deskW)},
                        {"deskH", int(deskH)},    {"inject", opt.inject},       {"stamp", bool(stampOn)},
-                       {"dropped", enc.dropped()}, {"maxKB", mx / 1024.0},     {"viewOnly", bool(viewOnly)},
+                       {"dropped", enc.dropped()}, {"maxKB", mx / 1024.0},     {"viewOnly", vo(s)},
                        {"audio", audio.running()}, {"monitor", int(curMonitor)}, {"quality", int(curQuality)},
                        {"fpsNow", tierFps},        {"paused", bool(s->paused)}, {"idleMinutes", opt.idleMinutes},
                        {"aOn", bool(s->wantAudio)}, {"aPeak", audio.recentPeak()}, {"aDev", audio.currentDevice()}};
@@ -2374,8 +2994,8 @@ void Host::Impl::captureLoop() {
                          avg(winEnc, false), lAll, l1, g.c_str(), enc.name().c_str(), enc.gpuInput() ? "zero-copy" : "readback",
                          extra.c_str());
                     if (audio.running() || aSent)
-                        logf("stats audio: %lld Opus packets sent (%.0f kbps), %d encoded, capture->encoded avg %.1f ms, peak %.5f from %s%s%s",
-                             (long long)aSent, aBytes * 8 / 1000.0 / ws, apk, aLat, aPeak, aDev.empty() ? "?" : aDev.c_str(),
+                        logf("stats audio: %lld Opus packets sent (%.0f kbps), %d encoded, capture->encoded avg %.1f ms, peak %.5f (AGC x%.2f, volume x%.2f) from %s%s%s",
+                             (long long)aSent, aBytes * 8 / 1000.0 / ws, apk, aLat, aPeak, audio.agcGain(), audio.compGain(), aDev.empty() ? "?" : aDev.c_str(),
                              aOthers.empty() ? "" : " | other devices: ", aOthers.c_str());
                 } else {
                     logf("idle (no viewer): CPU %.2f%% of machine (%.1f%% of one core) | GPU %s", lAll, l1, g.c_str());

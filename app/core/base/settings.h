@@ -49,6 +49,11 @@ struct Settings {
     std::string remotePwHash;          // "pbkdf2-sha256$<iterations>$<salt>$<key>"
     std::string remoteFixedSecret;     // signs the phones' 30-day logins (a new password = a new one)
     bool remoteFixedNeedApproval = false;  // 外面的新手機也要電腦按允許
+    // 0.8.3: logins ended by 中斷 ("<token id>:<expiry>,..."; the password is needed again) and
+    // 遠端斷線後自動鎖定電腦 (from outside: the fixed link / 免安裝外網; on the LAN / Tailscale)
+    std::string remoteRevoked;
+    bool remoteLockOutside = true;
+    bool remoteLockLan = false;
     std::string whatsNewSeen;          // the version whose 新功能 note was shown
     int idleTab = 0;                   // 0.8.2 main window page: 0 手機投影, 1 遠端控制 (the last one shown)
     std::string updatedTo;     // set just before an update installs: 「已更新到 vX」 at the next start
@@ -73,6 +78,18 @@ struct Settings {
     // Shift+right click always opens the menu. The 「右鍵＝返回」 hint shows once.
     bool rightClickMenu = false;
     bool rightClickHintShown = false;
+    // 0.8.3 簡報畫筆 (app/view/ink.cpp): tool 0 pen / 1 highlighter / 2 arrow,
+    // colour index into kInkColors, thickness 0 thin / 1 medium / 2 thick, and
+    // whether screenshots / recordings include the drawings.
+    int inkTool = 0;
+    int inkColor = 0;
+    int inkWidth = 1;
+    bool inkInShots = true;
+    bool inkInRec = true;
+    // 0.8.3 Android 操控 (app/connect/android_control.cpp; AndroidSource API of droid-fix).
+    bool androidClipSync = true;    // 剪貼簿同步
+    bool androidScreenOff = false;  // 操控時關掉手機螢幕
+    bool androidStayAwake = false;  // 連線期間不休眠
 
     static constexpr const char* kThemeKeys[4] = {"sakura", "mint", "night", "milktea"};
     static constexpr const char* kFilterKeys[5] = {"none", "contrast", "gray", "invert", "yellow"};
@@ -155,6 +172,9 @@ struct Settings {
             s.remotePwHash = it->second;
         if (auto it = kv.find("remote_fixed_secret"); it != kv.end() && it->second.size() == 64) s.remoteFixedSecret = it->second;
         s.remoteFixedNeedApproval = flag("remote_fixed_approval", false);
+        if (auto it = kv.find("remote_revoked"); it != kv.end() && it->second.size() < 8192) s.remoteRevoked = it->second;
+        s.remoteLockOutside = flag("remote_lock_outside", true);
+        s.remoteLockLan = flag("remote_lock_lan", false);
         if (s.remotePwHash.empty() || s.remoteFixedSecret.empty()) s.remotePersistent = false;  // no password: never on
         if (auto it = kv.find("whats_new_seen"); it != kv.end() && it->second.size() < 32) s.whatsNewSeen = it->second;
         if (auto it = kv.find("idle_tab"); it != kv.end()) s.idleTab = it->second == "remote" ? 1 : 0;
@@ -182,6 +202,19 @@ struct Settings {
         if (auto it = kv.find("airplay_audio_status"); it != kv.end()) s.audioStatusFlag = it->second == "0" ? 0 : 1;
         if (auto it = kv.find("android_right_click"); it != kv.end()) s.rightClickMenu = it->second == "menu";
         s.rightClickHintShown = flag("right_click_hint_shown", false);
+        auto ranged = [&](const char* k, int def, int n) {
+            auto it = kv.find(k);
+            const int v = it == kv.end() ? def : atoi(it->second.c_str());
+            return v >= 0 && v < n ? v : def;
+        };
+        s.inkTool = ranged("ink_tool", 0, 3);
+        s.inkColor = ranged("ink_color", 0, 6);
+        s.inkWidth = ranged("ink_width", 1, 3);
+        s.inkInShots = flag("ink_in_screenshots", true);
+        s.inkInRec = flag("ink_in_recordings", true);
+        s.androidClipSync = flag("android_clipboard_sync", true);
+        s.androidScreenOff = flag("android_screen_off", false);
+        s.androidStayAwake = flag("android_stay_awake", false);
         if (auto it = kv.find("display_name"); it != kv.end()) {
             std::string v = it->second;
             while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
@@ -260,6 +293,11 @@ struct Settings {
             << (remotePwHash.empty() ? std::string() : "remote_pw_hash=" + remotePwHash + "\n")
             << (remoteFixedSecret.empty() ? std::string() : "remote_fixed_secret=" + remoteFixedSecret + "\n")
             << "remote_fixed_approval=" << (remoteFixedNeedApproval ? 1 : 0) << "\n"
+            << "; 0.8.3: fixed-link logins ended by 中斷 (token id:expiry, no secrets); lock the PC when a remote session ends:\n"
+            << ";   from outside (fixed link / no-app link) and on the LAN / Tailscale (1/0)\n"
+            << (remoteRevoked.empty() ? std::string() : "remote_revoked=" + remoteRevoked + "\n")
+            << "remote_lock_outside=" << (remoteLockOutside ? 1 : 0) << "\n"
+            << "remote_lock_lan=" << (remoteLockLan ? 1 : 0) << "\n"
             << (whatsNewSeen.empty() ? std::string() : "whats_new_seen=" + whatsNewSeen + "\n")
             << "; main window page: cast (手機投影) or remote (遠端控制)\n"
             << "idle_tab=" << (idleTab == 1 ? "remote" : "cast") << "\n"
@@ -286,7 +324,18 @@ struct Settings {
             << "airplay_audio_status=" << audioStatusFlag << "\n"
             << "; Android picture right click: back (the phone's Back) or menu (this window's menu); Shift+right click = menu\n"
             << "android_right_click=" << (rightClickMenu ? "menu" : "back") << "\n"
-            << "right_click_hint_shown=" << (rightClickHintShown ? 1 : 0) << "\n";
+            << "right_click_hint_shown=" << (rightClickHintShown ? 1 : 0) << "\n"
+            << "; 畫筆 (presentation pen): tool 0 pen / 1 highlighter / 2 arrow, colour 0..5 (red yellow blue green white black),\n"
+            << ";   thickness 0..2, drawings in screenshots / recordings (1/0)\n"
+            << "ink_tool=" << inkTool << "\n"
+            << "ink_color=" << inkColor << "\n"
+            << "ink_width=" << inkWidth << "\n"
+            << "ink_in_screenshots=" << (inkInShots ? 1 : 0) << "\n"
+            << "ink_in_recordings=" << (inkInRec ? 1 : 0) << "\n"
+            << "; Android control: clipboard sync, phone screen off while controlling, keep the phone awake (1/0)\n"
+            << "android_clipboard_sync=" << (androidClipSync ? 1 : 0) << "\n"
+            << "android_screen_off=" << (androidScreenOff ? 1 : 0) << "\n"
+            << "android_stay_awake=" << (androidStayAwake ? 1 : 0) << "\n";
         if (!displayName.empty())
             out << "; name shown to phones (empty / missing: 自在投影 in zh-TW, Zizai Cast in English)\n"
                 << "display_name=" << toUtf8(displayName) << "\n";

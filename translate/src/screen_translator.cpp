@@ -22,6 +22,7 @@
 #include "pm/video_window.h"
 #include "live_cards.h"
 #include "text_util.h"
+#include "tr_log.h"
 
 namespace pm::translate {
 
@@ -1360,8 +1361,10 @@ struct ScreenTranslator::Impl {
             if (pairOk) warmPairs.push_back({src, tgt});
         }
         SetThreadPriority(th, prio);
-        std::fprintf(stderr, "[tr] warm: OCR %s %.0f ms, %ls -> %ls %s %.0f ms\n", ocr ? (ocrWarm ? "loaded" : "failed") : "skipped",
-                     t1 - t0, langTag(src), langTag(tgt), pair ? (pairOk ? "loaded" : "not loaded") : "skipped", nowMs() - t1);
+        const bool failed = (ocr && !ocrWarm) || (pair && !pairOk && !err.empty());
+        trLog(failed ? "warn" : "info", "prewarm: OCR %s %.0f ms, %ls -> %ls %s %.0f ms%s%s", ocr ? (ocrWarm ? "loaded" : "failed") : "skipped",
+              t1 - t0, langTag(src), langTag(tgt), pair ? (pairOk ? "loaded" : "not loaded") : "skipped", nowMs() - t1,
+              failed ? ": " : "", failed ? toUtf8(err).c_str() : "");
     }
 
     bool current(uint64_t g) {

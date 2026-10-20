@@ -28,6 +28,7 @@
 #include "compat.h"
 #include "logger.h"
 #include "utils.h"
+#include "pm_wake.h"
 
 #ifdef _WIN32
 #define SOCKET_SET_ERROR_PM(e) WSASetLastError(e)
@@ -77,6 +78,9 @@ struct httpd_s {
     /* Server fds for accepting connections */
     int server_fd4;
     int server_fd6;
+
+    /* PM 0.8.3: stop / pending removals wake the thread (it used to poll every ~1 s) */
+    pm_wake_t wake;
 };
 
 const char *
@@ -210,6 +214,7 @@ httpd_init(logger_t *logger, httpd_callbacks_t *callbacks, int nohold)
     /* PM: run_mutex was never initialised upstream (a zeroed pthread_mutex_t
      * happens to be valid in glibc, but is NULL/invalid in pthreads4w). */
     MUTEX_CREATE(httpd->run_mutex);
+    pm_wake_open(&httpd->wake);
 
     return httpd;
 }
@@ -220,6 +225,7 @@ httpd_destroy(httpd_t *httpd)
     if (httpd) {
         httpd_stop(httpd);
         MUTEX_DESTROY(httpd->run_mutex);  /* PM: pairs with MUTEX_CREATE in httpd_init */
+        pm_wake_close(&httpd->wake);
         free(httpd->connections);
         free(httpd);
     }
@@ -371,6 +377,7 @@ httpd_remove_known_connections(httpd_t *httpd) {
         }
         connection->pending_remove = 1;
     }
+    pm_wake_signal(&httpd->wake);  /* PM 0.8.3: removed on the next loop pass, now */
 }
 
 void
@@ -382,6 +389,7 @@ httpd_remove_connections_by_type(httpd_t *httpd, connection_type_t type) {
         }
         connection->pending_remove = 1;
     }
+    pm_wake_signal(&httpd->wake);  /* PM 0.8.3 */
 }
 
 /* PM: synchronous removal (conn_destroy runs before this returns: the RTP/mirror/NTP
@@ -433,9 +441,30 @@ httpd_thread(void *arg)
         }
         MUTEX_UNLOCK(httpd->run_mutex);
 
-        /* Set timeout value to 5ms */
+        /* PM 0.8.3: sleep until a socket is readable, the wake socket is
+         * signalled (stop, pending removal) or the next connection reaches its
+         * inactivity limit. Upstream woke every ~1 s. Without a wake socket:
+         * the old 1 s poll. */
+        struct timeval *tvp = &tv;
         tv.tv_sec = 1;
         tv.tv_usec = 5000;
+        if (httpd->wake.fd != -1) {
+            time_t t_now = time(NULL);
+            long next = -1;  /* seconds until the earliest inactivity timeout */
+            for (int i = 0; i < httpd->max_connections; i++) {
+                http_connection_t *c = &httpd->connections[i];
+                if (!c->connected || c->type == CONNECTION_TYPE_PTTH) continue;
+                long left = (long) (c->last_active + timeout_limit + 1 - t_now);
+                if (left < 0) left = 0;
+                if (next < 0 || left < next) next = left;
+            }
+            if (next < 0) {
+                tvp = NULL;  /* no connection: nothing times out */
+            } else {
+                tv.tv_sec = next;
+                tv.tv_usec = 5000;
+            }
+        }
 
         /* Get the correct nfds value and set rfds */
         FD_ZERO(&rfds);
@@ -451,6 +480,12 @@ httpd_thread(void *arg)
                 if (nfds <= httpd->server_fd6) {
                     nfds = httpd->server_fd6+1;
                 }
+            }
+        }
+        if (httpd->wake.fd != -1) {
+            FD_SET(httpd->wake.fd, &rfds);
+            if (nfds <= httpd->wake.fd) {
+                nfds = httpd->wake.fd + 1;
             }
         }
         for (int i = 0; i < httpd->max_connections; i++) {
@@ -469,8 +504,8 @@ httpd_thread(void *arg)
             }
         }
 
-        nfds_set = pm_httpd_select_hook ? pm_httpd_select_hook(nfds, (void *) &rfds, (void *) &tv)
-                                         : select(nfds, &rfds, NULL, NULL, &tv);
+        nfds_set = pm_httpd_select_hook ? pm_httpd_select_hook(nfds, (void *) &rfds, (void *) tvp)
+                                         : select(nfds, &rfds, NULL, NULL, tvp);
         time_t now = time(NULL);
         if (nfds_set == -1) {
             int sock_err = SOCKET_GET_ERROR();
@@ -482,6 +517,10 @@ httpd_thread(void *arg)
             continue;
         }
         pm_select_errors = 0;
+        if (nfds_set > 0 && httpd->wake.fd != -1 && FD_ISSET(httpd->wake.fd, &rfds)) {
+            pm_wake_drain(&httpd->wake);
+            nfds_set--;
+        }
 
         /* PM: drop dead connections on every pass, not only when they are
          * readable (idle probes otherwise kept their slot until all 12 were
@@ -607,7 +646,10 @@ httpd_thread(void *arg)
                     http_request_set_reverse(connection->request);  
                 }
             } else {
-                int ret = recv(connection->socket_fd, buffer, sizeof(buffer), 0);
+                /* PM 0.8.3: one byte kept free: the reverse-HTTP debug log below
+                 * NUL-terminates at buffer[recv_datalen] (1-byte stack overflow
+                 * when a full 1024-byte read arrived) */
+                int ret = recv(connection->socket_fd, buffer, sizeof(buffer) - 1, 0);
                 if (ret == 0) {
                     httpd_remove_connection(httpd, connection, 0);
                     continue;
@@ -825,6 +867,7 @@ httpd_stop(httpd_t *httpd)
     /* PM: also join a thread that already ended by itself (!running) */
     httpd->running = 0;
     MUTEX_UNLOCK(httpd->run_mutex);
+    pm_wake_signal(&httpd->wake);  /* PM 0.8.3: no wait for the select timeout */
 
     THREAD_JOIN(httpd->thread);
 

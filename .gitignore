@@ -19,3 +19,5 @@ vcpkg-install.*
 build-*.log
 build-*.err
 build-*.done
+
+__pycache__/

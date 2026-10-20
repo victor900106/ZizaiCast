@@ -118,6 +118,10 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             panMove(lp);
             return 0;
         }
+        if (inking) {  // 簡報畫筆: a stroke in progress (the toolbar does not pop up meanwhile)
+            inkMove(lp);
+            return 0;
+        }
         if (slidingTool >= 0) {  // dragging a toolbar slider: the toolbar stays, nothing else
             toolActivity();
             setToolHot(slidingTool, true);
@@ -186,6 +190,11 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             SetCursor(LoadCursorW(nullptr, IDC_ARROW));
             return TRUE;
         }
+        if (LOWORD(lp) == HTCLIENT && (inking || overInkPicture())) {  // 簡報畫筆: a pen over the picture
+            if (!penCursor) penCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32631))  /* IDC_PEN */;
+            SetCursor(penCursor ? penCursor : LoadCursorW(nullptr, IDC_CROSS));
+            return TRUE;
+        }
         if (LOWORD(lp) == HTCLIENT && touchCursor && overPicture()) {
             SetCursor(touchCursor);
             return TRUE;
@@ -195,6 +204,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         if (selectMouse(msg, lp)) return 0;
         if (toolPress(lp)) return 0;
         if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
+        if (inkPress(lp)) return 0;  // 簡報畫筆: a stroke (Ctrl+drag still pans)
         if (panPress(lp)) return 0;
         if (pointerDown(0, lp)) return 0;
         pressedUi = hitTest(lp);
@@ -206,6 +216,11 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_LBUTTONUP: {
         if (selectMouse(msg, lp)) return 0;
+        if (inking) {  // 簡報畫筆: the stroke is done
+            inkMove(lp);
+            inkEnd(true);
+            return 0;
+        }
         if (slidingTool >= 0) {  // toolbar slider released
             slideTool(GET_X_LPARAM(lp), true);
             return 0;
@@ -240,6 +255,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         if (selectMouse(msg, lp)) return 0;
         if (toolPress(lp)) return 0;  // second click of a fast double click on the toolbar
         if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
+        if (inkPress(lp)) return 0;   // 簡報畫筆: a quick second stroke, not fullscreen
         if (panPress(lp)) return 0;   // magnified: a fast second drag, not fullscreen
         // On the picture with a pointer handler: a press for the phone.
         if (pointerDown(0, lp)) return 0;
@@ -304,6 +320,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             }
             cancelButtons();
             panning = false;
+            inkEnd(true);  // 簡報畫筆: keep what was drawn so far
             if (selecting && selDragging) endSelect(false);
         }
         break;
@@ -322,6 +339,10 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             endSelect(false);
             return 0;
         }
+        if (inking && wp == VK_ESCAPE) {  // 簡報畫筆: Esc during a stroke drops it
+            inkEnd(false);
+            return 0;
+        }
         if (idleKey(msg, wp)) return 0;
         if (keyEvent(msg, wp)) return 0;
         if (magKey(msg, wp)) return 0;
@@ -338,6 +359,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         if (magKey(msg, wp)) return 0;  // Alt+arrows pan while magnified
         break;
     case WM_KILLFOCUS:
+        inkEnd(true);
         releaseKeys();
         endSelect(false);
         panEnd();

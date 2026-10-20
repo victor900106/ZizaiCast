@@ -13,6 +13,8 @@
 #include "update/update.h"
 #include "menus/menus.h"
 #include "core/app/core_app.h"
+#include "view/ink.h"
+#include "share/drop.h"
 
 namespace pm_app {
 
@@ -32,6 +34,7 @@ LRESULT CALLBACK appProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     if (!g.quitting && ((msg >= WM_APP && msg < WM_APP + 32) || msg == WM_SIZE || msg == WM_KEYDOWN ||
                         msg == WM_TIMER || msg == WM_CONTEXTMENU || (msg == g.devCmdMsg && g.devCmdMsg))) {
         syncViewTools();  // picture gone: translation closed, zoom 1×
+        inkSyncPicture();  // 0.8.3: ... and the pen put away
         refreshToolbar();
         maybeShowDeferredUpdate();  // a prompt held back while mirroring / hidden
     }
@@ -45,6 +48,12 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_PM_SHARE:
         onShareEvent(wp, lp);
+        return 0;
+    case WM_CLIPBOARDUPDATE:  // 0.8.3 電腦剪貼簿: only listened for while a share offers it
+        onClipboardUpdate();
+        return 0;
+    case WM_PM_DROP:  // 0.8.3 拖檔到視窗: an Android push / install finished
+        onDropDone(wp, lp);
         return 0;
     case WM_PM_REMOTE:  // 遠端操控 (app/remote)
         onRemoteEvent(wp, lp);
@@ -76,6 +85,9 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PM_STATE: {
         const WPARAM prev = g.videoState;
         g.videoState = wp;
+        // 0.8.3: the window follows the phone's turning only while there is a picture (or a held last frame):
+        // the 300 ms timer is started here and stops itself when the state is idle again (no idle wake-ups).
+        if (wp != StateIdle) SetTimer(h, kOrientationTimer, kOrientationMs, nullptr);
         if (wp == StateLost && g.liveSource == SrcAndroid) {
             // Android: no hold (see androidGoneUi).
             if (androidLive()) releaseSource(SrcAndroid);
@@ -186,6 +198,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         showContextMenu(static_cast<short>(LOWORD(lp)), static_cast<short>(HIWORD(lp)));
         return 0;
     case WM_KEYDOWN:
+        if (inkKey(wp)) return 0;  // 0.8.3 簡報畫筆: Ctrl+E, Ctrl+Shift+E, Ctrl+Z, Esc
         if (wp == VK_ESCAPE && !isFullscreen() && connectingNow()) {  // Esc cancels 連線中 (like Ctrl+D)
             g.log->write("info", "Esc while connecting: cancelled");
             disconnectLive();
@@ -234,7 +247,8 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         break;
     case WM_TIMER:
         if (wp == kOrientationTimer) {
-            followOrientation(h);
+            if (g.videoState == StateIdle) KillTimer(h, kOrientationTimer);  // nothing to follow: sleep
+            else followOrientation(h);
             return 0;
         }
         if (wp == kSyncTimer) {
@@ -368,11 +382,13 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         if (msg == g.devCmdMsg && g.devCmdMsg) {  // --dev test scripts: run a menu command
-            if (wp == 900 || wp == 901) devMenuShots(static_cast<int>(lp) - 1, wp == 901);  // menu PNGs (lp = hot row + 1)
+            if (devCommand083(wp, lp)) {}  // 0.8.3 feat-ux: 975..978
+            else if (wp == 900 || wp == 901) devMenuShots(static_cast<int>(lp) - 1, wp == 901);  // menu PNGs (lp = hot row + 1)
             else if (wp == 960) remoteDevShots();  // 遠端操控: remote_panel(_ts).png, remote_banner.png, remote_ask.png
             else if (wp == 961) remoteDevAnswer(static_cast<int>(lp));  // its 允許 / 拒絕 (1 allow, 2 deny, 3 allow + remember)
             else if (wp == 962) remoteDevClick(static_cast<int>(lp));   // 0.8.1: clicks as if from the phone (see remote.h)
             else if (wp == 963) remoteDevFixed(static_cast<int>(lp));   // 0.8.2: 常駐外網 password / shots (see remote.h)
+            else if (wp == 965) remoteDevLog(static_cast<int>(lp));     // 0.8.3: 連線紀錄 into the log
             else if (wp == 964) {  // 0.8.2 idle-CPU test: a mouse move over this window as a posted message (the real pointer never moves)
                 RECT rc{};
                 GetClientRect(h, &rc);

@@ -18,6 +18,7 @@
 #include "pm/i18n.h"  // verifiedFacts: its labels (TrFacts*) in the target language
 #include "pm/translator.h"
 #include "text_util.h"
+#include "tr_log.h"
 #ifdef PM_TRANSLATE_HAVE_ONLINE  // translate/CMakeLists.txt: online_engine*.cpp built in
 #include "pm/online_translate.h"
 #endif
@@ -571,13 +572,17 @@ double Escalator::now() { return nowMs(); }
 bool Escalator::warmUp(bool wait) {
     Impl& m = *impl_;
     m.takeWarm();
-    if ((m.llmWarm && nowMs() - m.llmLast < 270000) || !m.wantWarm || !m.llm || m.warm->state.load() == 1) return false;
+    // 0.8.3: the engine says whether its model is in memory / loading (the
+    // app's own preload, local_llm::warmUp, loads the same shared model).
+    if (!m.wantWarm || !m.llm || m.warm->state.load() == 1) return false;
     m.wantWarm = false;
+    if (m.llm->ready() || m.llm->loading()) return false;
     if (!m.llm->installed(Lang::Ja, Lang::ZhHant)) return false;
     auto load = [](ITranslator& t) {
         std::vector<TrHypothesis> out;
         std::wstring err;
-        t.translate({request(L"はい", Lang::Ja, Lang::ZhHant)}, out, &err);
+        if (!t.translate({request(L"はい", Lang::Ja, Lang::ZhHant)}, out, &err))
+            trLog("warn", "local AI warm-up after a picture failed: %ls", err.empty() ? L"no answer" : err.c_str());
     };
     if (wait) {
         load(*m.llm);
@@ -621,7 +626,11 @@ int Escalator::runPending(double deadlineMs, std::vector<RouteTrace>* trace) {
     // deadline, in priority order.
     const TrCost c = m.llm->cost();
     const double t0 = nowMs();
-    const bool cold = !m.llmWarm || t0 - m.llmLast > 270000;  // the engine unloads after 5 idle minutes
+    // Not in memory (never loaded, released after the idle time, or loading
+    // right now): never waited for inside a picture's budget (0.8.3: asking
+    // used to block on the engine's lock for the whole load).
+    const bool cold = !m.llm->ready();
+    const bool loadingNow = cold && m.llm->loading();
     std::vector<RouteTrace> tr(q.size());
     std::vector<size_t> send;
     for (size_t i = 0; i < q.size(); ++i) {
@@ -634,7 +643,7 @@ int Escalator::runPending(double deadlineMs, std::vector<RouteTrace>* trace) {
         } else if (cold) {
             // A cold model takes seconds to load (3.8 s measured): never inside
             // a picture's budget; warmUp() loads it after the picture is shown.
-            tr[i].result = "skipped:cold";
+            tr[i].result = loadingNow ? "skipped:loading" : "skipped:cold";
             m.wantWarm = true;
         } else {
             // The batch's predicted time: its pieces at the measured batch
@@ -685,6 +694,10 @@ int Escalator::runPending(double deadlineMs, std::vector<RouteTrace>* trace) {
             }
         }
     }
+    int skipped = 0;
+    for (const auto& t : tr) skipped += t.result.rfind("skipped", 0) == 0;
+    trLog("info", "local AI on this picture: %zu piece(s) queued, %zu sent, %d accepted, %d skipped (%s), %.0f ms", q.size(), send.size(),
+          improved, skipped, cold ? (loadingNow ? "model loading" : "model not loaded") : "time budget", nowMs() - t0);
     if (trace) trace->insert(trace->end(), tr.begin(), tr.end());
     return improved;
 }

@@ -12,6 +12,7 @@
 #include "log.h"
 #include "pm/i18n.h"
 #include "renderer_internal.h"
+#include "ink_layer.h"
 
 namespace pm::video {
 
@@ -303,8 +304,16 @@ bool Renderer::render() {
     const bool magUi = video && (view_.zoom > 1.001f || now - zoomAt_ < kZoomShowMs + ms(kZoomFadeMs) || frozenUp ||
                                  !boxes_.empty() || selecting_);
     const bool flashing = video && now - flashAt_ < kFlashInMs + kFlashOutMs;
+    // 簡報畫筆 (0.8.3): nothing to draw = one atomic load (no strokes, no badge: no 2D pass for it).
+    if (video && ink_ && !ink_->empty()) {
+        int dw = 0, dh = 0;
+        displaySize(dw, dh);  // the phone turned: strokes drawn on the other shape no longer fit
+        if (dw > 0 && dh > 0 && ink_->checkAspect((rot_ & 1) ? static_cast<float>(dh) / dw : static_cast<float>(dw) / dh))
+            inkDropped_ = true;
+    }
+    const bool inkUp = video && ((ink_ && !ink_->empty()) || !inkBadge_.empty());
     const bool need2D = (!video && !blank) || fadingIn || fadingOut || overlays || framed || dim > 0.003f || flashing ||
-                        recording_ || toolA > 0.003f || magUi || !busy_.empty();
+                        recording_ || toolA > 0.003f || magUi || !busy_.empty() || inkUp || !dropTitle_.empty();
     toolRects_.clear();
     toolPill_ = {};
     recBadge_ = {};
@@ -346,6 +355,7 @@ bool Renderer::render() {
         if (video && vp.Width > 0 && !fadingIn && !fadingOut) {
             const D2D1_RECT_F pr{vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s,
                                  (vp.TopLeftY + vp.Height) / s};
+            drawInk(pr);  // 簡報畫筆: on the picture, under the translation cards / magnifier UI
             if (overlayLive()) drawLiveOverlay(pr, framed ? fg.radius / s : 0.f);  // 即時翻譯: in place, follows scrolling
             else drawTextOverlay(pr, framed ? fg.radius / s : 0.f);
             drawMagnifierUi(pr, framed ? fg.radius / s : 0.f, now);
@@ -366,6 +376,9 @@ bool Renderer::render() {
                 drawRecBadge({0, 0, width_ / s, height_ / s}, 0.f, now);
             }
         }
+        if (video && vp.Width > 0 && !inkBadge_.empty() && !fadingIn && !fadingOut)
+            drawInkBadge({vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s, (vp.TopLeftY + vp.Height) / s},
+                         framed ? fg.radius / s : 0.f);
         if (toolA > 0.003f && scene_ == Scene::Live) {
             // Over the picture; without one (paused, re-created device) over the window.
             if (video && vp.Width > 0)
@@ -376,6 +389,7 @@ bool Renderer::render() {
         }
         drawPin(now);
         drawToast(now);
+        drawDropHint();  // 拖檔到視窗: over everything while files are dragged over the window
         if (d2dTarget_->EndDraw() == D2DERR_RECREATE_TARGET) releaseD2D();
     }
     // Mascot hit area (client pixels, at rest) for hover / click.

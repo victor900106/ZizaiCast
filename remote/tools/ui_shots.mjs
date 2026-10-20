@@ -36,7 +36,7 @@ if (realFunnel && /:8443"/.test(fBefore)) { console.error('8443 in use: not touc
 // A real PBKDF2 hash in the app's format (the password itself is never shown).
 const salt = crypto.randomBytes(16);
 const pwHash = `pbkdf2-sha256$310000$${salt.toString('hex')}$${crypto.pbkdf2Sync('Zizai-Test-2026', salt, 310000, 32, 'sha256').toString('hex')}`;
-const C = {Toggle: 330, Persistent: 353, FixedToggle: 356, LanQr: 359, TsQr: 360, TabCast: 379, TabRemote: 380};
+const C = {Toggle: 330, Persistent: 353, FixedToggle: 356, LanQr: 359, TsQr: 360, TabCast: 382, TabRemote: 383}  // 0.8.3: CmdIdleTabCast / CmdIdleTabRemote (were 379 / 380 before remote-080 added three commands);
 
 async function run(exePath, lang, tag, steps, seed = '') {
   const dataDir = path.join(process.env.LOCALAPPDATA, 'PhoneMirror-dev-remote082ui');
@@ -44,7 +44,7 @@ async function run(exePath, lang, tag, steps, seed = '') {
   for (const f of ['remote_devices.txt', 'phonemirror.log']) { try { fs.rmSync(path.join(dataDir, f)); } catch {} }
   fs.writeFileSync(path.join(dataDir, 'remote_devices.txt'), 'aB3dE5fG7hJ9kL1m\tiPhone · Safari\t2026-10-20\nQ2w3E4r5T6y7U8i9\tAndroid · Chrome\t2026-10-21\n');
   fs.writeFileSync(path.join(dataDir, 'settings.ini'),
-    `[settings]\nlanguage=${lang}\nremote_port=${18500 + Math.floor(Math.random() * 300)}\ntutorial_shown=1\ntray_hint_shown=1\nclose_hint_shown=1\ntoolbar_hint_shown=1\nwhats_new_seen=0.8.2.1\n${seed}`);
+    `[settings]\nlanguage=${lang}\nremote_port=${18500 + Math.floor(Math.random() * 300)}\ntutorial_shown=1\ntray_hint_shown=1\nclose_hint_shown=1\ntoolbar_hint_shown=1\nwhats_new_seen=0.8.3\n${seed}`);
   const app = spawn(exePath, ['--dev', '--test-offscreen'], {stdio: 'ignore', env: {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote082ui', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1', ...(fakeFunnel ? {PM_REMOTE_FUNNELFAKE: fakeFunnel, PM_REMOTE_SHOWLAN: 'http://192.168.0.10:18571/AbCdEfGhJkMnPqRsTuVwXyZ234567892/', PM_REMOTE_SHOWTS: 'http://100.64.0.10:18571/AbCdEfGhJkMnPqRsTuVwXyZ234567892/'} : {})}});
   const dev = (cmd, lp = 0, wait = 700) => { try { execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', devCmdPs1, '-ProcessId', String(app.pid), '-Cmd', String(cmd), '-Lp', String(lp), '-Wait', String(wait)], {stdio: 'pipe'}); } catch {} };
   const readLog = () => { try { return fs.readFileSync(path.join(dataDir, 'phonemirror.log'), 'utf8'); } catch { return ''; } };

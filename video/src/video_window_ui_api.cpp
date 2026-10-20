@@ -119,6 +119,8 @@ void VideoWindow::setLiveToolbar(std::vector<ToolbarItem> items, std::function<v
     for (auto& t : items) {
         ri.push_back({t.glyph, std::move(t.tooltip), t.toggled, t.danger, t.groupStart, t.recording, t.optional,
                       t.slider, std::move(t.label)});
+        ri.back().swatch = t.swatch;  // 0.8.3 畫筆 colour / thickness
+        ri.back().swatchSize = t.swatchSize;
         ids.push_back(t.id);
     }
     {

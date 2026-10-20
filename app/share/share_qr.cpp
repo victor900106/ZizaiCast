@@ -76,6 +76,7 @@ void openSharePanel() {
             g.share.stop();
             g.window->showToast(tr(S::ShareStopped));
         }
+        shareClipOff();  // 0.8.3: closing 傳到手機 ends the clipboard card too
     };
     cb.onAgain = []() {
         std::vector<fs::path> again;
@@ -97,6 +98,7 @@ void openSharePanel() {
     g.sharePanel.setShare(url, qr, qrSize, live && !served.empty() ? served.back().filename().wstring() : shareFilesLabel(served),
                           g.share.secondsLeft());
     g.sharePanel.setLive(live, static_cast<int>(served.size()));
+    if (shareClipActive()) g.sharePanel.setStatus(tr(S::ShareClipStatus));  // 0.8.3: say that the page shows it
 }
 
 // Adds files to the running live page (the phone shows them within a second).
@@ -117,7 +119,10 @@ void addToLive(const std::vector<fs::path>& files, bool showPanel) {
 
 // ttlSeconds > 0: this lifetime instead of the default (a rebind keeps the
 // time left). showPanel false: the QR panel is refreshed only if it is open.
-bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds, bool showPanel) {
+bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds, bool showPanel, int clipboard) {
+    static bool lastClip = false;
+    const bool clip = clipboard < 0 ? lastClip : clipboard > 0;
+    lastClip = clip;
     pm::share::Server::Options o;
     if (g.server) o.preferred = g.server->advertisedInterfaces();  // where phones already see us
     o.bindIp = g.shareBindTest;
@@ -128,6 +133,10 @@ bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds,
     o.english = pm::i18n::en();
     o.lang = static_cast<int>(pm::i18n::lang());
     o.appName = tr(S::AppName);
+    // 0.8.3: the 電腦剪貼簿 card (a share the owner opened) and the texts the table does not have yet.
+    if (clip) o.clipboard = [] { return shareClipText(); };
+    o.texts083 = {tr(S::PgClipTitle), tr(S::PgClipCopy), tr(S::PgClipCopied), tr(S::PgClipRefresh), tr(S::PgClipEmpty),
+                  tr(S::PgClipFail), tr(S::PgClipNote), tr(S::PgDownloadFile), tr(S::PgFileTip)};
     const pm::ui::Colors c = pm::ui::currentColors();
     o.palette = {pm::VideoWindow::themeSwatch(kThemes[g.settings.theme & 3])[0], c.cardTop, c.cardBottom, c.fg, c.dim,
                  c.accent, c.light};
@@ -145,7 +154,10 @@ bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds,
     std::vector<std::wstring> paths;
     for (const fs::path& f : files) paths.push_back(f.wstring());
     std::string err;
+    if (clip) shareClipOn();  // the page's first load already has the text
+    else shareClipOff();
     if (!g.share.start(paths, o, &err)) {
+        shareClipOff();
         g.log->write("warn", "share: " + err);
         g.window->showToast(err == "no readable file" && !files.empty()
                                 ? fmt(S::ShareFileGone, {files[0].filename().wstring()})
@@ -167,6 +179,7 @@ bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds,
 void checkShareNetwork(bool force) {
     if (!g.share.running()) {
         KillTimer(g.hwnd, kShareNetTimer);
+        shareClipOff();
         return;
     }
     if (g.share.expired() || (!g.shareBindTest.empty() && !force)) return;  // tests bind 127.0.0.1 on purpose
@@ -185,7 +198,7 @@ void checkShareNetwork(bool force) {
     for (const auto& l : lan) now += (now.empty() ? "" : ", ") + l.name + "=" + l.ip;
     g.log->write("info", "share: " + ip + " is no longer a LAN address (now: " + (now.empty() ? "-" : now) +
                              "); sharing " + std::to_string(files.size()) + " file(s) again for " + std::to_string(left) + " s");
-    if (startShareQr(files, live, left, false)) {
+    if (startShareQr(files, live, left, false, -1)) {
         g.window->showToast(tr(S::ShareLinkChanged), 6000);
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::AppName), tr(S::ShareLinkChanged));
     }

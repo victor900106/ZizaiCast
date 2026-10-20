@@ -15,22 +15,30 @@ pm::translate::Lang translateLastSource() {
     return L::Unknown;
 }
 // A phone picture is on screen: for users who have translated before
-// (translate_last), load the OCR and the last used models now, at a low
-// priority, so the first 翻譯整個畫面 does not wait for them (0.7.8: the
-// first translation of a session was 0.7-3.8 s, later ones ~0.4 s).
+// (translate_last, or the OCR models downloaded), load the OCR and the last
+// used models now, at a low priority, so the first 翻譯整個畫面 does not wait
+// for them (0.7.8: the first translation of a session was 0.7-3.8 s, later
+// ones ~0.4 s; 0.8.3: a cold OCR alone is 1.2-1.9 s).
 void prewarmTranslation() {
-    if (!g.translator || g.settings.translateLast.empty()) return;
-    g.translator->prewarm(translateLastSource());
+    if (!g.translator) return;
+    const pm::translate::Lang last = translateLastSource();
+    if (g.settings.translateLast.empty() && !pm::translate::PaddleOcr::modelsInstalled()) return;
+    g.translator->prewarm(last);
+    // 0.8.3: and the local AI model when the last pictures were Japanese /
+    // Korean (the only sources it is asked about; nothing when off / not
+    // downloaded / short of memory; released again after 5 idle minutes).
+    if (last == pm::translate::Lang::Ja || last == pm::translate::Lang::Ko) pm::ui::trset::warmUpLocalAi();
 }
 
 void translateCommand(UINT cmd) {
     if (!g.translator) return;
     pm::translate::ScreenTranslator& t = *g.translator;
-    // 本機 AI 翻譯: load the model in the background now (nothing when off or
-    // not downloaded), so the first picture does not wait for it.
-    if ((cmd == CmdTranslateToggle && !t.active()) || cmd == CmdTranslateScreen || cmd == CmdTranslateRegion ||
-        (cmd == CmdTranslateLive && !t.live()))
-        pm::ui::trset::warmUpLocalAi();
+    // 本機 AI 翻譯 (0.8.3): not loaded here any more.  Loading it at the same
+    // moment as the picture's OCR slowed the OCR down (GPU and CPU shared:
+    // +0.5 s, +1 s while Vulkan builds its pipelines after an install) and a
+    // first picture never had time left for it anyway; the translator loads
+    // it in the background right after a picture that wanted it (Japanese /
+    // Korean pieces), and prewarmTranslation() when a phone connects.
     switch (cmd) {
     case CmdTranslateToggle:
         if (t.active()) {

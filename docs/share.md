@@ -283,6 +283,33 @@ Runs on its own thread (not the pairing worker; works while mirroring),
 one push at a time, `done(PushResult{ok, inGallery, remotePath, error})`
 from that thread; the app posts it to the UI thread.
 
+## 電腦剪貼簿 and other files on the page (0.8.3)
+
+* **電腦剪貼簿** (`Server::Options::clipboard`): a card at the top of the page
+  with the text the PC has copied (read-only textarea), **複製** and
+  **重新整理** (also run when the page becomes visible again). `GET
+  /<token>/clip` → `{"text":"…"}` (token required like everything else; the
+  log says `GET clip 200 (N bytes)`, never the text). Copy: the async
+  clipboard API where the page is a secure context, else the textarea is
+  selected and `document.execCommand('copy')` (the LAN page is http), with
+  「已複製」 / 「無法自動複製：長按文字選取後複製」.
+* **When**: only for a share the owner opened (傳到手機 menu / toolbar /
+  picker / chip, a drop on the window, turning 自動傳到手機 on); a live page
+  that an automatic send started by itself has no card. While such a share
+  runs the window is a clipboard format listener (`WM_CLIPBOARDUPDATE`, no
+  polling) and keeps a copy of the text (≤ 100 000 characters); when the share
+  stops (停止分享, ×, expiry, quit, a new share without it) the listener goes
+  and the copy is cleared. Content marked private by password managers
+  (`ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`
+  = 0) is never offered. The QR panel's status line says the page shows the
+  clipboard. `--test-offscreen` never reads the user's clipboard: the text
+  comes from `PM_CLIP_TEST`.
+* **Other files** (a dropped PDF, an .apk on an iPhone): a file card (document
+  icon, name, size, 「點「下載檔案」存到手機…」, **下載檔案** → `d/<i>`) instead of
+  an `<img>`; they are in the ZIP, never in 全部儲存.
+* The page's 0.8.3 texts travel in `Options::texts083` (English defaults; the
+  app passes its `Pg*` strings from the string table).
+
 ## Tests
 
 `build-app-share\bin\Release\pm_share_test.exe` — **146 checks, all passing

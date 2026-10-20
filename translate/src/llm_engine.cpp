@@ -3,6 +3,7 @@
 // when the GPU add-on is installed (else the CPU), kept loaded while used
 // and released after a while without requests.
 #include <windows.h>
+#include <psapi.h>
 
 #include <algorithm>
 #include <chrono>
@@ -14,6 +15,7 @@
 #include "llm_api/llama.h"
 #include "llm_engine.h"
 #include "text_util.h"
+#include "tr_log.h"
 
 namespace pm::translate::llm {
 
@@ -40,12 +42,13 @@ std::wstring envVar(const wchar_t* name) {
     X(llama_sampler_chain_add) X(llama_sampler_init_greedy) X(llama_sampler_init_dist) X(llama_sampler_init_temp)      \
     X(llama_sampler_init_top_p) X(llama_sampler_init_grammar) X(llama_sampler_sample) X(llama_sampler_free)             \
     X(llama_n_ctx) X(llama_model_size) X(llama_batch_init) X(llama_batch_free) X(llama_memory_seq_cp)                  \
-    X(llama_memory_seq_rm)
+    X(llama_memory_seq_rm) X(llama_model_n_layer)
 
 // ggml's device registry (ggml.dll / ggml-base.dll).
 #define PM_GGML_FUNCS(X)                                                                                               \
     X(ggml_backend_load_all_from_path) X(ggml_backend_dev_count) X(ggml_backend_dev_get) X(ggml_backend_dev_type)      \
-    X(ggml_backend_dev_description) X(ggml_backend_dev_memory)
+    X(ggml_backend_dev_description) X(ggml_backend_dev_memory) X(ggml_backend_dev_name) X(ggml_backend_dev_backend_reg) \
+    X(ggml_backend_reg_name)
 
 struct Api {
 #define PM_DECL(f) decltype(&::f) f = nullptr;
@@ -56,7 +59,61 @@ struct Api {
     std::wstring error;
 };
 
-void quietLog(enum ggml_log_level, const char*, void*) {}
+// llama.cpp / ggml's own log: warnings and errors go to the app's log (they
+// were dropped before 0.8.3: a GPU that failed to load left no trace); while
+// a model loads, its INFO lines about where the layers went are kept for the
+// "local AI loaded" line ("offloaded 25/25 layers to GPU", buffer sizes).
+struct LlamaLog {
+    std::mutex mu;
+    std::string line;
+    ggml_log_level level = GGML_LOG_LEVEL_INFO;
+    bool capture = false;
+    std::vector<std::string> captured;
+};
+LlamaLog& llamaLog() {
+    static LlamaLog* l = new LlamaLog;  // never destroyed (llama.dll threads may log at exit)
+    return *l;
+}
+void llamaLogLine(LlamaLog& L) {
+    std::string s = L.line;
+    L.line.clear();
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.pop_back();
+    if (s.empty()) return;
+    if (L.level == GGML_LOG_LEVEL_ERROR) trLog("error", "llama: %s", s.c_str());
+    else if (L.level == GGML_LOG_LEVEL_WARN) trLog("warn", "llama: %s", s.c_str());
+    else if (L.capture && L.captured.size() < 64 &&
+             (s.find("offloaded") != std::string::npos || s.find("buffer size") != std::string::npos ||
+              s.find("ggml_vulkan:") != std::string::npos || s.find("using device") != std::string::npos))
+        L.captured.push_back(s);
+}
+void llamaLogCb(enum ggml_log_level level, const char* text, void*) {
+    LlamaLog& L = llamaLog();
+    std::lock_guard lk(L.mu);
+    if (level != GGML_LOG_LEVEL_CONT) {
+        if (!L.line.empty()) llamaLogLine(L);
+        L.level = level;
+    }
+    for (const char* p = text; p && *p; ++p) {
+        if (*p == '\n') llamaLogLine(L);
+        else L.line += *p;
+    }
+}
+void captureLlamaLog(bool on, std::vector<std::string>* got = nullptr) {
+    LlamaLog& L = llamaLog();
+    std::lock_guard lk(L.mu);
+    if (!L.line.empty()) llamaLogLine(L);
+    L.capture = on;
+    if (got) *got = L.captured;
+    L.captured.clear();
+}
+
+// This process' memory (for the load / release log lines).
+double processPrivateMB() {
+    PROCESS_MEMORY_COUNTERS_EX pm{};
+    pm.cb = sizeof(pm);
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pm), sizeof(pm))) return 0;
+    return pm.PrivateUsage / 1048576.0;
+}
 
 // Non-ASCII directories (C:\Users\王小明\...): llama.cpp opens files with
 // UTF-8 paths; the 8.3 short name is pure ASCII when it exists.
@@ -84,6 +141,7 @@ Api& api() {
                                    LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS);
         if (!x.mod) {
             x.error = L"cannot load " + path + L" (error " + std::to_wstring(GetLastError()) + L")";
+            if (runtimeInstalled()) trLog("error", "local AI: %s", toUtf8(x.error).c_str());
             return x;
         }
         bool ok = true;
@@ -102,11 +160,12 @@ Api& api() {
 #undef PM_RESOLVE_G
         if (!ok) {
             x.error = path + L": not the expected llama.cpp build";
+            trLog("error", "local AI: %s", toUtf8(x.error).c_str());
             FreeLibrary(x.mod);
             x.mod = nullptr;
             return x;
         }
-        x.llama_log_set(quietLog, nullptr);
+        x.llama_log_set(llamaLogCb, nullptr);
         // The backends in dir: the CPU variant for this CPU (ggml-cpu-alderlake.dll,
         // -haswell, ...) and the GPU add-on when installed (ggml-vulkan.dll /
         // ggml-cuda.dll; skipped by ggml when the driver is missing).
@@ -117,6 +176,22 @@ Api& api() {
             if (c) RemoveDllDirectory(c);
         }
         x.llama_backend_init();
+        // Which backends ggml found (a GPU missing here: the add-on or the driver).
+        std::string devs;
+        for (size_t i = 0; i < x.ggml_backend_dev_count(); ++i) {
+            ggml_backend_dev_t d = x.ggml_backend_dev_get(i);
+            size_t free = 0, total = 0;
+            x.ggml_backend_dev_memory(d, &free, &total);
+            const auto t = x.ggml_backend_dev_type(d);
+            char b[256];
+            std::snprintf(b, sizeof b, "%s%s %s \"%s\" (%s, %.0f/%.0f MB free)", devs.empty() ? "" : "; ",
+                          x.ggml_backend_reg_name(x.ggml_backend_dev_backend_reg(d)), x.ggml_backend_dev_name(d),
+                          x.ggml_backend_dev_description(d),
+                          t == GGML_BACKEND_DEVICE_TYPE_GPU ? "GPU" : t == GGML_BACKEND_DEVICE_TYPE_IGPU ? "iGPU" : "CPU",
+                          free / 1048576.0, total / 1048576.0);
+            devs += b;
+        }
+        trLog("info", "local AI runtime: %s; devices: %s", toUtf8(dir).c_str(), devs.empty() ? "none" : devs.c_str());
         return x;
     }();
     return a;
@@ -156,44 +231,78 @@ std::string metaStr(const llama_model* m, const char* key) {
 
 // The device to run on: the discrete GPU with the most memory whose free
 // memory holds the model + 768 MB (the video decoder and the desktop use
-// the same GPU), else nullptr = CPU.
-ggml_backend_dev_t pickGpu(Device want, uint64_t modelBytes, std::string& name) {
+// the same GPU), else nullptr = CPU (why: the reason, for the log).
+ggml_backend_dev_t pickGpu(Device want, uint64_t modelBytes, std::string& name, std::string& why) {
     name = "CPU";
     const std::wstring e = envVar(L"PM_LLM_GPU");
-    if (e == L"off" || e == L"cpu") return nullptr;
+    if (e == L"off" || e == L"cpu") {
+        why = "PM_LLM_GPU=off";
+        return nullptr;
+    }
     if (e == L"igpu") want = Device::IntegratedGpu;
-    if (want == Device::Cpu || (e.empty() && !gpuEnabled())) return nullptr;
+    if (want == Device::Cpu) {
+        why = "the CPU was asked for";
+        return nullptr;
+    }
+    if (e.empty() && !gpuEnabled()) {
+        why = "the GPU is turned off in the settings";
+        return nullptr;
+    }
     Api& a = api();
     ggml_backend_dev_t best = nullptr;
     size_t bestTotal = 0;
+    int seen = 0;
+    std::string small;
+    const uint64_t need = modelBytes + (768ull << 20);
     for (size_t i = 0; i < a.ggml_backend_dev_count(); ++i) {
         ggml_backend_dev_t d = a.ggml_backend_dev_get(i);
         const auto t = a.ggml_backend_dev_type(d);
         if (t != (want == Device::IntegratedGpu ? GGML_BACKEND_DEVICE_TYPE_IGPU : GGML_BACKEND_DEVICE_TYPE_GPU)) continue;
+        ++seen;
         size_t free = 0, total = 0;
         a.ggml_backend_dev_memory(d, &free, &total);
-        if (t == GGML_BACKEND_DEVICE_TYPE_GPU && free < modelBytes + (768ull << 20)) continue;
+        if (t == GGML_BACKEND_DEVICE_TYPE_GPU && free < need) {
+            char b[160];
+            std::snprintf(b, sizeof b, "%s%s %.0f MB free", small.empty() ? "" : ", ", a.ggml_backend_dev_description(d), free / 1048576.0);
+            small += b;
+            continue;
+        }
         if (!best || total > bestTotal) {
             best = d;
             bestTotal = total;
         }
     }
     if (best) name = a.ggml_backend_dev_description(best);
+    else if (seen == 0)
+        why = gpuInstalled() ? "the GPU backend found no usable GPU (driver?)" : "the GPU add-on (ggml-vulkan.dll) is not installed";
+    else
+        why = "not enough free video memory (" + small + ", " + std::to_string(need >> 20) + " MB needed)";
     return best;
 }
 
-// The model of the process.
+// The model of the process.  0.8.3: loading no longer holds `mu` - it took
+// seconds (up to ~30 s the first time after an install or a driver update,
+// when Vulkan builds its pipelines), and every caller that only wanted to
+// know whether the model was there (installed(), cost(), loaded(), device(),
+// the idle watcher) waited for it, so a picture translated meanwhile stood
+// still until the load ended.  Loads are serialised by `loadMu`; the new
+// model is put in place under `mu` in a moment.
 struct Shared {
-    std::mutex mu;                  // one generation at a time; guards everything below
+    std::mutex mu;                  // the model in use: one generation at a time; guards model / ctx / config / prefixes
+    std::mutex loadMu;              // one load at a time (held while loading, without mu)
     llama_model* model = nullptr;
     llama_context* ctx = nullptr;
     std::wstring path;
-    std::string family, device;
     int threads = 0, ctxTokens = 0, parallel = 0;
     Device want = Device::Auto;
     double loadMs = 0;
-    double lastUse = 0;
-    int idleSeconds = 300;
+    std::atomic<double> lastUse{0};
+    std::atomic<int> idleSeconds{300};
+    std::atomic<bool> ready{false};    // model + ctx in place (read without mu)
+    std::atomic<bool> loading{false};  // a load is running
+    std::atomic<uint64_t> epoch{0};    // bumped by a release: a load running then is dropped
+    std::mutex infoMu;                 // family / device: read while a generation runs
+    std::string family, device;
     // Sequence 0 holds the prompt prefix `resident` (nResident tokens); the
     // requests run in sequences 1..parallel, copied from it and removed after.
     std::string resident;
@@ -210,7 +319,9 @@ struct Shared {
     std::condition_variable cv;
     bool stop = false;
 
-    void freeLocked() {
+    void freeLocked(const char* why) {
+        const bool had = model != nullptr;
+        const double before = had ? processPrivateMB() : 0;
         prefixes.clear();
         resident.clear();
         nResident = 0;
@@ -218,7 +329,13 @@ struct Shared {
         if (model) api().llama_model_free(model);
         ctx = nullptr;
         model = nullptr;
-        device.clear();
+        ready = false;
+        std::string dev;
+        {
+            std::lock_guard lk(infoMu);
+            dev.swap(device);
+        }
+        if (had) trLog("info", "local AI released (%s): was on %s; process private memory %.0f -> %.0f MB", why, dev.c_str(), before, processPrivateMB());
     }
     void startWatcher() {
         if (watcherStarted) return;
@@ -227,7 +344,12 @@ struct Shared {
             std::unique_lock<std::mutex> l(mu);
             while (!stop) {
                 cv.wait_for(l, std::chrono::seconds(5));
-                if (model && idleSeconds > 0 && nowMs() - lastUse > idleSeconds * 1000.0) freeLocked();
+                const int idle = idleSeconds;
+                if (model && !loading && idle > 0 && nowMs() - lastUse > idle * 1000.0) {
+                    char w[48];
+                    std::snprintf(w, sizeof w, "idle for %d s", idle);
+                    freeLocked(w);
+                }
             }
         }).detach();
     }
@@ -251,20 +373,26 @@ int ctxFor(const Options& o) {
     return o.ctxTokens > 0 ? o.ctxTokens : 1024 + 384 * par;
 }
 
+// Options::idleSeconds; PM_LLM_IDLE_SECONDS overrides (tests of the release).
+int idleFor(const Options& o) {
+    const std::wstring e = envVar(L"PM_LLM_IDLE_SECONDS");
+    return e.empty() ? o.idleSeconds : _wtoi(e.c_str());
+}
+
 // Vulkan builds its compute pipelines on first use of each kernel / size
 // class (the driver caches them on disk, but the first picture after an
 // install or a driver update would wait seconds): run the batch sizes a
 // picture uses once, at load.
 std::vector<llama_token> tokenize(const llama_vocab* v, const std::string& text, bool addSpecial);
 
-void warmGpu(Shared& s) {
+void warmGpu(llama_model* model, llama_context* ctx, int ctxTokens, int parallel) {
     Api& a = api();
-    llama_memory_t mem = a.llama_get_memory(s.ctx);
-    const llama_vocab* vocab = a.llama_model_get_vocab(s.model);
+    llama_memory_t mem = a.llama_get_memory(ctx);
+    const llama_vocab* vocab = a.llama_model_get_vocab(model);
     std::vector<llama_token> t = tokenize(vocab, "warm up warm up warm up", false);
     if (t.empty()) return;
     for (int n : {1, 2, 4, 8, 16, 32, 64, 128, 512}) {
-        if (n > s.ctxTokens / 2) break;
+        if (n > ctxTokens / 2) break;
         llama_batch b = a.llama_batch_init(n, 0, 1);
         for (int i = 0; i < n; ++i) {
             b.token[i] = t[i % t.size()];
@@ -274,12 +402,12 @@ void warmGpu(Shared& s) {
             b.logits[i] = i == n - 1;
         }
         b.n_tokens = n;
-        a.llama_decode(s.ctx, b);
+        if (a.llama_decode(ctx, b) != 0) trLog("warn", "local AI: GPU warm-up decode of %d tokens failed", n);
         a.llama_batch_free(b);
         a.llama_memory_seq_rm(mem, 1, -1, -1);
     }
     // Several sequences in one batch (the parallel requests' generation steps).
-    const int k = std::min(s.parallel, 16);
+    const int k = std::min(parallel, 16);
     llama_batch b = a.llama_batch_init(k, 0, 1);
     for (int i = 0; i < k; ++i) {
         b.token[i] = t[0];
@@ -289,20 +417,20 @@ void warmGpu(Shared& s) {
         b.logits[i] = 1;
     }
     b.n_tokens = k;
-    a.llama_decode(s.ctx, b);
+    if (a.llama_decode(ctx, b) != 0) trLog("warn", "local AI: GPU warm-up decode of %d sequences failed", k);
     a.llama_batch_free(b);
     a.llama_memory_clear(mem, true);
 }
 
-bool loadLocked(Shared& s, const Options& o, std::wstring* err) {
-    Api& a = api();
-    if (!a.mod) {
-        if (err) *err = a.error;
-        return false;
-    }
+struct LoadCfg {
     std::wstring path;
     std::string family;
-    if (!o.modelFile.empty()) path = o.modelFile;
+    int threads = 0, nctx = 0, par = 0;
+    Device want = Device::Auto;
+};
+
+bool resolveCfg(const Options& o, LoadCfg& c, std::wstring* err) {
+    if (!o.modelFile.empty()) c.path = o.modelFile;
     else {
         const ModelInfo* m = o.modelId.empty() ? &activeModel() : findModel(o.modelId);
         if (!m) {
@@ -313,23 +441,73 @@ bool loadLocked(Shared& s, const Options& o, std::wstring* err) {
             if (err) *err = L"model " + fromUtf8(m->id) + L" is not installed";
             return false;
         }
-        path = modelPath(*m);
-        family = m->family;
+        c.path = modelPath(*m);
+        c.family = m->family;
     }
-    const int threads = o.threads > 0 ? o.threads : defaultThreads();
-    const int par = std::clamp(o.parallel, 1, 32), nctx = ctxFor(o);
-    s.lastUse = nowMs();
-    s.idleSeconds = o.idleSeconds;
-    if (s.model && s.path == path && s.threads == threads && s.ctxTokens == nctx && s.parallel == par && s.want == o.device)
-        return true;
-    s.freeLocked();
-    const double t0 = nowMs();
+    c.threads = o.threads > 0 ? o.threads : defaultThreads();
+    c.par = std::clamp(o.parallel, 1, 32);
+    c.nctx = ctxFor(o);
+    c.want = o.device;
+    return true;
+}
+
+bool matchesLocked(const Shared& s, const LoadCfg& c) {
+    return s.model && s.path == c.path && s.threads == c.threads && s.ctxTokens == c.nctx && s.parallel == c.par && s.want == c.want;
+}
+
+std::string fileName(const std::wstring& p) { return toUtf8(p.substr(p.find_last_of(L"\\/") + 1)); }
+
+// The model for o, loaded when it is not the one in place.  Blocks the caller
+// for its own load only (loadMu); mu is held for a moment at the end.
+// loadedNow: this call loaded it (else it was there / another call loaded it).
+bool ensureLoaded(Shared& s, const Options& o, std::wstring* err, bool* loadedNow = nullptr) {
+    if (loadedNow) *loadedNow = false;
+    Api& a = api();
+    if (!a.mod) {
+        if (err) *err = a.error;
+        return false;
+    }
+    LoadCfg c;
+    if (!resolveCfg(o, c, err)) return false;
+    s.idleSeconds = idleFor(o);
+    {
+        std::lock_guard l(s.mu);
+        if (matchesLocked(s, c)) {
+            s.lastUse = nowMs();
+            return true;
+        }
+    }
+    std::lock_guard ll(s.loadMu);
+    {
+        std::lock_guard l(s.mu);  // loaded by another caller meanwhile
+        if (matchesLocked(s, c)) {
+            s.lastUse = nowMs();
+            return true;
+        }
+    }
+    struct Busy {
+        std::atomic<bool>& f;
+        explicit Busy(std::atomic<bool>& x) : f(x) { f = true; }
+        ~Busy() { f = false; }
+    } busy(s.loading);
+    const uint64_t ep = s.epoch;
+    const double t0 = nowMs(), mem0 = processPrivateMB();
     WIN32_FILE_ATTRIBUTE_DATA fa{};
-    GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa);
+    GetFileAttributesExW(c.path.c_str(), GetFileExInfoStandard, &fa);
     const uint64_t bytes = (static_cast<uint64_t>(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
-    std::string devName;
-    ggml_backend_dev_t gpu = pickGpu(o.device, bytes, devName);
+    std::string devName, why;
+    ggml_backend_dev_t gpu = pickGpu(c.want, bytes, devName, why);
+    size_t vFree0 = 0, vTotal = 0;
+    if (gpu) a.ggml_backend_dev_memory(gpu, &vFree0, &vTotal);
+    const std::string backend = gpu ? std::string(a.ggml_backend_reg_name(a.ggml_backend_dev_backend_reg(gpu))) + " " +
+                                          a.ggml_backend_dev_name(gpu)
+                                    : std::string("CPU");
+    llama_model* model = nullptr;
+    llama_context* ctx = nullptr;
+    std::vector<std::string> lines;
+    std::string gpuFailed;
     for (int attempt = 0; attempt < 2; ++attempt) {
+        captureLlamaLog(true);
         ggml_backend_dev_t devs[2] = {gpu, nullptr};
         llama_model_params mp = a.llama_model_default_params();
         mp.devices = devs;                 // {nullptr}: no GPU at all
@@ -337,41 +515,88 @@ bool loadLocked(Shared& s, const Options& o, std::wstring* err) {
         mp.split_mode = LLAMA_SPLIT_MODE_NONE;
         mp.main_gpu = 0;
         mp.load_mtp = false;
-        s.model = a.llama_model_load_from_file(pathArg(path).c_str(), mp);
-        if (s.model) {
+        model = a.llama_model_load_from_file(pathArg(c.path).c_str(), mp);
+        if (model) {
             llama_context_params cp = a.llama_context_default_params();
-            cp.n_ctx = static_cast<uint32_t>(nctx);
+            cp.n_ctx = static_cast<uint32_t>(c.nctx);
             cp.n_batch = 2048;
             cp.n_ubatch = 512;
-            cp.n_seq_max = static_cast<uint32_t>(par + 1);
+            cp.n_seq_max = static_cast<uint32_t>(c.par + 1);
             cp.kv_unified = true;          // the requests share the prefix cells
-            cp.n_threads = threads;
-            cp.n_threads_batch = threads;
+            cp.n_threads = c.threads;
+            cp.n_threads_batch = c.threads;
             cp.no_perf = true;
-            s.ctx = a.llama_init_from_model(s.model, cp);
-            if (s.ctx) break;
-            a.llama_model_free(s.model);
-            s.model = nullptr;
+            ctx = a.llama_init_from_model(model, cp);
+            if (!ctx) {
+                a.llama_model_free(model);
+                model = nullptr;
+            }
         }
-        if (!gpu) break;
+        captureLlamaLog(false, &lines);
+        if (ctx || !gpu) break;
+        gpuFailed = devName;
+        trLog("warn", "local AI: %s (%s) could not load %s: trying the CPU", backend.c_str(), devName.c_str(), fileName(c.path).c_str());
         gpu = nullptr;  // the GPU failed (driver, memory): the CPU
         devName = "CPU";
+        why = "the GPU failed to load it";
     }
-    if (!s.ctx) {
-        if (err) *err = L"cannot load the model " + path;
+    if (!ctx) {
+        if (err) *err = L"cannot load the model " + c.path;
+        trLog("error", "local AI: cannot load %s (%.0f MB) on the %s", fileName(c.path).c_str(), bytes / 1048576.0,
+              gpuFailed.empty() ? "CPU" : "GPU or the CPU");
         return false;
     }
-    s.path = path;
-    s.threads = threads;
-    s.ctxTokens = nctx;
-    s.parallel = par;
-    s.want = o.device;
-    s.device = devName;
-    s.family = family.empty() ? toUtf8(familyFromArch(metaStr(s.model, "general.architecture"))) : family;
-    if (gpu) warmGpu(s);
-    s.loadMs = nowMs() - t0;
-    s.lastUse = nowMs();
-    s.startWatcher();
+    const double t1 = nowMs();
+    if (gpu) warmGpu(model, ctx, c.nctx, c.par);
+    const double t2 = nowMs();
+    size_t vFree1 = 0;
+    if (gpu) a.ggml_backend_dev_memory(gpu, &vFree1, &vTotal);
+    const std::string family = c.family.empty() ? toUtf8(familyFromArch(metaStr(model, "general.architecture"))) : c.family;
+    const int nLayer = a.llama_model_n_layer(model);
+    {
+        std::lock_guard l(s.mu);
+        if (s.epoch != ep) {  // released (settings changed / model removed) while loading
+            a.llama_free(ctx);
+            a.llama_model_free(model);
+            if (err) *err = L"the model was released while it loaded";
+            trLog("info", "local AI: load of %s dropped (released meanwhile)", fileName(c.path).c_str());
+            return false;
+        }
+        s.freeLocked("another model or other settings");
+        s.model = model;
+        s.ctx = ctx;
+        s.path = c.path;
+        s.threads = c.threads;
+        s.ctxTokens = c.nctx;
+        s.parallel = c.par;
+        s.want = c.want;
+        s.loadMs = t2 - t0;
+        s.lastUse = nowMs();
+        {
+            std::lock_guard lk(s.infoMu);
+            s.device = devName;
+            s.family = family;
+        }
+        s.ready = true;
+        s.startWatcher();
+    }
+    // Where it runs, for the log: the backend, the layers on the GPU (llama.cpp's own count), the memory.
+    std::string offload;
+    for (const auto& ln : lines)
+        if (ln.find("offloaded") != std::string::npos) offload = ln.substr(ln.find("offloaded"));
+    if (offload.empty()) offload = gpu ? "all " + std::to_string(nLayer) + " layers asked on the GPU" : "0/" + std::to_string(nLayer) + " layers on the GPU";
+    if (gpu)
+        trLog("info", "local AI loaded: %s (%s) on %s \"%s\": %s; threads %d, context %d, parallel %d; load %.0f ms + GPU warm-up %.0f ms; "
+              "VRAM free %.0f -> %.0f of %.0f MB; process private memory %.0f -> %.0f MB",
+              fileName(c.path).c_str(), family.c_str(), backend.c_str(), devName.c_str(), offload.c_str(), c.threads, c.nctx, c.par,
+              t1 - t0, t2 - t1, vFree0 / 1048576.0, vFree1 / 1048576.0, vTotal / 1048576.0, mem0, processPrivateMB());
+    else
+        trLog("info", "local AI loaded: %s (%s) on the CPU (%s): %s; threads %d, context %d, parallel %d; load %.0f ms; process private memory %.0f -> %.0f MB",
+              fileName(c.path).c_str(), family.c_str(), why.c_str(), offload.c_str(), c.threads, c.nctx, c.par, t1 - t0, mem0,
+              processPrivateMB());
+    for (const auto& ln : lines)
+        if (ln.find("buffer size") != std::string::npos) trLog("info", "local AI: %s", ln.c_str());
+    if (loadedNow) *loadedNow = true;
     return true;
 }
 
@@ -465,32 +690,38 @@ double LlmEngine::now() { return nowMs(); }
 
 void releaseModel() {
     Shared& s = shared();
+    ++s.epoch;  // a load running now is dropped when it ends
     std::lock_guard<std::mutex> l(s.mu);
-    s.freeLocked();
+    s.freeLocked("released");
 }
 
 void warmUp() {
     // Cheap and idempotent: one loader thread at a time, nothing when the
     // model is already loaded (then it only counts as a use: the idle
-    // release starts over).
+    // release starts over).  Never waits: neither for a load nor for a
+    // translation in progress.
     static std::atomic<bool> busy{false};
-    if (busy.load()) return;
-    {
-        Shared& s = shared();
-        std::unique_lock<std::mutex> l(s.mu, std::try_to_lock);
-        if (!l.owns_lock()) return;  // translating right now: loaded anyway
-        if (s.model) {
-            s.lastUse = nowMs();
-            return;
-        }
+    Shared& s = shared();
+    if (s.ready) {
+        s.lastUse = nowMs();
+        return;
     }
+    if (busy.load() || s.loading) return;
     const ModelInfo& m = activeModel();
-    if (!enabled() || !installed(m) || !memoryOk(m)) return;
+    if (!enabled() || !installed(m)) return;
+    if (!memoryOk(m)) {
+        MEMORYSTATUSEX ms{sizeof(ms)};
+        GlobalMemoryStatusEx(&ms);
+        trLog("warn", "local AI not preloaded: %llu MB free memory, %d + 1024 MB needed",
+              static_cast<unsigned long long>(ms.ullAvailPhys >> 20), m.ramMB);
+        return;
+    }
     if (busy.exchange(true)) return;
     std::thread([] {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
         LlmEngine e;
-        e.load();
+        std::wstring err;
+        if (!e.load(&err)) trLog("error", "local AI preload failed: %s", toUtf8(err).c_str());
         busy = false;
     }).detach();
 }
@@ -507,35 +738,33 @@ bool LlmEngine::runtimeAvailable(std::wstring* err) {
 
 bool LlmEngine::load(std::wstring* err) {
     Shared& s = shared();
-    std::lock_guard<std::mutex> l(s.mu);
-    const bool was = s.model != nullptr;
-    const bool ok = loadLocked(s, opt_, err);
-    if (ok && !was) stats_.loadMs = s.loadMs;
-    if (ok) stats_.device = s.device;
+    bool now = false;
+    const bool ok = ensureLoaded(s, opt_, err, &now);
+    if (ok && now) stats_.loadMs = s.loadMs;
+    if (ok) stats_.device = device();
     return ok;
 }
 
-bool LlmEngine::loaded() const {
-    Shared& s = shared();
-    std::lock_guard<std::mutex> l(s.mu);
-    return s.model != nullptr;
-}
+// These never wait for a load or a generation (0.8.3).
+bool LlmEngine::loaded() const { return shared().ready; }
+bool loadingNow() { return shared().loading; }
 
 void LlmEngine::unload() {
     Shared& s = shared();
+    ++s.epoch;
     std::lock_guard<std::mutex> l(s.mu);
-    s.freeLocked();
+    s.freeLocked("unloaded");
 }
 
 std::string LlmEngine::family() const {
     Shared& s = shared();
-    std::lock_guard<std::mutex> l(s.mu);
+    std::lock_guard<std::mutex> l(s.infoMu);
     return s.family;
 }
 
 std::string LlmEngine::device() const {
     Shared& s = shared();
-    std::lock_guard<std::mutex> l(s.mu);
+    std::lock_guard<std::mutex> l(s.infoMu);
     return s.device;
 }
 
@@ -553,11 +782,20 @@ bool LlmEngine::generate(const std::vector<PromptParts>& ps, const std::vector<i
     out.assign(ps.size(), std::string());
     if (cut) cut->assign(ps.size(), false);
     Shared& s = shared();
-    std::lock_guard<std::mutex> l(s.mu);
-    const bool was = s.model != nullptr;
-    if (!loadLocked(s, opt_, err)) return false;
-    stats_.loadMs = was ? 0 : s.loadMs;
-    stats_.device = s.device;
+    bool now = false;
+    std::unique_lock<std::mutex> l(s.mu, std::defer_lock);
+    for (int k = 0;; ++k) {
+        if (!ensureLoaded(s, opt_, err, &now)) return false;
+        l.lock();
+        if (s.model) break;
+        l.unlock();  // released in between (idle / settings): once more
+        if (k) {
+            if (err) *err = L"the model was released while starting";
+            return false;
+        }
+    }
+    stats_.loadMs = now ? s.loadMs : 0;
+    stats_.device = s.device;  // written under mu too
     Api& a = api();
     llama_memory_t mem = a.llama_get_memory(s.ctx);
     const llama_vocab* vocab = a.llama_model_get_vocab(s.model);
@@ -745,7 +983,7 @@ bool LlmEngine::generate(const std::vector<PromptParts>& ps, const std::vector<i
     stats_.promptTps = tPrompt > 0 ? promptTok * 1000.0 / tPrompt : 0;
     stats_.genTps = tGen > 0 ? genTok * 1000.0 / tGen : 0;
     s.lastUse = nowMs();
-    s.idleSeconds = opt_.idleSeconds;
+    s.idleSeconds = idleFor(opt_);
     return ok;
 }
 
@@ -758,12 +996,8 @@ bool LlmEngine::translate(const std::vector<TrRequest>& in, std::vector<std::wst
     for (const auto& rq : in)
         if (rq.budgetMs > 0) deadline = deadline > 0 ? std::min(deadline, t0 + rq.budgetMs) : t0 + rq.budgetMs;
     std::string fam;
-    {
-        Shared& s = shared();
-        std::lock_guard<std::mutex> l(s.mu);
-        if (!loadLocked(s, opt_, err)) return false;
-        fam = s.family;
-    }
+    if (!ensureLoaded(shared(), opt_, err)) return false;  // without mu: a load does not block other callers
+    fam = family();
     Stats sum;
     auto run = [&](const std::vector<size_t>& idx, const std::vector<TrRequest>& rqs, std::vector<std::string>& got,
                    std::vector<bool>& cut, bool strict) {
@@ -896,6 +1130,8 @@ LlmTranslator::LlmTranslator(Options o) : engine_(o) {
     }
 }
 
+bool LlmTranslator::loading() const { return loadingNow(); }
+
 bool LlmTranslator::supports(Lang src, Lang tgt, bool* direct) const {
     if (direct) *direct = true;
     const bool srcOk = src == Lang::Ja || src == Lang::Ko || src == Lang::En || src == Lang::ZhHans || src == Lang::ZhHant;
@@ -954,7 +1190,10 @@ bool LlmTranslator::translate(const std::vector<TrRequest>& in, std::vector<TrHy
     const double t0 = nowMs();
     if (engine_.options().modelId.empty() && engine_.options().modelFile.empty())
         id_ = std::string("llm-") + activeModel().id;  // the settings may have switched it
-    const bool ok = engine_.translate(in, tx, err);
+    std::wstring e;
+    const bool ok = engine_.translate(in, tx, &e);
+    if (!ok) trLog("warn", "local AI translation of %zu piece(s) failed: %s", in.size(), e.empty() ? "no answer" : toUtf8(e).c_str());
+    if (err) *err = e;
     const double each = in.empty() ? 0 : (nowMs() - t0) / in.size();
     out.assign(in.size(), TrHypothesis{});
     for (size_t i = 0; i < in.size() && i < tx.size(); ++i) {

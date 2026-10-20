@@ -24,6 +24,7 @@
 
 #include "../compat.h"
 #include "mdnsd.h"
+#include "pm_wake.h"
 
 #define MDNS_ADDR4 "224.0.0.251"
 #define MDNS_ADDR6 "ff02::fb"
@@ -67,6 +68,7 @@ struct mdnsd_s {
     int running;
     thread_handle_t thread;
     mutex_handle_t mutex;
+    pm_wake_t wake;  /* PM 0.8.3: stop wakes the thread (no 250 ms polling) */
     /* PM: multi-interface IPv4 */
     mdnsd_iface_t ifaces[MDNSD_MAX_IFACES];
     int n_ifaces;
@@ -1167,10 +1169,21 @@ static THREAD_RETVAL mdns_thread(void *arg)
                 max_fd = fd6;
             }
         }
+        /* PM 0.8.3: wait for a query or for mdnsd_stop() (wake socket);
+         * upstream woke every 250 ms to look at "running" */
+        if (mdnsd->wake.fd != -1) {
+            FD_SET(mdnsd->wake.fd, &rfds);
+            if (mdnsd->wake.fd > max_fd) {
+                max_fd = mdnsd->wake.fd;
+            }
+        }
         tv.tv_sec = 0;
         tv.tv_usec = 250000;
 
-        ret = select(max_fd + 1, &rfds, NULL, NULL, &tv);
+        ret = select(max_fd + 1, &rfds, NULL, NULL, mdnsd->wake.fd != -1 ? NULL : &tv);
+        if (ret > 0 && mdnsd->wake.fd != -1 && FD_ISSET(mdnsd->wake.fd, &rfds)) {
+            pm_wake_drain(&mdnsd->wake);
+        }
         if (ret > 0 && fd4 != -1 && FD_ISSET(fd4, &rfds)) {
             unsigned char buffer[MDNS_MAX_PACKET];
             struct sockaddr_in from;
@@ -1264,6 +1277,7 @@ mdnsd_t *mdnsd_init(const char *host_name)
     mdnsd->sock_fd4 = -1;
     mdnsd->sock_fd6 = -1;
     MUTEX_CREATE(mdnsd->mutex);
+    pm_wake_open(&mdnsd->wake);
     return mdnsd;
 }
 
@@ -1274,6 +1288,7 @@ void mdnsd_destroy(mdnsd_t *mdnsd)
     }
 
     mdnsd_stop(mdnsd);
+    pm_wake_close(&mdnsd->wake);
     MUTEX_DESTROY(mdnsd->mutex);
     free(mdnsd);
 }
@@ -1359,14 +1374,19 @@ void mdnsd_stop(mdnsd_t *mdnsd)
     }
     MUTEX_UNLOCK(mdnsd->mutex);
 
+    /* PM 0.8.3: join first, then close. The sockets were closed while the
+     * thread could still be in select()/recv() on them; the handle value could
+     * then be reused by another socket of the app (an RTP or mirror socket
+     * opened meanwhile) and the mDNS thread read that socket's packets. */
+    if (thread) {
+        pm_wake_signal(&mdnsd->wake);
+        THREAD_JOIN(thread);
+    }
     if (fd4 != -1) {
         CLOSESOCKET(fd4);
     }
     if (fd6 != -1) {
         CLOSESOCKET(fd6);
-    }
-    if (thread) {
-        THREAD_JOIN(thread);
     }
 }
 

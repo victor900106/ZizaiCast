@@ -456,6 +456,82 @@ so a glossary of ~50 common Japanese / Korean dishes and drinks now gives
 味噌拉麵, 大醬湯, 拌飯, 辣炒豬肉, 加點白飯 …; product names still go wrong
 (八ッ橋 → 哈希).
 
+## 0.8.3 — whole picture in 2–3 s with the local AI (load without the lock, preload, log, idle release)
+
+**What was wrong.** The owner saw 13 s for one 翻譯整個畫面 with 本機 AI on.
+The local AI model (llama.cpp, `llm_engine.cpp`) was loaded while holding
+the engine's only lock, and asking whether it was there (`installed()` →
+`loaded()`, `cost()` → `device()`) took the same lock: the picture's LLM
+step (`Escalator::runPending`) stood still until the load ended, then
+skipped the LLM anyway ("cold"). A load is ~1.6 s normally, but the first
+one after an install or a driver update builds the Vulkan pipelines
+(`warmGpu`, ~25–35 s here): that picture took 28.5–41.5 s. The app's own
+preload (`local_llm::warmUp`) was invisible to the escalator, so the first
+picture after a preload skipped the LLM too, and errors were dropped
+(`quietLog`, ignored `err`s).
+
+**Changes.**
+
+* Loading runs under its own `loadMu`; the new model is put in place under
+  the generation lock in a moment. `loaded()`, `device()`, `family()`,
+  `installed()`, `cost()` and the idle watcher never wait for a load; a
+  release during a load drops it (`epoch`). `ITranslator::ready()` /
+  `loading()`: a picture uses the LLM only when the model is in memory
+  (`skipped:loading` / `skipped:cold` otherwise) and never waits.
+* Preload: when a phone connects (`prewarmTranslation`: OCR + the last pair,
+  and the local AI when the last pictures were Japanese / Korean — the only
+  sources it is asked about; also with only the OCR models downloaded), when
+  本機 AI is turned on in its settings (as before), and right after a picture
+  that wanted it. No longer at the moment of 翻譯整個畫面: loading next to that
+  picture's OCR made the OCR 0.5 s slower and a first picture never had time
+  left for the LLM.
+* Log (`pm::translate::setLogHandler`, the app writes `translate: …` lines):
+  the runtime and every device ggml found; `local AI loaded: Qwen3.5-2B-Q4_K_M.gguf
+  (chatml) on Vulkan Vulkan0 "NVIDIA GeForce RTX 3060 Ti": offloaded 25/25
+  layers to GPU; threads 8, context 7168, parallel 16; load 1254 ms + GPU
+  warm-up 340 ms; VRAM free 7216 -> 4853 of 8024 MB; process private memory
+  231 -> 3594 MB` and llama.cpp's buffer sizes (model 1211 MiB on the GPU +
+  398 MiB mapped, KV 84, recurrent state 328, compute 513); on the CPU the
+  reason (`the GPU add-on (ggml-vulkan.dll) is not installed`, `not enough
+  free video memory (…)`, `the GPU is turned off in the settings`, a GPU
+  that failed to load it); llama.cpp's own warnings / errors; preload,
+  warm-up and translation failures; per picture `local AI on this picture:
+  2 piece(s) queued, 2 sent, 2 accepted, 0 skipped (time budget), 526 ms`;
+  the release with the memory; the prewarm result.
+* Idle release: as before after 5 minutes without requests (llama context +
+  model freed: RAM and video memory), now logged; `PM_LLM_IDLE_SECONDS`
+  overrides it for tests.
+
+**Measured** (2026-10-21, i7-13700K, RTX 3060 Ti, Qwen3.5-2B Q4_K_M on
+Vulkan, target 繁體中文; `py -3 translate/testdata/make_bench_083.py DIR`:
+ja_menu = Japanese menu app, en_web = English shop page, dense_web = dense
+Japanese news page, 1170x2532; `pm_tr_bench`, off-screen, one process at a
+time; before = 695e65c, after = 0.8.3). Total = from 翻譯整個畫面 to the
+final cards (incl. the LLM step).
+
+| Case | Picture | Before | After |
+|---|---|---|---|
+| First translation after an install / driver update (new Vulkan pipeline cache: the bench under a new exe name) | ja_menu | 41.5 s (first ever), 30.5, 28.5, 29.7 s | 3.0–3.7 s (lib only), 3.1 s (app) |
+| … | en_web / dense_web cold | — | 2.9 / 3.4 s (OCR's own DirectML first run: 2.3–2.4 s of it) |
+| App just started, translate at once (process cold, caches warm) | ja_menu / en_web / dense_web | 2.2–2.3 / 2.4–2.5 / 2.9–3.2 s | 1.75–2.2 / 1.85–1.9 / 2.2–2.95 s |
+| Phone connected first (preload, 8 s), then translate | ja_menu / en_web / dense_web | 0.48–0.59 (LLM skipped as "cold" though loaded) / 1.07–1.2 / 1.12–1.16 s | 1.1–1.25 (LLM used: 2 pieces accepted) / 1.16–1.22 / 1.15–1.46 s |
+| Warm (models loaded, a new picture) | ja_menu / en_web / dense_web | 0.46–1.59 (0.46: LLM skipped) / 0.93–1.15 / 0.95–1.21 s | 0.45–2.25 (0.45: model still loading, 2.1–2.25: the LLM fixes pieces) / 0.89–1.25 / 1.01–1.33 s |
+
+Memory of the process (private bytes / working set / its video memory by
+DXGI, after the three pictures): without the local AI 5.4 GB / 2.5 GB /
+1.74 GB (OCR on DirectML, three Bergamot pairs, the window); with it loaded
+8.2 GB / 3.9 GB / 3.9 GB, before and after alike (the model's GPU buffers
+are charged to the process' commit too). Idle release, before (300 s, no
+log line): 6381 → 3676 MB private, 2890 → 1545 MB working set, 3863 → 1718 MB
+VRAM; after (`PM_LLM_IDLE_SECONDS=60` in the test, 300 s by default): 6511 →
+3715 MB, 2990 → 1556 MB, 3873 → 1727 MB, logged. CPU only
+(`PM_LLM_GPU=off`): load 0.84–0.88 s, 1.99 GB private, released to 51 MB.
+
+Not changed: the OCR / Bergamot models stay loaded while the app runs (the
+1.7 GB of video memory left after the release is the OCR's DirectML and the
+window); the first OCR after an install still compiles its DirectML shaders
+(~1 s more).
+
 ## Known gaps
 
 * Brand / product names, uncommon dishes and ingredient lists go through

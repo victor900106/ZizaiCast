@@ -13,6 +13,8 @@
 #include "update/update.h"
 #include "menus/menus.h"
 #include "core/app/core_app.h"
+#include "view/ink.h"
+#include "connect/android_control.h"
 
 namespace pm_app {
 
@@ -155,8 +157,24 @@ void runCommand(UINT cmd) {
     case CmdRightClickBack:
     case CmdRightClickMenu: setRightClickMenu(cmd == CmdRightClickMenu); break;
     case CmdApplyNow: applyNow(); break;
+    case CmdInkToggle:
+    case CmdInkToolPen:
+    case CmdInkToolHighlighter:
+    case CmdInkToolArrow:
+    case CmdInkToolCycle:
+    case CmdInkColorCycle:
+    case CmdInkWidthCycle:
+    case CmdInkUndo:
+    case CmdInkClear:
+    case CmdInkInShots:
+    case CmdInkInRec: inkCommand(cmd); break;  // 0.8.3 簡報畫筆
+    case CmdAndClipSync:
+    case CmdAndScreenOff:
+    case CmdAndStayAwake:
+    case CmdAndUsb: androidControlCommand(cmd); break;  // 0.8.3 Android 操控
     default:
-        if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast)) remoteCommand(cmd);
+        if ((cmd >= CmdInkColor0 && cmd <= CmdInkColorLast) || (cmd >= CmdInkWidth0 && cmd <= CmdInkWidthLast)) inkCommand(cmd);
+        else if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast)) remoteCommand(cmd);
         else if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {
             const int k = static_cast<int>(cmd - CmdTrDeleteLang0);

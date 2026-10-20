@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 
 #include "util.h"
 
@@ -16,8 +17,11 @@ constexpr int kMaxConnections = 16;
 constexpr int kMaxPerPeer = 8;
 constexpr int kMaxLoopback = 24;  // the tunnel: every phone comes in as 127.0.0.1 (cloudflared)
 constexpr size_t kMaxHeaderBytes = 16 * 1024;
-constexpr size_t kMaxBodyBytes = 8 * 1024 * 1024;  // snapshot PNG upload; SDP is a few KB
+constexpr size_t kMaxBodyBytes = 8 * 1024 * 1024;  // snapshot PNG upload (tests); SDP is a few KB
+constexpr size_t kSmallBodyBytes = 64 * 1024;      // 0.8.3: every other request (before it is routed / checked)
 constexpr DWORD kTimeoutMs = 10000;
+constexpr ULONGLONG kRequestDeadlineMs = 10000;    // 0.8.3: the whole request (headers + body), not per recv()
+constexpr DWORD kWsReadTimeoutMs = 65000;          // 0.8.3: the page pings every 0.5 s (a hidden tab: throttled, still < 1 min)
 
 const char* reason(int s) {
     switch (s) {
@@ -224,6 +228,12 @@ bool HttpServer::start(const std::vector<Bind>& binds, uint16_t port, Handler h)
         listeners_.push_back(l);
     }
     stop_ = false;
+    // 0.8.3: the accept thread sleeps until a connection (or stop()) instead of waking every 200 ms.
+    wake_ = WSACreateEvent();
+    for (Listener& l : listeners_) {
+        l.ev = WSACreateEvent();
+        if (l.ev) WSAEventSelect(l.s, l.ev, FD_ACCEPT);
+    }
     acceptThread_ = std::thread([this] { acceptLoop(); });
     return true;
 }
@@ -235,11 +245,11 @@ std::vector<std::string> HttpServer::boundIps() const {
 }
 
 void HttpServer::stop() {
+    // 0.8.3: the accept thread first, then every connection (their threads use the
+    // listeners' Bind), and only then the listeners themselves.
     stop_ = true;
+    if (wake_) WSASetEvent(wake_);
     if (acceptThread_.joinable()) acceptThread_.join();
-    for (Listener& l : listeners_)
-        if (l.s != INVALID_SOCKET) closesocket(l.s);
-    listeners_.clear();
     {
         std::lock_guard<std::mutex> lk(cmu_);
         for (Conn& c : conns_)
@@ -248,6 +258,12 @@ void HttpServer::stop() {
     for (Conn& c : conns_)
         if (c.t.joinable()) c.t.join();
     conns_.clear();
+    for (Listener& l : listeners_) {
+        if (l.ev) WSACloseEvent(l.ev), l.ev = nullptr;
+        if (l.s != INVALID_SOCKET) closesocket(l.s);
+    }
+    listeners_.clear();
+    if (wake_) WSACloseEvent(wake_), wake_ = nullptr;
     if (wsa_) WSACleanup(), wsa_ = false;
 }
 
@@ -259,12 +275,13 @@ bool HttpServer::peerAllowed(uint32_t a, const Bind& b) {
 }
 
 void HttpServer::acceptLoop() {
+    std::vector<WSAEVENT> evs;
+    for (const Listener& l : listeners_)
+        if (l.ev) evs.push_back(l.ev);
+    if (wake_) evs.push_back(wake_);
     while (!stop_) {
-        fd_set rd;
-        FD_ZERO(&rd);
-        for (const Listener& l : listeners_) FD_SET(l.s, &rd);
-        timeval tv{0, 200 * 1000};
-        const int r = select(0, &rd, nullptr, nullptr, &tv);
+        // Wakes for a connection or stop(); every 30 s anyway (finished connections are reaped).
+        const DWORD r = evs.empty() ? (Sleep(200), WSA_WAIT_TIMEOUT) : WSAWaitForMultipleEvents(DWORD(evs.size()), evs.data(), FALSE, 30000, FALSE);
         {  // reap finished connections
             std::list<Conn> dead;
             {
@@ -278,13 +295,23 @@ void HttpServer::acceptLoop() {
             for (Conn& c : dead)
                 if (c.t.joinable()) c.t.join();
         }
-        if (r <= 0) continue;
+        if (stop_) break;
+        if (r == WSA_WAIT_TIMEOUT || r == WSA_WAIT_FAILED) {
+            if (r == WSA_WAIT_FAILED) Sleep(100);
+            continue;
+        }
         for (const Listener& l : listeners_) {
-            if (!FD_ISSET(l.s, &rd)) continue;
+            WSANETWORKEVENTS ne{};
+            if (!l.ev || WSAEnumNetworkEvents(l.s, l.ev, &ne) != 0 || !(ne.lNetworkEvents & FD_ACCEPT)) continue;
+            for (int pass = 0; pass < 64; ++pass) {  // every connection waiting on this listener
             sockaddr_in peer{};
             int plen = sizeof(peer);
             SOCKET s = accept(l.s, reinterpret_cast<sockaddr*>(&peer), &plen);
-            if (s == INVALID_SOCKET) continue;
+            if (s == INVALID_SOCKET) break;
+            // The accepted socket inherits the listener's event selection and non-blocking mode: undo both.
+            WSAEventSelect(s, nullptr, 0);
+            u_long blocking = 0;
+            ioctlsocket(s, FIONBIO, &blocking);
             char ip[INET_ADDRSTRLEN] = "?";
             inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
             if (!peerAllowed(peer.sin_addr.s_addr, l.bind)) {
@@ -340,6 +367,7 @@ void HttpServer::acceptLoop() {
                 }
                 c.done = true;
             });
+            }
         }
     }
 }
@@ -348,8 +376,11 @@ void HttpServer::serve(SOCKET s, const std::string& peer, const Listener& l) {
     std::string buf;
     char tmp[16384];
     size_t hdrEnd = std::string::npos;
+    // 0.8.3: one deadline for the whole request (a peer dripping a byte every 9 s
+    // used to hold a connection slot for as long as it liked).
+    ULONGLONG deadline = GetTickCount64() + kRequestDeadlineMs;
     while ((hdrEnd = buf.find("\r\n\r\n")) == std::string::npos) {
-        if (buf.size() > kMaxHeaderBytes || stop_) return;
+        if (buf.size() > kMaxHeaderBytes || stop_ || GetTickCount64() > deadline) return;
         const int k = recv(s, tmp, sizeof(tmp), 0);
         if (k <= 0) return;
         buf.append(tmp, size_t(k));
@@ -386,34 +417,77 @@ void HttpServer::serve(SOCKET s, const std::string& peer, const Listener& l) {
         if (c != std::string::npos) req.headers[lower(trim(line.substr(0, c)))] = trim(line.substr(c + 1));
         lineEnd = next;
     }
+    // Where it came from (before the body: the body limit may depend on it).
+    if (req.tunnel) {
+        // Through a tunnel the socket peer is cloudflared / tailscaled on this PC: the
+        // phone's own address is in a header. 0.8.3: only the header that relay itself
+        // sets is believed (a client can send any header, the relay adds / overwrites
+        // its own): cloudflared (外網連結 on 127.0.0.1, or the fixed link's cloudflared
+        // fallback) -> CF-Connecting-IP; Tailscale Funnel (the fixed link) -> the LAST
+        // X-Forwarded-For entry (earlier ones are whatever the client sent).
+        const bool viaCf = !req.fixed || fixedViaCf_.load();
+        std::string ip;
+        if (viaCf) {
+            if (auto it = req.headers.find("cf-connecting-ip"); it != req.headers.end()) ip = ipText(it->second);
+        } else if (auto x = req.headers.find("x-forwarded-for"); x != req.headers.end()) {
+            const std::string& v = x->second;
+            const size_t c = v.rfind(',');
+            ip = ipText(trim(c == std::string::npos ? v : v.substr(c + 1)));
+        }
+        req.peer = ip.empty() ? (req.fixed ? "funnel" : "tunnel") : ip;
+    }
     size_t clen = 0;
     if (auto it = req.headers.find("content-length"); it != req.headers.end()) clen = size_t(atoll(it->second.c_str()));
-    if (clen > kMaxBodyBytes) return reply({413, "text/plain", "too large"});
+    // 0.8.3: a big body only where the handler allows it for this very request
+    // (routed and checked first: the tests' snapshot upload); 64 KB everywhere else.
+    const size_t limit = bodyLimit_ ? std::min(kMaxBodyBytes, bodyLimit_(req)) : kSmallBodyBytes;
+    if (clen > limit) return reply({413, "text/plain", "too large"});
+    // A big body (an upload piece) gets 10 s + 1 s per 32 KB (a link down to ~256 kbps).
+    if (clen > kSmallBodyBytes) deadline = GetTickCount64() + 10000 + ULONGLONG(clen / 32768) * 1000;
     req.body = buf.substr(hdrEnd + 4);
     while (req.body.size() < clen) {
+        if (stop_ || GetTickCount64() > deadline) return;
         const int k = recv(s, tmp, sizeof(tmp), 0);
         if (k <= 0) return;
         req.body.append(tmp, size_t(k));
     }
     req.body.resize(std::min(req.body.size(), clen));
-    if (req.tunnel) {
-        // Through the tunnel the socket peer is cloudflared (127.0.0.1): the
-        // phone's own address is in CF-Connecting-IP (set by Cloudflare's edge).
-        auto it = req.headers.find("cf-connecting-ip");
-        std::string ip = it != req.headers.end() ? ipText(it->second) : std::string();
-        if (ip.empty())  // Tailscale Funnel: the client is the LAST X-Forwarded-For entry (earlier ones are the client's own)
-            if (auto x = req.headers.find("x-forwarded-for"); x != req.headers.end()) {
-                const std::string& v = x->second;
-                const size_t c = v.rfind(',');
-                ip = ipText(trim(c == std::string::npos ? v : v.substr(c + 1)));
-            }
-        req.peer = ip.empty() ? (req.fixed ? "funnel" : "tunnel") : ip;
-    }
     Response r;
     try {
         r = handler_(req);
     } catch (...) {
         r = {500, "text/plain", "error"};
+    }
+    if (!r.file.empty()) {  // 0.8.3: a download, streamed in 1 MB pieces
+        HANDLE f = CreateFileW(r.file.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+        LARGE_INTEGER size{};
+        if (f == INVALID_HANDLE_VALUE || !GetFileSizeEx(f, &size)) {
+            if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
+            return reply({404, "text/plain", "file gone"});
+        }
+        std::string ascii, pct;
+        for (unsigned char c : r.fileName) {
+            ascii += (c >= 0x20 && c < 0x7F && c != '"' && c != '\\') ? char(c) : '_';
+            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_') pct += char(c);
+            else {
+                char h[4];
+                snprintf(h, sizeof(h), "%%%02X", c);
+                pct += h;
+            }
+        }
+        const std::string hdr = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " + std::to_string(size.QuadPart) +
+                                 "\r\nContent-Disposition: attachment; filename=\"" + ascii + "\"; filename*=UTF-8''" + pct +
+                                 "\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n";
+        bool ok = sendAll(s, hdr.data(), hdr.size());
+        std::vector<char> chunk(1 << 20);
+        for (int64_t left = size.QuadPart; ok && left > 0 && !stop_ && req.method != "HEAD";) {
+            DWORD got = 0;
+            if (!ReadFile(f, chunk.data(), DWORD(std::min<int64_t>(left, int64_t(chunk.size()))), &got, nullptr) || got == 0) break;
+            ok = sendAll(s, chunk.data(), got);
+            left -= got;
+        }
+        CloseHandle(f);
+        return;
     }
     if (r.websocket) {
         auto up = req.headers.find("upgrade"), key = req.headers.find("sec-websocket-key");
@@ -422,13 +496,21 @@ void HttpServer::serve(SOCKET s, const std::string& peer, const Listener& l) {
         const std::string out = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " +
                                 wsAccept(key->second) + "\r\n\r\n";
         if (!sendAll(s, out.data(), out.size())) return;
-        DWORD none = 0;  // a long-lived connection: no read timeout (the page pings every 500 ms)
-        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&none), sizeof(none));
+        // A long-lived connection: the page pings every 0.5 s (throttled to <= 1 / min hidden)
+        // (0.8.3; 0.8.2 had no read timeout: a silent peer held the slot for ever).
+        DWORD wsTo = kWsReadTimeoutMs;
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&wsTo), sizeof(wsTo));
         BOOL nodelay = TRUE;
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&nodelay), sizeof(nodelay));
         WsConn ws(s);
         ws.peer = req.peer;
-        r.websocket(ws);
+        try {
+            r.websocket(ws);
+        } catch (const std::exception& e) {
+            logf("http: WebSocket handler failed: %s", e.what());
+        } catch (...) {
+            logf("http: WebSocket handler failed");
+        }
         ws.close();
         return;
     }

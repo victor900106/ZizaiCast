@@ -95,6 +95,25 @@ std::wstring why = pm::MiracastReceiver::unsupportedReason(); // "" = supported
   `pm::AudioPlayer`, so the recorder's PCM tap does not see it (recordings of
   Android casts are video-only until an audio frame server path is added) and
   the app's mute/volume must call `rx.setVolume()`.
+* **Frozen picture (0.8.3)**: a watchdog thread (asleep unless a cast
+  plays, then every 500 ms) feeds the `FramePump` counters to
+  `miracast::FreezeDetector` (`src/freeze_detector.h`, pure):
+  no picture for 10 s (15 s before the first one), or pictures arriving
+  (`VideoFrameAvailable`) but none reaching the window for 3 s, or
+  `MediaFailed` / `MediaEnded` (both were not connected before 0.8.3 — a
+  failed player froze the window silently) → **retry**; retries back off:
+  the next check waits 2, 4, 8 s. Retry 1 = `MediaPlayer.Play()` again;
+  retry 2+ = a new MediaPlayer on the same `MediaSource` after
+  `MediaSource.Reset()` (the window keeps the last picture, no
+  `onReset`). Still frozen after 3 retries → `Disconnect(AppSpecificError)`,
+  `onDisconnected`, `onStatus(Idle,
+  「Android 投影的畫面凍結，重試後仍沒有畫面，已中斷這次投影；請在手機上重新投放。」)`.
+  Pictures for 10 s after a retry forget the count. A media source that
+  cannot be played at all → the cast is disconnected with
+  「無法播放手機傳來的投影畫面，已中斷這次投影；請在手機上重新投放。」 (it used to
+  stay Connecting until the phone gave up). Thresholds are deliberately
+  long: whether every phone keeps sending pictures of a static screen is
+  not verified (no Miracast-capable phone/PC pair here).
 * UIBC (sending PC keyboard/mouse back to the phone): the API only exposes
   `MiracastReceiverConnection.InputDevices` (keyboard / game-controller
   transmit flags that Windows drives itself, and few phones request UIBC).
@@ -205,6 +224,7 @@ user to use USB instead).
 
 ```
 pm_miracast_test --status
+pm_miracast_test --selftest
 pm_miracast_test --listen [--name 自在投影] [--seconds N]
 pm_miracast_test --file sample.mp4 [--seconds N] [--snapshot out.png] [--no-crop]
 ```
@@ -213,6 +233,13 @@ pm_miracast_test --file sample.mp4 [--seconds N] [--snapshot out.png] [--no-crop
   takeover / current settings`. Exit 0 = supported, 2 = not.
 * `--listen`: real receiver with a VideoWindow, logs every status/connection
   event with timestamps. Cast from a phone.
+* `--selftest` (0.8.3): offline checks, no window / sound / Miracast:
+  the FreezeDetector decisions (healthy cast never retried; frozen at 20 s →
+  retries at 30 / 32 / 36 s, gives up at 44 s; recovery forgets the count;
+  stuck pipeline → retry after 3 s; MediaFailed → at once; no first picture →
+  15 s). 11 checks, all passing (2026-10-21). On this PC `--status` now
+  reports `WiFiStatus=1` (NotSupported), so the receiver itself could not
+  be started.
 * `--file`: plays a local file through the exact same `FramePump`
   (MediaPlayer frame server → ring → `submitBgraFrame`) and prints frame
   counts, drop count, crop rectangle, MF-thread copy cost and read-back

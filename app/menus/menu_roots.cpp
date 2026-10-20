@@ -9,6 +9,7 @@
 #include "connect/connect.h"
 #include "view/view.h"
 #include "menus/menus.h"
+#include "view/ink.h"
 
 namespace pm_app {
 
@@ -70,6 +71,7 @@ std::vector<MenuItem> contextMenuItems() {
     if (remoteAvailable()) v.push_back(remoteItem());  // 遠端操控 ▸ (0.8.0)
     v.push_back(MenuItem::submenu(tr(S::MenuView), kIcoDisplay, viewItems()));
     v.push_back(magnifierItem());
+    v.push_back(inkMenuItem());  // 0.8.3 簡報畫筆 ▸
     v.push_back(MenuItem::submenu(tr(S::MenuTranslateSub), kIcoTranslate, translateItems()));
     v.push_back(MenuItem::separator());
     v.push_back(MenuItem::submenu(tr(S::MenuAndroidSub), kIcoPhone, androidItems()));

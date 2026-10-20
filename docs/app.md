@@ -264,7 +264,9 @@ opened, and Shift+right click is undiscoverable.
   and pulsing dot; 放大鏡 > 1×, 翻譯 and 凍結 get an accent disc + ring.
 * The window follows the picture's orientation: the shape comes from
   `VideoWindow::desiredClientAspect` (after 畫面 rotation, with the frame),
-  polled every 300 ms; a portrait/landscape flip swaps the client
+  polled every 300 ms (`kOrientationTimer`, **0.8.3: only while a picture or a held last
+  frame is showing**: started by the first non-idle `WM_PM_STATE`, it kills itself on its
+  next tick once the state is idle again, so an idle program has no such wake-up); a portrait/landscape flip swaps the client
   width/height around the window centre. After a 畫面 change by the user
   (rotate / reset / frame toggle) the window is fitted to the exact aspect,
   keeping its long side (shrunk to fit the work area). Not while fullscreen /
@@ -992,7 +994,12 @@ filter stays (settings.ini `filter=`).
   `ScreenTranslator::Item::online` get a 「線上」 badge (card corner, list
   row; `VideoWindow::setTextOverlayOnline`), and a new `online::lastStatus()`
   failure is a toast once. Turning screen translation on calls
-  `local_llm::warmUp()`.
+  `local_llm::warmUp()`; 0.8.3: so does a phone connecting
+  (`prewarmTranslation`, for users who translated before: OCR + the last
+  pair + the local AI model, in the background), and
+  `pm::translate::setLogHandler` sends pm_translate's lines (local AI
+  backend / GPU layers / memory, release, engine errors) to the log file as
+  `translate: …`.
 * **Toolbar** (new group after 全螢幕, only with a picture): 放大鏡 (U+E71E,
   click 1× → 2× → 4× → 1×, toggled while zoomed, tooltip with the zoom),
   翻譯 (U+E8C1, translate / close, toggled while a translation is up), 凍結
@@ -1066,3 +1073,131 @@ Changes:
   right-click menu), next steps in TrNoText, TrDeclined, TrFailed,
   TrDownloadFailed, AndroidGone, RecStartFail, ShareFileGone; 顏色 caption;
   TitlePausedFrozen 「畫面已凍結」.
+
+## 外殼組 0.8.3 (shell: terms, experimental rows, log, timer, installer, screenshots)
+
+* **Terms (four languages, one meaning each).** 固定網址 / fixed address / 固定アドレス / 고정 주소 =
+  the always-there Tailscale Funnel address (常駐外網 / Always-on access / 常時外部接続 / 상시 외부 접속 is the
+  switch that keeps it on at every start). 臨時網址 / temporary address / 一時アドレス / 임시 주소 = the Cloudflare
+  one that is new every time (免安裝外網 / No-app / アプリ不要 / 앱 없이 외부 is the tab and feature name).
+  "link" is kept for what the 傳到手機 panel creates, and for nothing in the remote strings. Remote panel's
+  copy link is now 複製網址 / Copy address (`RemoteFixedCopy`; toast `RemoteCopied`). The tray menu's remote
+  submenu is 遠端控制設定 (`MenuRemoteSub`) so it no longer repeats the 遠端控制 ✓ row above it. EN 新功能 label
+  "Fixed" is "Bug fix" (it read like 固定). `remote/web/index.html` (the phone page) has its own four-language
+  table that the 遠端組 owns: its words were not changed.
+* **Experimental rows: only with Shift held when a menu opens** (`experimentalItemsVisible()` in
+  `app/view/options.cpp`; menus are built when they open). Inventory of what is experimental today:
+  1. 設定 ▸ 實驗：只提供螢幕鏡像（不當 AirPlay 喇叭） (`airplay_advertise_audio`, A/B test 0.7.6): the only row;
+     before 0.8.3 it was also always shown in `--dev`; now `PM_SHIFT_MENU=1` (`--dev` only) stands for the key in
+     scripted shots. It also stays visible while the experiment is on, so it can be turned off. Its row and toasts are
+     now in the string table (`ExpAudioOnly`, `ExpOnAfter`, `ExpOffAfter`, `ExpOn`, `ExpOff`; they were zh-TW + English literals).
+  2. Not in any menu (settings.ini only): `mirror_quick_ack` (low-latency ACKs), `airplay_volume_control` /
+     `airplay_audio_status` (iOS volume bar A/B, 0.7.10.1), 影音同步 (`avSync`, no menu since 0.3.1).
+  3. Checked and *not* experimental (documented, tested features, left in the menus): 免安裝外網 (cloudflared),
+     本機 AI 翻譯 / 線上翻譯（選用） (already inside 翻譯 ▸ 進階翻譯設定), 外面的新手機也要電腦按允許.
+* **phonemirror.log rotation.** Used to be checked once at start (8 MB, one `.old.log`). Now `pm_app::Log` counts
+  bytes and rotates while running: over 4 MB -> `phonemirror.old.log`, `.old2.log`, `.old3.log` (the oldest is
+  deleted): at most 4 files, 16 MB. First-run Android pairing scan (`settings androidPaired`) reads all four.
+  Tested with a 14 MB write loop (3 old files of 4.2 MB + the current one) and a restart with an over-limit file.
+* **Orientation timer** (see *Live toolbar*). `tools/idle_wakeups.ps1 -Exe <exe> [-Seconds 50]` starts its own offscreen
+  `--dev` instance (own data folder, remote off, nothing sent, nothing played) and reads the UI thread's cumulative
+  context switches (`Win32_PerfRawData_PerfProc_Thread`, threads that own the process's windows) twice, N s apart.
+  Idle, no phone, 3 runs of 50 s: **before 8.35 / 8.69 / 8.96 wake-ups/s, after 0.03 / 0.03 / 0.03** (the 300 ms timer is
+  3.3 of them; the rest went with it: followOrientation's work per tick). The whole process still shows ~125-195
+  context switches/s in both builds, from its other threads (not touched here).
+* **Installer** (`installer/zizai.iss`): compiled with ISCC (all four languages, LZMA off, stub cloudflared folder): ok.
+  Upgrade path read through: `/UPDATE` waits up to 30 s for the mutex then runs `[Run]` with the same arguments; the
+  other languages' top-level shortcuts / readme / guide are removed by `[InstallDelete]` (checked name by name for
+  all four); the Run-key autostart entry is repointed after an upgrade and removed on uninstall; the app's private adb
+  is stopped. `ChineseTraditional.isl` (Inno 6.1) lacked 23 messages that 6.5's Default.isl has (extraction, download,
+  signature, retry dialog): added in zh-TW (`MissingMessagesWarning=no` had hidden it). Japanese.isl / Korean.isl are
+  the official ones (missing: only `HelpTextNote`, a console-only text). `AppVersion` was left at 0.8.2.1 on shell-fix; the release
+  step (rel-083) bumped it to 0.8.3. Not run: a real install / upgrade (it would write the owner's real uninstall entry and Start menu).
+* **Tutorial screenshots.** `tools/shell_shots.mjs` (own `--dev --test-offscreen --demo-branding` instance, own data and
+  TEMP folder, `PM_REMOTE_DRYRUN`; the tailscale CLI and cloudflared are never run: `PM_REMOTE_FUNNELFAKE`,
+  `PM_REMOTE_SHOWLAN` / `_SHOWTS`, and the new `PM_REMOTE_TUNNELFAKE=<url>` which shows the temporary-address panel for a
+  made-up address) and `tools/embed_shots_083.mjs` (figures 1-5, 7, 9, 10 of the 遠端控制 section in the four guides).
+  Only 203.0.113.x and `example` hosts appear (before: 192.168.0.10, your-pc.your-tailnet.ts.net, a real one-time
+  tunnel link in the QR). Figures 6 and 8 are the phone's own page (no address) and were kept. `launch/` has no remote
+  screenshot; its images were looked at (demo-branded, no address, no IP).
+
+### 測試順手修 (found while testing; fixed)
+
+* EN tab 「No-app acce…」 was cut off (my own rename to "No-app access" overflowed the tab): the tab is "No-app".
+* The tray / right-click menu had two rows called 遠端控制 (the ✓ switch and the submenu): the submenu is 遠端控制設定
+  (Remote control settings / リモート操作の設定 / 원격 제어 설정).
+* 日本語 / 한국어: 「常時外部接続（PC を起動すれば外から使える）」 / 「상시 외부 접속(PC를 켜면 밖에서 접속 가능)」 wrapped
+  with one orphan syllable under the checkbox: shortened.
+* EN 「Always on for outside access」 named the same switch differently from the menu 「Always-on access」: one name.
+* The remote panel's copy link said 複製連結 / リンクをコピー / 링크 복사 while the card said 複製網址: unified
+  (and the toast).
+* 日本語 / 한국어 menus showed the experimental row and its toasts in Chinese: now translated.
+* EN 新功能 label 「Fixed」 (= bug fix) next to 「fixed address」: 「Bug fix」.
+* Not fixed, noted: with Wi-Fi + Tailscale + 固定網址 on, the status line under the switch wraps to a second line in
+  zh-TW (…等待手機 / 連線), ja, ko, EN; the card grows with it, nothing is cut off.
+
+## 0.8.3 新功能組 (feat-ux): 簡報畫筆, 拖檔到視窗, Android 操控, iPhone 剪貼簿
+
+The new UI strings (69, four languages) are in the string tables (the 0.8.3
+feat-ux section at the end of `include/pm/i18n_strings*.inc`; on the branch they
+were `app/strings_083_pending.inc`). The AndroidSource calls of droid-fix
+(`setClipboardSync`, `pushFile`, `installApk`, `setPhoneScreenOn`,
+`setStayAwake`, `connectUsb`) are its real implementation (rel-083; the branch
+used stubs).
+
+* **簡報畫筆** (`app/view/ink.*`; drawing in video/, docs/video.md
+  *Presentation ink*): toolbar 畫筆 next to 截圖 / 錄影 (with a picture); in
+  ink mode the view buttons make room for 工具 (筆 → 螢光筆 → 箭頭), 顏色 (disc;
+  紅 黃 藍 綠 白 黑), 粗細 (disc; 細 中 粗), 復原, 清除. Context menu 畫筆 ▸:
+  畫筆模式 ✓ (Ctrl+E), the tools / colours / thicknesses as radio items, 復原上一筆
+  (Ctrl+Z), 全部清除 (Ctrl+Shift+E), 截圖包含筆跡 ✓, 錄影包含筆跡 ✓ (both on by
+  default). Keys (`inkKey`, before the video window): Ctrl+E, Ctrl+Shift+E,
+  Ctrl+Z (in ink mode, or strokes on a picture that is not an Android
+  phone's: otherwise the phone's undo as before), Esc ends ink mode (before
+  its fullscreen / phone meaning). None of F11, Ctrl+D/T/S/R/F/L/K/P changed.
+  Toasts 「畫筆模式：…（Esc 結束）」 (Android: 「滑鼠暫停操控手機」), 「已結束畫筆
+  （筆跡保留…）」, 「筆 · 紅 · 中」 after a style change (picking a style turns
+  ink mode on). Picture gone or another phone in the window: ink mode off,
+  strokes cleared (`inkSyncPicture`). settings.ini `ink_tool`, `ink_color`,
+  `ink_width`, `ink_in_screenshots`, `ink_in_recordings`. 快速鍵一覽 lists the
+  keys. DevCommand ids 400–419 (`CmdInk*`).
+* **拖檔到視窗** (`app/share/drop.*`, an `IDropTarget` + `IDropTargetHelper`
+  registered on the window after `OleInitialize`): while files are over the
+  window it says what a drop does (`VideoWindow::setDropHint`): Android over
+  wireless debugging → 「放開以安裝 App」 (all .apk) / 「放開以傳到手機」 / 「放開以
+  安裝 App／傳到手機」 + 「直接傳到「name」」; otherwise 「放開以傳到手機」 + 「手機掃
+  QR 碼就能下載」; folders only → 「只能拖檔案進來（資料夾不行）」 (no drop
+  effect). The drop is handled after the source's DoDragDrop returns
+  (`WM_PM_DROP`). Android: one file at a time, `.apk` → `installApk`, else
+  `pushFile`; 「正在安裝：name…」 / 「正在傳到手機：name…」, then 「已安裝」 /
+  「已傳到手機」 or 「安裝失敗 / 傳送失敗：name（msg）」 (the callbacks are posted
+  to the UI thread); the phone gone meanwhile → the rest by QR. iPhone / iPad /
+  Miracast / no phone: added to the running 傳到手機 page (`Server::addFile`,
+  a toast 「已加入傳到手機：…」) or a new page with them (≤ 50, 「一次最多 50 個
+  檔案…」), and its QR panel opens.
+* **Android 操控** (`app/connect/android_control.*`, 連接手機 ▸ caption 「Android
+  操控」): 剪貼簿同步 ✓ (default on), 操控時關掉手機螢幕 ✓, 連線期間不休眠 ✓ — handed
+  to AndroidSource when an Android phone starts mirroring and at once when
+  toggled while one is live (toast 「…：開」 / 「…：關（下次連線 Android 時套用）」);
+  用 USB 線連線 runs `connectUsb()` on a worker thread (「正在用 USB 線連線…」, no
+  phone → 「找不到 USB 線上的 Android 手機…」; a phone that comes up arrives as
+  the usual onConnected), note 「手機要開「USB 偵錯」」. settings.ini
+  `android_clipboard_sync`, `android_screen_off`, `android_stay_awake`.
+  DevCommand ids 430–433.
+* **iPhone 剪貼簿**: the 傳到手機 page's 「電腦剪貼簿」 card, see docs/share.md.
+* **Dev hooks** (`app/core/app/dev_083.cpp`): 975 menu_ink.png /
+  menu_android.png, 976 the drop hint for `PM_DROP_TEST` ("a|b|c"; lp 0
+  hides), 977 drops those files, 978 logs the ink state; `PM_DROP_FAKE_OK=1`
+  (`--test-source android`): made-up successes; `PM_CLIP_TEST`: the page's
+  clipboard text in `--test-offscreen`. Off-screen scripts used for the
+  screenshots: `build-ux-test/` (not in git).
+* **Cost** (2026-10-21, RTX 3060 Ti, off-screen `--dev --test-offscreen
+  --test-no-network`, process CPU in % of one core, GPU = the process's GPU
+  Engine counters; 695e65c vs feat-ux): idle screen settled — CPU median
+  0.08 % vs 0.08 % (9 runs each, 20–40 s; range 0.00–0.35 / 0.04–0.55), GPU 0
+  vs 0; live 1280x720@30 test feed, no ink — CPU median 5.5 % vs 4.4 % (4 × 30
+  s; ranges overlap: run-to-run noise), GPU 5.1–5.2 % vs 5.1–5.2 %; with 3
+  strokes and ink mode on, not drawing — CPU median 5.7 %, GPU 5.2–5.3 %; ink
+  mode off, strokes kept — 4.8 %, GPU 5.2 %. No strokes and ink mode off: one
+  atomic load per frame, no 2D pass, no timer; strokes are a cached bitmap
+  (one DrawBitmap per frame), nothing animates.

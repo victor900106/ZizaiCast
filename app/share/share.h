@@ -28,9 +28,19 @@ std::vector<fs::path> unsentCaptures();
 size_t unsentCount();
 void openSharePanel();
 void addToLive(const std::vector<fs::path>& files, bool showPanel);
-bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds = 0, bool showPanel = true);
+// clipboard (0.8.3): 1 = the page offers the PC clipboard (a share the owner opened), 0 = not
+// (started by itself: an automatic send), -1 = as the share it replaces (network rebind).
+bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds = 0, bool showPanel = true,
+                  int clipboard = 1);
 void checkShareNetwork(bool force = false);
 void sendViaQr(const std::vector<fs::path>& files, bool showPanel);
+
+// ---- share/share_clip.cpp (0.8.3 電腦剪貼簿 on the page)
+void shareClipOn();
+void shareClipOff();
+bool shareClipActive();
+std::wstring shareClipText();
+void onClipboardUpdate();  // WM_CLIPBOARDUPDATE
 
 // ---- share/share_push.cpp
 void queuePush(const std::vector<fs::path>& files);

@@ -12,6 +12,7 @@
 #include "log.h"
 #include "pm/i18n.h"
 #include "renderer_internal.h"
+#include "ink_layer.h"
 
 namespace pm::video {
 
@@ -281,7 +282,9 @@ void Renderer::drawPicture(ID3D11RenderTargetView* rtv, const D3D11_VIEWPORT& vp
 }
 
 bool Renderer::snapshot(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed) {
-    return renderPicture(out, w, h, framed, mirror_);
+    // 簡報畫筆 (0.8.3): the strokes go into saved screenshots while 截圖包含筆跡 is on
+    // (never into grab(): OCR reads the phone's own picture).
+    return renderPicture(out, w, h, framed, mirror_, ink_ && !ink_->empty() && ink_->inShots());
 }
 
 bool Renderer::grab(std::vector<uint8_t>& out, UINT& w, UINT& h, bool mirror) {
@@ -291,7 +294,7 @@ bool Renderer::grab(std::vector<uint8_t>& out, UINT& w, UINT& h, bool mirror) {
 }
 
 // The shown picture, unzoomed and unfiltered (snapshots, OCR).
-bool Renderer::renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror) {
+bool Renderer::renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool framed, bool mirror, bool ink) {
     if (!(havePicture_ || (frozenOn_ && frozen_.valid())) || !shown().valid()) return false;
     int dw = 0, dh = 0;
     displaySize(dw, dh);
@@ -327,7 +330,7 @@ bool Renderer::renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool f
     D3D11_VIEWPORT vp{o, o, static_cast<float>(dw), static_cast<float>(dh), 0, 1};
     drawPicture(rtv.Get(), vp, shown(), View{}, mirror);  // same shader as on screen: identical colours
     ctx_->OMSetRenderTargets(0, nullptr, nullptr);
-    if (framed && d2d_) {
+    if ((framed || ink) && d2d_) {
         ComPtr<IDXGISurface> surf;
         ComPtr<ID2D1RenderTarget> rt;
         auto props = D2D1::RenderTargetProperties(
@@ -335,7 +338,17 @@ bool Renderer::renderPicture(std::vector<uint8_t>& out, UINT& w, UINT& h, bool f
             D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
         if (FAILED(tex.As(&surf)) || FAILED(d2d_->CreateDxgiSurfaceRenderTarget(surf.Get(), &props, &rt))) return false;
         rt->BeginDraw();
-        drawDeviceFrame(rt.Get(), g, 1.f);
+        if (ink) {  // 簡報畫筆: the strokes on the picture (unzoomed, with its rotation / mirror), under the frame
+            const D2D1_RECT_F pr{o, o, o + dw, o + dh};
+            float a = ink_->aspect();
+            if (a <= 0) a = (rot_ & 1) ? static_cast<float>(dh) / dw : static_cast<float>(dw) / dh;
+            float ax, ay;
+            InkLayer::axes(a, ax, ay);
+            rt->PushAxisAlignedClip(pr, D2D1_ANTIALIAS_MODE_ALIASED);
+            ink_->draw(rt.Get(), d2d_.Get(), inkMatrix(ax, ay, rot_, mirror, View{}, pr));
+            rt->PopAxisAlignedClip();
+        }
+        if (framed) drawDeviceFrame(rt.Get(), g, 1.f);
         if (FAILED(rt->EndDraw())) return false;
     }
     ctx_->CopyResource(staging.Get(), tex.Get());

@@ -36,7 +36,9 @@ void setClientSizeCentred(HWND h, int cw, int ch) {
     const int w = want.right - want.left, hgt = want.bottom - want.top;
     int x = (win.left + win.right) / 2 - w / 2, y = (win.top + win.bottom) / 2 - hgt / 2;
     MONITORINFO mi{sizeof(mi)};
-    if (GetMonitorInfoW(MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST), &mi)) {
+    // --dev --test-offscreen: the window stays where it was put (off the desktop); the
+    // clamp would pull it onto the nearest monitor at the first orientation change.
+    if (!g.testOffscreen && GetMonitorInfoW(MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST), &mi)) {
         const RECT& wa = mi.rcWork;
         x = (std::max)(static_cast<int>(wa.left), (std::min)(x, static_cast<int>(wa.right) - w));
         y = (std::max)(static_cast<int>(wa.top), (std::min)(y, static_cast<int>(wa.bottom) - hgt));

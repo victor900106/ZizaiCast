@@ -1,10 +1,12 @@
 # Android source (`android/`) — 無線鏡像 + 控制 Android 手機
 
 `pm_android` (static lib) mirrors an Android phone to the PC and lets the
-mouse/keyboard control it, scrcpy-style, over Wi-Fi only. The PC shows a QR
-code; the phone scans it in 開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置
-(Android 11+). After the first pairing the phone reconnects automatically
-whenever 無線偵錯 is on and it is on the same LAN.
+mouse/keyboard control it, scrcpy-style, over Wi-Fi or (0.8.3) a USB cable.
+The PC shows a QR code; the phone scans it in 開發人員選項 → 無線偵錯 → 使用
+QR 圖碼配對裝置 (Android 11+). After the first pairing the phone reconnects
+automatically whenever 無線偵錯 is on and it is on the same LAN. With a
+cable, `connectUsb()` uses the phone's 「USB 偵錯」 instead (any Android
+version adb supports, no pairing).
 
 ## How it works
 
@@ -29,6 +31,12 @@ whenever 無線偵錯 is on and it is on the same LAN.
   (tests use 15098/15099). All children — including the adb server daemon
   they fork — live in a kill-on-close job object: if 自在投影 exits or
   crashes, adb goes with it; `~AndroidSource` also runs `adb kill-server`.
+  **Idle shutdown (0.8.3)**: the server is stopped (`adb kill-server`) when
+  no phone is connected / mirroring and nothing used adb for 15 s; every
+  path that needs adb starts it again (~2 s). While it is stopped, the
+  app's periodic reconnect scan first asks our own mDNS browser whether any
+  phone advertises `_adb-tls-connect._tcp` and only then starts adb (every
+  5th such scan is a full one with adb's mDNS anyway). Numbers below.
   `ADB_MDNS_OPENSCREEN=1` (built-in mDNS, no Bonjour), `ADB_MDNS_AUTO_CONNECT=0`
   (we connect explicitly → one transport per phone, serial = `ip:port`).
   adb's RSA key is the normal per-user `%USERPROFILE%\.android\adbkey`, so a
@@ -48,7 +56,17 @@ whenever 無線偵錯 is on and it is on the same LAN.
   L"123456")` → same flow from `adb pair`.
 * **Reconnect** (`connectKnownDevices`): reuses an adb transport still in
   `device` state, else browses `_adb-tls-connect._tcp` for 6 s and
-  `adb connect`s each phone found; only paired phones accept.
+  `adb connect`s each phone found; only paired phones accept. A transport
+  adb still lists after the phone left the network (`offline`, or
+  `already connected` to a dead one) is `adb disconnect`ed and connected
+  once more — before 0.8.3 such a zombie made every reconnect fail until
+  the adb server restarted.
+* **USB** (`connectUsb`, 0.8.3): `adb devices -l`, a serial without `:`
+  (not `emulator-…`) in `device` state → same `connected()` path as Wi-Fi
+  (name, `onConnected`, `start()`). `unauthorized` → State Connecting
+  「請在手機上允許 USB 偵錯（勾選「一律允許這部電腦」再按「允許」）」, waits up to
+  30 s; no USB phone for 3 s → Idle 「沒有找到用 USB 連接的手機…」. Every
+  later step (`push`, `forward`, the server, transfers) uses `-s <serial>`.
 * **mDNS browser** (`mdns.cpp`): IPv4 on every up, multicast-capable
   interface. Standard queries from a shared `:5353` socket (SO_REUSEADDR,
   joined to 224.0.0.251 per interface) + legacy-unicast queries from an
@@ -63,10 +81,14 @@ whenever 無線偵錯 is on and it is on the same LAN.
   port); `adb shell CLASSPATH=… app_process / com.genymobile.scrcpy.Server
   5.0 scid=… log_level=info audio_codec=aac max_size=1920
   video_bit_rate=8000000 max_fps=60 tunnel_forward=true
-  clipboard_autosync=false` (server log lines → `log` as `[server] …`; the
-  server deletes its jar on exit). Connect video socket and wait for the
-  dummy byte (adb accepts before the server listens; up to 100×100 ms), then
-  audio + control sockets; read the 64-byte device name.
+  clipboard_autosync=true` (+ `stay_awake=true keep_active=true` with
+  `setStayAwake(true)`; built by `android_internal::serverArgs`; server log
+  lines → `log` as `[server] …`; the server deletes its jar on exit).
+  Connect video socket and wait for the dummy byte (adb accepts before the
+  server listens; exponential backoff 20 ms → 400 ms, ≤ 15 s), then audio +
+  control sockets; read the 64-byte device name. If the server exits during
+  start-up, the error is its own `[server] ERROR:` line in plain words
+  (「投影啟動失敗：…」), not "cancelled".
 * **Stream protocol** (scrcpy v5, `scrcpy_proto.cpp`, incremental parser):
   codec id (4 bytes BE: `h264`, `aac`, 0 = disabled by device, 1 = config
   error), then 12-byte headers. MSB set = *session packet* (video size
@@ -88,12 +110,86 @@ whenever 無線偵錯 is on and it is on the same LAN.
   Android keycode table: letters, digits, F1–F12, arrows, Enter, Backspace →
   DEL, Delete → FORWARD_DEL, Home/End, PgUp/PgDn, Esc, Tab, punctuation,
   numpad, volume, media). `pressBack/Home/AppSwitch` = keycodes 4/3/187.
-  The control socket's device→PC messages are drained and ignored
-  (clipboard sync off).
-* **End of stream**: video socket EOF → session torn down on the worker
-  (sockets closed, server killed if still alive, forward removed),
-  `VideoSink::onReset()`, `AudioSink::onFlush()`, state Idle 「手機連線中斷」,
-  `onDisconnected()`.
+  Device→PC messages on the control socket are parsed (`DeviceMsgParser`:
+  CLIPBOARD, ACK_CLIPBOARD, UHID_OUTPUT; the socket is always drained).
+* **Clipboard sync** (0.8.3, `setClipboardSync`, default on): phone → PC:
+  every device CLIPBOARD message (server `clipboard_autosync=true`) is
+  written to the PC clipboard (CF_UNICODETEXT through a hidden
+  message-only window, `clipboard.cpp`). PC → phone: the PC clipboard
+  sequence number is checked every 500 ms while mirroring; a change is sent
+  as `SET_CLIPBOARD` (paste = false) **only once the user controls the
+  phone** (a click / key / nav button since `start()`); while only watching
+  nothing leaves the PC. Ctrl+V on the mirror = `SET_CLIPBOARD` with paste
+  (the phone pastes the PC clipboard); Ctrl+C / Ctrl+X = `GET_CLIPBOARD`
+  with COPY / CUT (the copied text comes back as a device message). Our own
+  writes are remembered (text + sequence) so nothing is echoed back. Off:
+  device messages are ignored and nothing is sent (works at once both ways:
+  the server always autosyncs, the filter is ours).
+* **Phone screen** (`setPhoneScreenOn(false)`): `SET_DISPLAY_POWER(0)` to
+  the running session (and to every later one while it stays off); the
+  picture keeps streaming. `stop()` sends `SET_DISPLAY_POWER(1)` and waits
+  until the control writer has written it (`Session::drainControl`, ≤ 0.5 s)
+  before closing the sockets. When the connection is lost instead, the
+  server's own cleanup process on the phone (`CleanUp`, scrcpy v5) switches
+  the panel back on.
+* **Stay awake** (`setStayAwake(true)`): server options `stay_awake=true`
+  (`stay_on_while_plugged_in`, effective while charging / on USB) +
+  `keep_active=true` (simulated user activity, works on Wi-Fi). The
+  server's cleanup restores the previous `stay_on_while_plugged_in` on exit,
+  also when the connection drops. Changing it while mirroring restarts the
+  server in place (~2 s gap in the picture, no events).
+* **Stalled stream / crashed server** (0.8.3): a monitor on the worker
+  (every 500 ms while a session runs) watches the last video packet (scrcpy
+  repeats the last frame every 100 ms, so silence is never normal):
+  1.5 s → `RESET_VIDEO` (the server restarts capture); 3 s (12 s before the
+  first frame) → the session is restarted. A video EOF / stream error while
+  adb still answers (`adb shell echo pm-alive`, ≤ 3 s) is handled the same
+  way. Restart = new scrcpy-server on the **same sinks**, no
+  `onReset`/state change/event, backoff 0.5 / 1 / 2 s (≤ 4 s), 3 tries per
+  minute of good streaming; then State Error with the reason +
+  `onDisconnected`. (The app's own 6 s no-picture watchdog may still win
+  over a slow restart; it then calls `stop()`.)
+* **Capture failure** (encoder / screen capture died on the phone: video
+  codec id 1, or `[server] ERROR: Capture/encoding error…`): one restart,
+  then State Error 「手機無法錄製畫面（視訊編碼器失敗），請再試一次；若一再發生，請重新啟動手機」
+  + `onDisconnected()` — no reconnect loop (not a connection problem).
+  Audio that the phone cannot capture (codec 0 = Android < 11, codec 1 /
+  `Audio … error`) → `Events::onNotice` once per session (「這支手機的
+  Android 版本低於 11，投影沒有聲音」 / 「手機的聲音無法擷取，這次投影沒有聲音」);
+  a `SecurityException` / `INJECT_EVENTS` error → onNotice with the
+  Xiaomi 「USB 偵錯（安全性設定）」 hint.
+* **Phone gone** (EOF or stall and adb does not answer): session torn
+  down (sockets closed, server killed, forward removed),
+  `VideoSink::onReset()`, `AudioSink::onFlush()`, State Idle 「手機連線中斷」,
+  `onDisconnected()`; then the reconnect loop: State Connecting
+  「手機連線中斷，正在重新連線（第 n 次）…」, attempts after 1, 2, 4, 8, 16,
+  30, 30, 30 s (±20 % jitter), each: probe → `adb disconnect` the dead
+  transport → `adb connect ip:port` → mDNS for the same IP with a new port
+  (無線偵錯 toggled) for 3 s; USB: wait for the serial to return. Success →
+  `onConnected` (the app calls `start()` as for any reconnect); after the
+  8th → Idle 「手機連線中斷，重新連線失敗（請確認手機的無線偵錯或 USB 偵錯仍開啟）」.
+  `stop()`, a pairing or `connectKnownDevices()` cancels the loop.
+* **Retries** all use `android::Backoff` (`backoff.h`: base·2ⁿ capped,
+  ±20 % deterministic jitter): reconnect loop, in-place restarts, adb
+  device polling (100 → 800 ms), the scrcpy socket connect, USB polling.
+* **Send files** (`pushFile`, 0.8.3): FIFO on one transfer thread (shared
+  with `installApk`). Name = the PC file name, characters Android's shared
+  storage refuses (`\ / : * ? " < > |`, controls) → `_`; taken
+  (`ls -d`) → 「name (1).ext」…; `adb push <file> /sdcard/Download/<name>`
+  (timeout 60 s + 1 s per 256 KB, ≤ 30 min); progress = the phone-side size
+  (`stat -c %s`, once a second) → `log` `pushFile progress 37% (… KB)`, and
+  the transfer rate at the end; then MediaProvider `scan_file` so the Files
+  app lists it. `done(true, 「已傳送到手機的 Download 資料夾：<name>」)`, or a
+  plain reason (「手機的儲存空間不足」, 「手機連線中斷，無法傳送」, 「傳送逾時…」…).
+* **Install APK** (`installApk`): `.apk` only (`.apks/.xapk/.aab` → 「這是分割
+  安裝包…」); `adb install -r <file>` (timeout 3 min + 1 s per 256 KB);
+  success = exit 0 + `Success` → 「已安裝到手機：<file>」; else
+  `explainInstallFailure`: INSTALL_FAILED_VERSION_DOWNGRADE, UPDATE_INCOMPATIBLE
+  / signatures, INSUFFICIENT_STORAGE, OLDER_SDK, DEPRECATED_SDK_VERSION,
+  NO_MATCHING_ABIS, MISSING_SPLIT, INVALID_APK / PARSE_FAILED, USER_RESTRICTED
+  (Xiaomi 「USB 安裝」), ABORTED / CANCELED, VERIFICATION_FAILURE (Play Protect),
+  DUPLICATE_PERMISSION, TEST_ONLY, … → one sentence each; timeout → 「安裝逾時：
+  請看手機畫面，是否在等你按「安裝」或「允許」」; unknown → 「安裝失敗：<code>」.
 
 ## API (`android/include/pm/android_source.h`)
 
@@ -114,6 +210,20 @@ the UI thread.
 | `stop()` | synchronous teardown → Idle |
 | `sendPointer / sendKey / press*` | non-blocking, ignored unless mirroring |
 | `pushToGallery(path, done)` | 傳到手機: `adb push` to `/sdcard/Pictures/ZizaiCast/` (videos: `Movies/ZizaiCast/`, ASCII name `ZizaiCast_…`), then MediaProvider `scan_file`, the `MEDIA_SCANNER_SCAN_FILE` broadcast, a `content query` check and `scan_volume` if still not listed; own thread, one at a time; false without a connected phone / file / while busy. `galleryPath(name)` = the phone path. Details and fake-adb tests: docs/share.md |
+| `setClipboardSync(on)` (0.8.3) | default on; phone→PC always, PC→phone only after the user controlled the phone; Ctrl+V / Ctrl+C / Ctrl+X as above |
+| `pushFile(path, done)` (0.8.3) | → `/sdcard/Download/<name>`; `done(ok, msg)` on the transfer thread |
+| `installApk(path, done)` (0.8.3) | `adb install -r`; `done(ok, msg)` with a plain reason on the transfer thread |
+| `setPhoneScreenOn(on)` (0.8.3) | SET_DISPLAY_POWER now and for later sessions; on again at `stop()` / by the server's cleanup |
+| `setStayAwake(on)` (0.8.3) | `stay_awake` + `keep_active` for the next server (restart in place while mirroring); restored by the server |
+| `connectUsb()` (0.8.3) | like `connectKnownDevices()` for the USB device: Connecting → `onConnected`; false if not init / busy |
+| `events.onNotice(text)` (0.8.3) | something to tell the user while mirroring goes on (no audio, permission hint) |
+
+**Threads of the 0.8.3 callbacks**: `pushFile` / `installApk` call `done`
+exactly once, on one internal transfer thread (FIFO), never inside the
+call and never with a lock of `AndroidSource` held — `PostMessage` it to the
+UI thread. Queued transfers are cancelled by the destructor
+(`done(false, 「已取消」)`, same thread). `onNotice`, like all events, comes
+from internal threads.
 
 Errors → `State::Error` with a zh-TW detail (e.g. 「配對失敗：…」,
 「等候逾時：沒有偵測到手機掃描 QR 圖碼」). App wiring: `setPointerHandler →
@@ -139,7 +249,42 @@ and `scrcpy::kServerVersion`.
 
 ## Tests (no phone): `build-android\bin\Release\pm_android_test.exe [--live-mdns N]`
 
-195 checks, all passing (2026-10-07):
+0.8.3 (2026-10-21): `pm_android_test --no-adb --no-mdns --no-window` → **319
+checks, all passing** (5 runs of the new section in a row, no flake);
+`--only-083` runs just the new parts (+5 checks without `--no-mdns`). New:
+
+* backoff (doubling, cap, ±20 % jitter bounds);
+* GET_CLIPBOARD / SET_CLIPBOARD (incl. the 256 KiB limit, UTF-8-safe) /
+  SET_DISPLAY_POWER / RESET_VIDEO bytes = scrcpy v5.0's own test vectors;
+  device messages (clipboard incl. 「手機」, ack, uhid) in 1/2/7-byte and
+  whole chunks, bad type / oversize rejected;
+* the plain-language tables (install codes, push errors, server lines),
+  Download names (`測試 檔案.txt`, `a:b*c?.pdf`, numbering), shell quoting,
+  server arguments;
+* **AndroidSource against a fake phone**: `pm_android_fake_adb` scripted by
+  files (`offline`, `devices.txt`, `push_fail`, `install_result`,
+  `server_error`, …) and its `forward` pointing at an in-test fake
+  scrcpy-server on 127.0.0.1 (video + audio + control): mirroring; phone →
+  PC clipboard; PC → phone **not** sent while only watching, sent after a
+  click, never echoed; sync off both ways; screen off → `[10,0]`, `stop()` →
+  `[10,1]` as the last message, re-applied to the next session; stall →
+  RESET_VIDEO → restart without `onDisconnected`; server crash → restart;
+  stay-awake → restart with `stay_awake=true keep_active=true`; Wi-Fi lost
+  → Idle 手機連線中斷 → attempts 1, 2, 3 with growing gaps (e.g. +296 /
+  +1188 / +1562 ms with the test's 300 ms base) → `adb disconnect` of the dead
+  transport → back to Mirroring; gone for good → 「…重新連線失敗…」 after 4;
+  `stop()` cancels the loop; capture error → one restart → Error
+  「手機無法錄製畫面…」, no reconnect; `pushFile` with a Unicode name taken →
+  「測試 檔案 (1).txt」, progress logged, then install OK / downgrade / not an
+  APK / disk full, all five `done` on one non-caller thread in order; USB
+  unauthorized → prompt text → device → mirroring with `-s R5CT123ABC`; no
+  USB phone → Idle; adb idle shutdown (start → stop after idle → start on
+  demand → kept while a phone is connected → stopped after `stop()`); the
+  periodic scan with adb stopped and no phone advertising does not start adb.
+  Clipboard = an in-memory backend (never the real one), no window, no
+  sound, loopback only.
+
+Before 0.8.3 — 195 checks, all passing (2026-10-07):
 
 * control messages byte-identical to scrcpy v5.0's own
   `test_control_msg_serialize.c` vectors (keycode, text + 300-byte UTF-8-safe
@@ -171,7 +316,27 @@ and `scrcpy::kServerVersion`.
 
 Not testable without a phone: the real pairing handshake, the phone's mDNS
 records, scrcpy-server on a device, H.264/AAC from MediaCodec in
-VideoWindow/AudioPlayer, touch accuracy and keyboard on Android.
+VideoWindow/AudioPlayer, touch accuracy and keyboard on Android, and for
+0.8.3: real clipboard text in both directions (incl. Android 10+ clipboard
+restrictions), `SET_DISPLAY_POWER` / `keep_active` on real panels, the
+server cleanup restoring the screen / stay-on after a cable pull or Wi-Fi
+loss, real `adb install` failure texts per brand, USB driver / RSA prompt,
+and whether a phone whose screen times out keeps sending repeated frames
+(if not, the stall restart wakes it: scrcpy's `power_on` default).
+
+## adb server idle cost — before / after (0.8.3)
+
+Measured on this PC (24 logical CPUs, Windows 11 26300), adb 1.0.41
+(platform-tools r37.0.1) on a private port, no phone attached
+(`build-droid\measure_adb_idle.ps1`, `measure_after.ps1` with
+`pm_android_test --measure-idle 40`):
+
+| | before (≤ 0.8.2: server up for the whole app lifetime) | after (0.8.3) |
+|---|---|---|
+| adb server while idle | 17.9 MB working set (7.0 MB private), 10 threads, 253 handles, 31 ms CPU per minute (0.05 % of one core), wakes all the time | **none** 15 s after the last use: 0 MB, 0 threads, 0 CPU |
+| app started, never paired / auto-reconnect off | server from start to exit | server ~17 s (warm-up + 15 s), then gone |
+| paired, idle, auto-reconnect scan every 45 s, no phone around | server always up | adb not started by the scans (our mDNS finds no phone); every 5th scan (~4 min) a full adb scan (~2 s start + 6 s + 15 s) |
+| cost of starting it again | — | ~2.1 s until `start-server` returns, ~130 ms CPU |
 
 ## Owner test procedure (needs the phone)
 
@@ -207,7 +372,22 @@ asked (private network).
    `pm_android_demo.exe --code <IP:port shown> <6-digit code>`.
 
 Please send back the console output (it includes adb and `[server]` lines)
-on any failure. Known limits: Android 10 and older have no Wi-Fi pairing
-(needs a USB cable once — not supported); audio needs Android 11+; some
+on any failure. Known limits: Android 10 and older have no Wi-Fi pairing —
+connect them with a USB cable instead (`connectUsb()`, 「USB 偵錯」 on, allow
+the PC on the phone; same mirroring and control, Windows may need the
+phone maker's USB driver); audio needs Android 11+; some
 phones (Xiaomi/MIUI) also need 「USB 偵錯（安全性設定）」 enabled for touch/
-key input; 無線偵錯 turns itself off when the phone changes Wi-Fi.
+key input (and 「USB 安裝」 for `installApk`); 無線偵錯 turns itself off when
+the phone changes Wi-Fi.
+
+10. **USB (0.8.3)**: plug the phone in, 開發人員選項 → **USB 偵錯** on, call
+    `connectUsb()` (app menu from feat-ux) → the phone asks 「允許 USB 偵錯？」
+    → check 「一律允許這部電腦」 → 允許 → mirroring as over Wi-Fi.
+11. **0.8.3 extras** while mirroring: copy text on the phone → paste on the
+    PC; click the mirror once, copy on the PC → paste on the phone (Ctrl+V on
+    the mirror); screen off → phone panel dark, picture continues; 中斷連線 →
+    panel on again; pull the cable / turn Wi-Fi off with the screen off →
+    the panel must come back on by itself; stay awake on → the phone does
+    not lock while mirroring, and its screen timeout is as before after
+    disconnecting; send a file → in 「檔案」 → Download; install an APK (also
+    an older version of an installed app → the downgrade sentence).

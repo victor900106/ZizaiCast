@@ -99,14 +99,14 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
 
   Outside (recommended): fixed address + a password you choose (the address never changes; nothing to install on the phone)
     1. The first time, set a password on the PC, at least 8 characters (it can only be set on the PC).
-    2. Tick "Always on for outside access, so it works from the moment the PC starts".
+    2. Tick "Always-on access (works from the moment the PC starts)".
     3. Open the fixed address on the phone and enter the password.
     4. Add the page to the Home Screen (the icon is called "Zizai Remote"):
        iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "menu" -> "Add to Home screen".
     5 wrong passwords in a row lock sign-in for 15 minutes.
   Outside (Tailscale): install Tailscale from https://tailscale.com/download on the PC and the phone, sign in with the same account,
     turn remote control off and on, scan the QR code on the "Tailscale" page. On mobile data "Sharp" uses about 10 Mbps (about 4 GB an hour): pick "Smooth".
-  Outside (temporary address): Remote control window > "Temporary address" > "Get the link"; scan the QR code
+  Outside (temporary address): Remote control window > "No-app" tab > "Get a temporary address"; scan the QR code
     (works once), enter the 6-digit passcode; someone at the PC must click "Allow". The address (from cloudflared,
     trycloudflare.com) is new every time. Do it once next to the PC before you go.
 
@@ -131,7 +131,7 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   Troubleshooting:
     - No sound: tap "Turn on sound" on the page (always on iPhone); check the page's volume isn't 0%; turn Windows mute off.
     - Can't connect: at home use the same Wi-Fi (AP isolation / guest network, Windows Firewall or a VPN block it); for the fixed
-      address check the PC is on, signed in, Tailscale is running and "Always on for outside access" is ticked; after 5 wrong passwords wait 15 minutes.
+      address check the PC is on, signed in, Tailscale is running and "Always-on access" is ticked; after 5 wrong passwords wait 15 minutes.
     - Forgot the password: reset it on the PC in the "Remote control" tab (it can't be reset from the phone).
 
 [Phone mirroring] FAQ

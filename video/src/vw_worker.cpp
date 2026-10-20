@@ -26,6 +26,10 @@ void VideoWindow::Impl::deliverTaps(bool all) {
                 st.framesTapped++;
                 if (tapMs.size() < kMaxStatSamples) tapMs.push_back(static_cast<float>(cost));
             }
+            // 簡報畫筆 (0.8.3): 錄影包含筆跡 -- the strokes burnt into the tapped picture
+            // (the renderer's own read-back buffer; only the strokes' bounding box is touched).
+            if (!ink.empty() && ink.inRec())
+                ink.blendNv12(const_cast<uint8_t*>(d), w, h, stride, ren.d2dFactory());
             (*fn)(d, w, h, stride, pts);
         },
         all);
@@ -37,6 +41,7 @@ void VideoWindow::Impl::workerMain(std::promise<bool>& ready) {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_LITE);
+    ren.setInk(&ink);  // 簡報畫筆 (0.8.3): the strokes the UI thread edits
     bool ok = initGraphics();
     if (ok) {
         const auto& art = ren.mascotArt();
@@ -99,6 +104,8 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     int toolHover = -2;
     std::optional<std::vector<video::Renderer::Action>> actions;
     std::optional<std::vector<std::wstring>> hints;
+    std::optional<std::wstring> inkBadge;
+    std::optional<std::pair<std::wstring, std::wstring>> dropHint;
     std::optional<std::vector<video::Renderer::Card>> cards;
     int linkHover = -2;
     std::vector<video::Renderer::Option> opts;
@@ -170,6 +177,8 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
         mClick = std::exchange(mascotClickReq, false);
         tapCh = std::exchange(tapChanged, false);
         hints = std::exchange(hintsReq, std::nullopt);
+        inkBadge = std::exchange(inkBadgeReq, std::nullopt);  // 0.8.3 簡報畫筆
+        dropHint = std::exchange(dropHintReq, std::nullopt);  // 0.8.3 拖檔到視窗
         cards = std::exchange(cardsReq, std::nullopt);
         actions = std::exchange(actionsReq, std::nullopt);
         linkHover = std::exchange(linkHoverReq, -2);
@@ -264,6 +273,8 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
             decCodec = c;
             // eagerly: MFT creation costs ~100 ms, keep it off the first frame
             if (!deviceLost) openDecoder();
+        } else if (decoderMissing && !deviceLost) {
+            openDecoder();  // PM 0.8.3: a new stream: try a decoder that failed to open again
         } else {
             dec.flush();
         }
@@ -313,6 +324,14 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     takeBgra();  // after the reset: "reset, then a new source" shows it
     if (hints) {
         ren.setHints(std::move(*hints));
+        paint = true;
+    }
+    if (inkBadge) {
+        ren.setInkBadge(std::move(*inkBadge));
+        paint = true;
+    }
+    if (dropHint) {
+        ren.setDropHint(std::move(dropHint->first), std::move(dropHint->second));
         paint = true;
     }
     if (cards) {
@@ -519,6 +538,7 @@ void VideoWindow::Impl::loop() {
             continue;
         }
         setStage(StOther);
+        if (ren.takeInkDropped()) inkDroppedByPicture();  // 簡報畫筆: the phone turned, its strokes went
         notePresent(presentedPicture);
         publishOptionRects();
         if (ren.tapPending()) {  // previous pictures: their GPU work is long done

@@ -862,7 +862,16 @@ raop_ntp_thread(void *arg) {
                 wait_time.tv_nsec -= 1000000000LL;
             }
         }
-        pthread_cond_timedwait(&raop_ntp->wait_cond, &raop_ntp->wait_mutex, &wait_time);
+        /* PM 0.8.3: raop_ntp_stop() sets running = 0 and then signals under
+         * wait_mutex; a signal sent while this thread was still in its 300 ms
+         * recv was lost and stop() waited up to 3 s for the join (takeover,
+         * TEARDOWN, disconnect, relaunch). Check under wait_mutex first. */
+        MUTEX_LOCK(raop_ntp->run_mutex);
+        int pm_still_running = raop_ntp->running;
+        MUTEX_UNLOCK(raop_ntp->run_mutex);
+        if (pm_still_running) {
+            pthread_cond_timedwait(&raop_ntp->wait_cond, &raop_ntp->wait_mutex, &wait_time);
+        }
         MUTEX_UNLOCK(raop_ntp->wait_mutex);
         ntpcount = ntpcount > NTP_BURST_LIMIT ? NTP_BURST_LIMIT : ntpcount;
     }

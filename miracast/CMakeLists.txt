@@ -7,6 +7,7 @@ add_library(pm_miracast STATIC
   include/pm/miracast_receiver.h
   src/frame_pump.h
   src/frame_pump.cpp
+  src/freeze_detector.h
   src/miracast_receiver.cpp
   src/wireless_display.h
   src/wireless_display.cpp

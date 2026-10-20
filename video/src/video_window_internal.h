@@ -70,6 +70,7 @@ constexpr int kWdMinFeeds = 8;           // ... although at least this many AUs 
 constexpr double kWdBackoffMs = 10000;   // later attempts in the same episode
 constexpr double kOccludedPresentMs = 100;  // present rate while DXGI reports occlusion
 constexpr double kHwRetryMs = 30000;     // after a watchdog SW fallback: HW again at an IDR
+constexpr double kDecoderRetryMs = 10000;  // PM 0.8.3: no decoder could be opened: try again at an IDR
 
 inline bool watchdogEnabled() {
     static const bool on = [] {

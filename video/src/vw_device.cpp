@@ -290,7 +290,12 @@ bool VideoWindow::Impl::openDecoder() {
     bool ok = (dxgiMgr && !hwBroken && !forceSw && dec.open(decCodec, dxgiMgr.Get())) || dec.open(decCodec, nullptr);
     if (!ok) {
         decoderMissing = true;
+        decoderMissingAt = nowMs();
         return false;
+    }
+    if (decoderRetries) {
+        log("decoder opened again after %d retr%s", decoderRetries, decoderRetries == 1 ? "y" : "ies");
+        decoderRetries = 0;
     }
     dg.hw.store(dec.hardware(), std::memory_order_relaxed);
     if (faultWedgeHw > 0 && dec.hardware()) {

@@ -120,7 +120,7 @@ struct FramePump::Impl : std::enable_shared_from_this<Impl> {
     int texW = 0, texH = 0;
     uint64_t seq = 0;
     bool quit = false;
-    bool shownSomething = false;
+    std::atomic<bool> shownSomething{false};  // reader thread sets, stop() reads
     std::thread reader;
 
     wmp::MediaPlayer player{nullptr};
@@ -129,11 +129,13 @@ struct FramePump::Impl : std::enable_shared_from_this<Impl> {
     std::atomic<int> generation{0};  // bumped by stop(): stale frames are ignored
     double volume = 1.0;
     std::atomic<bool> autoCrop{true};
+    wmc::MediaSource source{nullptr};  // the one playing (retry() replays it)
+    bool realTime = false;
 
     // Crop state (reader thread only).
     Rect crop{}, candidate{};
     int candidateCount = 0;
-    bool firstFrameReported = false;
+    std::atomic<bool> firstFrameReported{false};  // play() resets it, the reader sets it
 
     // Stats.
     mutable std::mutex statsMutex;
@@ -249,7 +251,12 @@ struct FramePump::Impl : std::enable_shared_from_this<Impl> {
 
         std::unique_lock lk(m);
         if (quit || gen != generation.load()) return;
-        if (!ensureTextures(w, h)) return;
+        if (!ensureTextures(w, h)) {
+            lk.unlock();
+            std::lock_guard sl(statsMutex);
+            ++st.framesDropped;  // counted: a picture that never reached the window
+            return;
+        }
         Slot* slot = nullptr;
         for (auto& s : slots)
             if (s.state == Slot::State::Free) {
@@ -433,8 +440,7 @@ struct FramePump::Impl : std::enable_shared_from_this<Impl> {
             } else {
                 logf("miracast: Map failed 0x%08lx", hr);
             }
-            if (!firstFrameReported && SUCCEEDED(hr)) {
-                firstFrameReported = true;
+            if (SUCCEEDED(hr) && !firstFrameReported.exchange(true)) {
                 if (onFirstFrame) onFirstFrame(w, h);
             }
             std::lock_guard lk(m);
@@ -470,8 +476,14 @@ bool FramePump::init() {
 bool FramePump::play(const wmc::MediaSource& source, bool realTime) {
     if (!init()) return false;
     stop();
+    return start(source, realTime);
+}
+
+bool FramePump::start(const wmc::MediaSource& source, bool realTime) {
     auto& I = *impl_;
     std::lock_guard pl(I.playerMutex);
+    I.source = source;
+    I.realTime = realTime;
     I.onEnded = onEnded;
     I.onFailed = onFailed;
     I.onFirstFrame = onFirstFrame;
@@ -518,10 +530,49 @@ bool FramePump::play(const wmc::MediaSource& source, bool realTime) {
     return true;
 }
 
-void FramePump::stop() {
+void FramePump::stop() { stopPlayer(true); }
+
+bool FramePump::retry(int attempt) {
+    auto& I = *impl_;
+    wmc::MediaSource src{nullptr};
+    bool rt;
+    {
+        std::lock_guard pl(I.playerMutex);
+        if (!I.player || !I.source) return false;
+        if (attempt <= 1) {
+            try {
+                I.player.Play();  // a paused / buffering player picks up again
+                I.logf("miracast: retry %d: Play()", attempt);
+                return true;
+            } catch (const winrt::hresult_error& e) {
+                I.logf("miracast: retry %d: Play() failed 0x%08lx", attempt, static_cast<long>(e.code()));
+            }
+        }
+        src = I.source;
+        rt = I.realTime;
+    }
+    stopPlayer(false);  // keep the last picture in the window
+    try {
+        src.Reset();
+    } catch (const winrt::hresult_error& e) {
+        I.logf("miracast: retry %d: MediaSource.Reset failed 0x%08lx", attempt, static_cast<long>(e.code()));
+    }
+    const bool ok = start(src, rt);
+    I.logf("miracast: retry %d: new MediaPlayer %s", attempt, ok ? "started" : "FAILED");
+    return ok;
+}
+
+void FramePump::stopPlayer(bool resetWindow) {
     auto& I = *impl_;
     std::lock_guard pl(I.playerMutex);
-    if (!I.player) return;
+    if (!I.player) {
+        // A failed retry left no player: the window still shows its last picture.
+        if (resetWindow) {
+            I.source = nullptr;
+            if (I.shownSomething.exchange(false)) I.window->onReset();
+        }
+        return;
+    }
     I.generation.fetch_add(1);
     wmp::MediaPlayer p = I.player;
     I.player = nullptr;
@@ -546,9 +597,9 @@ void FramePump::stop() {
         for (auto& s : I.slots)
             if (s.state == Impl::Slot::State::Pending) s.state = Impl::Slot::State::Free;
     }
-    if (I.shownSomething) {
-        I.shownSomething = false;
-        I.window->onReset();
+    if (resetWindow) {
+        I.source = nullptr;
+        if (I.shownSomething.exchange(false)) I.window->onReset();
     }
 }
 

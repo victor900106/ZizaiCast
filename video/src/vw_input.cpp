@@ -5,6 +5,8 @@
 namespace pm {
 
 std::shared_ptr<std::function<void(const VideoWindow::Impl::PointerEvent&)>> VideoWindow::Impl::pointerHandler() {
+    // 簡報畫筆 (0.8.3): while drawing nothing goes to the phone (no taps, drags, hover or wheel).
+    if (inkOn.load(std::memory_order_relaxed)) return nullptr;
     std::lock_guard lk(m);
     return pointerFn;
 }

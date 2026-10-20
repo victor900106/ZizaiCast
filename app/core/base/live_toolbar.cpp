@@ -3,6 +3,7 @@
 
 #include "core/base/app_state.h"
 #include "core/base/base.h"
+#include "view/ink.h"
 
 namespace pm_app {
 
@@ -32,6 +33,10 @@ void refreshToolbar() {
         recItem.recording = true;
         recItem.label = tr(S::ToolLabelRec);
         v.push_back(recItem);
+        // 0.8.3 簡報畫筆: 畫筆 next to 截圖 / 錄影; in ink mode its tools take the
+        // place of the view buttons (all still in 更多).
+        appendInkToolbar(v);
+        if (!inkOn()) {
         // optional: left out of a window too narrow for every button (still in 更多).
         TI share{CmdShareLast, kIcoShare, tr(S::TipShare)};
         share.optional = true;
@@ -60,6 +65,7 @@ void refreshToolbar() {
             frz.optional = true;
             v.push_back(frz);
         }
+        }  // !inkOn()
         if (!offerVersion().empty()) {  // 本機更新 / 自動更新 on offer (never installs by itself)
             TI up{CmdUpdateDialog, kIcoUpdate, fmt(S::MenuUpdateTo, {toWide(offerVersion())})};
             up.groupStart = true;
@@ -74,7 +80,7 @@ void refreshToolbar() {
     std::string key;
     for (const TI& t : v)
         key += std::to_string(t.id) + ":" + std::to_string(t.glyph) + (t.toggled ? "t" : "") + toUtf8(t.tooltip) +
-               toUtf8(t.label) +
+               toUtf8(t.label) + (t.swatch >= 0 ? "s" + std::to_string(t.swatch) + std::to_string(t.swatchSize) : "") +
                (t.slider >= 0 ? std::to_string(t.slider) : "") + ";";
     if (key == g.toolbarKey) return;
     g.toolbarKey = key;

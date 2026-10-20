@@ -64,6 +64,9 @@ win.runMessageLoop();                      // until the window is closed
 | `setPointerHandler(fn)` / `setKeyHandler(fn)` | Any thread; handlers run on the UI thread. Remote control (scrcpy); see *Android sources*. `nullptr` removes. |
 | `setIdleActions(actions)` | Any thread. `IdleAction { label, primary, onClick }`: clickable row under the hints / check boxes, centred, wrapping to more rows when narrow. `primary` = pill button (accent outline on a faint accent wash; hover: filled accent, ink text), else underlined accent link (hover: soft pill + foreground text). Hand cursor; click → `onClick` **on the UI thread**. Drawn only on the fully shown idle screen (never while connecting / live / paused). `{}` hides them. |
 | `setIdleHelpLink(label, onClick)` | Thin wrapper: `setIdleActions({{label, false, onClick}})`; `L""` hides it. |
+| `setInkMode(on, badge)` / `setInkStyle(s)` / `inkUndo()` / `inkClear()` / `inkCount()` / `setInkCapture(shots, rec)` / `setInkHandler(fn)` | 0.8.3 簡報畫筆, UI thread: see *Presentation ink*. |
+| `setDropHint(title, sub)` | 0.8.3, any thread: while files are dragged over the window, a 45 % veil, a dashed accent frame and a centred card (upload glyph, title, dim sub line); `L""` hides it. Static (no animation). |
+| `ToolbarItem::swatch` / `swatchSize` | 0.8.3: a filled disc (0xRRGGBB, thin ring) instead of the glyph, sized 0..1 (畫筆 colour / thickness). |
 | `setIdleHints(lines)` | Any thread. Replaces the idle subtitle with 1–3 lines (each wraps) and the title with 「等待手機連線…」; `{}` restores the iPhone-only default. A tab starts a muted suffix (0.86 × hint size, dim at 62 %), e.g. `L"Android：投放 → 自在投影\t（重新開機後可用）"`; if the line does not fit on one line the suffix moves to its own line as a whole. |
 
 Window controls: double-click or F11 toggles borderless fullscreen, Esc leaves
@@ -275,6 +278,47 @@ Menus, toolbar buttons and shortcuts for the app (放大鏡, 高對比, 凍結�
   Modifiers: `GetKeyState` in the handler (it runs synchronously on the UI thread).
 * Cursor: a 32x32 white ring + dot with a dark outline (hot spot in the
   centre) over the picture while a pointer handler is set.
+
+### Presentation ink (`setInkMode`, 0.8.3)
+
+Strokes drawn over the live picture (`src/ink_layer.*`, `renderer_ink.cpp`,
+`vw_ink.cpp`).
+
+* **Space.** Points are kept in "U space": the *source* picture (decoded,
+  unrotated, unmirrored) scaled uniformly so its short side is 1. The
+  renderer maps U → screen with the inverse of the vertex shader's mapping
+  (`Renderer::inkMatrix`: U → source → display through rotation / mirror →
+  viewport through the magnifier → picture rectangle), one similarity
+  matrix, so strokes follow zoom, pan, `setRotation`, `setMirrored` and the
+  device frame, and widths scale with the zoom. A picture of another aspect
+  (the phone turned) drops them (`checkAspect`; the ink handler hears it).
+* **Input** (UI thread). Ink mode: a left press on the picture starts a stroke
+  (capture held, pen cursor `IDC_PEN`), moves add points (≥ 2 px apart), the
+  release commits it; capture loss / focus loss commit, Esc during a stroke
+  drops it. Ctrl+left drag still pans a magnified picture, the toolbar and
+  the translation list keep their clicks, a right click opens the menu.
+  `pointerHandler()` returns nothing while ink mode is on, so no tap, drag,
+  hover or wheel reaches an Android phone (a press in progress is released
+  first). Keys still go to the key handler.
+* **Tools.** Pen: smoothed (quadratic curves through the midpoints), round
+  caps / joins. Highlighter: ~3.2× wider (≥ 16 DIP), 45 % alpha, one geometry
+  per stroke (its own overlaps are not darker). Arrow: start → current point,
+  a filled head 4.2 × width + 0.012 U, dropped when shorter than its head.
+* **Drawing.** `need2D` adds `inkUp` only when strokes exist or the badge is
+  up; the strokes are rendered into a bitmap of the picture's size
+  (`CreateCompatibleRenderTarget`) only when they or the view change and
+  blitted with one `DrawBitmap` per frame. Nothing animates (event-driven: a
+  static picture with strokes costs no frames). Badge 「畫筆模式 · Esc 結束」 at
+  the bottom left (above the zoom badge while magnified).
+* **Snapshots** (`setInkCapture(true, …)`, default): drawn onto the snapshot
+  texture through `inkMatrix` at zoom 1, under the device frame. Never in
+  `grabPicture` (OCR).
+* **Recordings** (`setInkCapture(…, true)`, default): `deliverTaps` blends
+  them into the tapped NV12 picture (the renderer's read-back buffer) before
+  the tap runs: rasterized once per change with a software D2D target into
+  premultiplied BT.709 video-range Y / Cb / Cr over the strokes' bounding box
+  (≤ 30 rasters a second while one is being drawn); only that box is touched.
+  Off, or no strokes: one atomic load per picture.
 
 ### Live toolbar (`setLiveToolbar`)
 

@@ -69,6 +69,10 @@ public:
         // Set (with status 101) on a WebSocket upgrade request: the connection
         // becomes a WsConn handed to this function (it runs on the connection's thread).
         std::function<void(WsConn&)> websocket;
+        // 0.8.3: a download: this file is streamed as the body (Content-Disposition:
+        // attachment; fileName, UTF-8); body is ignored.
+        std::wstring file;
+        std::string fileName;
     };
     using Handler = std::function<Response(const Request&)>;
 
@@ -80,11 +84,18 @@ public:
     void stop();
     uint16_t port() const { return port_; }
     std::vector<std::string> boundIps() const;
+    // 0.8.3: the fixed link (127.0.0.2) is served through cloudflared (true: its
+    // CF-Connecting-IP is the phone) or Tailscale Funnel (false: the last X-Forwarded-For).
+    void setFixedViaCloudflared(bool on) { fixedViaCf_ = on; }
+    // 0.8.3: the largest body this request may send (asked after its headers, before
+    // the body is read); unset = 64 KB.
+    void setBodyLimit(std::function<size_t(const Request&)> f) { bodyLimit_ = std::move(f); }
 
 private:
     struct Listener {
         SOCKET s = INVALID_SOCKET;
         Bind bind;
+        WSAEVENT ev = nullptr;  // FD_ACCEPT (0.8.3: no polling)
     };
     void acceptLoop();
     void serve(SOCKET s, const std::string& peer, const Listener& l);
@@ -104,6 +115,9 @@ private:
     std::mutex cmu_;
     std::list<Conn> conns_;
     bool wsa_ = false;
+    WSAEVENT wake_ = nullptr;  // set by stop()
+    std::atomic<bool> fixedViaCf_{false};
+    std::function<size_t(const Request&)> bodyLimit_;
 };
 
 }  // namespace pm::remote

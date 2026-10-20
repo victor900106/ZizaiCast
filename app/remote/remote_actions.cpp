@@ -163,6 +163,106 @@ std::string randomToken() {
 
 std::wstring w(const std::string& s) { return toWide(s); }
 
+// ---- 0.8.3 連線紀錄: %LOCALAPPDATA%\PhoneMirror\remote_connections.log, one line per event
+// "<local time>\t<source>\t<masked address>\t<device>\t<result>"; never a password or a token.
+// Rotated at 64 KB (remote_connections.old.log keeps the previous one).
+fs::path connLogFile() { return g.settingsFile.parent_path() / L"remote_connections.log"; }
+fs::path connLogOld() { return g.settingsFile.parent_path() / L"remote_connections.old.log"; }
+// 192.168.1.37 -> 192.168.*.*, 2001:db8:1:2::5 -> 2001:db8:*; "tunnel" / "funnel" as they are.
+std::string maskIp(const std::string& ip) {
+    if (ip.find(':') != std::string::npos) {
+        const size_t a = ip.find(':'), b = a == std::string::npos ? a : ip.find(':', a + 1);
+        return b == std::string::npos ? ip.substr(0, a) + ":*" : ip.substr(0, b) + ":*";
+    }
+    const size_t a = ip.find('.'), b = a == std::string::npos ? a : ip.find('.', a + 1);
+    if (b == std::string::npos) return ip.substr(0, 16);
+    return ip.substr(0, b) + ".*.*";
+}
+// Where an address alone came from (onBlocked has no route): LAN / Tailscale / outside.
+const char* srcOfIp(const std::string& ip) {
+    unsigned a = 0, b = 0;
+    if (sscanf_s(ip.c_str(), "%u.%u.", &a, &b) == 2) {
+        if (a == 100 && b >= 64 && b < 128) return "ts";
+        if (a == 10 || (a == 172 && b >= 16 && b < 32) || (a == 192 && b == 168) || (a == 169 && b == 254)) return "lan";
+    }
+    return "out";
+}
+void connLog(const char* src, const std::string& ip, const std::string& label, const char* result) {
+    std::error_code ec;
+    if (fs::file_size(connLogFile(), ec) > 64 * 1024 && !ec) {
+        fs::remove(connLogOld(), ec);
+        fs::rename(connLogFile(), connLogOld(), ec);
+    }
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    char when[32];
+    snprintf(when, sizeof(when), "%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    std::string l = label.substr(0, 60);
+    for (char& c : l)
+        if (c == '\t' || c == '\n' || c == '\r') c = ' ';
+    std::ofstream out(connLogFile(), std::ios::app | std::ios::binary);
+    out << when << '\t' << src << '\t' << maskIp(ip) << '\t' << l << '\t' << result << '\n';
+}
+struct ConnRow {
+    std::string when, src, ip, label, result;
+};
+std::vector<ConnRow> connLogRows(size_t max) {
+    std::vector<ConnRow> v;
+    for (const fs::path& p : {connLogOld(), connLogFile()}) {
+        std::ifstream in(p, std::ios::binary);
+        for (std::string line; std::getline(in, line);) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            ConnRow r;
+            std::string* f[5] = {&r.when, &r.src, &r.ip, &r.label, &r.result};
+            size_t a = 0;
+            for (int i = 0; i < 5; ++i) {
+                const size_t b = line.find('\t', a);
+                *f[i] = line.substr(a, b == std::string::npos ? std::string::npos : b - a);
+                if (b == std::string::npos) break;
+                a = b + 1;
+            }
+            if (!r.result.empty()) v.push_back(std::move(r));
+        }
+    }
+    if (v.size() > max) v.erase(v.begin(), v.end() - static_cast<std::ptrdiff_t>(max));
+    std::reverse(v.begin(), v.end());  // newest first
+    return v;
+}
+std::wstring connLogText() {
+    const std::vector<ConnRow> rows = connLogRows(50);
+    if (rows.empty()) return tr(S::RemoteLogEmpty);
+    auto src = [](const std::string& s) {
+        return tr(s == "lan" ? S::RemoteLogSrcLan : s == "ts" ? S::RemoteLogSrcTs : s == "fixed" ? S::RemoteLogSrcFixed : s == "tunnel" ? S::RemoteLogSrcTunnel : S::RemoteLogSrcOutside);
+    };
+    auto res = [](const std::string& s) {
+        return tr(s == "ok" ? S::RemoteLogOk : s == "wrong-password" ? S::RemoteLogWrongPw : s == "blocked" ? S::RemoteLogBlocked : S::RemoteLogDenied);
+    };
+    std::wstring out;
+    for (const ConnRow& r : rows)
+        out += toWide(r.when) + L"  " + src(r.src) + L"  " + toWide(r.ip) + L"  " + (r.label.empty() ? std::wstring(L"-") : toWide(r.label)) + L"  " +
+               res(r.result) + L"\n";
+    return out;
+}
+
+// ---- 0.8.3 遠端斷線後自動鎖定電腦 ----
+// Only when the phone's side ended it (it disconnected, went idle, lost the connection),
+// not when the person at the PC did (中斷 / 關閉 / turned a link off). --dev instances
+// never lock (a test must not lock the owner's PC): they log what they would do.
+void lockAfterSession(const RemoteMsg& m) {
+    const bool outside = m.fixed || m.tunnel;
+    if (!(outside ? g.settings.remoteLockOutside : g.settings.remoteLockLan)) return;
+    const std::string& why = m.why;
+    for (const char* pcSide : {"kicked", "host stopping", "remote control turned off", "replaced", "常駐外網 turned off", "外網連結 turned off", "denied"})
+        if (why.rfind(pcSide, 0) == 0) return;
+    if (g.dev) {
+        g.log->write("info", std::string("remote: TEST STUB: would lock the PC now (") + (outside ? "from outside" : "LAN / Tailscale") +
+                                 " session ended: " + why + "); --dev never calls LockWorkStation");
+        return;
+    }
+    g.log->write("info", "remote: the session from " + std::string(outside ? "outside" : "the LAN / Tailscale") + " ended (" + why + ") -> locking the PC");
+    LockWorkStation();
+}
+
 #ifdef PM_APP_REMOTE
 static_assert(pm::ui::kRemoteInputTag == pm::remote::kInjectedInputTag, "one tag for the phone's input");
 #endif
@@ -196,6 +296,7 @@ void unregisterHotkey() {
 
 }  // namespace
 void remoteChanged();  // (below: the title + the page after every change)
+void openRemotePanel(int tab);  // (below; the --dev fake temporary address opens it too)
 namespace {
 
 void setPanelStatus() {
@@ -229,6 +330,27 @@ bool startHost() {
         if (GetEnvironmentVariableW(L"PM_REMOTE_DRYRUN", v, 8) > 0 && v[0] == L'1') o.inject = false;
         if (GetEnvironmentVariableW(L"PM_REMOTE_TESTCLIP", v, 8) > 0 && v[0] == L'1') o.testClipboard = true;
         if (GetEnvironmentVariableW(L"PM_REMOTE_NOTS", v, 8) > 0 && v[0] == L'1') o.tailscale = false;  // as if no Tailscale
+        // 0.8.3 files: PM_REMOTE_TESTFILES="a;b" = the "copied files" (with PM_REMOTE_TESTCLIP); uploads go
+        // to the instance's own data folder (never the owner's Downloads) or PM_REMOTE_UPLOADDIR.
+        wchar_t tf[2048] = {};
+        if (const DWORD n = GetEnvironmentVariableW(L"PM_REMOTE_TESTFILES", tf, 2048); n > 0 && n < 2048) {
+            std::wstring list = tf;
+            for (size_t a = 0; a <= list.size();) {
+                const size_t b = list.find(L';', a);
+                const std::wstring p = list.substr(a, b == std::wstring::npos ? std::wstring::npos : b - a);
+                if (!p.empty()) o.testClipboardFiles.push_back(p);
+                if (b == std::wstring::npos) break;
+                a = b + 1;
+            }
+        }
+    }
+    {
+        // 0.8.3: the phone's files land in Downloads\自在投影遠端 (--dev: <data folder>\uploads).
+        wchar_t ud[MAX_PATH] = {};
+        const DWORD n = g.dev ? GetEnvironmentVariableW(L"PM_REMOTE_UPLOADDIR", ud, MAX_PATH) : 0;
+        if (n > 0 && n < MAX_PATH) o.uploadDir = ud;
+        else if (g.dev) o.uploadDir = (g.settingsFile.parent_path() / L"uploads").wstring();
+        else if (const fs::path dl = knownFolder(FOLDERID_Downloads); !dl.empty()) o.uploadDir = (dl / L"自在投影遠端").wstring();
     }
     o.requireApproval = true;
     o.lang = static_cast<int>(pm::i18n::lang());
@@ -241,6 +363,13 @@ bool startHost() {
     o.fixedPasswordHash = g.settings.remotePwHash;
     o.fixedSecret = g.settings.remoteFixedSecret;
     o.fixedNeedApproval = g.settings.remoteFixedNeedApproval;
+    for (size_t a = 0; a < g.settings.remoteRevoked.size();) {  // 0.8.3: logins ended by 中斷 stay ended
+        const size_t b = g.settings.remoteRevoked.find(',', a);
+        const std::string e = g.settings.remoteRevoked.substr(a, b == std::string::npos ? std::string::npos : b - a);
+        if (!e.empty()) o.revokedLogins.push_back(e);
+        if (b == std::string::npos) break;
+        a = b + 1;
+    }
     const HWND h = g.hwnd;
     Log* log = g.log;
     const unsigned gen = ++r.gen;
@@ -269,10 +398,15 @@ bool startHost() {
         auto* m = new RemoteMsg{0, "", "", ip, "", ok ? "ok" : "wrong", false, false, true, fails, locked};
         if (!PostMessageW(h, WM_PM_REMOTE, RemFixedLogin, reinterpret_cast<LPARAM>(m))) delete m;
     };
+    // 0.8.3: 中斷 ended a fixed-link login: kept in settings.ini (token id + expiry only).
+    o.onLoginRevoked = [post](const std::string& id, long long exp) { post(RemLoginRevoked, pm::remote::Peer{}, id + ":" + std::to_string(exp)); };
+    o.onUnlocked = [post](const pm::remote::Peer& p) { post(RemUnlocked, p, ""); };
+    o.onUploaded = [post](const pm::remote::Peer& p, const std::string& name, uint64_t) { post(RemUploaded, p, name); };
     // The kept port (the phone's Home Screen icon has it); the next free one if it is taken.
     for (int i = 0; i < 10; ++i) {
         o.port = static_cast<uint16_t>(g.settings.remotePort + i);
         if (r.host.start(o)) {
+            r.host.setLockAfterSession(g.settings.remoteLockOutside, g.settings.remoteLockLan);
             if (i) {
                 g.settings.remotePort = o.port;
                 saveSettings();
@@ -344,6 +478,7 @@ void startFixed() {
     if (r.fixState == 1 || r.fixState == 2) return;
     joinFixThread();
     r.host.setFixedOptions(g.settings.remotePwHash, g.settings.remoteFixedSecret, g.settings.remoteFixedNeedApproval);
+    r.host.setFixedViaCloudflared(false);  // 0.8.3: Tailscale Funnel: only its X-Forwarded-For entry is believed
     r.host.setFixed(true);
     r.fixState = 1, r.fixErr.clear(), r.fixInfo.clear(), r.fixUrl.clear();
     const unsigned gen = ++r.fixGen;
@@ -394,6 +529,7 @@ void startFixedFallback(const std::wstring& why) {
         if (!PostMessageW(h, WM_PM_REMOTE, ev, reinterpret_cast<LPARAM>(m))) delete m;
     };
     r.fixInfo = pm::i18n::fmt(S::RemoteFixedViaCf, {why});
+    r.host.setFixedViaCloudflared(true);  // 0.8.3: cloudflared: only its CF-Connecting-IP is believed
     if (!r.fixTunnel.start(exe, r.host.port(), [post](const std::string& u) { post(RemFixedCfUrl, u); },
                            [post](const std::string& w) { post(RemFixedCfEnd, w); }, "127.0.0.2")) {
         r.fixState = 3, r.fixErr = why, r.fixInfo.clear();
@@ -482,6 +618,20 @@ void startTunnel() {
 #ifdef PM_APP_REMOTE
     RemoteState& r = R();
     if (!r.on || r.tunState == 1 || r.tunState == 2) return;
+    if (g.dev) {  // --dev screenshots: PM_REMOTE_TUNNELFAKE=<url> = as if the temporary address were up at that
+                  // (made-up) address; cloudflared is never run
+        wchar_t fk[256] = {};
+        const DWORD fkn = GetEnvironmentVariableW(L"PM_REMOTE_TUNNELFAKE", fk, 256);
+        if (fkn > 0 && fkn < 256) {
+            r.host.setTunnel(true);
+            r.tunState = 2, r.tunErr.clear(), r.tunUrl = toUtf8(fk);
+            g.log->write("info", "remote: 免安裝外網 (PM_REMOTE_TUNNELFAKE) shown at " + r.tunUrl + ": cloudflared not run");
+            if (!r.panel.isOpen()) openRemotePanel(2);
+            if (r.panel.isOpen()) r.panel.showTab(2);
+            updateTunnelPanel();
+            return;
+        }
+    }
     wchar_t me[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, me, MAX_PATH);
     const std::wstring exe = pm::remote::QuickTunnel::findExe(fs::path(me).parent_path().wstring());
@@ -647,7 +797,7 @@ void openRemotePanel(int tab) {
     cb.onHide = [] {};
     cb.onCopy = [](const std::string& url) {
         copyToClipboard(toWide(url));
-        g.window->showToast(tr(S::ShareCopied), 2000);
+        g.window->showToast(tr(S::RemoteCopied), 2000);
     };
     cb.onTailscaleHelp = [] { openTutorial(L"remote-tailscale"); };
     cb.onRemoteRefused = [] { refuseRemote("關閉遠端操控 / 停止外網連結 (QR panel)"); };
@@ -673,7 +823,29 @@ void openRemotePanel(int tab) {
 void onRemoteEvent(WPARAM kind, LPARAM lp) {
     std::unique_ptr<RemoteMsg> m(reinterpret_cast<RemoteMsg*>(lp));
     RemoteState& r = R();
+    if (m && kind == RemLoginRevoked) {  // 0.8.3: kept, expired ones dropped, at most 100
+        std::string keep;
+        int n = 0;
+        const long long nowS = static_cast<long long>(time(nullptr));
+        for (size_t a = 0; a < g.settings.remoteRevoked.size() && n < 99;) {
+            const size_t b = g.settings.remoteRevoked.find(',', a);
+            const std::string e = g.settings.remoteRevoked.substr(a, b == std::string::npos ? std::string::npos : b - a);
+            const size_t c = e.find(':');
+            if (c != std::string::npos && atoll(e.c_str() + c + 1) > nowS) keep += (keep.empty() ? "" : ",") + e, ++n;
+            if (b == std::string::npos) break;
+            a = b + 1;
+        }
+        g.settings.remoteRevoked = keep.empty() ? m->why : keep + "," + m->why;
+        saveSettings();
+        g.log->write("info", "remote: 常駐外網: a login ended by 中斷 is kept as revoked (" + std::to_string(n + 1) + " kept)");
+        return;
+    }
     if (m && kind == RemFixedLogin) {
+        if (m->why != "ok") connLog("fixed", m->ip, "", m->locked ? "blocked" : "wrong-password");
+        if (m->why != "ok" && m->fails == 3 && !m->locked) {  // 0.8.3: 3 wrong in a row from outside: a tray note
+            g.log->write("warn", "remote: 常駐外網: 3 wrong passwords in a row from " + m->ip);
+            trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteWrongPwBalloon, {L"3", w(maskIp(m->ip))}));
+        }
         if (m->locked) {
             g.log->write("warn", "remote: 常駐外網: 5 wrong passwords from " + m->ip + " -> locked for 15 minutes");
             trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteFixedLockedBalloon, {w(m->ip)}));
@@ -759,6 +931,18 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
     }
     if (!m || m->gen != r.gen || !r.on) return;
     switch (kind) {
+    case RemUnlocked:  // 0.8.3: the phone lifted 僅觀看 for its session with the password
+        g.log->write("info", "remote: " + m->label + " (" + m->ip + ") lifted 僅觀看 with the password (fixed link)");
+        if (r.banner.visible()) r.banner.setViewOnly(false);
+        g.window->showToast(pm::i18n::fmt(S::RemoteUnlockedToast, {w(m->label)}), 5000);
+        if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUnlockedToast, {w(m->label)}));
+        setPanelStatus();
+        break;
+    case RemUploaded:  // 0.8.3: a file from the phone is in Downloads\自在投影遠端
+        g.log->write("info", "remote: file from the phone saved: " + m->why);
+        g.window->showToast(pm::i18n::fmt(S::RemoteUploadedToast, {w(m->why)}), 5000);
+        if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUploadedToast, {w(m->why)}));
+        break;
     case RemRequest: {
         g.log->write("info", "remote: " + m->label + " from " + m->ip + (m->fixed ? " (常駐外網)" : m->tunnel ? " (免安裝外網)" : m->tailscale ? " (Tailscale)" : "") + " asks to connect");
         r.askSession = m->session;
@@ -800,6 +984,7 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         break;
     }
     case RemActive:
+        connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, m->label, "ok");
         if (r.ask.isOpen() && r.askSession == m->session) r.ask.close(0);
         r.active = true;
         r.activeSession = m->session, r.activeLabel = m->label, r.activeIp = m->ip;
@@ -829,10 +1014,15 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
             r.askSession.clear();
             r.ask.close(0);  // the phone went away / was replaced before an answer
         }
-        if (r.active && r.activeSession == m->session) endActive(m->why);
+        if (m->why == "denied") connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, m->label, "denied");
+        if (r.active && r.activeSession == m->session) {
+            endActive(m->why);
+            lockAfterSession(*m);  // 0.8.3 (after the bar is gone)
+        }
         setPanelStatus();
         break;
     case RemBlocked:
+        connLog(srcOfIp(m->ip), m->ip, "", "blocked");
         g.log->write("warn", "remote: " + m->ip + " blocked after too many wrong links");
         trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteBlocked, {w(m->ip)}));
         break;
@@ -873,6 +1063,7 @@ void remoteCommand(UINT cmd) {
     if ((cmd == CmdRemoteToggle && R().on) || cmd == CmdRemoteKick || cmd == CmdRemoteViewOnly ||
         (cmd == CmdRemoteTunnel && R().tunState != 0) || cmd == CmdRemotePersistent || cmd == CmdRemotePassword ||
         cmd == CmdRemoteFixedApproval || cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp || cmd == CmdRemoteAdvanced ||
+        cmd == CmdRemoteLockOutside || cmd == CmdRemoteLockLan || cmd == CmdRemoteLog ||
         (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc) {
         if (fromPhone()) {
             refuseRemote(cmd == CmdRemoteToggle   ? "開啟遠端操控 (menu)"
@@ -922,6 +1113,20 @@ void remoteCommand(UINT cmd) {
     }
     case CmdRemoteKick: kick(); break;
     case CmdRemoteHelp: openTutorial(L"remote"); break;
+    case CmdRemoteLockOutside:
+    case CmdRemoteLockLan:
+        (cmd == CmdRemoteLockOutside ? g.settings.remoteLockOutside : g.settings.remoteLockLan) =
+            !(cmd == CmdRemoteLockOutside ? g.settings.remoteLockOutside : g.settings.remoteLockLan);
+        saveSettings();
+#ifdef PM_APP_REMOTE
+        if (R().on) R().host.setLockAfterSession(g.settings.remoteLockOutside, g.settings.remoteLockLan);
+#endif
+        g.log->write("info", std::string("remote: 遠端斷線後自動鎖定電腦: outside ") + (g.settings.remoteLockOutside ? "on" : "off") +
+                                 ", LAN / Tailscale " + (g.settings.remoteLockLan ? "on" : "off"));
+        break;
+    case CmdRemoteLog:
+        MessageBoxW(g.hwnd, connLogText().c_str(), tr(S::RemoteLogTitle), MB_OK | MB_ICONINFORMATION);
+        break;
     case CmdRemotePersistent: setPersistent(!g.settings.remotePersistent); break;
     case CmdRemoteFixedToggle:
         if (R().fixState == 1 || R().fixState == 2) {
@@ -938,7 +1143,7 @@ void remoteCommand(UINT cmd) {
     case CmdRemoteFixedCopy:
         if (R().fixState == 2) {
             copyToClipboard(toWide(R().fixUrl));
-            g.window->showToast(tr(S::ShareCopied), 2000);
+            g.window->showToast(tr(S::RemoteCopied), 2000);
         }
         break;
     case CmdRemoteFixedTemp:
@@ -1083,6 +1288,15 @@ MenuItem remoteItem() {
                                    g.settings.remoteIdleMinutes ? pm::i18n::fmt(S::RemoteMinutes, {std::to_wstring(g.settings.remoteIdleMinutes)})
                                                                 : std::wstring(tr(S::MenuRemoteNever))));
     }
+    {
+        // 0.8.3 遠端斷線後自動鎖定電腦 ▸ 從外網連線時 ✓ / 在家連線時
+        std::vector<MenuItem> lock;
+        lock.push_back(checkItem(CmdRemoteLockOutside, tr(S::MenuRemoteLockOutside), kIcoPower, g.settings.remoteLockOutside));
+        lock.push_back(checkItem(CmdRemoteLockLan, tr(S::MenuRemoteLockLan), kIcoPower, g.settings.remoteLockLan));
+        sub.push_back(valueSubmenu(tr(S::MenuRemoteLock), kIcoPower, std::move(lock),
+                                   g.settings.remoteLockOutside || g.settings.remoteLockLan ? std::wstring(L"✓") : std::wstring()));
+    }
+    sub.push_back(MenuItem::command(CmdRemoteLog, tr(S::MenuRemoteLog), kIcoHelp));
     MenuItem forget = MenuItem::command(CmdRemoteForget, tr(S::MenuRemoteForget), kIcoDelete,
                                         r.on ? std::to_wstring(rememberedCount()) : std::wstring());
     sub.push_back(std::move(forget));
@@ -1265,10 +1479,12 @@ void showWhatsNew() {
     q.glyph = kIcoRemote;
     q.title = pm::i18n::fmt(S::WhatsNewTitle, {toWide(kAppVersion)});
     q.body = tr(S::WhatsNewBody);
-    q.rows.push_back({tr(S::WhatsNewLabel1), tr(S::WhatsNewRemote)});
-    q.rows.push_back({tr(S::WhatsNewLabel2), tr(S::WhatsNewFixed)});
-    q.rows.push_back({tr(S::WhatsNewLabel3), tr(S::WhatsNewSound)});
-    q.rows.push_back({tr(S::WhatsNewLabel4), tr(S::WhatsNewMute)});
+    // 0.8.3
+    q.rows.push_back({tr(S::WhatsNewLabel1), tr(S::WhatsNewInk)});
+    q.rows.push_back({tr(S::WhatsNewLabel2), tr(S::WhatsNewDrop)});
+    q.rows.push_back({tr(S::WhatsNewLabel3), tr(S::WhatsNewAndroid)});
+    q.rows.push_back({tr(S::WhatsNewLabel4), tr(S::WhatsNewRemote)});
+    q.rows.push_back({tr(S::WhatsNewLabel5), tr(S::WhatsNewFixes)});
     q.primary = tr(S::WhatsNewOk);
     q.secondary = tr(S::WhatsNewTry);
     q.secondaryChoice = 2;
@@ -1276,7 +1492,7 @@ void showWhatsNew() {
         g.settings.whatsNewSeen = kAppVersion;
         saveSettings();
         g.log->write("info", std::string("what's new ") + kAppVersion + " closed (" + std::to_string(choice) + ")");
-        if (choice == 2) openTutorial(L"remote");
+        if (choice == 2) openTutorial(nullptr);  // 0.8.3: the guide from the top
     };
     r.news.open(g.hwnd, std::move(q), !g.testOffscreen);
 }
@@ -1473,6 +1689,20 @@ void remoteDevAnswer(int how) {
     if (how == 3) r.ask.click(3), how = 1;  // tick 記住這支手機, then 允許
     g.log->write("info", std::string("dev remote answer: ") + (how == 1 ? "allow" : "deny"));
     r.ask.close(how == 1 ? 1 : 2);
+}
+
+// --dev DevCommand 965 (0.8.3): 1 = the 連線紀錄 as shown, into the log (no window).
+void remoteDevLog(int how) {
+    if (how == 2) {  // 中斷 on the PC (as the bar's / Ctrl+D)
+        g.log->write("info", "dev remote: 中斷 from the PC");
+        kick();
+        return;
+    }
+    if (how != 1) return;
+    std::string text = toUtf8(connLogText());
+    for (char& c : text)
+        if (c == '\n') c = '|';
+    g.log->write("info", "dev remote connection log: " + text);
 }
 
 }  // namespace pm_app

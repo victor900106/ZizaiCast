@@ -630,6 +630,12 @@ struct Server::Impl {
         }
         if (seg.size() == 2 && seg[1] == "app.js")
             return respond(200, "text/javascript; charset=utf-8", shareScript()) && keep;
+        if (seg.size() == 2 && seg[1] == "clip") {  // 0.8.3 電腦剪貼簿 (only when the app offers it; the text is never logged)
+            if (!opts.clipboard) return notFound();
+            const std::string text = narrow(opts.clipboard());
+            logf(ip + " " + rq.method + " clip 200 (" + std::to_string(text.size()) + " bytes)");
+            return respond(200, "application/json; charset=utf-8", clipJson(text)) && keep;
+        }
         if (seg.size() == 2 && seg[1] == "list") {  // the page's file list; live: ?n=K waits for file K+1
             int n = -1;
             if (query.rfind("n=", 0) == 0 && query.size() > 2 && query.size() <= 5 &&
@@ -684,8 +690,16 @@ struct Server::Impl {
         localtime_s(&tm, &deadlineWall);
         char hhmm[16];
         std::snprintf(hhmm, sizeof(hhmm), "%02d:%02d", tm.tm_hour, tm.tm_min);
+        const Server::Options::Texts083& tx = opts.texts083;
+        PageExtra ex{narrow(tx.clipTitle), narrow(tx.clipCopy), narrow(tx.clipCopied), narrow(tx.clipRefresh),
+                     narrow(tx.clipEmpty), narrow(tx.clipFail), narrow(tx.clipNote), narrow(tx.downloadFile),
+                     narrow(tx.fileTip)};
+        if (opts.clipboard) {
+            ex.clip = true;
+            ex.clipText = narrow(opts.clipboard());
+        }
         return sharePage(opts.lang >= 0 ? opts.lang : opts.english ? 1 : 0, opts.appName, pagePalette(), pageFiles(),
-                         kind, hhmm, opts.ttlSeconds, opts.live);
+                         kind, hhmm, opts.ttlSeconds, opts.live, &ex);
     }
 
     bool sendFile(SOCKET s, const std::string& ip, const Request& rq, int idx, bool download, bool keep, bool isHead) {

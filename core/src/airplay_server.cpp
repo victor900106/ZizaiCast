@@ -197,6 +197,12 @@ struct AirPlayServer::Impl {
     bool h265 = false;              // effective (Options::h265, or forced on for height > 1080)
     std::atomic<unsigned> badVideoFrames{0};
     VideoTiming vt;  // only touched from the mirror thread
+    // PM 0.8.3: vt was also cleared from the httpd thread (video_reset) while
+    // the mirror thread was updating it (data race), and never on a dropped
+    // connection (the first 5 s window after a reconnect spanned both
+    // sessions). Other threads now only request the reset; the mirror thread
+    // applies it before its next frame.
+    std::atomic<bool> vtResetPending{false};
     std::atomic<float> currentVolumeDb{0.0f};  // reported back in GET /info (initialVolume)
     // PM: the last audible level (-30..0).  A mute (-144) is not reported as
     // initialVolume to the next connection: currentVolumeDb goes back to this
@@ -210,6 +216,17 @@ struct AirPlayServer::Impl {
     std::condition_variable supCv;
     bool supQuit = false;
     bool resetHttpd = false;
+    // PM 0.8.3: a failed relaunch is retried (1, 2, 4 ... 30 s); it used to
+    // leave the receiver without a listener until the app was restarted
+    int relaunchFailures = 0;                 // supMutex
+    int64_t relaunchRetryAtNs = 0;            // supMutex, steadyNs(); 0 = none
+    // Wake the supervisor (it sleeps without a deadline while nothing needs a
+    // 1 s tick). Taking supMutex first closes the window between its "nothing
+    // to do" check and its wait (no lost wake-up). Never call with pinMutex held.
+    void kickSupervisor() {
+        { std::lock_guard<std::mutex> lk(supMutex); }
+        supCv.notify_all();
+    }
 
     void log(LogLevel lvl, const char* fmt, ...) {
         if (!logCb) return;
@@ -277,66 +294,114 @@ struct AirPlayServer::Impl {
     }
 
     static constexpr unsigned kFeedbackWarnSec = 6;
+    // PM 0.8.3: the 1 s tick (feedback watchdog, PIN countdown) only runs while
+    // a connection is open, a PIN is shown or a relaunch retry is pending;
+    // otherwise the thread sleeps until kicked (conn_init, PIN, reset request,
+    // stop). It used to wake every second for good.
+    bool needsTick() {  // supMutex held
+        if (openConnections.load() > 0 || relaunchRetryAtNs) return true;
+        std::lock_guard<std::mutex> pl(pinMutex);
+        return pinSecondsLeft > 0;
+    }
     void supervisorLoop() {
         std::unique_lock<std::mutex> lk(supMutex);
+        int64_t nextTick = steadyNs() + 1000000000LL;
+        bool ticking = false;
         while (!supQuit) {
-            supCv.wait_for(lk, std::chrono::seconds(1));
-            if (supQuit) break;
-            {
-                std::lock_guard<std::mutex> pl(pinMutex);
-                if (pinSecondsLeft > 0 && --pinSecondsLeft == 0) {
-                    log(LogLevel::Info, "PIN timed out (not entered within %d s)", kPinShowSec);
-                    hidePinLocked();
-                }
-            }
             if (!resetHttpd) {
-                // uxplay.cpp feedback_callback(), once per second
-                if (openConnections.load() > 0) {
-                    unsigned missed = missedFeedback.load();
-                    if (opts.feedbackTimeoutSec && missed > opts.feedbackTimeoutSec) {
-                        log(LogLevel::Error,
-                            "lost connection with client: no feedback heartbeat for %u s (limit %u s)",
-                            missed, opts.feedbackTimeoutSec);
-                        resetHttpd = true;
-                    } else {
-                        // The heartbeat comes every 2 s and 3-5 s gaps are ordinary
-                        // jitter (phone pauses, session ends): warn from 6 s on, once
-                        // every 3 s of the same gap.
-                        if (missed >= kFeedbackWarnSec && (missed - kFeedbackWarnSec) % 3 == 0)
-                            log(LogLevel::Warning,
-                                "%u s since last client feedback (expected every 2 s); client may be offline",
-                                missed);
-                        missedFeedback++;
+                if (!needsTick()) {
+                    ticking = false;
+                    supCv.wait(lk);
+                    continue;
+                }
+                if (!ticking) {  // a tick period starts now (not at a stale deadline)
+                    ticking = true;
+                    nextTick = steadyNs() + 1000000000LL;
+                }
+                int64_t until = nextTick;
+                if (relaunchRetryAtNs && relaunchRetryAtNs < until) until = relaunchRetryAtNs;
+                const int64_t wait = until - steadyNs();
+                if (wait > 0) supCv.wait_for(lk, std::chrono::nanoseconds(wait));
+            }
+            if (supQuit) break;
+            const int64_t now = steadyNs();
+            if (relaunchRetryAtNs && now >= relaunchRetryAtNs) {
+                relaunchRetryAtNs = 0;
+                resetHttpd = true;
+            }
+            if (ticking && now >= nextTick) {
+                nextTick += 1000000000LL;
+                if (nextTick <= now) nextTick = now + 1000000000LL;
+                {
+                    std::lock_guard<std::mutex> pl(pinMutex);
+                    if (pinSecondsLeft > 0 && --pinSecondsLeft == 0) {
+                        log(LogLevel::Info, "PIN timed out (not entered within %d s)", kPinShowSec);
+                        hidePinLocked();
                     }
-                } else {
-                    missedFeedback = 0;
+                }
+                if (!resetHttpd) {
+                    // uxplay.cpp feedback_callback(), once per second
+                    if (openConnections.load() > 0) {
+                        unsigned missed = missedFeedback.load();
+                        if (opts.feedbackTimeoutSec && missed > opts.feedbackTimeoutSec) {
+                            log(LogLevel::Error,
+                                "lost connection with client: no feedback heartbeat for %u s (limit %u s)",
+                                missed, opts.feedbackTimeoutSec);
+                            resetHttpd = true;
+                        } else {
+                            // The heartbeat comes every 2 s and 3-5 s gaps are ordinary
+                            // jitter (phone pauses, session ends): warn from 6 s on, once
+                            // every 3 s of the same gap.
+                            if (missed >= kFeedbackWarnSec && (missed - kFeedbackWarnSec) % 3 == 0)
+                                log(LogLevel::Warning,
+                                    "%u s since last client feedback (expected every 2 s); client may be offline",
+                                    missed);
+                            missedFeedback++;
+                        }
+                    } else {
+                        missedFeedback = 0;
+                    }
                 }
             }
             if (resetHttpd) {
                 resetHttpd = false;
                 lk.unlock();
-                relaunchHttpd();
+                const bool ok = relaunchHttpd();
                 lk.lock();
+                if (ok) {
+                    relaunchFailures = 0;
+                } else if (!supQuit) {
+                    const int delay = std::min(30, 1 << std::min(relaunchFailures, 5));
+                    ++relaunchFailures;
+                    relaunchRetryAtNs = steadyNs() + int64_t(delay) * 1000000000LL;
+                    log(LogLevel::Warning, "AirPlay server relaunch failed (%d time(s)); retrying in %d s",
+                        relaunchFailures, delay);
+                }
             }
         }
     }
 
     // uxplay.cpp main(): "if (reset_httpd) { raop_stop_httpd; ... raop_start_httpd }"
-    void relaunchHttpd() {
-        if (!raop) return;
+    bool relaunchHttpd() {
+        if (!raop) return true;
         log(LogLevel::Info, "relaunching AirPlay server (dropping current client)");
         raop_stop_httpd(raop);
         if (video) video->onReset();
         if (audio) audio->onFlush();
         resetClock();
+        vtResetPending = true;
         missedFeedback = 0;
         unsigned short p = raop_get_port(raop);
         if (raop_start_httpd(raop, &p) < 0) {
             log(LogLevel::Error, "failed to restart AirPlay server on port %u", p);
-            return;
+            return false;
         }
         raop_set_port(raop, p);
         log(LogLevel::Info, "AirPlay server listening again on TCP port %u", p);
+        // PM 0.8.3: tell the phones the receiver is (still) there: the dropped
+        // phone may have marked it gone. Twice, 1 s apart (netLoop).
+        scheduleAnnounce(0);
+        return true;
     }
 
     // ------------------------------------------------------------- display mode
@@ -394,6 +459,24 @@ struct AirPlayServer::Impl {
     int64_t netLastEventNs = 0;
     HANDLE ifNotify = nullptr, addrNotify = nullptr;
     static constexpr int64_t kNetDebounceNs = 2'000'000'000;
+    // PM 0.8.3: announcements and mDNS retries are deadlines of netLoop
+    // (netMutex). announceAt: next mDNS announcement (0 = none), announceLeft:
+    // how many are still due (RFC 6762 8.3: at least two, 1 s apart; only one
+    // was sent at start and none after a relaunch). mdnsRetryAt: a failed mDNS
+    // re-open is tried again (2, 4 ... 60 s) instead of waiting for the next
+    // network notification, which may never come.
+    int64_t announceAt = 0;
+    int announceLeft = 0;
+    int64_t mdnsRetryAt = 0;
+    int mdnsFailures = 0;
+    void scheduleAnnounce(int64_t delayNs) {  // two announcements: now + delay, then 1 s later
+        {
+            std::lock_guard<std::mutex> lk(netMutex);
+            announceAt = steadyNs() + delayNs;
+            announceLeft = 2;
+        }
+        netCv.notify_all();
+    }
 
     static std::string ifaceText(const dnssd_pm_iface_t& f) {
         char ip[INET_ADDRSTRLEN] = "?";
@@ -461,6 +544,8 @@ struct AirPlayServer::Impl {
             std::lock_guard<std::mutex> lk(netMutex);
             netQuit = netForced = netPending = netSignificant = false;
             netEvents = 0;
+            announceAt = mdnsRetryAt = 0;
+            announceLeft = mdnsFailures = 0;
         }
         if (NotifyIpInterfaceChange(AF_INET, &Impl::cbIfChange, this, FALSE, &ifNotify) != NO_ERROR) {
             ifNotify = nullptr;
@@ -488,22 +573,48 @@ struct AirPlayServer::Impl {
 
     void netLoop() {
         std::unique_lock<std::mutex> lk(netMutex);
-        int64_t announceAgainAt = 0;
         while (!netQuit) {
-            netCv.wait_for(lk, std::chrono::milliseconds(250));
+            // PM 0.8.3: sleep until the earliest deadline (debounce end, next
+            // announcement, mDNS retry) or a notification; it used to poll
+            // every 250 ms even with nothing pending.
+            int64_t until = 0;
+            auto consider = [&until](int64_t t) { if (t && (!until || t < until)) until = t; };
+            if (netPending) consider(netLastEventNs + kNetDebounceNs);
+            consider(announceAt);
+            consider(mdnsRetryAt);
+            if (!netForced) {
+                if (!until) {
+                    netCv.wait(lk);
+                } else {
+                    const int64_t wait = until - steadyNs();
+                    if (wait > 0) netCv.wait_for(lk, std::chrono::nanoseconds(wait));
+                }
+            }
             if (netQuit) break;
             const int64_t now = steadyNs();
-            if (netForced || (netPending && now - netLastEventNs >= kNetDebounceNs)) {
-                const bool forced = netForced, significant = netSignificant;
+            const bool retry = mdnsRetryAt && now >= mdnsRetryAt;
+            if (netForced || retry || (netPending && now - netLastEventNs >= kNetDebounceNs)) {
+                const bool forced = netForced || retry, significant = netSignificant;
                 const unsigned events = netEvents;
                 netForced = netPending = netSignificant = false;
                 netEvents = 0;
+                mdnsRetryAt = 0;
                 lk.unlock();
-                const bool restarted = refreshNetworkNow(forced, significant, events);
+                const int rc = refreshNetworkNow(forced, significant, events, retry);
                 lk.lock();
-                announceAgainAt = restarted ? steadyNs() + 1'000'000'000 : 0;
-            } else if (announceAgainAt && now >= announceAgainAt) {
-                announceAgainAt = 0;
+                if (rc > 0) {  // re-opened and announced once: once more in 1 s
+                    mdnsFailures = 0;
+                    announceAt = steadyNs() + 1000000000LL;
+                    announceLeft = 1;
+                } else if (rc < 0) {
+                    const int delay = std::min(60, 2 << std::min(mdnsFailures, 5));
+                    ++mdnsFailures;
+                    mdnsRetryAt = steadyNs() + int64_t(delay) * 1000000000LL;
+                    log(LogLevel::Warning, "[network] mDNS re-open failed (%d time(s)); retrying in %d s",
+                        mdnsFailures, delay);
+                }
+            } else if (announceAt && now >= announceAt) {
+                announceAt = --announceLeft > 0 ? now + 1000000000LL : 0;
                 lk.unlock();
                 if (dnssd) dnssd_pm_announce(dnssd);
                 log(LogLevel::Info, "[network] mDNS announcement repeated");
@@ -512,17 +623,18 @@ struct AirPlayServer::Impl {
         }
     }
 
-    // Returns true if the mDNS responder was re-opened (announcement sent).
-    bool refreshNetworkNow(bool forced, bool significant, unsigned events) {
-        if (!dnssd || !raop) return false;
+    // Returns 1 if the mDNS responder was re-opened (announcement sent), 0 if
+    // nothing was done, -1 if the re-open failed (netLoop retries).
+    int refreshNetworkNow(bool forced, bool significant, unsigned events, bool retry = false) {
+        if (!dnssd || !raop) return 0;
         const auto before = currentInterfaces();
         const auto now = scanInterfaces();
         const bool changed = !sameInterfaces(before, now);
-        const std::string why = forced ? std::string("refreshNetwork()")
+        const std::string why = retry ? std::string("mDNS retry") : forced ? std::string("refreshNetwork()")
                                        : std::to_string(events) + " network change notification(s)";
         if (!forced && !changed && !significant) {
             log(LogLevel::Debug, "[network] %s: interfaces unchanged (%s)", why.c_str(), ifaceList(now).c_str());
-            return false;
+            return 0;
         }
         log(LogLevel::Info, "[network] %s: interfaces %s: before [%s], now [%s]", why.c_str(),
             changed ? "CHANGED" : "unchanged", ifaceList(before).c_str(), ifaceList(now).c_str());
@@ -543,7 +655,7 @@ struct AirPlayServer::Impl {
             log(LogLevel::Info, "[network] AirPlay listener on TCP port %u still up (wildcard bind); %d open "
                 "connection(s) kept", port, conns);
         }
-        return rc == 0;
+        return rc == 0 ? 1 : -1;
     }
 
     // ---------------------------------------------------------------- callbacks
@@ -565,6 +677,7 @@ struct AirPlayServer::Impl {
         auto* s = self(cls);
         int n = ++s->openConnections;
         s->log(LogLevel::Info, "conn_init: open connections = %d", n);
+        if (n == 1) s->kickSupervisor();  // PM 0.8.3: start the 1 s feedback tick
     }
 
     static void cbConnDestroy(void* cls) {
@@ -573,6 +686,8 @@ struct AirPlayServer::Impl {
         s->log(LogLevel::Info, "conn_destroy: open connections = %d", n);
         if (n <= 0) {
             s->resetClock();
+            s->vtResetPending = true;  // PM 0.8.3: next session starts a fresh timing window
+            s->badVideoFrames = 0;
             if (s->audio) s->audio->onFlush();
             if (!audibleDb(s->currentVolumeDb.load())) {
                 s->log(LogLevel::Info, "volume %.2f dB (mute) not carried over: next connection starts at %.2f dB",
@@ -607,11 +722,14 @@ struct AirPlayServer::Impl {
     static void cbDisplayPin(void* cls, char* pin) {
         auto* s = self(cls);
         std::string p = pin ? pin : "";
-        std::lock_guard<std::mutex> pl(s->pinMutex);
-        s->log(LogLevel::Info, "client must enter PIN %s on the iPhone", p.c_str());
-        s->pinShown = true;
-        s->pinSecondsLeft = kPinShowSec;
-        if (s->events.onPin) s->events.onPin(p);
+        {
+            std::lock_guard<std::mutex> pl(s->pinMutex);
+            s->log(LogLevel::Info, "client must enter PIN %s on the iPhone", p.c_str());
+            s->pinShown = true;
+            s->pinSecondsLeft = kPinShowSec;
+            if (s->events.onPin) s->events.onPin(p);
+        }
+        s->kickSupervisor();  // PM 0.8.3: PIN countdown (outside pinMutex: lock order supMutex -> pinMutex)
     }
 
     // uxplay register_client(): called at SETUP after the client paired with
@@ -690,7 +808,7 @@ struct AirPlayServer::Impl {
         if (type == RESET_TYPE_ON_VIDEO_PLAY || type == RESET_TYPE_HLS_SHUTDOWN || type == RESET_TYPE_HLS_EOS)
             return;
         s->resetClock();
-        s->vt = VideoTiming{};
+        s->vtResetPending = true;
         if (s->video) s->video->onReset();
         if (type == RESET_TYPE_NOHOLD && s->audio) s->audio->onFlush();
     }
@@ -719,6 +837,7 @@ struct AirPlayServer::Impl {
                 s->log(LogLevel::Error, "dropping undecryptable/invalid video frame (%u so far)", n);
             return;
         }
+        if (s->vtResetPending.exchange(false)) s->vt = VideoTiming{};  // PM 0.8.3: mirror thread only
         uint64_t pts = s->toLocal(d->ntp_time_local, d->ntp_time_remote, "video");
         uint64_t t0 = get_local_time();
         if (s->video) s->video->onFrame(d->data, static_cast<size_t>(d->data_len), pts);
@@ -760,7 +879,7 @@ struct AirPlayServer::Impl {
     }
 
     static void cbVideoPause(void* cls) {
-        self(cls)->vt = VideoTiming{};
+        self(cls)->vtResetPending = true;
         self(cls)->log(LogLevel::Info, "video_pause (client suspended stream)");
         if (self(cls)->video) self(cls)->video->onPaused(true);
     }
@@ -1145,9 +1264,12 @@ bool AirPlayServer::start(const std::string& displayName, VideoSink* video, Audi
         std::lock_guard<std::mutex> lk(s.supMutex);
         s.supQuit = false;
         s.resetHttpd = false;
+        s.relaunchFailures = 0;
+        s.relaunchRetryAtNs = 0;
     }
     s.supervisor = std::thread([&s] { s.supervisorLoop(); });
     s.startNetworkWatch();
+    s.scheduleAnnounce(1000000000LL);  // PM 0.8.3: register_* announced once; twice more, 1 s apart
     s.running = true;
     return true;
 }

@@ -20,6 +20,8 @@ target_include_directories(pm_qrcodegen PUBLIC third_party/qrcodegen)
 add_library(pm_android STATIC
   include/pm/android_source.h
   src/adb.h src/adb.cpp
+  src/android_internal.h src/backoff.h
+  src/clipboard.h src/clipboard.cpp
   src/mdns.h src/mdns.cpp
   src/pairing_qr.h src/pairing_qr.cpp
   src/scrcpy_proto.h src/scrcpy_proto.cpp
@@ -32,7 +34,7 @@ target_include_directories(pm_android PUBLIC include ${CMAKE_CURRENT_SOURCE_DIR}
 if(TARGET pm_media_api)
   target_link_libraries(pm_android PUBLIC pm_media_api)
 endif()
-target_link_libraries(pm_android PRIVATE pm_qrcodegen ws2_32 iphlpapi bcrypt)
+target_link_libraries(pm_android PRIVATE pm_qrcodegen ws2_32 iphlpapi bcrypt user32)
 target_compile_definitions(pm_android PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 
 # Copies adb + scrcpy-server next to an executable: <bin>/android-tools/.

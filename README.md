@@ -9,7 +9,7 @@
 **把 iPhone、iPad、Android 手機畫面，無線投影到 Windows 電腦。**<br>
 iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控；也能反過來，用手機遠端控制電腦。免費、開源、沒有廣告、不用帳號。
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.2.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.2.1" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3" height="40"></a>
 
 [介紹頁](https://victor900106.github.io/ZizaiCast/) ・ [所有版本](https://github.com/victor900106/ZizaiCast/releases) ・ [怎麼連線](#start) ・ [常見問題](#faq) ・ [隱私](#privacy)
 
@@ -35,17 +35,18 @@ iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控；也能反過�
 - **四語介面**：繁體中文、English、日本語、한국어；有新版時一鍵更新（不會自己偷偷更新）。
 - **資料留在你的網路**：沒有遙測、不用帳號；平常唯一的對外連線是檢查更新，遠端控制的外網連線只在你開啟時才有（[隱私說明](#privacy)）。
 
-## 0.8.2.1 新功能（0.7.9 之後）
+## 0.8.3 新功能
 
 | | |
 |---|---|
-| **遠端控制** | 主畫面多了「遠端控制」分頁：打開開關，手機用瀏覽器掃 QR 碼，就能看電腦畫面、聽電腦聲音、用手指操控電腦。新手機要在電腦上按「允許」；連線時電腦上方會一直顯示「正在被遠端操控」，可隨時中斷。 |
-| **在外面也能連** | 固定網址＋自己設定的密碼（可勾「常駐外網」，開機就能從外面連；錯 5 次鎖 15 分鐘）；也可用 Tailscale 或免安裝的臨時網址。 |
-| **聲音** | 電腦所有喇叭的聲音一起送到手機，手機上可調 0–300% 音量；可選「手機播聲音時電腦靜音」。 |
-| **即時翻譯更穩、更準** | 畫面有影片或捲動時照常翻譯，卡片跟著移動不閃爍；影片字幕不再被翻成原文沒有的句子；工作群組裡的料號、代碼保留原樣。 |
-| **Google 線上翻譯** | 線上翻譯多了 Google Cloud Translation（自備金鑰）。 |
+| **簡報畫筆** | 投影時按 Ctrl+E，就能在畫面上畫線、用螢光筆或箭頭標重點；截圖和錄影可以一起留下筆跡。 |
+| **拖檔到視窗** | 把檔案拖進視窗：Android 手機直接收到（放在「下載」），APK 直接安裝；iPhone 會跳出 QR 碼讓手機下載。 |
+| **Android 更好操控** | 電腦和手機的剪貼簿自動同步；可以用 USB 線連線；操控時可以關掉手機螢幕；連線期間手機不會休眠。 |
+| **遠端控制** | 手機和電腦可以互傳檔案；遠端斷線後可以自動鎖定電腦；有連線紀錄；「僅觀看」時在手機輸入密碼就能解除；觸控預設改成「直接點」；畫面在動時維持每秒 60 張。 |
+| **修正** | AirPlay 換手機、重連更穩；Android 斷線會自動重連；Miracast 畫面凍結會自動重試；安裝後第一次翻譯從約 30 秒縮短到約 3 秒；遠端控制 19 項安全性修正。 |
+| **更省資源** | 沒有手機時，視窗每秒被喚醒從 8.7 次降到 0.03 次；開著遠端控制等手機時，記憶體 266 MB → 111 MB；Android 不用時，背景的 adb 會自己關掉（原本一直占約 18 MB）。 |
 
-完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases/latest)。
+完整更新內容見 Releases 頁面。
 
 <a id="start"></a>
 

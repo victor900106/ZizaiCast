@@ -84,6 +84,11 @@ public:
     // Sends text off the PC (only used when the user turned it on).
     virtual bool isOnline() const { return false; }
     virtual TrCost cost() const { return {}; }
+    // Can answer now without first loading for seconds (a local model in memory).
+    // Never blocks (0.8.3: a picture must not wait for a model being loaded).
+    virtual bool ready() const { return true; }
+    // A load is running (ready() soon).
+    virtual bool loading() const { return false; }
     // out: one hypothesis per request (text "" when that one failed).  Blocking;
     // called from the translation worker thread only, one call at a time.
     virtual bool translate(const std::vector<TrRequest>& in, std::vector<TrHypothesis>& out, std::wstring* err) = 0;

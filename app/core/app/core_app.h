@@ -52,6 +52,9 @@ void runTestMiracast(TestFeed tf, pm::VideoWindow* win, HWND h, Log* log, std::a
 std::vector<std::pair<size_t, size_t>> splitH264(const std::string& d);
 void runTestFeed(TestFeed tf, pm::VideoSink* sink, HWND h, Log* log, std::atomic<bool>* stop);
 
+// ---- core/app/dev_083.cpp (0.8.3 feat-ux DevCommand hooks 975..978; true = handled)
+bool devCommand083(WPARAM wp, LPARAM lp);
+
 // ---- core/app/main.cpp
 HICON loadAppIcon(int cx);
 void activateRunningInstance(bool background, UINT showMsg, Log& log);

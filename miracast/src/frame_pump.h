@@ -56,6 +56,12 @@ public:
     // Stops playback, waits for in-flight pictures, then window->onReset()
     // (only if something was shown).
     void stop();
+    // Frozen picture recovery (MiracastReceiver's watchdog), attempt 1, 2, …:
+    // 1 = Play() again on the same player; 2+ = a new MediaPlayer on the same
+    // MediaSource after MediaSource.Reset().  The window keeps its last
+    // picture meanwhile (no onReset).  False if there is nothing to retry or
+    // the player could not be recreated.
+    bool retry(int attempt);
 
     void setVolume(double volume01);
     // Crop symmetric black pillar/letterbox bars (Android phones send a
@@ -72,6 +78,8 @@ public:
     struct Impl;
 
 private:
+    bool start(const winrt::Windows::Media::Core::MediaSource& source, bool realTime);
+    void stopPlayer(bool resetWindow);
     std::shared_ptr<Impl> impl_;
 };
 

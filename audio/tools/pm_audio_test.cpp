@@ -630,11 +630,78 @@ static int runSessionTest(pm::AudioCodec codec, const Encoded& enc, int rate, in
     return fails ? 1 : 0;
 }
 
+// PM 0.8.3: --idle-test (tap mode only: no device, no sound). The output
+// closes after 3 s without packets and reopens with the next packet; an
+// onFormat without a usable decoder opens no output at all.
+static int runIdleTest(pm::AudioCodec codec, const Encoded& enc, int rate, int ch, int spf) {
+    std::mutex mu;
+    float peak = 0;
+    std::vector<std::string> logs;
+    pm::AudioPlayerConfig cfg;
+    cfg.log = [&](const std::string& l) {
+        std::printf("  [player] %s\n", l.c_str());
+        std::lock_guard<std::mutex> lk(mu);
+        logs.push_back(l);
+    };
+    cfg.pcmTap = [&](const int16_t* p, size_t frames, int c, int) {
+        std::lock_guard<std::mutex> lk(mu);
+        for (size_t i = 0; i < frames * size_t(c); ++i) peak = std::max(peak, std::fabs(p[i] / 32768.0f));
+    };
+    pm::AudioPlayer player(cfg);
+    player.start();
+    auto stream = [&](double sec) {
+        using clock = std::chrono::steady_clock;
+        const size_t n = std::min(enc.aus.size(), size_t(sec * rate / spf));
+        auto t0 = clock::now();
+        for (size_t i = 0; i < n; ++i) {
+            std::this_thread::sleep_until(
+                t0 + std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(double(i) * spf / rate)));
+            player.onPacket(enc.aus[i].data(), enc.aus[i].size(), 0);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    };
+    auto takePeak = [&] {
+        std::lock_guard<std::mutex> lk(mu);
+        return std::exchange(peak, 0.0f);
+    };
+    auto logged = [&](const char* needle) {
+        std::lock_guard<std::mutex> lk(mu);
+        for (auto& l : logs)
+            if (l.find(needle) != std::string::npos) return true;
+        return false;
+    };
+    int fails = 0;
+    auto expect = [&](bool ok, const char* what) {
+        std::printf("%s: %s\n", ok ? "PASS" : "FAIL", what);
+        if (!ok) ++fails;
+    };
+    timeBeginPeriod(1);
+    player.onVolume(-20.0f);
+    player.onFormat(codec, rate, ch, spf);
+    stream(0.6);
+    expect(takePeak() > 0.02f && player.stats().deviceOpen, "stream plays, output open");
+    const uint64_t opens = player.stats().deviceReopens;
+    std::this_thread::sleep_for(std::chrono::milliseconds(3600));  // the phone stops sending
+    expect(!player.stats().deviceOpen && logged("output closed"), "no packets for 3 s: output closed");
+    takePeak();
+    stream(0.6);
+    expect(player.stats().deviceOpen && player.stats().deviceReopens == opens + 1, "next packet reopens the output");
+    expect(takePeak() > 0.02f, "and it plays again");
+    // a format the player cannot decode: no output is opened for it
+    player.onFormat(static_cast<pm::AudioCodec>(1), rate, ch, spf);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    expect(!player.stats().deviceOpen, "onFormat without a decoder: output closed, not held with silence");
+    player.stop();
+    timeEndPeriod(1);
+    std::printf("RESULT idle-test: %d failure(s)\n", fails);
+    return fails ? 1 : 0;
+}
+
 int main(int argc, char** argv) {
     std::string wavPath;
     pm::AudioCodec codec = pm::AudioCodec::AAC_ELD;
     double toneSec = 3.0, sweepSec = 3.0, volumeDb = 0.0, jitterMs = 0.0;
-    bool flushTest = false, volumeSet = false, monitorTest = false, sessionTest = false;
+    bool flushTest = false, volumeSet = false, monitorTest = false, sessionTest = false, idleTest = false;
     int benchReps = 0;
     int cycles = 4;
     double playSec = 1.0, pauseSec = 1.0, setupGapMs = 0.0;
@@ -660,6 +727,7 @@ int main(int argc, char** argv) {
         else if (a == "--jitter") jitterMs = std::atof(next());
         else if (a == "--monitor") monitorTest = true;
         else if (a == "--session-test") sessionTest = true;
+        else if (a == "--idle-test") idleTest = true;
         else if (a == "--bench") benchReps = (i + 1 < argc && std::atoi(argv[i + 1]) > 0) ? std::atoi(argv[++i]) : 20;
         else {
             std::printf("usage: pm_audio_test [--wav out.wav] [--codec eld|lc|alac] [--tone S] [--sweep S] "
@@ -754,6 +822,7 @@ int main(int argc, char** argv) {
         return runBench(codec, enc, rate, ch, spf, benchReps);
     }
     if (sessionTest) return runSessionTest(codec, enc, rate, ch, spf);
+    if (idleTest) return runIdleTest(codec, enc, rate, ch, spf);
     if (flushTest)
         return runFlushTest(codec, enc, rate, ch, spf, !wavPath.empty(), volumeDb, cycles, playSec, pauseSec, resume,
                             setupGapMs, toneFreq);

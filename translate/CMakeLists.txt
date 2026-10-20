@@ -43,6 +43,8 @@ add_library(pm_translate STATIC
   src/text_util.h
   src/text_util.cpp
   src/translator.cpp
+  src/tr_log.cpp
+  src/tr_log.h
 )
 target_include_directories(pm_translate PUBLIC include PRIVATE src third_party/onnxruntime/include)
 # translator.cpp calls pm/online_translate.h (activeMode / prefetch) only when the online engine is built in.
@@ -101,6 +103,15 @@ if(PM_TRANSLATE_ENGINES AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/llm_engine.c
   if(MSVC)
     target_compile_options(pm_llm_eval PRIVATE /W4 /utf-8 /EHsc)
     target_compile_definitions(pm_llm_eval PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+  endif()
+
+  # 0.8.3 whole-picture timing, cold / warm, RAM / VRAM, idle release
+  # (translate/testdata/make_bench_083.py scenes; off-screen, no input).
+  add_executable(pm_tr_bench tools/pm_tr_bench.cpp)
+  target_link_libraries(pm_tr_bench PRIVATE pm_translate pm_video windowscodecs ole32 dxgi psapi)
+  if(MSVC)
+    target_compile_options(pm_tr_bench PRIVATE /W4 /utf-8 /EHsc)
+    target_compile_definitions(pm_tr_bench PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
   endif()
 
   # Per-CPU runtime download (src/llm_engine_cpu.cpp + the ranged fetch in
