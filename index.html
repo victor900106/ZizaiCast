@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>自在投影 Zizai Cast — iPhone／Android 無線投影到 Windows（免費開源）</title>
-<meta name="description" content="自在投影 Zizai Cast：免費開源的 Windows 手機投影。iPhone / iPad 用 AirPlay 免裝 App；Android 用投放（Miracast）或無線偵錯，可用滑鼠鍵盤操控手機。錄影、截圖、放大鏡、離線畫面翻譯，最高 4K60。">
+<meta name="description" content="自在投影 Zizai Cast：免費開源的 Windows 手機投影。iPhone / iPad 用 AirPlay 免裝 App；Android 用投放（Miracast）或無線偵錯，可用滑鼠鍵盤操控手機；也能用手機遠端控制電腦。錄影、截圖、放大鏡、離線畫面翻譯，最高 4K60。">
 <meta name="theme-color" content="#151112">
 <meta property="og:title" content="自在投影 Zizai Cast">
 <meta property="og:description" content="Free, open-source iPhone / Android screen mirroring for Windows. 免費開源的 Windows 手機投影。">
@@ -218,12 +218,12 @@
   <div>
     <p class="eyebrow"><span class="zh-only">Windows 手機投影・免費開源</span><span class="en-only">Phone mirroring for Windows · Free &amp; open source</span></p>
     <h1><span class="zh-only">把手機畫面，<br>自在投到電腦上。</span><span class="en-only">Your phone,<br>on your PC.</span></h1>
-    <p class="lead"><span class="zh-only">iPhone、iPad 不用裝 App；Android 還能用滑鼠鍵盤直接操控。錄影、截圖、放大、翻譯，都在同一個視窗裡，資料不離開你家的網路。</span><span class="en-only">No app on the iPhone or iPad; drive an Android phone with your mouse and keyboard. Record, capture, zoom and translate in one window, and nothing leaves your home network.</span></p>
+    <p class="lead"><span class="zh-only">iPhone、iPad 不用裝 App；Android 還能用滑鼠鍵盤直接操控；新的「遠端控制」讓手機反過來操控電腦。錄影、截圖、放大、翻譯，都在同一個視窗裡，資料不離開你家的網路。</span><span class="en-only">No app on the iPhone or iPad; drive an Android phone with your mouse and keyboard; new Remote control lets the phone control the PC. Record, capture, zoom and translate in one window, and nothing leaves your home network.</span></p>
     <div class="cta">
       <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 Windows 版</span><span class="en-only">Download for Windows</span></a>
       <a class="btn secondary" href="#how"><span class="zh-only">看怎麼連線</span><span class="en-only">How to connect</span></a>
     </div>
-    <p class="meta"><span class="zh-only">v0.7.9・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.7.9 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
+    <p class="meta"><span class="zh-only">v0.8.2.1・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.8.2.1 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
   </div>
   <div class="stage">
     <img class="shot" src="img/hero-zh.jpg" data-en="img/hero-en.jpg" alt="自在投影視窗裡顯示著 iPhone 的相簿畫面" width="560" height="640" fetchpriority="high">
@@ -333,6 +333,7 @@
       <article class="feat"><img src="img/f-rotate.jpg" data-en="img/f-rotate-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">橫向與旋轉</span><span class="en-only">Landscape and rotation</span></h4><p><span class="zh-only">手機轉橫向，視窗自動跟著轉；也能手動旋轉、翻轉。</span><span class="en-only">Turn the phone and the window follows; rotate or flip by hand.</span></p></article>
       <article class="feat"><img src="img/f-takeover.jpg" data-en="img/f-takeover-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">多支手機輪流</span><span class="en-only">Several phones, in turn</span></h4><p><span class="zh-only">第二支手機連上時，選「換成新的」或「維持原本的」。</span><span class="en-only">When a second phone connects: switch to it, or keep the current one.</span></p></article>
       <article class="feat"><img src="img/f-pin.jpg" data-en="img/f-pin-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">連線 PIN 碼</span><span class="en-only">Connection PIN</span></h4><p><span class="zh-only">新的 iPhone 要輸入電腦上顯示的 4 位數 PIN（示意圖）。</span><span class="en-only">A new iPhone enters the 4-digit PIN shown on the PC (illustration).</span></p></article>
+      <article class="feat"><div class="txt"><h4><span class="zh-only">遠端控制（新）</span><span class="en-only">Remote control (new)</span></h4><p><span class="zh-only">手機用瀏覽器看電腦畫面、聽電腦聲音、用手指操控電腦，不用裝 App。在家掃 QR 碼；在外面用固定網址＋密碼、Tailscale 或臨時網址。預設關閉，新手機要在電腦上按「允許」。</span><span class="en-only">See the PC's screen, hear its sound and control it with your fingers from the phone's browser, no app needed. Scan a QR code at home; away, use a fixed address with a password, Tailscale or a temporary address. Off by default; a new phone has to be allowed on the PC.</span></p></div></article>
       <article class="feat"><img src="img/f-speed.jpg" data-en="img/f-speed-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">低延遲、最高 4K60</span><span class="en-only">Low latency, up to 4K60</span></h4><p><span class="zh-only">電腦端解碼到顯示約 3 ms（H.264 硬體解碼）。</span><span class="en-only">About 3 ms decode → display on the PC (H.264, hardware).</span></p></article>
     </div>
   </div>
@@ -367,14 +368,14 @@
 
 <section id="new" class="tint"><div class="wrap">
   <div class="head">
-    <p class="eyebrow"><span class="zh-only">0.7.9 新功能</span><span class="en-only">New in 0.7.9</span></p>
-    <h2><span class="zh-only">更好懂，也更跟得上畫面</span><span class="en-only">Easier to follow, and it follows the screen</span></h2>
+    <p class="eyebrow"><span class="zh-only">0.8.2.1 新功能</span><span class="en-only">New in 0.8.2.1</span></p>
+    <h2><span class="zh-only">用手機，反過來控制電腦</span><span class="en-only">Now the phone can control the PC</span></h2>
   </div>
   <div class="new">
-    <div><h3><span class="zh-only">即時翻譯跟著畫面走</span><span class="en-only">Live translation follows the screen</span></h3><p class="zh-only">譯文固定蓋在原文位置，手機畫面捲動時跟著移動。</p><p class="en-only">Translations stay over the original text and move with it while the screen scrolls.</p></div>
-    <div><h3><span class="zh-only">選單更好懂</span><span class="en-only">Clearer menus</span></h3><p class="zh-only">「連接手機 ▸」第一項就是「怎麼連線？」；按 F1 看快速鍵一覽。</p><p class="en-only">Connect a phone ▸ starts with How to connect?; press F1 for the keyboard shortcuts.</p></div>
-    <div><h3><span class="zh-only">截圖、錄影完成後直接動手</span><span class="en-only">Act right after a capture</span></h3><p class="zh-only">完成提示上可以直接「開啟資料夾」或「傳到手機」。</p><p class="en-only">The notice offers Open folder and Send to phone.</p></div>
-    <div><h3><span class="zh-only">設定用白話說</span><span class="en-only">Settings in plain words</span></h3><p class="zh-only">「畫面清晰度」「第二支手機連上時」「背景待命」，一看就知道會發生什麼。</p><p class="en-only">Picture quality, When a second phone connects, Keep running in the background: you know what each one does.</p></div>
+    <div><h3><span class="zh-only">遠端控制</span><span class="en-only">Remote control</span></h3><p class="zh-only">主畫面的「遠端控制」分頁打開，手機掃 QR 碼就能看電腦畫面、用手指操控。新手機要在電腦上按「允許」。</p><p class="en-only">Switch on the Remote control tab, scan the QR code, and the phone sees and controls the PC. A new phone has to be allowed on the PC.</p></div>
+    <div><h3><span class="zh-only">在外面也能連</span><span class="en-only">From outside, too</span></h3><p class="zh-only">固定網址＋自己設定的密碼，可設成開機就能連；也可用 Tailscale 或免安裝的臨時網址。</p><p class="en-only">A fixed address with your own password, ready right after the PC starts if you like; or Tailscale, or a temporary address.</p></div>
+    <div><h3><span class="zh-only">電腦聲音到手機</span><span class="en-only">PC sound on the phone</span></h3><p class="zh-only">所有喇叭的聲音一起送到手機，手機可調 0–300% 音量。</p><p class="en-only">Sound from all PC speakers goes to the phone, with 0–300% volume there.</p></div>
+    <div><h3><span class="zh-only">即時翻譯更穩、更準</span><span class="en-only">Steadier live translation</span></h3><p class="zh-only">影片播放、畫面捲動時照常翻譯；料號、代碼保留原樣；多了 Google 線上翻譯（自備金鑰）。</p><p class="en-only">Keeps translating while videos play or the screen scrolls; codes stay as they are; Google online translation added (your own key).</p></div>
   </div>
   <p class="fine"><a href="https://github.com/victor900106/ZizaiCast/releases/latest"><span class="zh-only">完整更新內容</span><span class="en-only">Full change list</span></a></p>
 </div></section>
@@ -405,7 +406,8 @@
       <li><b>不會自己更新。</b>只有你按「更新到 vX.Y.Z」，才從本站 <code>/download/</code> 下載安裝程式，並以 SHA-256 驗證。</li>
       <li><b>可以完全關閉。</b>在 <code>%LOCALAPPDATA%\PhoneMirror\settings.ini</code> 加一行 <code>update_url=</code>。</li>
       <li><b>畫面翻譯在電腦上離線執行。</b>畫面和文字都不上傳；第一次使用前先詢問，同意後才下載翻譯與文字辨識模型（每個檔案以 SHA-256 驗證）。本機 AI 翻譯也只在你選擇時下載。</li>
-      <li><b>線上翻譯預設關閉。</b>只有你開啟、同意並填入自己的 DeepL／Azure 金鑰後，才把辨識出的文字（不含畫面）送到你選的服務。</li>
+      <li><b>線上翻譯預設關閉。</b>只有你開啟、同意並填入自己的 DeepL／Azure／Google 金鑰後，才把辨識出的文字（不含畫面）送到你選的服務。</li>
+      <li><b>遠端控制預設關閉。</b>在家時手機直接連這台電腦；新手機要在電腦上按「允許」，連線時畫面上一直有提示。只有你選用時才經過 Tailscale（固定網址需密碼）或 Cloudflare 的臨時網址。</li>
       <li><b>傳到手機只在區域網路。</b>Android 經無線偵錯直接傳，iPhone 掃 QR 碼從這台電腦下載，不經過任何伺服器。</li>
     </ul>
     <ul class="plain en-only">
@@ -413,7 +415,8 @@
       <li><b>Never updates by itself.</b> Only when you click “Update to vX.Y.Z” is the installer downloaded from this site's <code>/download/</code> and verified with SHA-256.</li>
       <li><b>Can be turned off.</b> Add the line <code>update_url=</code> to <code>%LOCALAPPDATA%\PhoneMirror\settings.ini</code>.</li>
       <li><b>Translation runs offline on your PC.</b> Neither the picture nor the text is uploaded; the app asks before downloading the translation and text-recognition models (each checked with SHA-256). On-device AI translation is downloaded only if you choose it.</li>
-      <li><b>Online translation is off by default.</b> Only after you turn it on, agree and enter your own DeepL / Azure key is the recognised text (never the picture) sent to the service you picked.</li>
+      <li><b>Online translation is off by default.</b> Only after you turn it on, agree and enter your own DeepL / Azure / Google key is the recognised text (never the picture) sent to the service you picked.</li>
+      <li><b>Remote control is off by default.</b> At home the phone connects straight to this PC; a new phone has to be allowed on the PC, and a bar stays on screen while connected. Tailscale (the fixed address needs your password) or Cloudflare's temporary address are used only when you pick them.</li>
       <li><b>Send to phone stays on your LAN.</b> Android gets files over wireless debugging; an iPhone scans a QR code and downloads from this PC. No server in between.</li>
     </ul>
     <p class="fine"><a href="https://github.com/victor900106/ZizaiCast#privacy"><span class="zh-only">完整隱私說明（含每個連線的網址與程式碼位置）</span><span class="en-only">Full privacy notes (every address and the source files)</span></a></p>
@@ -444,7 +447,7 @@
       <tr><th>1440p / 4K</th><td>HEVC Video Extensions; otherwise 1080p</td></tr>
     </table>
     <table class="files">
-      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.7.9），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.7.9), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
+      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.8.2.1），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.8.2.1), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
       <tr><td><code>ZizaiCast-&lt;版本&gt;-source.zip</code></td><td><span class="zh-only">該版本的完整原始碼與建置說明（在 Release 頁面）</span><span class="en-only">Complete source of that version with build instructions (on the release page)</span></td></tr>
       <tr><td><code>ZizaiCast-&lt;版本&gt;-deps-source.zip</code></td><td><span class="zh-only">安裝程式內含第三方函式庫的原始碼</span><span class="en-only">Sources of the bundled third-party libraries</span></td></tr>
     </table>
@@ -504,7 +507,7 @@
   <h2><span class="zh-only">讓手機畫面，自在地出現在電腦上</span><span class="en-only">Your phone, on your PC, at ease</span></h2>
   <p><span class="zh-only">免費、開源、沒有廣告、不用帳號。</span><span class="en-only">Free, open source, no ads, no account.</span></p>
   <div class="cta">
-    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.7.9</span><span class="en-only">Download v0.7.9</span></a>
+    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.8.2.1</span><span class="en-only">Download v0.8.2.1</span></a>
     <a class="btn secondary" href="https://github.com/victor900106/ZizaiCast"><span class="zh-only">GitHub 原始碼</span><span class="en-only">Source on GitHub</span></a>
   </div>
 </div></section>
