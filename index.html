@@ -223,7 +223,7 @@
       <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 Windows 版</span><span class="en-only">Download for Windows</span></a>
       <a class="btn secondary" href="#how"><span class="zh-only">看怎麼連線</span><span class="en-only">How to connect</span></a>
     </div>
-    <p class="meta"><span class="zh-only">v0.8.3・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.8.3 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
+    <p class="meta"><span class="zh-only">v0.8.3.1・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.8.3.1 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
   </div>
   <div class="stage">
     <img class="shot" src="img/hero-zh.jpg" data-en="img/hero-en.jpg" alt="自在投影視窗裡顯示著 iPhone 的相簿畫面" width="560" height="640" fetchpriority="high">
@@ -379,6 +379,7 @@
     <div><h3><span class="zh-only">修正</span><span class="en-only">Fixes</span></h3><p class="zh-only">AirPlay、Android 重新連線更穩，Miracast 凍結會自動重試，第一次翻譯從約 30 秒變約 3 秒，遠端控制 19 項安全性修正。</p><p class="en-only">Steadier AirPlay and Android reconnects, a frozen Miracast picture is retried, the first translation takes about 3 s instead of 30 s, 19 security fixes in remote control.</p></div>
     <div><h3><span class="zh-only">更省資源</span><span class="en-only">Uses less</span></h3><p class="zh-only">沒有手機時視窗每秒喚醒 8.7 次 → 0.03 次；遠端控制待機記憶體 266 MB → 111 MB；不用 Android 時背景 adb 自動關閉。</p><p class="en-only">With no phone the window wakes 0.03 times a second instead of 8.7; remote control waiting: 266 MB → 111 MB of memory; adb closes itself when Android isn't used.</p></div>
   </div>
+  <p class="fine"><span class="zh-only">0.8.3.1 修正：iPhone 遠端控制不再停在「連線中」（低耗電模式也會出現畫面，連不上會說明原因）；重開機後常駐外網會等 Tailscale 啟動好再連。</span><span class="en-only">0.8.3.1 fixes: remote control on an iPhone no longer stays on “Connecting” (the picture comes up in Low Power Mode too, and a failure is explained); after a reboot, always-on access waits for Tailscale to start.</span></p>
   <p class="fine"><span class="zh-only">完整更新內容見 Releases 頁面。</span><span class="en-only">Full change list on the Releases page.</span></p>
 </div></section>
 
@@ -449,7 +450,7 @@
       <tr><th>1440p / 4K</th><td>HEVC Video Extensions; otherwise 1080p</td></tr>
     </table>
     <table class="files">
-      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.8.3），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.8.3), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
+      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.8.3.1），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.8.3.1), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
       <tr><td><code>ZizaiCast-&lt;版本&gt;-source.zip</code></td><td><span class="zh-only">該版本的完整原始碼與建置說明（在 Release 頁面）</span><span class="en-only">Complete source of that version with build instructions (on the release page)</span></td></tr>
       <tr><td><code>ZizaiCast-&lt;版本&gt;-deps-source.zip</code></td><td><span class="zh-only">安裝程式內含第三方函式庫的原始碼</span><span class="en-only">Sources of the bundled third-party libraries</span></td></tr>
     </table>
@@ -509,7 +510,7 @@
   <h2><span class="zh-only">讓手機畫面，自在地出現在電腦上</span><span class="en-only">Your phone, on your PC, at ease</span></h2>
   <p><span class="zh-only">免費、開源、沒有廣告、不用帳號。</span><span class="en-only">Free, open source, no ads, no account.</span></p>
   <div class="cta">
-    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.8.3</span><span class="en-only">Download v0.8.3</span></a>
+    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.8.3.1</span><span class="en-only">Download v0.8.3.1</span></a>
     <a class="btn secondary" href="https://github.com/victor900106/ZizaiCast"><span class="zh-only">GitHub 原始碼</span><span class="en-only">Source on GitHub</span></a>
   </div>
 </div></section>
