@@ -106,7 +106,7 @@ if (cmd === 'settings') {
   const [version, installer, url, changesFile, out = 'update.json'] = args;
   if (!version || !installer || url === undefined || !changesFile)
     throw new Error('usage: manifest <version> <installer> <url> <changes.md> [out.json] [--date D] [--notes S]');
-  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`bad version ${version}`);
+  if (!/^\d+\.\d+\.\d+(\.\d+)?$/.test(version)) throw new Error(`bad version ${version}`);  // x.y.z or a fix-up x.y.z.w (0.8.3.1)
   if (url !== '' && !/^https:\/\//.test(url)) throw new Error('url must be https:// (or "" for a local sidecar)');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`bad date ${date}`);
   const bytes = readFileSync(installer);

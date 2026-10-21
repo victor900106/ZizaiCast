@@ -68,6 +68,31 @@ std::string hashPassword(const std::string& password, int iterations) {
     return "pbkdf2-sha256$" + std::to_string(iterations) + "$" + hex(salt.data(), salt.size()) + "$" + hex(dk, sizeof(dk));
 }
 
+// 0.8.3.2 臨時帳號: 6 characters without 0 / O, 1 / I / L (31 symbols, ~29.7 bits; the logins are
+// limited per address and paced for everybody, see Host::Impl::checkPassword).
+std::string makeGuestPassword() {
+    static const char kAlphabet[] = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    constexpr unsigned kN = sizeof(kAlphabet) - 1, kLimit = 256 - 256 % kN;  // no modulo bias
+    std::string pw;
+    while (pw.size() < 6) {
+        unsigned char b[16];
+        BCryptGenRandom(nullptr, b, sizeof(b), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        for (unsigned char x : b)
+            if (x < kLimit && pw.size() < 6) pw += kAlphabet[x % kN];
+        SecureZeroMemory(b, sizeof(b));
+    }
+    return pw;
+}
+
+std::string guestPasswordKey(const std::string& typed) {
+    std::string k;
+    for (char c : typed) {
+        if (c == ' ' || c == '-' || c == 9) continue;  // "ABC DEF" / "ABC-DEF" as shown
+        k += (c >= 'a' && c <= 'z') ? char(c - 32) : c;
+    }
+    return k;
+}
+
 bool verifyPassword(const std::string& password, const std::string& stored) {
     // pbkdf2-sha256$<iterations>$<salt hex>$<key hex>
     const size_t a = stored.find('$'), b = stored.find('$', a + 1), c = stored.find('$', b + 1);

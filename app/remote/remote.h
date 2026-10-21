@@ -16,7 +16,8 @@ enum RemoteEvent : WPARAM {
     RemRequest = 1, RemActive, RemEnded, RemBlocked, RemTrouble, RemTunnelUrl, RemTunnelEnd, RemTunnelLink, RemTunnelCheck,
     RemFixedUp, RemFixedFail, RemFixedCfUrl, RemFixedCfEnd, RemFixedLogin, RemFixedStale,  // 常駐外網 (0.8.2)
     RemLoginRevoked, RemUnlocked, RemUploaded,  // 0.8.3
-    RemFixedWait  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
+    RemFixedWait,  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
+    RemGuestLogin  // 0.8.3.2: a 臨時帳號 login try
 };
 
 bool remoteAvailable();
@@ -52,5 +53,12 @@ MenuItem remoteTrayToggle();      // the tray menu's first row: 遠端操控 ✓
 // 8 進階設定 as remote_advanced.png, 9 close the 新功能 note (知道了).
 void remoteDevFixed(int how);
 void remoteDevLog(int how);       // --dev DevCommand 965 (0.8.3): 1 = the 連線紀錄 text into the log, 2 = 中斷 from the PC
+// --dev DevCommand 981..986 (0.8.3.2 臨時帳號; the menu ids 440-442, 450+i 刪除, 460+i 重設密碼 run as usual):
+// 981 the open 新增臨時帳號 form: lp = life (0-3) | 4 僅觀看 | 8 傳檔 | 16 建立 (the name: PM_TEST_GUEST_NAME, else
+// the suggested one); 982 its PNG (lp = DPI, 0 = the window's) as guest_panel[_<dpi>].png; 983 複製全部 (with
+// PM_TEST_GUEST_OUT: into that file, never the real clipboard); 984 close it; 985 the main window as if moved to
+// a monitor at DPI lp & 0xFFFF with its client lp >> 16 px high (0: the same DIPs; WM_DPICHANGED);
+// 986 the accounts into the log (names, kinds; never a password).
+void remoteDevGuest(int which, LPARAM lp);
 
 }  // namespace pm_app

@@ -10,12 +10,12 @@ IDI_APP ICON "app.ico"
 #define PM_VER_PATCH 3
 #endif
 #ifndef PM_VER_BUILD
-#define PM_VER_BUILD 1
+#define PM_VER_BUILD 2
 #endif
 #ifdef PM_APP_VERSION_STR
 #define PM_VER_STR PM_APP_VERSION_STR
 #else
-#define PM_VER_STR "0.8.3.1"
+#define PM_VER_STR "0.8.3.2"
 #endif
 
 VS_VERSION_INFO VERSIONINFO

@@ -23,6 +23,7 @@
 // is muted (drivers that mute before the loopback tap), the mute is undone.
 
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -56,16 +57,18 @@ public:
     // 手機播聲音時電腦靜音 (0.8.2: while running too): every captured device is muted
     // (endpoint mute) and restored when this goes off or the capture stops.
     void setMute(bool on);
-    // 0.8.3 (set before start()): agc = an automatic gain on the mix (quiet material is raised
-    // up to +12 dB towards -18 dBFS RMS, never lowered: the limiter does that; it does not
-    // adapt below -34 dBFS, so a noise floor is not pumped up); compensate = a device whose
+    // 0.8.3 (set before start()): agc = an automatic gain on the mix (0.8.3.2, level.h: towards
+    // -17 dBFS RMS, -6..+30 dB, a noise gate keeps the pauses at x1, a steady noise floor is
+    // not followed; 0.8.3 / 0.8.3.1 only followed frames above -34 dBFS RMS, up to +12 dB,
+    // and stayed at x1 on real quiet material); compensate = a device whose
     // volume Windows applies in software (no hardware volume: the loopback gets the sound
     // after it) is raised by that volume's attenuation (up to +18 dB), so the phone's level
     // does not follow the PC's volume slider.
     void setLevelOptions(bool agc, bool compensate) { agc_ = agc, comp_ = compensate; }
     float agcGain() const { return agcGain_.load(); }    // the AGC's gain now (1 = none)
     float compGain() const { return compGain_.load(); }  // the largest volume compensation now (1 = none)
-    // Tests: "music" / "loud" / "quiet" (0.8.3) = a silent synthetic source instead of WASAPI (set before start()).
+    // Tests: "music" / "loud" / "quiet" (0.8.3; 0.8.3.2: music-like) / "speech" (0.8.3.2) = a silent
+    // synthetic source instead of WASAPI (set before start()).
     void setSynthetic(const std::string& mode) {
         std::lock_guard<std::mutex> lk(mu_);
         synthetic_ = mode;
@@ -75,6 +78,12 @@ public:
     void takeStats(int& packets, double& avgMs, double& peak, std::string& device, std::string& others);
     // The level of what the phone gets over the last ~1 s (0 = silence / nothing plays).
     float recentPeak() const { return recentPeak_.load(); }
+    // 0.8.3.2: RMS (dBFS) of what was sent since the last call (-120 = nothing sent).
+    double takeRmsDb() {
+        const int64_t s = sentSqPico_.exchange(0);
+        const int n = sentFrames_.exchange(0);
+        return n && s > 0 ? 10.0 * std::log10(double(s) / 1e12 / n) : -120.0;
+    }
     std::string currentDevice() const {
         std::lock_guard<std::mutex> lk(mu_);
         return curName_;
@@ -95,6 +104,8 @@ private:
     std::atomic<float> recentPeak_{0};
     std::atomic<bool> agc_{true}, comp_{true};
     std::atomic<float> agcGain_{1}, compGain_{1};
+    std::atomic<int64_t> sentSqPico_{0};  // 0.8.3.2: the sent frames' mean squares x 1e12
+    std::atomic<int> sentFrames_{0};
 };
 
 }  // namespace pm::remote

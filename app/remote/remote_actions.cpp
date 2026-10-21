@@ -39,6 +39,7 @@ struct RemoteMsg {
     bool fixed = false;   // 常駐外網 (0.8.2): came in over the fixed link with the password
     int fails = 0;        // RemFixedLogin: wrong passwords in a row
     bool locked = false;  // ... and now locked for 15 minutes
+    std::string guest, guestId;  // 0.8.3.2: came in with this 臨時帳號
 };
 constexpr int kFixedPort = 8443;  // Tailscale Funnel port of the fixed link (443 is never touched)
 
@@ -66,6 +67,8 @@ struct RemoteState {
     std::wstring tunErr;
     // 常駐外網 (0.8.2)
     pm::ui::RemotePasswordPanel pw;
+    pm::ui::RemoteGuestPanel guestPanel;  // 0.8.3.2 新增臨時帳號 / 重設密碼
+    std::string activeGuestId;            // 0.8.3.2: the connected phone came in with this 臨時帳號
     pm::ui::AskPanel news;          // 新功能 (once after the upgrade)
     int fixState = 0;               // 0 off, 1 starting, 2 ready, 3 failed
     std::string fixUrl;             // https://<pc>.<tailnet>.ts.net:8443/ (or a cloudflared fallback)
@@ -73,6 +76,11 @@ struct RemoteState {
     std::atomic<unsigned> fixGen{0};  // a stale Funnel answer is ignored (0.8.3.1: also read by the waiting thread)
     std::thread fixThread;          // tailscale CLI calls (a few hundred ms) off the UI thread
     std::atomic<bool> fixFunnel{false};  // port 8443 is ours (turned off at stop / quit)
+    // 0.8.3.2: the tailscale CLI only ever runs on background threads (one at a time: cliMu), never
+    // waited for on the UI thread; fixMu makes "is it still wanted? then it is ours" one step.
+    std::mutex cliMu, fixMu;
+    std::atomic<int> cliRuns{0};
+    std::string fixSetupUrl;        // 0.8.3.2: the page that turns Funnel / HTTPS on for this tailnet (開啟設定頁)
     int pageQr = 0;                 // 遠端控制 page: the QR shown in 1 在家 / 2 Tailscale (0 none)
 #ifdef PM_APP_REMOTE
     pm::remote::QuickTunnel fixTunnel;   // fallback when Funnel cannot be used
@@ -300,6 +308,280 @@ void unregisterHotkey() {
 void remoteChanged();  // (below: the title + the page after every change)
 void openRemotePanel(int tab);  // (below; the --dev fake temporary address opens it too)
 namespace {
+void startTunnel();  // (below)
+
+// ---- 0.8.3.2 臨時帳號: %LOCALAPPDATA%\PhoneMirror\remote_guests.txt, one account per line,
+// "<id>\t<name>\t<pbkdf2 hash>\t<created>\t<expires>\t<once>\t<view only>\t<files>\t<last used>"
+// (epoch seconds). Only the hash is kept: the password is shown once when it is made or reset
+// (the panel forgets it on close) and is never written to a file or the log. At most 10; an
+// expired one goes (not while its phone is connected: judged when the session ends); a 用一次
+// one goes when its session ends. The host gets the list (hashes) at start and after every change.
+struct GuestRow {
+    std::string id, name, pwHash;
+    long long created = 0, expires = 0, lastUsed = 0;
+    bool once = false, viewOnly = false, files = false;
+};
+constexpr size_t kMaxGuests = 10;
+constexpr UINT_PTR kGuestTimerId = 0x5247;  // 'RG': every 30 s while remote control is on (remaining time, expiry)
+fs::path guestsFile() { return g.settingsFile.parent_path() / L"remote_guests.txt"; }
+long long nowEpoch() { return static_cast<long long>(time(nullptr)); }
+
+std::vector<GuestRow>& guestRows() {
+    static std::vector<GuestRow> v;
+    static bool loaded = false;
+    if (loaded) return v;
+    loaded = true;
+    std::ifstream in(guestsFile(), std::ios::binary);
+    for (std::string line; std::getline(in, line);) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty() || line[0] == '#') continue;
+        std::vector<std::string> f;
+        for (size_t a = 0;;) {
+            const size_t b = line.find('\t', a);
+            f.push_back(line.substr(a, b == std::string::npos ? std::string::npos : b - a));
+            if (b == std::string::npos) break;
+            a = b + 1;
+        }
+        if (f.size() < 9 || f[0].empty() || f[1].empty() || f[2].rfind("pbkdf2-sha256$", 0) != 0 || v.size() >= kMaxGuests) continue;
+        GuestRow r;
+        r.id = f[0], r.name = f[1].substr(0, 24), r.pwHash = f[2];
+        r.created = atoll(f[3].c_str()), r.expires = atoll(f[4].c_str());
+        r.once = f[5] == "1", r.viewOnly = f[6] == "1", r.files = f[7] == "1", r.lastUsed = atoll(f[8].c_str());
+        v.push_back(std::move(r));
+    }
+    return v;
+}
+
+void saveGuests() {
+    const fs::path p = guestsFile(), tmp = p.wstring() + L".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        out << "# 自在投影 臨時帳號 (0.8.3.2): id, name, password hash (never the password), created, expires, once, view only, files, last used\n";
+        for (const GuestRow& r : guestRows())
+            out << r.id << '\t' << r.name << '\t' << r.pwHash << '\t' << r.created << '\t' << r.expires << '\t' << (r.once ? 1 : 0) << '\t'
+                << (r.viewOnly ? 1 : 0) << '\t' << (r.files ? 1 : 0) << '\t' << r.lastUsed << '\n';
+    }
+    std::error_code ec;
+    if (guestRows().empty()) fs::remove(tmp, ec), fs::remove(p, ec);
+    else fs::rename(tmp, p, ec);
+}
+
+#ifdef PM_APP_REMOTE
+std::vector<pm::remote::GuestAccount> hostGuests() {
+    std::vector<pm::remote::GuestAccount> v;
+    for (const GuestRow& r : guestRows()) v.push_back({r.id, r.name, r.pwHash, r.expires, r.once, r.viewOnly, r.files});
+    return v;
+}
+#endif
+void syncGuests() {
+#ifdef PM_APP_REMOTE
+    if (R().on) R().host.setGuests(hostGuests());
+#endif
+}
+
+// Expired accounts go (one whose phone is connected stays until that session ends).
+bool pruneGuests() {
+    std::vector<GuestRow>& v = guestRows();
+    const long long now = nowEpoch();
+    const size_t n = v.size();
+    for (auto it = v.begin(); it != v.end();) {
+        if (it->expires <= now && it->id != R().activeGuestId) {
+            g.log->write("info", "remote: 臨時帳號 " + it->name + " expired: deleted");
+            it = v.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (v.size() == n) return false;
+    saveGuests();
+    return true;
+}
+
+std::wstring guestSummary(const GuestRow& r) {
+    const long long life = r.expires - r.created;
+    const S l = r.once ? S::RemoteGuestLifeOnce : life <= 3600 + 60 ? S::RemoteGuestLife1h : life <= 86400 + 60 ? S::RemoteGuestLife24h : S::RemoteGuestLife7d;
+    return std::wstring(tr(l)) + L" · " + tr(r.viewOnly ? S::RemoteGuestView : S::RemoteGuestControl) + L" · " +
+           tr(r.files ? S::RemoteGuestWithFiles : S::RemoteGuestNoFiles);
+}
+
+// 「guest-4821　剩 23 小時　可操作　最後使用 10:32」 (用一次: 「用一次」 instead of the time left). A
+// space inside a field does not break ("24 小時"); fields are separated by an ideographic space.
+// (Word joiners between every character showed as gaps in the Japanese / Korean fonts.)
+std::wstring glued(std::wstring s) {
+    for (wchar_t& c : s)
+        if (c == L' ') c = L'\x00A0';
+    return s;
+}
+std::wstring guestRowText(const GuestRow& r) {
+    const long long left = std::max(0LL, r.expires - nowEpoch());
+    std::wstring t = glued(toWide(r.name)) + L"　";
+    if (r.once) t += glued(tr(S::RemoteGuestLifeOnce));
+    else if (left < 3600) t += glued(pm::i18n::fmt(S::RemoteGuestLeftM, {std::to_wstring(std::max(1LL, (left + 59) / 60))}));
+    else if (left < 2 * 86400) t += glued(pm::i18n::fmt(S::RemoteGuestLeftH, {std::to_wstring((left + 1799) / 3600)}));
+    else t += glued(pm::i18n::fmt(S::RemoteGuestLeftD, {std::to_wstring((left + 43199) / 86400)}));
+    t += L"　" + glued(tr(r.viewOnly ? S::RemoteGuestView : S::RemoteGuestControl));
+    if (r.files) t += L"　" + glued(tr(S::RemoteGuestWithFiles));
+    t += L"　";
+    if (r.id == R().activeGuestId && R().active) t += glued(tr(S::RemoteGuestInUse));
+    else if (!r.lastUsed) t += glued(tr(S::RemoteGuestNever));
+    else {
+        const time_t tt = static_cast<time_t>(r.lastUsed);
+        tm lt{};
+        localtime_s(&lt, &tt);
+        wchar_t b[32];
+        const time_t nowT = time(nullptr);
+        tm nt{};
+        localtime_s(&nt, &nowT);
+        if (lt.tm_yday == nt.tm_yday && lt.tm_year == nt.tm_year) swprintf_s(b, L"%02d:%02d", lt.tm_hour, lt.tm_min);
+        else swprintf_s(b, L"%d/%d %02d:%02d", lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min);
+        t += glued(pm::i18n::fmt(S::RemoteGuestLastUsed, {b}));
+    }
+    return t;
+}
+
+// 連線紀錄 / log: "[guest-4821] iPhone · Safari" (no password, no token)
+std::string guestLabel(const RemoteMsg& m) { return m.guest.empty() ? m.label : "[" + m.guest + "] " + m.label; }
+
+bool guestNameOk(const std::wstring& n) {
+    if (n.empty() || n.size() > 24) return false;
+    for (wchar_t c : n)
+        if (!((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9') || c == L'-' || c == L'_' || c == L'.')) return false;
+    return true;
+}
+bool guestNameUsed(const std::string& n, const std::string& exceptId = "") {
+    auto low = [](std::string s) {
+        for (char& c : s) c = (c >= 'A' && c <= 'Z') ? char(c + 32) : c;
+        return s;
+    };
+    for (const GuestRow& r : guestRows())
+        if (r.id != exceptId && low(r.name) == low(n)) return true;
+    return false;
+}
+std::string suggestGuestName() {
+    for (int tries = 0; tries < 50; ++tries) {
+        unsigned v = 0;
+        BCryptGenRandom(nullptr, reinterpret_cast<PUCHAR>(&v), sizeof(v), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        const std::string n = "guest-" + std::to_string(1000 + v % 9000);
+        if (!guestNameUsed(n)) return n;
+    }
+    return "guest-" + std::to_string(nowEpoch() % 100000);
+}
+
+// 複製全部 (--dev with PM_TEST_GUEST_OUT: into that test file instead of the real clipboard).
+void guestCopy(const std::wstring& all) {
+    wchar_t outPath[MAX_PATH] = {};
+    if (g.dev && GetEnvironmentVariableW(L"PM_TEST_GUEST_OUT", outPath, MAX_PATH) > 0) {
+        std::ofstream o(outPath, std::ios::binary | std::ios::trunc);
+        o << toUtf8(all);
+        g.log->write("info", "remote: dev: 複製全部 -> the test's file (" + std::to_string(all.size()) + " characters)");
+        return;
+    }
+    copyToClipboard(all);
+}
+
+pm::ui::RemoteGuestPanel::Callbacks guestCallbacks() {
+    pm::ui::RemoteGuestPanel::Callbacks cb;
+    cb.onCreate = [](const pm::ui::RemoteGuestPanel::Request& q, pm::ui::RemoteGuestPanel::Result& res, std::wstring& err) {
+#ifdef PM_APP_REMOTE
+        RemoteState& r = R();
+        pruneGuests();
+        if (r.fixState != 2) return err = tr(S::RemoteGuestNoAddr), false;
+        if (guestRows().size() >= kMaxGuests) return err = tr(S::RemoteGuestFull), false;
+        if (!guestNameOk(q.name)) return err = tr(S::RemoteGuestNameBad), false;
+        if (guestNameUsed(toUtf8(q.name))) return err = tr(S::RemoteGuestNameTaken), false;
+        GuestRow row;
+        row.id = pm::remote::randomHex(8);
+        row.name = toUtf8(q.name);
+        row.created = nowEpoch();
+        row.once = q.life == 0;
+        row.expires = row.created + (q.life == 1 ? 3600LL : q.life == 3 ? 7 * 86400LL : 86400LL);  // 用一次: within 24 hours
+        row.viewOnly = q.viewOnly, row.files = q.files;
+        std::string pw = pm::remote::makeGuestPassword();
+        row.pwHash = pm::remote::hashPassword(pm::remote::guestPasswordKey(pw));
+        guestRows().push_back(row);
+        saveGuests();
+        syncGuests();
+        g.log->write("info", "remote: 臨時帳號 " + row.name + " created (" + toUtf8(guestSummary(row)) + "; only its hash is kept)");
+        res.url = toWide(r.fixUrl), res.name = q.name, res.password = toWide(pw), res.summary = guestSummary(row), res.reset = false;
+        std::fill(pw.begin(), pw.end(), '\0');
+        remoteChanged();
+        return true;
+#else
+        (void)q, (void)res, (void)err;
+        return false;
+#endif
+    };
+    cb.onCopy = guestCopy;
+    cb.onClosed = [] { remoteChanged(); };
+    return cb;
+}
+
+void openGuestNew() {
+    RemoteState& r = R();
+    if (r.fixState != 2) {
+        g.window->showToast(tr(S::RemoteGuestNoAddr), 4000);
+        return;
+    }
+    pruneGuests();
+    if (guestRows().size() >= kMaxGuests) {
+        g.window->showToast(tr(S::RemoteGuestFull), 4000);
+        return;
+    }
+    r.guestPanel.open(g.hwnd, toWide(suggestGuestName()), guestCallbacks());
+}
+
+// 刪除: gone at once; a phone connected with it (or waiting for 允許) is ended by the host.
+void deleteGuest(size_t i) {
+    std::vector<GuestRow>& v = guestRows();
+    if (i >= v.size()) return;
+    const std::string name = v[i].name;
+    v.erase(v.begin() + static_cast<std::ptrdiff_t>(i));
+    saveGuests();
+    syncGuests();
+    g.log->write("info", "remote: 臨時帳號 " + name + " deleted on the PC");
+    g.window->showToast(pm::i18n::fmt(S::RemoteGuestDeletedToast, {toWide(name)}), 2500);
+}
+
+// 重設密碼: a new one, shown once (a connected phone stays; the old password no longer logs in).
+void resetGuest(size_t i) {
+#ifdef PM_APP_REMOTE
+    std::vector<GuestRow>& v = guestRows();
+    if (i >= v.size() || R().fixState != 2) return;
+    std::string pw = pm::remote::makeGuestPassword();
+    v[i].pwHash = pm::remote::hashPassword(pm::remote::guestPasswordKey(pw));
+    saveGuests();
+    syncGuests();
+    g.log->write("info", "remote: 臨時帳號 " + v[i].name + ": a new password (only its hash is kept)");
+    pm::ui::RemoteGuestPanel::Result res{toWide(R().fixUrl), toWide(v[i].name), toWide(pw), guestSummary(v[i]), true};
+    std::fill(pw.begin(), pw.end(), '\0');
+    R().guestPanel.showResult(g.hwnd, res, guestCallbacks());
+    std::fill(res.password.begin(), res.password.end(), L'\0');
+#else
+    (void)i;
+#endif
+}
+
+// A guest's session ended: 用一次 = gone now; past its end = gone now.
+void guestSessionEnded(const std::string& id) {
+    std::vector<GuestRow>& v = guestRows();
+    for (auto it = v.begin(); it != v.end(); ++it)
+        if (it->id == id) {
+            if (it->once || it->expires <= nowEpoch()) {
+                g.log->write("info", "remote: 臨時帳號 " + it->name + (it->once ? " was used once: deleted" : " expired during its session: deleted"));
+                v.erase(it);
+                saveGuests();
+                syncGuests();
+            }
+            break;
+        }
+    if (!g.quitting) remoteChanged();
+}
+
+void CALLBACK guestTimerProc(HWND, UINT, UINT_PTR, DWORD) {
+    if (!R().on || g.quitting) return;
+    if (pruneGuests()) syncGuests();
+    if (!guestRows().empty()) remoteChanged();  // 剩餘時間
+}
 
 void setPanelStatus() {
     RemoteState& r = R();
@@ -367,6 +649,8 @@ bool startHost() {
     o.fixedPasswordHash = g.settings.remotePwHash;
     o.fixedSecret = g.settings.remoteFixedSecret;
     o.fixedNeedApproval = g.settings.remoteFixedNeedApproval;
+    pruneGuests();
+    o.guests = hostGuests();  // 0.8.3.2 臨時帳號 (hashes only)
     for (size_t a = 0; a < g.settings.remoteRevoked.size();) {  // 0.8.3: logins ended by 中斷 stay ended
         const size_t b = g.settings.remoteRevoked.find(',', a);
         const std::string e = g.settings.remoteRevoked.substr(a, b == std::string::npos ? std::string::npos : b - a);
@@ -379,6 +663,7 @@ bool startHost() {
     const unsigned gen = ++r.gen;
     auto post = [h, gen](RemoteEvent ev, const pm::remote::Peer& p, const std::string& why) {
         auto* m = new RemoteMsg{gen, p.session, p.device, p.ip, p.label, why, p.tailscale, p.tunnel, p.fixed};
+        m->guest = p.guest, m->guestId = p.guestId;
         if (!PostMessageW(h, WM_PM_REMOTE, ev, reinterpret_cast<LPARAM>(m))) delete m;
     };
     o.log = [log](const std::string& line) {
@@ -404,6 +689,11 @@ bool startHost() {
     };
     // 0.8.3: 中斷 ended a fixed-link login: kept in settings.ini (token id + expiry only).
     o.onLoginRevoked = [post](const std::string& id, long long exp) { post(RemLoginRevoked, pm::remote::Peer{}, id + ":" + std::to_string(exp)); };
+    // 0.8.3.2: each 臨時帳號 login try (the name as typed; never the password): 連線紀錄
+    o.onGuestLogin = [h](const std::string& ip, const std::string& user, bool ok, int fails, bool locked) {
+        auto* m = new RemoteMsg{0, "", "", ip, user, ok ? "ok" : "wrong", false, false, true, fails, locked};
+        if (!PostMessageW(h, WM_PM_REMOTE, RemGuestLogin, reinterpret_cast<LPARAM>(m))) delete m;
+    };
     o.onUnlocked = [post](const pm::remote::Peer& p) { post(RemUnlocked, p, ""); };
     o.onUploaded = [post](const pm::remote::Peer& p, const std::string& name, uint64_t) { post(RemUploaded, p, name); };
     // The kept port (the phone's Home Screen icon has it); the next free one if it is taken.
@@ -411,6 +701,7 @@ bool startHost() {
         o.port = static_cast<uint16_t>(g.settings.remotePort + i);
         if (r.host.start(o)) {
             r.host.setLockAfterSession(g.settings.remoteLockOutside, g.settings.remoteLockLan);
+            SetTimer(g.hwnd, kGuestTimerId, 30000, guestTimerProc);  // 0.8.3.2 臨時帳號: time left, expiry
             if (i) {
                 g.settings.remotePort = o.port;
                 saveSettings();
@@ -436,8 +727,33 @@ void updateFixedPanel() {
     r.panel.setFixed(r.fixState, r.fixUrl, qr, n, r.fixInfo, r.fixErr, !g.settings.remotePwHash.empty());
 }
 
+// 0.8.3.2: never waits (0.8.3.1 joined here on the UI thread: a CLI waiting for the person to enable
+// Funnel on a web page froze the app for 30-60 s). A thread still running sees fixGen change and
+// cleans up after itself; at quit stopRemote() waits a few seconds at most, then ends the CLI.
 void joinFixThread() {
-    if (R().fixThread.joinable()) R().fixThread.join();
+    if (R().fixThread.joinable()) R().fixThread.detach();
+}
+
+// tailscale funnel --https=8443 off, on a background thread.
+void funnelOffAsync(const std::string& why) {
+#ifdef PM_APP_REMOTE
+    RemoteState& r = R();
+    ++r.cliRuns;
+    std::thread([why] {
+        RemoteState& rs = R();
+        std::string err;
+        bool off = false;
+        {
+            std::lock_guard<std::mutex> lk(rs.cliMu);
+            off = pm::remote::TailscaleFunnel::stop(kFixedPort, err);
+        }
+        g.log->write(off ? "info" : "warn", "remote: 常駐外網: Funnel port 8443 " + std::string(off ? "removed" : "NOT removed: " + err) + " (" + why + ")");
+        if (!off) rs.fixFunnel = true;  // still ours: tried again at the next stop / quit
+        --rs.cliRuns;
+    }).detach();
+#else
+    (void)why;
+#endif
 }
 
 // The tailscale CLI's answer in plain words.
@@ -445,6 +761,14 @@ std::wstring funnelWhy(const std::string& err) {
     std::string e = err;
     for (char& c : e) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     if (e == "no-tailscale") return tr(S::RemoteFixedWhyNoTs);
+    // 0.8.3.2: what the person has to do (each with its next step)
+    if (e.rfind("needs-enable: https", 0) == 0) return tr(S::RemoteFixedWhyEnableHttps);
+    if (e.rfind("needs-enable", 0) == 0) return tr(S::RemoteFixedWhyEnableFunnel);
+    if (e.rfind("no-funnel-attr", 0) == 0) return tr(S::RemoteFixedWhyNoAttr);
+    if (e.rfind("port-taken: ", 0) == 0) return pm::i18n::fmt(S::RemoteFixedWhyPortTaken, {toWide(err.substr(12, 80))});
+    if (e == "cli-too-old") return tr(S::RemoteFixedWhyOldCli);
+    if (e == "needs-login" || e == "not-running: needslogin") return tr(S::RemoteFixedWhyNeedsLogin);
+    if (e.rfind("timeout", 0) == 0) return tr(S::RemoteFixedWhyTimeout);
     if (e.rfind("still-starting", 0) == 0) return tr(S::RemoteFixedWhyTsSlow);  // 0.8.3.1: waited 5 minutes
     if (e.rfind("not-running", 0) == 0 || e.find("logged out") != std::string::npos || e.find("needslogin") != std::string::npos)
         return tr(S::RemoteFixedWhyNotRunning);
@@ -457,20 +781,20 @@ std::wstring funnelWhy(const std::string& err) {
 
 void stopFixed(const char* why) {
     RemoteState& r = R();
-    ++r.fixGen;
-    joinFixThread();
-    const bool was = r.fixState != 0 || r.fixFunnel;
-#ifdef PM_APP_REMOTE
-    if (r.fixFunnel && !g.dev) {  // (a --dev instance never set it up: see startFixed)
-        std::string err;
-        const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, err);
-        g.log->write(off ? "info" : "warn", std::string("remote: 常駐外網: Funnel port 8443 ") + (off ? "removed" : "NOT removed: " + err));
-        r.fixFunnel = !off;
+    bool ours = false;
+    {
+        std::lock_guard<std::mutex> lk(r.fixMu);
+        ++r.fixGen;
+        ours = r.fixFunnel.exchange(false);
     }
+    joinFixThread();
+    const bool was = r.fixState != 0 || ours;
+#ifdef PM_APP_REMOTE
+    if (ours && !g.dev) funnelOffAsync(why);  // 0.8.3.2: in the background (a --dev instance never set it up: see startFixed)
     r.fixTunnel.stop();
     if (r.on) r.host.setFixed(false);
 #endif
-    r.fixState = 0, r.fixUrl.clear(), r.fixErr.clear(), r.fixInfo.clear();
+    r.fixState = 0, r.fixUrl.clear(), r.fixErr.clear(), r.fixInfo.clear(), r.fixSetupUrl.clear();
     if (was) g.log->write("info", std::string("remote: 常駐外網 stopped (") + why + ")");
     updateFixedPanel();
     if (!g.quitting) remoteChanged();
@@ -509,7 +833,7 @@ void startFixed() {
         auto calls = std::make_shared<int>(0);
         pm::remote::TailscaleFunnel::setRunnerForTest([calls, stubStarting, origin](const std::wstring& cmd, std::string& out, unsigned long& code) {
             code = 0;
-            const std::string name = "pc.tail-test.ts.net";
+            const std::string name = "example-pc.example.ts.net";  // a made-up name
             if (cmd.find(L" funnel status --json") != std::wstring::npos)
                 out = "{\"TCP\":{\"8443\":{\"HTTPS\":true}},\"Web\":{\"" + name + ":8443\":{\"Handlers\":{\"/\":{\"Proxy\":\"" + origin +
                       "\"}}}},\"AllowFunnel\":{\"" + name + ":8443\":true}}";
@@ -520,13 +844,27 @@ void startFixed() {
         });
         g.log->write("info", "remote: 常駐外網 (PM_REMOTE_FUNNELSTARTING): stubbed tailscale CLI, NoState x" + std::to_string(stubStarting));
     }
-    const bool devNoCli = g.dev && fakeUrl.empty() && stubStarting == 0;
+    // 0.8.3.2 --dev tests: PM_REMOTE_FAKECLI=<path> = a FAKE tailscale CLI program (pm_fake_tailscale.exe,
+    // its scenario in PM_FAKE_TS_MODE): real processes, never tailscale.
+    wchar_t fcli[MAX_PATH] = {};
+    const DWORD fcn = g.dev ? GetEnvironmentVariableW(L"PM_REMOTE_FAKECLI", fcli, MAX_PATH) : 0;
+    const bool fakeCli = fcn > 0 && fcn < MAX_PATH && fs::path(fcli).filename() == L"pm_fake_tailscale.exe";
+    if (fakeCli) {
+        pm::remote::TailscaleFunnel::setCliForTest(fcli);
+        g.log->write("info", "remote: 常駐外網 (PM_REMOTE_FAKECLI): a fake tailscale CLI, not tailscale");
+    }
+    const bool devNoCli = g.dev && fakeUrl.empty() && stubStarting == 0 && !fakeCli;
+    r.fixSetupUrl.clear();
+    ++r.cliRuns;
     r.fixThread = std::thread([h, gen, origin, fakeFail, fakeUrl, devNoCli] {
+        struct Done {
+            ~Done() { --R().cliRuns; }
+        } done;
         std::string url, err = devNoCli ? std::string("--dev: the tailscale CLI is not run (PM_REMOTE_FUNNELFAKE=<url> for a made-up address)")
                                         : std::string("Funnel not available; \"funnel\" node attribute not set (test)");
         const bool fake = !fakeFail && !fakeUrl.empty();
         if (fake) url = fakeUrl;
-        // 0.8.3.1: right after a reboot tailscaled is up before it is Running (the owner's 09:14 log:
+        // 0.8.3.1: right after a reboot tailscaled is up before it is Running (a log after a reboot:
         // "not-running: NoState", 8443 fine a minute later): wait and try again (2, 4, 8 ... 60 s, about
         // 5 minutes), the page says 「等待 Tailscale 啟動」; stopping 常駐外網 / quitting ends the wait.
         auto wait = [h, gen](int attempt, int secs) {
@@ -539,9 +877,26 @@ void startFixed() {
             }
             return R().fixGen == gen;
         };
-        const bool ok = fake || (!fakeFail && !devNoCli && pm::remote::TailscaleFunnel::startPatiently(kFixedPort, origin, url, err, wait));
+        bool ok = fake;
+        if (!fake && !fakeFail && !devNoCli) {
+            std::lock_guard<std::mutex> lk(R().cliMu);  // one CLI job at a time (an off from a moment ago runs first)
+            ok = R().fixGen == gen && pm::remote::TailscaleFunnel::startPatiently(kFixedPort, origin, url, err, wait);
+            if (!ok && R().fixGen != gen) err = "cancelled";
+        }
         if (!ok && err == "cancelled") return;  // stopped meanwhile: nothing to say
-        if (ok && !fake) R().fixFunnel = true;  // ours to remove, whatever happens to the message
+        if (ok && !fake) {
+            std::unique_lock<std::mutex> fl(R().fixMu);
+            if (R().fixGen != gen) {  // 0.8.3.2: turned off while it was starting: undone here (stopFixed did not wait)
+                fl.unlock();
+                std::lock_guard<std::mutex> lk(R().cliMu);
+                std::string e2;
+                const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, e2);
+                g.log->write("info", std::string("remote: 常駐外網: started after it was turned off: port 8443 ") + (off ? "removed again" : "NOT removed: " + e2));
+                if (!off) R().fixFunnel = true;
+                return;
+            }
+            R().fixFunnel = true;  // ours to remove, whatever happens to the message
+        }
         auto* m = new RemoteMsg{gen, "", "", "", "", ok ? url : err};
         if (!PostMessageW(h, WM_PM_REMOTE, ok ? RemFixedUp : RemFixedFail, reinterpret_cast<LPARAM>(m))) delete m;
     });
@@ -639,6 +994,7 @@ void setPersistent(bool on) {
 
 void updateTunnelPanel() {
     RemoteState& r = R();
+    if (!g.quitting && g.hwnd) remoteChanged();  // 0.8.3.2: 允許遠端控制 shows the temporary address too
     if (!r.panel.isOpen()) return;
     std::string link, code;
     std::vector<uint8_t> qr;
@@ -721,6 +1077,7 @@ void endActive(const std::string& why) {
     g.log->write("info", "remote: session of " + r.activeLabel + " (" + r.activeIp + ") ended: " + why);
     if (!g.quitting) g.window->showToast(why.rfind("idle", 0) == 0 ? tr(S::RemoteIdleToast) : tr(S::RemoteEndedToast), 3000);
     r.activeSession.clear();
+    r.activeGuestId.clear();
     setPanelStatus();
     if (!g.quitting) remoteChanged();
     if (!g.quitting) g.window->setIdleQuiet(false);  // 投投 floats again
@@ -915,6 +1272,11 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
             // Said in plain words on the page, with 「改用臨時網址」 (cloudflared: the address
             // is not fixed, so it is the owner's choice, not automatic).
             r.fixState = 3, r.fixErr = funnelWhy(m->why), r.fixInfo.clear();
+            // 0.8.3.2: the page to turn Funnel / HTTPS on (or the CLI's own help page): 開啟設定頁
+            r.fixSetupUrl.clear();
+            for (const char* key : {"needs-enable: funnel ", "needs-enable: https ", "no-funnel-attr: "})
+                if (m->why.rfind(key, 0) == 0) r.fixSetupUrl = m->why.substr(strlen(key));
+            if (r.fixSetupUrl.rfind("https://login.tailscale.com/", 0) != 0 && r.fixSetupUrl.rfind("https://tailscale.com/", 0) != 0) r.fixSetupUrl.clear();
             g.log->write("warn", "remote: 常駐外網: Funnel failed: " + m->why + " (the page offers a temporary address)");
         } else if (kind == RemFixedCfUrl && r.fixState == 1) {
             r.fixState = 2, r.fixUrl = m->why + "/";
@@ -928,6 +1290,11 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         }
         updateFixedPanel();
         remoteChanged();
+        return;
+    }
+    if (m && kind == RemGuestLogin) {  // 0.8.3.2: a 臨時帳號 login try (the successful one is logged when it connects)
+        if (m->why != "ok") connLog("fixed", m->ip, "[" + m->label + "]", m->locked ? "blocked" : "wrong-password");
+        g.log->write("info", "remote: 臨時帳號 login " + std::string(m->why == "ok" ? "right" : "WRONG") + " for \"" + m->label.substr(0, 40) + "\" from " + m->ip);
         return;
     }
     if (m && (kind == RemTunnelUrl || kind == RemTunnelEnd || kind == RemTunnelLink || kind == RemTunnelCheck)) {
@@ -997,20 +1364,27 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         pm::ui::AskPanel::Info q;
         q.glyph = kIcoRemote;
         q.title = tr(S::RemoteAskTitle);
-        q.body = tr(S::RemoteAskBody);
+        q.body = tr(m->guestId.empty() ? S::RemoteAskBody : S::RemoteAskBodyGuest);  // 0.8.3.2: someone else's phone
         q.rows.push_back({tr(S::RemoteAskDevice), w(m->label)});
         q.rows.push_back({tr(S::RemoteAskFrom),
                           pm::i18n::fmt(m->fixed ? S::RemoteAskViaFixed : m->tunnel ? S::RemoteAskViaTunnel : m->tailscale ? S::RemoteAskViaTs : S::RemoteAskViaLan, {w(m->ip)})});
+        if (!m->guestId.empty()) {  // 0.8.3.2: a 臨時帳號: which one, what it may do; never remembered
+            std::wstring what;
+            for (const GuestRow& gr : guestRows())
+                if (gr.id == m->guestId) what = guestSummary(gr);
+            q.rows.push_back({tr(S::RemoteAskGuest), pm::i18n::fmt(S::RemoteAskGuestVal, {w(m->guest), what})});
+        }
         q.primary = tr(S::RemoteAllow);
         q.secondary = tr(S::RemoteDeny);
         q.secondaryChoice = 2;
-        q.check = tr(S::RemoteRemember);
+        if (m->guestId.empty()) q.check = tr(S::RemoteRemember);
         q.checked = false;
         const std::string session = m->session, device = m->device, label = m->label;
-        q.done = [session, device, label](int choice) {
+        const bool guestAsk = !m->guestId.empty();
+        q.done = [session, device, label, guestAsk](int choice) {
             RemoteState& rs = R();
             if (rs.askSession == session) rs.askSession.clear();
-            const bool allow = choice == 1, remember = allow && rs.ask.checked();
+            const bool allow = choice == 1, remember = allow && !guestAsk && rs.ask.checked();
             g.log->write("info", "remote: " + label + (allow ? " ALLOWED" : " denied") + (remember ? " (remembered)" : ""));
 #ifdef PM_APP_REMOTE
             rs.host.approve(session, allow, remember);
@@ -1031,12 +1405,19 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         break;
     }
     case RemActive:
-        connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, m->label, "ok");
+        connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, guestLabel(*m), "ok");
+        r.activeGuestId = m->guestId;
+        if (!m->guestId.empty()) {  // 0.8.3.2: 最後使用
+            for (GuestRow& gr : guestRows())
+                if (gr.id == m->guestId) gr.lastUsed = nowEpoch();
+            saveGuests();
+        }
         if (r.ask.isOpen() && r.askSession == m->session) r.ask.close(0);
         r.active = true;
         r.activeSession = m->session, r.activeLabel = m->label, r.activeIp = m->ip;
         g.log->write("info", "remote: " + m->label + " (" + m->ip + ") is connected" + (m->fixed ? " over the fixed link (password)" : ""));
-        r.banner.show(w(m->label) + L"　" + w(m->ip) + (m->fixed ? std::wstring(L" · ") + tr(S::RemoteBannerFixed) : std::wstring()),
+        r.banner.show(w(m->label) + L"　" + w(m->ip) + (m->fixed ? std::wstring(L" · ") + tr(S::RemoteBannerFixed) : std::wstring()) +
+                          (m->guest.empty() ? std::wstring() : std::wstring(L" · ") + tr(S::RemoteAskGuest) + L" " + w(m->guest)),
                       g.settings.remoteViewOnly,
                       pm::ui::RemoteBanner::Callbacks{[] { kick(); }, [](bool on) { setViewOnly(on); },
                                                       [] { refuseRemote("中斷 / 僅觀看 (banner)"); }});
@@ -1061,11 +1442,12 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
             r.askSession.clear();
             r.ask.close(0);  // the phone went away / was replaced before an answer
         }
-        if (m->why == "denied") connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, m->label, "denied");
+        if (m->why == "denied") connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, guestLabel(*m), "denied");
         if (r.active && r.activeSession == m->session) {
             endActive(m->why);
             lockAfterSession(*m);  // 0.8.3 (after the bar is gone)
         }
+        if (!m->guestId.empty()) guestSessionEnded(m->guestId);  // 0.8.3.2
         setPanelStatus();
         break;
     case RemBlocked:
@@ -1111,7 +1493,9 @@ void remoteCommand(UINT cmd) {
         (cmd == CmdRemoteTunnel && R().tunState != 0) || cmd == CmdRemotePersistent || cmd == CmdRemotePassword ||
         cmd == CmdRemoteFixedApproval || cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp || cmd == CmdRemoteAdvanced ||
         cmd == CmdRemoteLockOutside || cmd == CmdRemoteLockLan || cmd == CmdRemoteLog ||
-        (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc) {
+        (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ||
+        cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd == CmdRemoteFixedSetup ||
+        (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) || (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast)) {
         if (fromPhone()) {
             refuseRemote(cmd == CmdRemoteToggle   ? "開啟遠端操控 (menu)"
                          : cmd == CmdRemoteKick   ? "中斷 (menu)"
@@ -1120,12 +1504,28 @@ void remoteCommand(UINT cmd) {
                                    cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp ? "常駐外網 / 固定網址"
                          : cmd == CmdRemoteAdvanced || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ? "遠端控制 settings"
                          : cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast ? "已記住的手機"
+                         : cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd >= CmdRemoteGuestDel0
+                             ? "允許遠端控制 / 臨時帳號"
                                                   : "僅觀看 (menu)");
             return;
         }
     }
     switch (cmd) {
     case CmdRemoteToggle: setRemote(!R().on); break;
+    case CmdRemoteGuestNew: openGuestNew(); break;  // 0.8.3.2
+    case CmdRemoteAddrCopy: {
+        std::string a;
+#ifdef PM_APP_REMOTE
+        if (R().fixState == 2) a = R().fixUrl;
+        else if (R().tunState == 2) a = R().tunUrl + R().host.tunnelLinkPath();
+#endif
+        if (!a.empty()) copyToClipboard(toWide(a)), g.window->showToast(tr(S::RemoteCopied), 2000);
+        break;
+    }
+    case CmdRemoteTempShare:  // 0.8.3.2 產生臨時網址: remote control on, the temporary address (the block shows it)
+        if (!R().on) setRemote(true);
+        if (R().tunState == 0 || R().tunState == 3) startTunnel();
+        break;
     case CmdRemoteQr: showRemotePanel(); break;
     case CmdRemoteViewOnly: setViewOnly(!g.settings.remoteViewOnly); break;
     case CmdRemoteAudio:
@@ -1187,6 +1587,12 @@ void remoteCommand(UINT cmd) {
             startFixed();
         }
         break;
+    case CmdRemoteFixedSetup:  // 0.8.3.2 開啟設定頁 (only a tailscale.com page from the CLI's answer)
+        if (!R().fixSetupUrl.empty()) {
+            if (g.dev || g.testOffscreen) g.log->write("info", "remote: dev: would open " + R().fixSetupUrl + " in the browser (not opened)");
+            else ShellExecuteW(nullptr, L"open", toWide(R().fixSetupUrl).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        break;
     case CmdRemoteFixedCopy:
         if (R().fixState == 2) {
             copyToClipboard(toWide(R().fixUrl));
@@ -1240,6 +1646,8 @@ void remoteCommand(UINT cmd) {
         }
         break;
     default:
+        if (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) deleteGuest(cmd - CmdRemoteGuestDel0);
+        if (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast) resetGuest(cmd - CmdRemoteGuestReset0);
 #ifdef PM_APP_REMOTE
         if (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) {
             forgetDevice(cmd - CmdRemoteForgetDev0);
@@ -1408,7 +1816,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
     const HWND h = g.hwnd;  // posted: the window is inside its own click handling
     auto cmd = [h](UINT c) { return [h, c]() { PostMessageW(h, WM_PM_TOOL, c, 0); }; };
     auto act = [&](const std::wstring& label, bool primary, UINT c, int card, int kind = 0, bool on = false) {
-        IA a{label, primary, cmd(c), card};
+        IA a{label, primary, c ? cmd(c) : std::function<void()>([] {}), card};
         a.kind = kind, a.on = on;
         actions.push_back(std::move(a));
     };
@@ -1451,33 +1859,72 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
         cards.push_back(std::move(c));
         act(tr(show ? S::RemoteHideQr : S::RemoteShowQr), true, CmdRemoteLanQr, i);
     };
-    // 在外面：固定網址＋密碼
-    auto fixedCard = [&]() {
+    // 0.8.3.2 允許遠端控制 (at the top, like ToDesk's 本機 ID + 臨時密碼): 本機網址 big with its QR and
+    // 複製網址, 新增臨時帳號 and the accounts (剩餘時間 / 權限 / 最後使用, 重設密碼 · 刪除). Without the
+    // fixed address: a one-time temporary address (cloudflared) with its 通行碼, made with one click.
+    auto allowCard = [&]() {
         const int i = static_cast<int>(cards.size());
         const bool hasPw = !g.settings.remotePwHash.empty();
-        IC c{tr(S::RemoteCardFixedTitle), L"", L"", false};
-        if (!hasPw) {
-            c.body = tr(S::RemoteCardFixedBodyNew);
+        IC c{tr(S::RemoteAllowTitle), L"", L"", false};
+        std::string tunLink, tunCode;
+#ifdef PM_APP_REMOTE
+        if (r.on && r.tunState == 2) tunLink = r.tunUrl + r.host.tunnelLinkPath(), tunCode = r.host.tunnelPasscode();
+#endif
+        auto tunnelRows = [&]() {  // the temporary address: ready / getting it / failed / one click
+            if (!tunLink.empty()) {
+                c.big = w(tunLink);
+                c.note = pm::i18n::fmt(S::RemoteTunnelCode, {w(tunCode)});
+                qrOf(tunLink, c);
+                return 2;
+            }
+            if (r.tunState == 1) return c.note = tr(S::RemoteTunnelStarting), 1;
+            if (r.tunState == 3) c.note = pm::i18n::fmt(S::RemoteTunnelFailed, {r.tunErr});
+            return 0;
+        };
+        if (hasPw && r.fixState == 2) {
+            c.body = tr(S::RemoteAllowAddr);
+            c.big = w(r.fixUrl);
+            if (!r.fixInfo.empty()) c.note = r.fixInfo;
+            qrOf(r.fixUrl, c);
             cards.push_back(std::move(c));
-            act(tr(S::RemoteFixedSetPw), true, CmdRemotePassword, i);
+            act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i);
+            if (guestRows().size() < kMaxGuests) act(tr(S::RemoteGuestAdd), true, CmdRemoteGuestNew, i);
+        } else if (hasPw) {
+            c.body = r.fixState == 1 ? (r.fixInfo.empty() ? std::wstring(tr(S::RemoteFixedStarting)) : r.fixInfo)
+                     : r.fixState == 3 ? pm::i18n::fmt(S::RemoteFixedFailed, {r.fixErr})
+                                       : std::wstring(tr(S::RemoteAllowFixedOff));
+            const int t = tunnelRows();
+            cards.push_back(std::move(c));
+            if (r.fixState == 0) act(tr(S::RemoteFixedOpen), true, CmdRemoteFixedToggle, i);
+            if (r.fixState == 3 && !r.fixSetupUrl.empty()) {  // 0.8.3.2: once on the web page, then again
+                act(tr(S::RemoteFixedOpenSetup), true, CmdRemoteFixedSetup, i);
+                act(tr(S::RemoteFixedRetryDone), true, CmdRemoteFixedToggle, i);
+                act(tr(S::RemoteFixedTemp), false, CmdRemoteFixedTemp, i);
+            } else if (r.fixState == 3) {
+                act(tr(S::RemoteTunnelRetry), true, CmdRemoteFixedToggle, i), act(tr(S::RemoteFixedTemp), false, CmdRemoteFixedTemp, i);
+            }
+            if (t == 2) act(tr(S::RemoteFixedCopy), false, CmdRemoteAddrCopy, i), act(tr(S::RemoteTunnelStop), false, CmdRemoteTunnel, i);
+            else if (t == 0 && r.fixState != 3) act(tr(S::RemoteTempShare), false, CmdRemoteTempShare, i);
+        } else {
+            c.body = tr(S::RemoteAllowTempBody);
+            const int t = tunnelRows();
+            cards.push_back(std::move(c));
+            if (t == 2) act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i), act(tr(S::RemoteTunnelStop), false, CmdRemoteTunnel, i);
+            else if (t == 0) act(tr(S::RemoteTempShare), true, CmdRemoteTempShare, i);
+            act(tr(S::RemoteAllowSetPw), false, CmdRemotePassword, i);
             return;
         }
-        if (r.fixState == 2) {
-            c.body = tr(S::RemoteCardFixedBodyOn);
-            c.note = w(r.fixUrl) + (r.fixInfo.empty() ? std::wstring() : L"\n" + r.fixInfo);
-            qrOf(r.fixUrl, c);
-        } else if (r.fixState == 1) {
-            c.body = r.fixInfo.empty() ? std::wstring(tr(S::RemoteFixedStarting)) : r.fixInfo;  // 0.8.3.1: 等待 Tailscale 啟動
-        } else if (r.fixState == 3) {
-            c.body = pm::i18n::fmt(S::RemoteFixedFailed, {r.fixErr});
-        } else {
-            c.body = tr(S::RemoteCardFixedBodyOff);
+        // The accounts (also while the fixed address is off: they can still be deleted).
+        const std::vector<GuestRow>& gs = guestRows();
+        if (!gs.empty()) {
+            act(pm::i18n::fmt(S::RemoteGuestsHead, {std::to_wstring(gs.size())}), false, 0, i, 4);
+            for (size_t k = 0; k < gs.size() && k < kMaxGuests; ++k) {
+                act(guestRowText(gs[k]), false, 0, i, 4);
+                act(tr(S::RemoteGuestReset), false, CmdRemoteGuestReset0 + static_cast<UINT>(k), i, 5);
+                act(tr(S::RemoteGuestDelete), false, CmdRemoteGuestDel0 + static_cast<UINT>(k), i, 5);
+            }
         }
-        cards.push_back(std::move(c));
-        if (r.fixState == 2) act(tr(S::RemoteFixedCopy), true, CmdRemoteFixedCopy, i);
-        if (r.fixState == 3) act(tr(S::RemoteFixedTemp), true, CmdRemoteFixedTemp, i);
-        if (r.fixState == 0) act(tr(S::RemoteFixedOpen), true, CmdRemoteFixedToggle, i);
-        if (r.fixState == 3) act(tr(S::RemoteTunnelRetry), false, CmdRemoteFixedToggle, i);
+        if (r.fixState == 2) act(tr(S::RemoteAllowFoot), false, 0, i, 4);
         act(tr(S::RemoteFixedChangePw), false, CmdRemotePassword, i);
         if (r.fixState == 1 || r.fixState == 2) act(tr(S::RemoteFixedClose), false, CmdRemoteFixedToggle, i);
         act(tr(S::RemoteCardPersistent), false, CmdRemotePersistent, i, 3, g.settings.remotePersistent);
@@ -1492,9 +1939,8 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
         if (noTs) act(tr(S::RemoteTsGuide), false, CmdRemoteTsHelp, i);
         else act(tr(show ? S::RemoteHideQr : S::RemoteShowQr), true, CmdRemoteTsQr, i);
     };
-    // Set up: the fixed address is the main way (first); else 在家 first.
-    if (!g.settings.remotePwHash.empty()) fixedCard(), lanCard();
-    else lanCard(), fixedCard();
+    allowCard();  // 0.8.3.2: 允許遠端控制 first, then 在家 and Tailscale as before
+    lanCard();
     tsCard();
     act(tr(S::RemoteAdvanced), false, CmdRemoteAdvanced, -1);
     actions.push_back(IA{tr(S::RemoteHowTo), false, []() { openTutorial(L"remote"); }, -1});
@@ -1580,7 +2026,12 @@ void remoteStartup(bool background) {
     // a --dev test once removed the installed app's live fixed link this way).
     if (g.dev) return;
     const HWND h = g.hwnd;
+    ++r.cliRuns;
     r.fixThread = std::thread([h] {
+        struct Done {
+            ~Done() { --R().cliRuns; }
+        } done;
+        std::lock_guard<std::mutex> lk(R().cliMu);  // 0.8.3.2: one CLI job at a time
         const pm::remote::FunnelStatus st = pm::remote::TailscaleFunnel::status(kFixedPort);
         if (!st.hasPort || st.target.rfind("http://127.0.0.2:", 0) != 0) return;
         if (pm::remote::TailscaleFunnel::targetAnswers(st.target)) {
@@ -1602,7 +2053,18 @@ void stopRemote() {
     RemoteState& r = R();
     stopTunnel("quit");
     stopFixed("quit");  // the Funnel port goes with the app (nothing would answer behind it)
+#ifdef PM_APP_REMOTE
+    if (g.quitting) {  // 0.8.3.2: the window is gone: the port off (normally < 1 s), 4 s at most, then the CLI is ended
+        for (int i = 0; i < 40 && r.cliRuns > 0; ++i) Sleep(100);
+        if (r.cliRuns > 0) {
+            g.log->write("warn", "remote: a tailscale CLI run still going at quit: ended");
+            pm::remote::TailscaleFunnel::cancelAll();
+            for (int i = 0; i < 20 && r.cliRuns > 0; ++i) Sleep(100);
+        }
+    }
+#endif
     r.pw.close();
+    r.guestPanel.close();
     r.news.close(0);
     if (!r.on && !r.banner.visible()) return;
     r.ask.close(0);
@@ -1618,6 +2080,7 @@ void stopRemote() {
 
 void remoteRetheme() {
     R().pw.retheme();
+    R().guestPanel.retheme();
     R().news.retheme();
     R().panel.retheme();
     R().banner.retheme();
@@ -1626,6 +2089,7 @@ void remoteRetheme() {
 
 void remoteRelabel() {
     R().pw.relabel();
+    R().guestPanel.relabel();
     R().panel.relabel();
     R().banner.relabel();
 }
@@ -1760,6 +2224,53 @@ void remoteDevLog(int how) {
     for (char& c : text)
         if (c == '\n') c = '|';
     g.log->write("info", "dev remote connection log: " + text);
+}
+
+// 0.8.3.2 --dev hooks for the 臨時帳號 tests and screenshots (see remote.h). Never a password in the log.
+void remoteDevGuest(int which, LPARAM lp) {
+    RemoteState& r = R();
+    const fs::path d = fs::temp_directory_path() / L"pmshots";
+    std::error_code ec;
+    if (which == 981 && r.guestPanel.isOpen()) {
+        wchar_t nm[64] = {};
+        const DWORD n = GetEnvironmentVariableW(L"PM_TEST_GUEST_NAME", nm, 64);
+        r.guestPanel.testSet(n > 0 && n < 64 ? std::wstring(nm) : std::wstring(), static_cast<int>(lp & 3), (lp & 4) != 0, (lp & 8) != 0, (lp & 16) != 0);
+        g.log->write("info", std::string("dev guest form: set") + ((lp & 16) ? " + 建立" : ""));
+    } else if (which == 982) {
+        fs::create_directories(d, ec);
+        const UINT dpi = static_cast<UINT>(lp);
+        const fs::path f = d / (dpi ? L"guest_panel_" + std::to_wstring(dpi) + L".png" : std::wstring(L"guest_panel.png"));
+        g.log->write("info", std::string("dev guest panel shot: ") + (r.guestPanel.isOpen() && r.guestPanel.renderPng(f.wstring(), dpi) ? "ok" : "-"));
+    } else if (which == 983 && r.guestPanel.isOpen()) {
+        r.guestPanel.testCopy();
+    } else if (which == 984) {
+        r.guestPanel.close();
+        remoteChanged();
+    } else if (which == 985 && g.hwnd) {
+        // As if the window moved to a monitor at this DPI: the same DIPs, or a client lp >> 16 px high
+        // (a 1080p work area at 125 / 150 %), same shape.
+        static UINT simDpi = 0;
+        const UINT cur = simDpi ? simDpi : GetDpiForWindow(g.hwnd), dpi = static_cast<UINT>(lp & 0xFFFF), hPx = static_cast<UINT>((lp >> 16) & 0xFFFF);
+        if (dpi < 96 || dpi > 288) return;
+        RECT cr{}, wr{};
+        GetClientRect(g.hwnd, &cr);
+        GetWindowRect(g.hwnd, &wr);
+        double cw = cr.right * double(dpi) / cur, ch = cr.bottom * double(dpi) / cur;
+        if (hPx > 0 && ch > hPx) cw = cw * hPx / ch, ch = hPx;
+        RECT nr{0, 0, static_cast<LONG>(std::lround(cw)), static_cast<LONG>(std::lround(ch))};
+        AdjustWindowRectExForDpi(&nr, static_cast<DWORD>(GetWindowLongW(g.hwnd, GWL_STYLE)), FALSE, static_cast<DWORD>(GetWindowLongW(g.hwnd, GWL_EXSTYLE)), dpi);
+        RECT sug{wr.left, wr.top, wr.left + (nr.right - nr.left), wr.top + (nr.bottom - nr.top)};
+        simDpi = dpi;
+        SendMessageW(g.hwnd, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&sug));
+        GetClientRect(g.hwnd, &cr);
+        g.log->write("info", "dev dpi: " + std::to_string(dpi) + ", client " + std::to_string(cr.right) + "x" + std::to_string(cr.bottom) + " px (" +
+                                 std::to_string(cr.right * 96 / dpi) + "x" + std::to_string(cr.bottom * 96 / dpi) + " DIPs)");
+    } else if (which == 986) {
+        std::string s;
+        for (const GuestRow& gr : guestRows())
+            s += (s.empty() ? "" : " | ") + gr.name + " " + toUtf8(guestSummary(gr)) + (gr.lastUsed ? " used" : " unused");
+        g.log->write("info", "dev guests: " + std::to_string(guestRows().size()) + (s.empty() ? std::string() : ": " + s));
+    }
 }
 
 }  // namespace pm_app

@@ -102,6 +102,7 @@ public:
         int card = -1;  // 0.7.8: the button of idle card #card (drawn in it, not in the row)
         // 0.8.2: 0 button / link, 1 page tab (top), 2 the big switch (in place of the
         // title; sub = its status line), 3 a check box in its card. on: selected / checked.
+        // 0.8.3.2: 4 a list row's text in its card (own row, not clickable), 5 a link on that row.
         int kind = 0;
         bool on = false;
         std::wstring sub;
@@ -116,6 +117,7 @@ public:
         bool muted = false;
         std::vector<uint8_t> qr;  // 0.8.2: BGRA QR code (1 px per module + quiet zone) at the card's right
         int qrSize = 0;
+        std::wstring big;         // 0.8.3.2: a big line under the title (an address)
     };
     void setCards(std::vector<Card> cards) { cards_ = std::move(cards); }
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }

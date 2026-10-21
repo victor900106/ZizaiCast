@@ -49,7 +49,7 @@ add_library(pm_remote STATIC
   src/encoder.h src/encoder.cpp
   src/input.h src/input.cpp
   src/http_server.h src/http_server.cpp
-  src/audio.h src/audio.cpp
+  src/audio.h src/audio.cpp src/level.h src/synth_audio.h
   src/tunnel.h src/tunnel.cpp
   src/secure.cpp src/funnel.cpp
   src/host.cpp
@@ -82,3 +82,21 @@ if(MSVC)
   target_compile_options(pm_funnel_test PRIVATE /W4 /utf-8)
   target_compile_definitions(pm_funnel_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
+
+# 0.8.3.2: the phone's sound level (AGC / noise gate / limiter) on synthetic PCM, offline:
+# before (0.8.3.1) / after, through Opus and back. No audio device is opened.
+add_executable(pm_level_test tools/level_test.cpp src/level.h src/synth_audio.h)
+target_link_libraries(pm_level_test PRIVATE Opus::opus)
+target_include_directories(pm_level_test PRIVATE src)
+if(MSVC)
+  target_compile_options(pm_level_test PRIVATE /W4 /utf-8)
+  target_compile_definitions(pm_level_test PRIVATE NOMINMAX)
+endif()
+
+# 0.8.3.2: a FAKE tailscale CLI for the tests (an enable page and never exiting, silence, ...).
+# Only ever started by pm_funnel_test / --dev runs that point TailscaleFunnel at it; it is not tailscale.
+add_executable(pm_fake_tailscale tools/fake_tailscale.cpp)
+if(MSVC)
+  target_compile_options(pm_fake_tailscale PRIVATE /W4 /utf-8)
+endif()
+add_dependencies(pm_funnel_test pm_fake_tailscale)

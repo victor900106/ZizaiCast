@@ -35,7 +35,8 @@ html,body{margin:0;height:100%;background:#000;color:var(--fg);font:15px/1.4 -ap
   border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--fg);-webkit-user-select:text;user-select:text;touch-action:auto}
 #passGo{flex:0 0 auto;min-width:140px;background:var(--ac);color:#2a1a1c;border:0;font-weight:600}
 #passErr{font-size:14px;color:#ffb3b3;min-height:20px}
-#pass.pw #passIn{letter-spacing:normal;font:500 20px/1.3 system-ui,sans-serif;padding:12px 14px;width:min(320px,86vw)}
+#pass.pw #passIn,#userIn{letter-spacing:normal;font:500 20px/1.3 system-ui,sans-serif;padding:12px 14px;width:min(320px,86vw);text-align:center;border-radius:12px;
+  border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--fg);-webkit-user-select:text;user-select:text;touch-action:auto}
 #pad{position:absolute;inset:0;z-index:2}
 button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 #hud{position:absolute;left:calc(6px + var(--sl));top:calc(6px + var(--st));z-index:3;padding:4px 8px;background:rgba(0,0,0,.62);border-radius:8px;
@@ -170,7 +171,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div class="sheet" id="set">
   <h3><span id="setT"></span><button id="setClose"></button></h3>
   <div class="row"><span class="lbl" id="lMode"></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
-  <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="300" step="10"></div>
+  <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="400" step="10"></div>
   <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
   <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
   <div class="row"><label for="swAuto"><span id="lAuto"></span><span class="sub" id="lAutoSub"></span></label><input type="checkbox" class="sw" id="swAuto"></div>
@@ -245,6 +246,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div id="msg"><div class="spin" id="msgSpin"></div><div id="msgT"></div><div id="msgS"></div><div id="msgB"></div></div>
 <div id="tapHint"><span id="tapHintT"></span></div>
 <div id="pass"><div id="passT"></div><div id="passS"></div>
+  <input id="userIn" maxlength="40" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="account" style="display:none">
   <input id="passIn" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="passcode">
   <button class="btn" id="passGo"></button><div id="passErr"></div></div>
 
@@ -279,8 +281,11 @@ const T = {
   passGo: ['確定', 'OK', 'OK', '확인'],
   passWrong: ['通行碼不對，還可以再試 {0} 次', 'Wrong passcode: {0} tries left', 'パスコードが違います（あと {0} 回）', '통행 코드가 틀렸습니다({0}번 남음)'],
   passDead: ['錯太多次，這個連結已失效', 'Too many wrong tries: this link no longer works', '間違いが多すぎるため、このリンクは使えなくなりました', '너무 많이 틀려 이 링크를 더 이상 쓸 수 없습니다'],
-  pwT: ['輸入密碼', 'Enter the password', 'パスワードを入力', '비밀번호 입력'],
-  pwS: ['這是你在電腦「常駐外網」設定的密碼。登入一次，這支手機 30 天內不用再輸入。', 'The password you set for “Always-on link” on the PC. Log in once and this phone won’t ask again for 30 days.', 'パソコンの「常時外部リンク」で設定したパスワードです。一度ログインすると、このスマホでは 30 日間入力不要です。', 'PC의 “상시 외부 링크”에서 정한 비밀번호입니다. 한 번 로그인하면 이 휴대폰은 30일 동안 다시 묻지 않습니다.'],
+  pwT: ['登入這台電腦', 'Log in to this PC', 'このパソコンにログイン', '이 PC에 로그인'],
+  pwS: ['用你在電腦設定的密碼：帳號留空，登入一次這支手機 30 天內不用再輸入。別人給你的臨時帳號：帳號和密碼都要填，連上前電腦那邊要按允許。', 'Your own password from the PC: leave the account empty; this phone then stays logged in for 30 days. A temporary account you were given: fill in both, and the PC has to click “Allow”.', 'パソコンで設定した自分のパスワード：アカウントは空欄。一度ログインすると、このスマホでは 30 日間入力不要です。渡された一時アカウント：両方を入力し、パソコン側で「許可」が必要です。', 'PC에서 정한 내 비밀번호: 계정은 비워 두세요. 한 번 로그인하면 이 휴대폰에서 30일 동안 다시 입력하지 않아도 됩니다. 받은 임시 계정: 둘 다 입력하고, PC에서 ‘허용’을 눌러야 합니다.'],
+  userCue: ['帳號（用自己的密碼請留空）', 'Account (empty for your own password)', 'アカウント（自分のパスワードなら空欄）', '계정(내 비밀번호면 비워 두기)'],
+  pwCue: ['密碼', 'Password', 'パスワード', '비밀번호'],
+  guestWrong: ['帳號或密碼不對（也可能已過期或用過了），還可以再試 {0} 次', 'Wrong account or password (or it expired / was used): {0} tries left', 'アカウントかパスワードが違います（期限切れ・使用済みの場合も）。あと {0} 回', '계정 또는 비밀번호가 틀렸습니다(만료되었거나 이미 쓴 경우도). {0}번 남음'],
   pwWrong: ['密碼不對，還可以再試 {0} 次', 'Wrong password: {0} tries left', 'パスワードが違います（あと {0} 回）', '비밀번호가 틀렸습니다({0}번 남음)'],
   pwLocked: ['錯太多次，請 {0} 分鐘後再試', 'Too many wrong tries: try again in {0} minutes', '間違いが多すぎます。{0} 分後にもう一度お試しください', '너무 많이 틀렸습니다. {0}분 후 다시 시도하세요'],
   pwNone: ['電腦還沒設定密碼', 'No password is set on the PC yet', 'パソコンでパスワードがまだ設定されていません', 'PC에 아직 비밀번호가 설정되지 않았습니다'],
@@ -316,7 +321,7 @@ const T = {
   soundTapAgain: ['再點一次「開啟聲音」', 'Tap “Turn on sound” once more', 'もう一度「音を出す」をタップしてください', '“소리 켜기”를 한 번 더 누르세요'],
   pcSilent: ['電腦目前沒有在播放聲音', 'The PC isn’t playing any sound right now', 'パソコンは今、音を再生していません', 'PC에서 지금 재생 중인 소리가 없습니다'],
   vol: ['手機音量', 'Phone volume', 'スマホの音量', '휴대폰 음량'],
-  volSub: ['把電腦傳來的聲音放大（100% = 原音，最高 300%，不會爆音）', 'Boosts the PC’s sound (100% = as is, up to 300%, no clipping)', 'パソコンの音を増幅（100% = そのまま、最大 300%、音割れ防止つき）', 'PC 소리를 키웁니다(100% = 원음, 최대 300%, 찢어짐 방지)'],
+  volSub: ['電腦已自動調好音量；想更大聲再往右拉（最高 400%，不會爆音）', 'The PC already sets a good level; slide right for more (up to 400%, no clipping)', 'パソコンが音量を自動で整えます。もっと大きくするなら右へ（最大 400%、音割れ防止つき）', 'PC가 음량을 자동으로 맞춥니다. 더 크게 하려면 오른쪽으로(최대 400%, 찢어짐 방지)'],
   muted: ['已靜音（電腦聲音不再傳到手機）', 'Muted (the PC’s sound no longer comes to the phone)', 'ミュートしました（パソコンの音は送られません）', '음소거됨(PC 소리를 더 이상 보내지 않음)'],
   noSound: ['聲音沒開：電腦端關閉了「聲音傳到手機」', 'No sound: “Send sound to phone” is off on the PC', '音なし：パソコンで「音をスマホへ」がオフです', '소리 없음: PC에서 “휴대폰으로 소리 보내기”가 꺼져 있음'],
   viewOnly: ['僅觀看', 'View only', '表示のみ', '보기 전용'],
@@ -452,7 +457,9 @@ const prefs = {
   hud: store.get('hud', false),
   // 0.8.3: 100 % (the PC raises quiet sound itself now: AGC + volume compensation); a new key, so
   // 0.8.2's 150 % default ("聲音有點小") does not stack on top of it.
-  gain: store.get('gain083', 100),
+  // 0.8.3.2: a new key again: 0.8.3's AGC stayed at x1 on quiet material, so people pushed this to
+  // 300 %; with the AGC working (-17 dBFS RMS) that 300 % would be ~10 dB too loud. 0-400 %.
+  gain: Math.max(0, Math.min(400, +store.get('gain0832', 100) || 0)),
   lock: store.get('lock', false),
   auto: store.get('auto', true),
 };
@@ -725,6 +732,8 @@ function askPass(err) {
     $('pass').classList.add('pw');
     i.type = 'password'; i.removeAttribute('inputmode'); i.removeAttribute('pattern'); i.maxLength = 256;
     i.autocomplete = 'current-password'; i.setAttribute('aria-label', 'password');
+    // 0.8.3.2: an account too (empty = the owner's own password, as before)
+    const u = $('userIn'); u.style.display = ''; u.placeholder = t('userCue'); i.placeholder = t('pwCue');
   }
   $('passT').textContent = t(FIXED ? 'pwT' : 'passT');
   $('passS').innerHTML = nwHtml(t(FIXED ? 'pwS' : 'passS'));
@@ -733,21 +742,23 @@ function askPass(err) {
   setTimeout(() => { try { $('passIn').focus(); } catch {} }, 60);
 }
 async function submitPw() {
-  const password = $('passIn').value;
+  const password = $('passIn').value, user = $('userIn').value.trim();
   if (!password || $('passGo').disabled) return;
   $('passGo').disabled = true;
   let r = null, j = null;
-  try { r = await fetch('/login', {method: 'POST', body: JSON.stringify({password}), cache: 'no-store'}); j = await r.json(); } catch {}
+  try { r = await fetch('/login', {method: 'POST', body: JSON.stringify({user, password}), cache: 'no-store'}); j = await r.json(); } catch {}
   $('passGo').disabled = false;
   $('passIn').value = '';
   if (j && j.ok && j.token) {
-    store.set('fixedTok', j.token);
+    // 0.8.3.2: a 臨時帳號's login is for this page only (never kept for 30 days)
+    store.set('fixedTok', j.guest ? '' : j.token);
+    $('userIn').value = '';
     BASE = '/k/' + j.token + '/';
     $('pass').style.display = 'none'; PM.verified = true; diag('password-ok'); connect(); return;
   }
   if (j && j.noPassword) return askPass(t('pwNone'));
   if (j && j.locked) return askPass(tf('pwLocked', Math.max(1, Math.ceil((j.retryAfter || 900) / 60))));
-  if (j && j.left !== undefined) return askPass(tf('pwWrong', j.left));
+  if (j && j.left !== undefined) return askPass(tf(j.guest ? 'guestWrong' : 'pwWrong', j.left));
   askPass(t('unreachable'));
 }
 async function startFixed() {
@@ -785,9 +796,11 @@ async function submitPass() {
 $('passGo').onclick = submitPass;
 $('passIn').addEventListener('input', () => { if (!FIXED && $('passIn').value.replace(/\D/g, '').length >= 6) submitPass(); });
 $('passIn').addEventListener('keydown', e => { if (e.key === 'Enter') submitPass(); });
+$('userIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('passIn').focus(); });
 
-// ---- phone volume (0.8.2): Web Audio, gain 0-300 % (default 150 %) then a
-// limiter (no clipping); analysers before / after for the level report ----
+// ---- phone volume (0.8.2): Web Audio, gain 0-400 % (0.8.3.2; default 100 %) then a
+// limiter (no clipping); analysers before / after for the level report. Measured on the owner's
+// iPhone Chrome (WebKit) at 300 %: rmsOut / rmsIn = 3.3-3.5 (x3 and the compressor's make-up gain) ----
 const snd = {ctx: null, in: null, gain: null, lim: null, anIn: null, anOut: null, src: null, srcStream: null, elementFallback: false, silentSec: 0};
 function soundCtx() {
   if (!snd.ctx) {
@@ -1603,7 +1616,7 @@ async function uploadFile(f) {
     }
     if (r.status === 409 && j && typeof j.got === 'number' && !j.noSession) { off = j.got; continue; }
     if (!r.ok || !j || !j.ok) {
-      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && j.viewOnly ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
+      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && (j.viewOnly || j.noFiles) ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
       pr.remove(); upStat.errors++; return;
     }
     fails = 0; off = j.got; done = !!j.done;
@@ -1706,7 +1719,7 @@ $('lVolSub').textContent = t('volSub');
 const showVol = () => { $('vol').value = prefs.gain; $('volV').textContent = prefs.gain + '%'; };
 showVol();
 $('vol').oninput = () => {
-  prefs.gain = Math.max(0, Math.min(300, +$('vol').value | 0)); store.set('gain083', prefs.gain); showVol();
+  prefs.gain = Math.max(0, Math.min(400, +$('vol').value | 0)); store.set('gain0832', prefs.gain); showVol();
   if (snd.gain) snd.gain.gain.setTargetAtTime(prefs.gain / 100, snd.ctx.currentTime, 0.03);
 };
 $('bHelp').textContent = t('gestures');

@@ -1,15 +1,15 @@
 // 0.8.3.1: 常駐外網 start-up against a STUBBED tailscale CLI (TailscaleFunnel::setRunnerForTest):
-// no process is ever started, the owner's Funnel (443 / 8443) cannot be touched.
+// no process is ever started, no real Funnel (443 / 8443) can be touched.
 //   pm_funnel_test.exe            (exit code 0 = every check passed)
 // The stub keeps a fake tailscaled: BackendState per call, the serve config (443 = someone
 // else's, never to change; 8443 = ours), and records every command line. Cases:
 //   boot-kept     NoState, NoState, Starting, then Running with 8443 already kept by tailscaled
-//                 (the owner's 09:14 reboot): waits 2, 4, 8 s, then up without any change
+//                 (right after a reboot): waits 2, 4, 8 s, then up without any change
 //   boot-new      Starting, then Running without 8443: one `funnel --bg --https=8443 <origin>`
 //   no-daemon     the CLI cannot reach tailscaled yet (exit 1): waited for like NoState
 //   needs-login   NeedsLogin: no waiting (the person has to sign in), fails at once
 //   never         never Running: 2 4 8 16 32 60 60 60 58 s (300 s), then "still-starting"
-//   0.8.3         what 0.8.3 did at the owner's 09:14 reboot: start() once, NoState = failed
+//   0.8.3         what 0.8.3 did right after a reboot: start() once, NoState = failed
 //   cancelled     the wait is cancelled (app closed): stops at once
 //   443-changed   the funnel command changes port 443 (it must not): failure, no retry
 // Every case also checks: no command other than status / funnel status / funnel --bg
@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -29,9 +30,10 @@ using pm::remote::TailscaleFunnel;
 namespace {
 
 const std::string kOrigin = "http://127.0.0.2:8091";
-const std::string kName = "pc.tail-test.ts.net";
-// Port 443 as on the owner's PC (another app's Funnel): must stay byte-for-byte the same.
-const std::string k443Web = R"({"Handlers":{"/":{"Proxy":"http://127.0.0.1:8790"}}})";
+const std::string kName = "example-pc.example.ts.net";  // a made-up name
+// Port 443 already served by something else on the same machine (a made-up local service):
+// must stay byte-for-byte the same.
+const std::string k443Web = R"({"Handlers":{"/":{"Proxy":"http://127.0.0.1:8080"}}})";
 
 struct FakeTailscale {
     std::vector<std::string> states;  // BackendState per `status --json` call (last one repeats)
@@ -41,17 +43,20 @@ struct FakeTailscale {
     bool funnelChanges443 = false;    // a broken CLI that touches 443 (must be caught)
     bool changed443 = false;
     int statusCalls = 0;
+    std::string bgOut;                // 0.8.3.2: what "funnel --bg" prints instead of working (+ bgCode)
+    unsigned long bgCode = 1;
+    std::string other8443;            // 0.8.3.2: 8443 already serves this (another program)
     std::vector<std::string> commands;
     std::vector<std::string> bad;     // commands the app must never run
 
     std::string funnelJson() const {
         std::string web = "\"" + kName + ":443\":" + (changed443 ? std::string(R"({"Handlers":{"/":{"Proxy":"http://127.0.0.1:1"}}})") : k443Web);
         std::string allow = "\"" + kName + ":443\":true";
-        if (has8443) {
-            web += ",\"" + kName + ":8443\":{\"Handlers\":{\"/\":{\"Proxy\":\"" + kOrigin + "\"}}}";
+        if (has8443 || !other8443.empty()) {
+            web += ",\"" + kName + ":8443\":{\"Handlers\":{\"/\":{\"Proxy\":\"" + (other8443.empty() ? kOrigin : other8443) + "\"}}}";
             allow += ",\"" + kName + ":8443\":true";
         }
-        return "{\"TCP\":{\"443\":{\"HTTPS\":true}" + std::string(has8443 ? ",\"8443\":{\"HTTPS\":true}" : "") + "},\"Web\":{" + web +
+        return "{\"TCP\":{\"443\":{\"HTTPS\":true}" + std::string(has8443 || !other8443.empty() ? ",\"8443\":{\"HTTPS\":true}" : "") + "},\"Web\":{" + web +
                "},\"AllowFunnel\":{" + allow + "}}";
     }
     bool run(const std::wstring& wcmd, std::string& out, unsigned long& code) {
@@ -76,6 +81,10 @@ struct FakeTailscale {
         if (args == "funnel status --json") {
             out = funnelJson();
             code = 0;
+            return true;
+        }
+        if (args == "funnel --bg --https=8443 " + kOrigin && !bgOut.empty()) {
+            out = bgOut, code = bgCode;
             return true;
         }
         if (args == "funnel --bg --https=8443 " + kOrigin) {
@@ -205,6 +214,106 @@ int main() {
         const Result r = run(f);
         check("443-changed: caught, no retry", !r.ok && r.err == "443-changed" && r.waits.size() == 1, r.err);
         common("443-changed", f);
+    }
+    // ---- 0.8.3.2: what the person has to do (no retry, the right key), against the stub ----
+    struct Case {
+        const char* name;
+        std::string out, want;
+    };
+    for (const Case& c : {Case{"enable-funnel", "Funnel is not enabled on your tailnet.\nTo enable, visit:\n\n         https://login.tailscale.com/f/funnel?node=nX1\n",
+                               "needs-enable: funnel https://login.tailscale.com/f/funnel?node=nX1"},
+                          Case{"enable-https", "Serve is not enabled on your tailnet.\nTo enable, visit:\n\n         https://login.tailscale.com/f/serve?node=nX2\n",
+                               "needs-enable: https https://login.tailscale.com/f/serve?node=nX2"},
+                          Case{"no-attr", "Funnel not available; \"funnel\" node attribute not set. See https://tailscale.com/s/no-funnel.",
+                               "no-funnel-attr: https://tailscale.com/s/no-funnel"},
+                          Case{"old-cli", "flag provided but not defined: -bg\nUSAGE", "cli-too-old"}}) {
+        FakeTailscale f;
+        f.bgOut = c.out;
+        const Result r = run(f);
+        check((std::string(c.name) + ": no retry, " + c.want).c_str(), !r.ok && r.err == c.want && r.waits.empty(), r.err);
+        check((std::string(c.name) + ": not taken for a start-up").c_str(), !TailscaleFunnel::backendStarting(r.err));
+        common(c.name, f);
+    }
+    {
+        FakeTailscale f;
+        f.other8443 = "http://127.0.0.1:9000";
+        const Result r = run(f);
+        int bg = 0;
+        for (const auto& c : f.commands) bg += c.find("funnel --bg") != std::string::npos;
+        check("port-taken: 8443 of another program is left alone (no funnel command)", !r.ok && r.err == "port-taken: http://127.0.0.1:9000" && bg == 0, r.err);
+        common("port-taken", f);
+    }
+    // ---- 0.8.3.2: a real (fake) CLI process: an enable page and never exiting, silence, cancel ----
+    wchar_t me[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, me, MAX_PATH);
+    std::wstring dir = me;
+    dir = dir.substr(0, dir.find_last_of(L"\\/") + 1);
+    const std::wstring fake = dir + L"pm_fake_tailscale.exe";
+    if (GetFileAttributesW(fake.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        check("fake CLI present (pm_fake_tailscale.exe next to this test)", false);
+    } else {
+        wchar_t tmp[MAX_PATH] = {};
+        GetTempPathW(MAX_PATH, tmp);
+        const std::wstring pids = std::wstring(tmp) + L"pm_fake_ts_pids_" + std::to_wstring(GetCurrentProcessId()) + L".txt";
+        const std::wstring state = std::wstring(tmp) + L"pm_fake_ts_state_" + std::to_wstring(GetCurrentProcessId()) + L".txt";
+        DeleteFileW(pids.c_str()), DeleteFileW(state.c_str());
+        SetEnvironmentVariableW(L"PM_FAKE_TS_PIDS", pids.c_str());
+        SetEnvironmentVariableW(L"PM_FAKE_TS_STATE", state.c_str());
+        TailscaleFunnel::setCliForTest(fake);
+        auto leftRunning = [&] {  // fake CLI processes still alive
+            int n = 0;
+            FILE* f = _wfopen(pids.c_str(), L"rb");
+            if (!f) return 0;
+            unsigned long pid = 0;
+            char rest[512];
+            while (fscanf_s(f, "%lu", &pid) == 1) {
+                fgets(rest, sizeof(rest), f);
+                if (HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, pid)) {
+                    if (WaitForSingleObject(h, 0) == WAIT_TIMEOUT) ++n;
+                    CloseHandle(h);
+                }
+            }
+            fclose(f);
+            return n;
+        };
+        auto startWith = [&](const wchar_t* mode, std::string& url, std::string& err) {
+            SetEnvironmentVariableW(L"PM_FAKE_TS_MODE", mode);
+            const ULONGLONG t0 = GetTickCount64();
+            TailscaleFunnel::start(8443, kOrigin, url, err);
+            return double(GetTickCount64() - t0) / 1000.0;
+        };
+        std::string url, err;
+        double s = startWith(L"enable-hang", url, err);
+        check("real CLI, enable page then waits for ever: stopped within 5 s", s < 5, std::to_string(s) + " s");
+        check("real CLI, enable page: needs-enable: funnel <url>", err == "needs-enable: funnel https://login.tailscale.com/f/funnel?node=nFAKE0832", err);
+        check("real CLI, enable page: no process left", leftRunning() == 0, std::to_string(leftRunning()));
+        s = startWith(L"https-hang", url, err);
+        check("real CLI, HTTPS page: stopped within 5 s, needs-enable: https", s < 5 && err.rfind("needs-enable: https https://login.tailscale.com/f/serve", 0) == 0, err);
+        s = startWith(L"silent-hang", url, err);
+        check("real CLI, silent and never exits: given up after ~15 s", s >= 14 && s < 20 && err == "timeout: funnel --bg", std::to_string(s) + " s, " + err);
+        check("real CLI, silent: no process left", leftRunning() == 0, std::to_string(leftRunning()));
+        s = startWith(L"needs-login", url, err);
+        check("real CLI, NeedsLogin: at once", s < 5 && err == "not-running: NeedsLogin", err);
+        s = startWith(L"port-taken", url, err);
+        check("real CLI, 8443 of another program: left alone", s < 5 && err == "port-taken: http://127.0.0.1:9000", err);
+        s = startWith(L"ok", url, err);
+        check("real CLI, ok: up", s < 5 && url == "https://example-pc.example.ts.net:8443/", url + " " + err);
+        std::string e2;
+        check("real CLI, ok: off again", TailscaleFunnel::stop(8443, e2), e2);
+        {  // quit while a CLI hangs: cancelAll() ends it at once
+            SetEnvironmentVariableW(L"PM_FAKE_TS_MODE", L"silent-hang");
+            std::string u3, e3;
+            const ULONGLONG t0 = GetTickCount64();
+            std::thread t([&] { TailscaleFunnel::start(8443, kOrigin, u3, e3); });
+            Sleep(1500);
+            TailscaleFunnel::cancelAll();
+            t.join();
+            const double took = double(GetTickCount64() - t0) / 1000.0;
+            check("cancelAll (quit): the hanging run ends at once", took < 4, std::to_string(took) + " s, " + e3);
+            check("cancelAll: no process left", leftRunning() == 0, std::to_string(leftRunning()));
+        }
+        TailscaleFunnel::setCliForTest(L"");
+        DeleteFileW(pids.c_str()), DeleteFileW(state.c_str());
     }
     check("backendStarting: NoState / Starting yes, Stopped / NeedsLogin no",
           TailscaleFunnel::backendStarting("not-running: NoState") && TailscaleFunnel::backendStarting("not-running: Starting") &&

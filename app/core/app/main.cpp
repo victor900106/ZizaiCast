@@ -140,6 +140,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     pm::ui::AskPanel::testOffscreen = g.testOffscreen;
     pm::ui::RemotePanel::testOffscreen = g.testOffscreen;
     pm::ui::RemotePasswordPanel::testOffscreen = g.testOffscreen;
+    pm::ui::RemoteGuestPanel::testOffscreen = g.testOffscreen;  // 0.8.3.2
     pm::ui::RemoteBanner::testOffscreen = g.testOffscreen;  // 0.8.3.1
     g.testNoNetwork = dev && g.testNoNetwork;
     if (dev) {  // 傳到手機 tests: serve on this address instead of the LAN one (e.g. 127.0.0.1)

@@ -482,7 +482,8 @@ public:
         int card = -1;
         // 0.8.2: 0 button / link, 1 page tab (a segmented pill at the top; on = the
         // page shown), 2 the big on / off switch in place of the title (on; sub = its
-        // status line), 3 a check box inside its card (on = checked).
+        // status line), 3 a check box inside its card (on = checked). 0.8.3.2: 4 a list
+        // row's text in its card (not clickable; a row of its own), 5 a link on that row (right).
         int kind = 0;
         bool on = false;
         std::wstring sub;
@@ -498,6 +499,7 @@ public:
         bool muted = false;
         std::vector<uint8_t> qr;  // 0.8.2: a QR code at the card's right (BGRA, 1 px per module + quiet zone)
         int qrSize = 0;
+        std::wstring big;         // 0.8.3.2: a big line under the title (an address; it may break after / . : -)
     };
     void setIdleCards(std::vector<IdleCard> cards);
     // Shorthand: a single link (e.g. 「怎麼連線？」); empty label hides it.

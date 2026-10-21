@@ -81,6 +81,9 @@ void usage() {
         "  --list-audio       list the active playback devices (* = Windows default) and exit\n"
         "  --tunnel           also start a cloudflared quick tunnel (外網連結) and print its one-time link + 通行碼\n"
         "  --fixed-password P 常駐外網 routes on 127.0.0.2:<port> with password P (PBKDF2-hashed in memory)\n"
+        "  --guest NAME:PW:LIFE:RIGHTS  0.8.3.2 臨時帳號 on the fixed link (with --fixed-password; repeatable):\n"
+        "                     LIFE once | <seconds>; RIGHTS control | view, + files (e.g. control+files)\n"
+        "  --guest-drop NAME:S  tests: that account is deleted S seconds after its session is connected\n"
         "  --fixed-approval   ... and new phones still need 允許\n"
         "  --funnel N         ... published with Tailscale Funnel on port N (never 443), turned off at the end\n"
         "  --fixed-tunnel     ... published with a cloudflared quick tunnel instead\n"
@@ -298,6 +301,9 @@ int wmain(int argc, wchar_t** argv) {
     std::vector<Tone> tones;
     bool tunnel = false;
     std::string fixedPw;
+    std::vector<pm::remote::GuestAccount> guests;  // 0.8.3.2 --guest
+    std::string guestDrop;
+    int guestDropSec = 0;
     int funnelPort = 0;
     bool fixedTunnel = false;
     std::wstring cloudflared;
@@ -378,6 +384,31 @@ int wmain(int argc, wchar_t** argv) {
         } else if (a == L"--audio-source") o.audioSource = u8(next());
         else if (a == L"--tunnel") tunnel = true;
         else if (a == L"--fixed-password") fixedPw = u8(next());
+        else if (a == L"--guest") {  // NAME:PW:LIFE:RIGHTS (0.8.3.2)
+            const std::string spec = u8(next());
+            std::vector<std::string> f;
+            for (size_t p = 0; p <= spec.size();) {
+                const size_t q = spec.find(':', p);
+                f.push_back(spec.substr(p, q == std::string::npos ? std::string::npos : q - p));
+                if (q == std::string::npos) break;
+                p = q + 1;
+            }
+            if (f.size() != 4) return usage(), 2;
+            pm::remote::GuestAccount g;
+            g.id = pm::remote::randomHex(8);
+            g.name = f[0];
+            g.pwHash = pm::remote::hashPassword(pm::remote::guestPasswordKey(f[1]));
+            g.once = f[2] == "once";
+            g.expires = static_cast<long long>(time(nullptr)) + (g.once ? 24 * 3600 : atoll(f[2].c_str()));
+            g.viewOnly = f[3].find("view") != std::string::npos;
+            g.files = f[3].find("files") != std::string::npos;
+            guests.push_back(std::move(g));
+        } else if (a == L"--guest-drop") {
+            const std::string spec = u8(next());
+            const size_t c = spec.rfind(':');
+            if (c == std::string::npos) return usage(), 2;
+            guestDrop = spec.substr(0, c), guestDropSec = atoi(spec.substr(c + 1).c_str());
+        }
         else if (a == L"--fixed-approval") o.fixedNeedApproval = true;
         else if (a == L"--funnel") funnelPort = _wtoi(next());
         else if (a == L"--fixed-tunnel") fixedTunnel = true;
@@ -480,7 +511,18 @@ int wmain(int argc, wchar_t** argv) {
     };
     o.onActive = [&](const pm::remote::Peer& p) {
         activeAt = GetTickCount64();
-        slog("event: ACTIVE %s (%s) session %s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str());
+        slog("event: ACTIVE %s (%s) session %s%s%s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str(), p.guest.empty() ? "" : " guest ",
+             p.guest.c_str());
+        if (!guestDrop.empty() && p.guest == guestDrop) {  // tests: the account is deleted while its phone is connected
+            std::thread([&host, &guests, name = guestDrop, sec = guestDropSec] {
+                Sleep(DWORD(std::max(0, sec) * 1000));
+                std::vector<pm::remote::GuestAccount> left;
+                for (const auto& g : guests)
+                    if (g.name != name) left.push_back(g);
+                slog("test: 臨時帳號 %s deleted now (--guest-drop)", name.c_str());
+                host.setGuests(left);
+            }).detach();
+        }
     };
     o.onBlocked = [](const std::string& ip, int n) { slog("event: BLOCKED %s after %d wrong links", ip.c_str(), n); };
     o.onTrouble = [](const std::string& ip, const std::string& why) { slog("event: TROUBLE %s: %s", ip.c_str(), why.c_str()); };
@@ -493,6 +535,10 @@ int wmain(int argc, wchar_t** argv) {
     o.onLogin = [](const std::string& ip, bool ok, int fails, bool locked) {
         slog("event: LOGIN %s %s (fails %d%s)", ip.c_str(), ok ? "OK" : "WRONG", fails, locked ? ", LOCKED" : "");
     };
+    o.guests = guests;
+    o.onGuestLogin = [](const std::string& ip, const std::string& user, bool ok, int fails, bool locked) {
+        slog("event: GUEST LOGIN %s user %s %s (fails %d%s)", ip.c_str(), user.c_str(), ok ? "OK" : "WRONG", fails, locked ? ", LOCKED" : "");
+    };
     std::string tunnelUrl;
     std::mutex tunnelMu;
     o.onTunnelLink = [&](const std::string& path) {
@@ -500,6 +546,7 @@ int wmain(int argc, wchar_t** argv) {
         slog("tunnel: new one-time link %s%s", tunnelUrl.c_str(), path.c_str());
     };
     o.onEnded = [&](const pm::remote::Peer& p, const std::string& why) {
+        if (!p.guest.empty()) slog("event: guest %s session ended", p.guest.c_str());
 
         slog("event: ENDED %s (%s) session %s: %s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str(), why.c_str());
     };

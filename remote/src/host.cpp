@@ -469,8 +469,14 @@ struct Session {
     std::string jti;                      // fixed link: the login token's id (中斷 revokes it)
     std::atomic<bool> unlocked{false};    // fixed link: 僅觀看 lifted for this session with the password again
     std::atomic<int64_t> discUs{0};       // WebRTC "disconnected" since (LAN: closed only if it stays so for 4 s)
+    // 0.8.3.2 臨時帳號: came in with a guest login (fixed link): always 允許, its rights enforced here
+    std::string guestId, guestName;
+    bool guestViewOnly = false, guestFiles = false;
+    std::atomic<bool> guestDone{false};   // its end was handled (a 用一次 account is spent)
+    bool guest() const { return !guestId.empty(); }
+    bool filesOk() const { return !guest() || guestFiles; }
 
-    Peer toPeer() const { return Peer{id, device, peer, label, tailscale, viaTunnel && !viaFixed, viaFixed}; }
+    Peer toPeer() const { return Peer{id, device, peer, label, tailscale, viaTunnel && !viaFixed, viaFixed, guestName, guestId}; }
 };
 
 struct Host::Impl {
@@ -600,6 +606,14 @@ struct Host::Impl {
     std::atomic<bool> fixedOn{false};
     std::string fixedHash, fixedSecret;  // guarded by tunMu
     bool fixedApproval = false;          // guarded by tunMu
+    // 0.8.3.2 臨時帳號 (guarded by tunMu): the accounts, the spent 用一次 ones, and the guest logins
+    // (token nonce "g..." -> account id): a token is only good while its account is.
+    std::vector<GuestAccount> guests;
+    std::set<std::string> spentGuests;
+    std::map<std::string, std::string> guestTokens;
+    bool guestFor(const std::string& tok, GuestAccount& out);  // the account behind a valid guest login (false: none / gone)
+    void guestSessionEnded(const std::shared_ptr<Session>& s);
+    static bool guestToken(const std::string& tok) { return tokenId(tok).rfind('g', 0) == 0; }
     std::mutex loginMu;                  // one password check at a time (it also paces guessing)
     // 0.8.3: wrong passwords are counted per address (5 in a row = that address out
     // for 15 minutes); for everyone together only a pace (more than 20 wrong in 15
@@ -615,11 +629,15 @@ struct Host::Impl {
         bool ok = false, locked = false, noPassword = false;
         int left = 0, retryAfter = 0, delayMs = 0;
     };
-    PwResult checkPassword(const std::string& ip, const std::string& pw, int64_t now, const char* what);
+    // 0.8.3.2: verify (a guest login) replaces the owner's password check; the limits are the same.
+    PwResult checkPassword(const std::string& ip, const std::string& pw, int64_t now, const char* what,
+                           const std::function<bool(const std::string&)>& verify = {});
     // 0.8.3: logins ended by 中斷 (their token id -> expiry, epoch seconds); guarded by tunMu.
     std::map<std::string, long long> revoked;
     HttpServer::Response routeFixed(const HttpServer::Request& r);
     HttpServer::Response login(const HttpServer::Request& r, int64_t now);
+    HttpServer::Response guestLogin(const HttpServer::Request& r, int64_t now, const std::string& user, const std::string& pw,
+                                    const std::string& secret);
     std::string makeToken(const std::string& secret) const;
     static bool tokenOk(const std::string& tok, const std::string& secret);
     bool tokenRevoked(const std::string& tok);
@@ -633,7 +651,8 @@ struct Host::Impl {
     std::atomic<bool> unlockBusy{false};
     void unlockRequest(const std::shared_ptr<Session>& s, const std::string& pw);
     std::atomic<bool> lockOutside{false}, lockLan{false};  // 0.8.3: the app locks the PC when a session ends (the page says so)
-    bool vo(const std::shared_ptr<Session>& s) const { return viewOnly && !(s && s->unlocked); }  // 僅觀看 for this session
+    // 僅觀看 for this session (0.8.3.2: a 僅觀看 guest always, whatever the PC's switch says)
+    bool vo(const std::shared_ptr<Session>& s) const { return (viewOnly && !(s && s->unlocked)) || (s && s->guestViewOnly); }
     std::mutex offerMu;  // 0.8.3: one session set-up at a time (two at once left an orphan that could still control)
     // ---- 外網連結 (0.8.1) ----
     mutable std::mutex tunMu;
@@ -869,6 +888,7 @@ bool Host::start(const Options& o) {
         std::lock_guard<std::mutex> lk(d.tunMu);
         d.tunnelOn = false, d.creds.clear(), d.passcode.clear(), d.otk.clear();
         d.fixedHash = o.fixedPasswordHash, d.fixedSecret = o.fixedSecret, d.fixedApproval = o.fixedNeedApproval;
+        d.guests = o.guests, d.guestTokens.clear(), d.spentGuests.clear();
         d.fixedOn = false;
         d.tunnelKbps = 0;
         d.revoked.clear();
@@ -959,7 +979,7 @@ void Host::approve(const std::string& session, bool allow, bool remember) {
         s = d.pending;
         if (allow) {
             s->state = Session::State::Allowed;
-            d.allowedDevices.insert(s->device);
+            if (!s->guest()) d.allowedDevices.insert(s->device);  // 0.8.3.2: a guest asks every time
             d.kickedDevices.erase(s->device);
         } else {
             s->state = Session::State::Denied;
@@ -967,8 +987,8 @@ void Host::approve(const std::string& session, bool allow, bool remember) {
             d.denied.emplace_back(s->device, nowUs());
         }
     }
-    logf("host: %s %s (%s)%s", allow ? "ALLOWED" : "DENIED", s->label.c_str(), s->peer.c_str(),
-         allow && remember ? ", remembered" : "");
+    logf("host: %s %s (%s)%s%s%s", allow ? "ALLOWED" : "DENIED", s->label.c_str(), s->peer.c_str(),
+         allow && remember && !s->guest() ? ", remembered" : "", s->guest() ? ", 臨時帳號 " : "", s->guestName.c_str());
     d.pcv.notify_all();
     if (!allow) d.notifyEnded(s, "denied");
 }
@@ -1217,6 +1237,10 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         fixedNeedsOk = fixedApproval;
     }
     if (viaFixedReq) s->jti = tokenId(cred.substr(6));
+    if (GuestAccount ga; viaFixedReq && guestToken(cred.substr(6))) {
+        if (!guestFor(cred.substr(6), ga)) return {401, "application/json", json{{"needLogin", true}, {"guestGone", true}}.dump()};
+        s->guestId = ga.id, s->guestName = ga.name, s->guestViewOnly = ga.viewOnly, s->guestFiles = ga.files;
+    }
     {
         const json& q = body.contains("q") && body["q"].is_number_integer() ? body["q"] : json(int(curQuality));
         const json& m = body.contains("m") && body["m"].is_number_integer() ? body["m"] : json(0);
@@ -1241,9 +1265,10 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         const bool kicked = kickedDevices.count(device) > 0;
         // 常駐外網: the right password lets a phone in without 允許 (unless the owner asked
         // for it: fixedNeedApproval), never one that was just 中斷'd.
-        const bool passwordIn = viaFixedReq && !fixedNeedsOk && !kicked;
-        const bool ok = !opt.requireApproval || allowedDevices.count(device) ||
-                        (!kicked && opt.remembered && opt.remembered(device)) || passwordIn;
+        const bool passwordIn = viaFixedReq && !fixedNeedsOk && !kicked && !s->guest();
+        // 0.8.3.2: a guest always waits for 允許 (never "allowed before" / remembered)
+        const bool ok = !s->guest() && (!opt.requireApproval || allowedDevices.count(device) ||
+                                        (!kicked && opt.remembered && opt.remembered(device)) || passwordIn);
         if (passwordIn && !allowedDevices.count(device))
             logf("host: %s from %s came in with the password (fixed link): no 允許 needed", s->label.c_str(), r.peer.c_str());
         if (ok) {
@@ -1255,6 +1280,8 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
                 pending->lastPollUs = now;
                 pending->peer = r.peer, pending->local = r.local, pending->tailscale = r.tailscale;
                 pending->viaTunnel = r.tunnel, pending->cred = cred, pending->viaFixed = viaFixedReq;
+                pending->guestId = s->guestId, pending->guestName = s->guestName;
+                pending->guestViewOnly = s->guestViewOnly, pending->guestFiles = s->guestFiles;
                 pending->quality = s->quality, pending->monitor = s->monitor;
                 return {202, "application/json", json{{"id", pending->id}, {"pending", true}}.dump()};
             }
@@ -1268,8 +1295,9 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         notifyEnded(replacedPending, "replaced");
     }
     if (ask) {
-        logf("host: NEW DEVICE asks to connect: %s from %s%s (device %s) -> waiting for 允許 / 拒絕 on the PC", s->label.c_str(),
-             r.peer.c_str(), viaFixedReq ? " (fixed link)" : r.tunnel ? " (外網連結 tunnel)" : r.tailscale ? " (Tailscale)" : "", device.substr(0, 8).c_str());
+        logf("host: NEW DEVICE asks to connect: %s from %s%s%s%s (device %s) -> waiting for 允許 / 拒絕 on the PC", s->label.c_str(),
+             r.peer.c_str(), viaFixedReq ? " (fixed link)" : r.tunnel ? " (外網連結 tunnel)" : r.tailscale ? " (Tailscale)" : "",
+             s->guest() ? ", 臨時帳號 " : "", s->guestName.c_str(), device.substr(0, 8).c_str());
         {
             std::lock_guard<std::mutex> lk(smu);
             s->announced = true;
@@ -1305,9 +1333,10 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
     for (const Monitor& m : monitors()) mons.push_back(json{{"w", m.w}, {"h", m.h}, {"primary", m.primary}});
     json j{{"id", s->id},          {"type", "offer"},       {"sdp", sdp},   {"monitors", mons},
            {"monitor", s->monitor}, {"quality", s->quality}, {"viewOnly", vo(s)},
-           {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed},
+           {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed && !s->guest()},
            {"lockAfter", s->viaTunnel ? bool(lockOutside) : bool(lockLan)},
-           {"upload", !opt.uploadDir.empty()}, {"uploadMax", opt.uploadMaxBytes}};
+           {"upload", !opt.uploadDir.empty() && s->filesOk()}, {"uploadMax", opt.uploadMaxBytes},
+           {"guest", s->guestName}, {"files", s->filesOk()}};
     return {200, "application/json", j.dump()};
 }
 
@@ -1623,6 +1652,10 @@ HttpServer::Response Host::Impl::routeFixed(const HttpServer::Request& r) {
     if (p.rfind("/k/", 0) == 0) {
         const size_t e = p.find('/', 3);
         const std::string tok = e == std::string::npos ? std::string() : p.substr(3, e - 3);
+        if (GuestAccount ga; !tok.empty() && tokenOk(tok, secret) && guestToken(tok) && !guestFor(tok, ga)) {
+            logf("fixed: %s used the login of a 臨時帳號 that is gone (deleted / expired / used once) -> 401", r.peer.c_str());
+            return {401, "application/json", json{{"needLogin", true}, {"guestGone", true}}.dump()};
+        }
         if (!tok.empty() && tokenOk(tok, secret) && tokenRevoked(tok)) {
             logf("fixed: %s used a login ended by 中斷 -> the password again", r.peer.c_str());
             return {401, "application/json", json{{"needLogin", true}, {"revoked", true}}.dump()};
@@ -1649,14 +1682,15 @@ HttpServer::Response Host::Impl::routeFixed(const HttpServer::Request& r) {
 // more than 20 wrong in 15 minutes = one try every 3 s (429 + retryAfter, no lock;
 // an address that logged in before is not paced). 0.8.2 locked EVERY address after
 // 5 wrong ones: anybody with the address could keep the owner out.
-Host::Impl::PwResult Host::Impl::checkPassword(const std::string& ip, const std::string& pwIn, int64_t now, const char* what) {
+Host::Impl::PwResult Host::Impl::checkPassword(const std::string& ip, const std::string& pwIn, int64_t now, const char* what,
+                                               const std::function<bool(const std::string&)>& verify) {
     PwResult res;
     std::string hash;
     {
         std::lock_guard<std::mutex> lk2(tunMu);
         hash = fixedHash;
     }
-    if (hash.empty()) return res.noPassword = true, res;
+    if (hash.empty() && !verify) return res.noPassword = true, res;
     static int64_t lastPacedUs = 0;  // guarded by loginMu
     static std::set<std::string> busy, good;
     {
@@ -1688,7 +1722,7 @@ Host::Impl::PwResult Host::Impl::checkPassword(const std::string& ip, const std:
     std::string pw = pwIn;
     if (pw.size() > 256) pw.resize(256);
     const int64_t t0 = nowUs();
-    const bool ok = !pw.empty() && verifyPassword(pw, hash);
+    const bool ok = !pw.empty() && (verify ? verify(pw) : verifyPassword(pw, hash));
     std::fill(pw.begin(), pw.end(), '\0');
     const double ms = (nowUs() - t0) / 1000.0;
     int fails = 0;
@@ -1710,14 +1744,14 @@ Host::Impl::PwResult Host::Impl::checkPassword(const std::string& ip, const std:
     }
     if (ok) {
         logf("fixed: password right from %s for %s (checked in %.0f ms)", ip.c_str(), what, ms);
-        if (opt.onLogin) opt.onLogin(ip, true, 0, false);
+        if (opt.onLogin && !verify) opt.onLogin(ip, true, 0, false);
         res.ok = true;
         return res;
     }
     logf("fixed: WRONG password from %s for %s (%d in a row from this address)%s", ip.c_str(), what, fails,
          res.locked ? " -> this address is locked for 15 minutes" : "");
     badTry(ip, now, "a wrong password");
-    if (opt.onLogin) opt.onLogin(ip, false, fails, res.locked);
+    if (opt.onLogin && !verify) opt.onLogin(ip, false, fails, res.locked);
     Sleep(DWORD(res.delayMs));  // this address waits (others do not)
     return res;
 }
@@ -1738,6 +1772,11 @@ HttpServer::Response Host::Impl::login(const HttpServer::Request& r, int64_t now
     if (secret.empty()) return {503, "application/json", json{{"ok", false}, {"noPassword", true}}.dump()};
     json j = json::parse(r.body.substr(0, 1024), nullptr, false);
     const std::string pw = !j.is_discarded() && j.is_object() && j.contains("password") && j["password"].is_string() ? j["password"].get<std::string>() : std::string();
+    // 0.8.3.2: an account name = a 臨時帳號 (empty = the owner's password, as before)
+    std::string user = !j.is_discarded() && j.is_object() && j.contains("user") && j["user"].is_string() ? j["user"].get<std::string>() : std::string();
+    while (!user.empty() && (user.back() == ' ' || user.back() == '\t')) user.pop_back();
+    while (!user.empty() && (user.front() == ' ' || user.front() == '\t')) user.erase(0, 1);
+    if (!user.empty()) return guestLogin(r, now, user.substr(0, 40), pw, secret);
     const PwResult res = checkPassword(r.peer, pw, now, "the login");
     if (res.noPassword) return {503, "application/json", json{{"ok", false}, {"noPassword", true}}.dump()};
     if (res.ok) {
@@ -1750,12 +1789,96 @@ HttpServer::Response Host::Impl::login(const HttpServer::Request& r, int64_t now
             json{{"ok", false}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.locked ? 900 : 0}, {"delayMs", res.delayMs}}.dump()};
 }
 
+// 0.8.3.2 臨時帳號: POST /login {"user": "<name>", "password": "..."} -> a login for this account
+// only (at most 12 hours, never past the account's end, gone with the account), the same
+// per-address limits as the owner's password. Every failure looks the same (401): a name
+// that does not exist, has expired or was spent costs as long as a wrong password.
+HttpServer::Response Host::Impl::guestLogin(const HttpServer::Request& r, int64_t now, const std::string& user, const std::string& pw,
+                                            const std::string& secret) {
+    static const std::string kDummy = hashPassword("not-a-guest-password");
+    auto lower = [](std::string s) {
+        for (char& c : s) c = (c >= 'A' && c <= 'Z') ? char(c + 32) : c;
+        return s;
+    };
+    GuestAccount found;
+    auto verify = [&](const std::string& typed) {
+        GuestAccount cand;
+        {
+            std::lock_guard<std::mutex> lk(tunMu);
+            const long long nowS = epochMs() / 1000;
+            for (const GuestAccount& g : guests)
+                if (lower(g.name) == lower(user) && !spentGuests.count(g.id) && g.expires > nowS) {
+                    cand = g;
+                    break;
+                }
+        }
+        std::string key = guestPasswordKey(typed);
+        const bool ok = verifyPassword(key, cand.id.empty() ? kDummy : cand.pwHash) && !cand.id.empty();
+        std::fill(key.begin(), key.end(), '\0');
+        if (ok) found = cand;
+        return ok;
+    };
+    const PwResult res = checkPassword(r.peer, pw, now, "a 臨時帳號 login", verify);
+    if (opt.onGuestLogin && (res.ok || res.delayMs > 0)) opt.onGuestLogin(r.peer, user, res.ok, res.ok ? 0 : 5 - res.left, res.locked);
+    if (res.ok) {
+        const long long nowS = epochMs() / 1000;
+        const long long exp = std::min(found.expires, nowS + 12LL * 3600);
+        const std::string nonce = "g" + randomHex(8);
+        const std::string payload = std::to_string(exp) + "." + nonce;
+        {
+            std::lock_guard<std::mutex> lk(tunMu);
+            if (guestTokens.size() > 200) guestTokens.erase(guestTokens.begin());
+            guestTokens[nonce] = found.id;
+        }
+        logf("fixed: %s -> a 臨時帳號 login for %s (%s%s%s, until %lld; no 30-day login, 允許 on the PC needed)", r.peer.c_str(),
+             found.name.c_str(), found.once ? "用一次" : "timed", found.viewOnly ? ", 僅觀看" : "", found.files ? ", 傳檔" : "", exp);
+        return {200, "application/json", json{{"ok", true}, {"token", payload + "." + hmacSha256Hex(secret, payload)}, {"guest", true}, {"name", found.name}}.dump()};
+    }
+    if (res.delayMs == 0)
+        return {429, "application/json", json{{"ok", false}, {"locked", res.locked}, {"retryAfter", res.retryAfter}, {"guest", true}}.dump()};
+    return {401, "application/json",
+            json{{"ok", false}, {"guest", true}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.locked ? 900 : 0}, {"delayMs", res.delayMs}}.dump()};
+}
+
+// The account behind a guest login, while it is valid. One that expires during its own
+// session keeps that session (it is judged when the session ends).
+bool Host::Impl::guestFor(const std::string& tok, GuestAccount& out) {
+    const std::string nonce = tokenId(tok);
+    const auto cur = current();
+    std::lock_guard<std::mutex> lk(tunMu);
+    const auto t = guestTokens.find(nonce);
+    if (t == guestTokens.end() || spentGuests.count(t->second)) return false;
+    for (const GuestAccount& g : guests)
+        if (g.id == t->second) {
+            const bool inSession = cur && !cur->closed && cur->guestId == g.id;
+            if (g.expires <= epochMs() / 1000 && !inSession) return false;
+            out = g;
+            return true;
+        }
+    return false;
+}
+
+// A guest's session ended (connected, denied or given up): a 用一次 account is spent now.
+void Host::Impl::guestSessionEnded(const std::shared_ptr<Session>& s) {
+    bool once = false;
+    {
+        std::lock_guard<std::mutex> lk(tunMu);
+        for (const GuestAccount& g : guests)
+            if (g.id == s->guestId) once = g.once;
+        if (once) {
+            spentGuests.insert(s->guestId);
+            for (auto it = guestTokens.begin(); it != guestTokens.end();) it = it->second == s->guestId ? guestTokens.erase(it) : std::next(it);
+        }
+    }
+    logf("host: 臨時帳號 %s: its session ended%s", s->guestName.c_str(), once ? " -> spent (用一次): its login no longer works" : "");
+}
+
 // 0.8.3: 解除僅觀看 from the phone: only over the fixed link, only with the password
 // (the same limits as the login), only for this session. Answered on the phone with
 // {"t":"unlock", ok, left, locked, retryAfter}; the PC is told (onUnlocked).
 void Host::Impl::unlockRequest(const std::shared_ptr<Session>& s, const std::string& pw) {
-    if (!s->viaFixed || !fixedOn) {
-        logf("page %s: 解除僅觀看 refused (only over the fixed link with the password)", s->peer.c_str());
+    if (!s->viaFixed || !fixedOn || s->guest()) {
+        logf("page %s: 解除僅觀看 refused (only over the fixed link with the owner's password, never for a 臨時帳號)", s->peer.c_str());
         sendDc(s, json{{"t", "unlock"}, {"ok", false}, {"notHere", true}});
         return;
     }
@@ -1955,6 +2078,10 @@ HttpServer::Response Host::Impl::upload(const HttpServer::Request& r) {
         logf("files: upload from %s refused (僅觀看)", s->peer.c_str());
         return {403, "application/json", json{{"ok", false}, {"viewOnly", true}}.dump()};
     }
+    if (!s->filesOk()) {
+        logf("files: upload from %s refused (臨時帳號 %s: no 傳檔)", s->peer.c_str(), s->guestName.c_str());
+        return {403, "application/json", json{{"ok", false}, {"noFiles", true}}.dump()};
+    }
     if (opt.uploadDir.empty()) return {404, "application/json", json{{"ok", false}, {"off", true}}.dump()};
     bool fidOk = fid.size() >= 8 && fid.size() <= 32;
     for (char c : fid) fidOk &= isalnum(static_cast<unsigned char>(c)) != 0;
@@ -2044,8 +2171,8 @@ void Host::Impl::dropUploads(const std::string& sid, const char* why, int64_t ol
 
 // The files copied in Explorer -> the phone: names, sizes and a one-time key each (10 minutes).
 void Host::Impl::filesList(const std::shared_ptr<Session>& s) {
-    if (vo(s)) {
-        logf("files: list for %s refused (僅觀看)", s->peer.c_str());
+    if (vo(s) || !s->filesOk()) {
+        logf("files: list for %s refused (%s)", s->peer.c_str(), vo(s) ? "僅觀看" : "臨時帳號 without 傳檔");
         sendDc(s, json{{"t", "files-denied"}});
         return;
     }
@@ -2085,6 +2212,7 @@ HttpServer::Response Host::Impl::download(const HttpServer::Request& r, const st
     }
     if (!s || s->closed || s->id != d.session) return {410, "text/plain", "session ended"};
     if (vo(s)) return {403, "text/plain", "view only"};
+    if (!s->filesOk()) return {403, "text/plain", "no file transfer for this guest account"};
     logf("files: %s downloads \"%s\"", s->peer.c_str(), d.name.c_str());
     HttpServer::Response resp{200, "application/octet-stream", ""};
     resp.file = d.path, resp.fileName = d.name;
@@ -2118,6 +2246,7 @@ void Host::Impl::markActive(const std::shared_ptr<Session>& sp, const char* via)
 }
 
 void Host::Impl::notifyEnded(const std::shared_ptr<Session>& s, const std::string& why) {
+    if (s && s->guest() && !s->guestDone.exchange(true)) guestSessionEnded(s);
     bool notify = false;
     {
         std::lock_guard<std::mutex> lk(smu);
@@ -2280,6 +2409,38 @@ void Host::setFixed(bool on) {
         }
 }
 bool Host::fixedOn() const { return d_->fixedOn; }
+void Host::setGuests(std::vector<GuestAccount> list) {
+    Impl& d = *d_;
+    std::set<std::string> keep;
+    for (const GuestAccount& g : list) keep.insert(g.id);
+    size_t dropped = 0;
+    {
+        std::lock_guard<std::mutex> lk(d.tunMu);
+        for (auto it = d.guestTokens.begin(); it != d.guestTokens.end();)
+            if (keep.count(it->second)) ++it;
+            else it = d.guestTokens.erase(it), ++dropped;
+        d.guests = std::move(list);
+    }
+    logf("host: 臨時帳號: %zu account(s)%s", keep.size(), dropped ? (", " + std::to_string(dropped) + " login(s) of removed accounts ended").c_str() : "");
+    // An account that is gone: its session ends at once (connected: bye; waiting for 允許: denied).
+    if (auto s = d.current(); s && s->guest() && !keep.count(s->guestId)) {
+        logf("host: session of %s (%s) ended: its 臨時帳號 %s was deleted on the PC", s->label.c_str(), s->peer.c_str(), s->guestName.c_str());
+        {
+            std::lock_guard<std::mutex> lk(d.smu);
+            s->endWhy = "guest account deleted";
+        }
+        d.sendDc(s, json{{"t", "bye"}, {"why", "kicked"}});
+        d.flushBye(s);
+        d.closeSession(s, "guest account deleted");
+    }
+    std::string pendingId;
+    {
+        std::lock_guard<std::mutex> lk(d.smu);
+        if (d.pending && d.pending->guest() && !keep.count(d.pending->guestId) && d.pending->state == Session::State::Pending) pendingId = d.pending->id;
+    }
+    if (!pendingId.empty()) approve(pendingId, false);
+}
+
 void Host::setFixedOptions(const std::string& passwordHash, const std::string& secret, bool needApproval) {
     std::lock_guard<std::mutex> lk(d_->tunMu);
     d_->fixedHash = passwordHash, d_->fixedSecret = secret, d_->fixedApproval = needApproval;
@@ -3009,8 +3170,10 @@ void Host::Impl::captureLoop() {
                          avg(winEnc, false), lAll, l1, g.c_str(), enc.name().c_str(), enc.gpuInput() ? "zero-copy" : "readback",
                          extra.c_str());
                     if (audio.running() || aSent)
-                        logf("stats audio: %lld Opus packets sent (%.0f kbps), %d encoded, capture->encoded avg %.1f ms, peak %.5f (AGC x%.2f, volume x%.2f) from %s%s%s",
-                             (long long)aSent, aBytes * 8 / 1000.0 / ws, apk, aLat, aPeak, audio.agcGain(), audio.compGain(), aDev.empty() ? "?" : aDev.c_str(),
+                        logf("stats audio: %lld Opus packets sent (%.0f kbps), %d encoded, capture->encoded avg %.1f ms, peak %.5f (AGC x%.2f, volume x%.2f), "
+                             "RMS %.1f dBFS from %s%s%s",  // 0.8.3.2: the RMS of what was sent
+                             (long long)aSent, aBytes * 8 / 1000.0 / ws, apk, aLat, aPeak, audio.agcGain(), audio.compGain(), audio.takeRmsDb(),
+                             aDev.empty() ? "?" : aDev.c_str(),
                              aOthers.empty() ? "" : " | other devices: ", aOthers.c_str());
                 } else {
                     logf("idle (no viewer): CPU %.2f%% of machine (%.1f%% of one core) | GPU %s", lAll, l1, g.c_str());

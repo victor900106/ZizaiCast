@@ -389,6 +389,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             else if (wp == 962) remoteDevClick(static_cast<int>(lp));   // 0.8.1: clicks as if from the phone (see remote.h)
             else if (wp == 963) remoteDevFixed(static_cast<int>(lp));   // 0.8.2: 常駐外網 password / shots (see remote.h)
             else if (wp == 965) remoteDevLog(static_cast<int>(lp));     // 0.8.3: 連線紀錄 into the log
+            else if (wp >= 981 && wp <= 986) remoteDevGuest(static_cast<int>(wp), lp);  // 0.8.3.2 臨時帳號 / DPI (see remote.h)
             else if (wp == 964) {  // 0.8.2 idle-CPU test: a mouse move over this window as a posted message (the real pointer never moves)
                 RECT rc{};
                 GetClientRect(h, &rc);

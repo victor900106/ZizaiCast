@@ -672,7 +672,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
     std::vector<std::vector<int>> items(nc);
     for (size_t i = 0; i < actions_.size(); ++i) {
         const int c = actions_[i].card;
-        if (c >= 0 && c < nc && !actions_[i].label.empty() && (actions_[i].kind == 0 || actions_[i].kind == 3))
+        if (c >= 0 && c < nc && !actions_[i].label.empty() && (actions_[i].kind == 0 || actions_[i].kind == 3 || actions_[i].kind >= 4))
             items[c].push_back(static_cast<int>(i));
     }
     bool rich = false;  // a QR code or several actions somewhere: stacked
@@ -690,9 +690,11 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         ComPtr<IDWriteTextLayout> l;
         float w = 0, padX = 0;
         int row = 0;
+        float x = 0;  // 0.8.3.2: from the row's start
     };
     struct Lay {
-        ComPtr<IDWriteTextLayout> t, b, n, k;
+        ComPtr<IDWriteTextLayout> t, b, n, k, g;  // g: 0.8.3.2 the big line (an address)
+        std::vector<float> rowH;                  // 0.8.3.2: each action row's height
         float bw = 0, h = 0, tw = 0, inset = 0;  // inset: a link's text lines up with the card text
         bool side = false;
         int one = -1;            // the single button (the 0.7.8 card)
@@ -743,7 +745,10 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
                 const Action& a = actions_[idx];
                 Item it;
                 it.index = idx;
-                if (a.kind == 3) {  // check box + label
+                if (a.kind == 4) {  // 0.8.3.2: a list row's text (laid out below, beside its links)
+                    it.l = layout(keepAll(a.label), noteSize * 1.08f, std::max(colW, 20.f), DWRITE_FONT_WEIGHT_NORMAL, true);
+                    lead(it.l.Get());
+                } else if (a.kind == 3) {  // check box + label
                     it.padX = std::round(btnH * 0.3f);
                     it.l = layout(keepAll(a.label), btnSize, std::max(colW - box - boxGap - 2 * it.padX, 20.f), DWRITE_FONT_WEIGHT_NORMAL, true);
                     lead(it.l.Get());
@@ -756,20 +761,47 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
                 }
                 if (it.l) c.its.push_back(std::move(it));
             }
-            // Greedy rows within the text column.
+            // Greedy rows within the text column. 0.8.3.2: a list row (kind 4) has a row of its
+            // own: its text, then its links (kind 5) at the right; the row is as tall as the text.
             float x = 0;
-            c.rows = c.its.empty() ? 0 : 1;
-            for (auto& it : c.its) {
-                if (x > 0 && x + itemGap + it.w > colW + 0.5f) ++c.rows, x = 0;
-                x += (x > 0 ? itemGap : 0) + it.w;
-                it.row = c.rows - 1;
+            int rowNo = -1;
+            bool listRow = false;
+            auto newRow = [&] { c.rowH.push_back(btnH), ++rowNo, x = 0; };
+            for (size_t k = 0; k < c.its.size(); ++k) {
+                Item& it = c.its[k];
+                const int kind = actions_[it.index].kind;
+                if (kind == 4) {
+                    newRow();
+                    float lw = 0;
+                    for (size_t j = k + 1; j < c.its.size() && actions_[c.its[j].index].kind == 5; ++j) lw += c.its[j].w + itemGap;
+                    const float tw = std::max(colW - lw, std::min(colW, size * 6));
+                    it.l = layout(keepAll(actions_[it.index].label), noteSize * 1.08f, tw, DWRITE_FONT_WEIGHT_NORMAL, true);
+                    lead(it.l.Get());
+                    it.w = tw, it.x = 0, it.row = rowNo;
+                    c.rowH[rowNo] = std::max(btnH, std::ceil(textH(it.l.Get())) + 2);
+                    x = tw, listRow = true;
+                    continue;
+                }
+                if (kind == 5 && listRow) {
+                    it.x = x + itemGap, x = it.x + it.w, it.row = rowNo;
+                    continue;
+                }
+                if (rowNo < 0 || listRow || (x > 0 && x + itemGap + it.w > colW + 0.5f)) newRow();
+                listRow = false;
+                it.x = x + (x > 0 ? itemGap : 0), x = it.x + it.w, it.row = rowNo;
             }
+            c.rows = rowNo + 1;
         }
         // Button beside the text (stacked cards) while the text keeps ~9 characters a line.
         c.side = !row && c.k && inner - c.bw - pad >= size * 9;
         c.tw = c.side ? inner - c.bw - pad : colW;
         c.t = layout(keepAll(cd.title), titleSize, c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD);
         lead(c.t.Get());
+        if (!cd.big.empty()) {  // 0.8.3.2: a big line (an address: may break after / . : -)
+            std::wstring g;
+            for (wchar_t ch : cd.big) g += ch, g += (ch == L'/' || ch == L'.' || ch == L':' || ch == L'-') ? std::wstring(1, L'\x200B') : std::wstring();
+            lead((c.g = layout(g, q(size * 1.22f), c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD)).Get());
+        }
         if (!cd.body.empty() && mode == 0) {
             lead((c.b = layout(keepAll(cd.body), bodySize, c.tw)).Get());
             balance(c.b.Get(), c.tw);
@@ -779,9 +811,13 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             balance(c.n.Get(), c.tw);
         }
         float th = textH(c.t.Get());
+        if (c.g) th += size * 0.18f + textH(c.g.Get());
         if (c.b) th += size * 0.22f + textH(c.b.Get());
         if (c.n) th += size * 0.12f + textH(c.n.Get());
-        if (c.rows) th += size * 0.6f + c.rows * btnH + (c.rows - 1) * itemRowGap;
+        if (c.rows) {
+            th += size * 0.6f + (c.rows - 1) * itemRowGap;
+            for (float rh : c.rowH) th += rh;
+        }
         c.h = std::round(2 * pad + (c.side ? std::max(th, btnH) : std::max(th + (c.k ? size * 0.6f + btnH : 0.f), c.qr)));
         gridH[i / cols] = std::max(gridH[i / cols], c.h);
         total += c.h + (i ? gap : 0.f);
@@ -842,7 +878,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         const float tx = r.left + pad;
         float ty = r.top + pad;
         if (c.side) {  // text centred against the button
-            float th = textH(c.t.Get());
+            float th = textH(c.t.Get()) + (c.g ? size * 0.18f + textH(c.g.Get()) : 0.f);
             if (c.b) th += size * 0.22f + textH(c.b.Get());
             if (c.n) th += size * 0.12f + textH(c.n.Get());
             ty = std::round(r.top + (h - th) / 2);
@@ -850,6 +886,11 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         if (c.t) {
             d2dTarget_->DrawTextLayout({tx, ty}, c.t.Get(), brush(pal_.fg, fade));
             ty += textH(c.t.Get());
+        }
+        if (c.g) {
+            ty += size * 0.18f;
+            d2dTarget_->DrawTextLayout({tx, ty}, c.g.Get(), brush(pal_.accent, fade));
+            ty += textH(c.g.Get());
         }
         if (c.b) {
             ty += size * 0.22f;
@@ -877,18 +918,23 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             }
         }
         if (c.rows) {  // 0.8.2: the card's actions, in rows under its text
-            float iy = ty + size * 0.6f;
-            int rowNow = 0;
-            float ix = tx - (!c.its.empty() && actions_[c.its[0].index].kind == 0 && !actions_[c.its[0].index].primary ? c.its[0].padX : 0.f);
-            const float ix0 = ix;
-            bool first = true;
+            // Each row's top; a row that starts with a link moves left by its padding (its text
+            // lines up with the card's text).
+            std::vector<float> rowTop(c.rowH.size()), shift(c.rowH.size(), 0.f);
+            for (size_t k = 0; k < rowTop.size(); ++k) rowTop[k] = k ? rowTop[k - 1] + c.rowH[k - 1] + itemRowGap : ty + size * 0.6f;
+            for (size_t k = 0; k < c.its.size(); ++k) {
+                const Action& a = actions_[c.its[k].index];
+                if ((k == 0 || c.its[k - 1].row != c.its[k].row) && a.kind == 0 && !a.primary) shift[c.its[k].row] = c.its[k].padX;
+            }
             for (const auto& it : c.its) {
-                if (it.row != rowNow) iy += btnH + itemRowGap, rowNow = it.row, ix = ix0, first = true;
-                if (!first) ix += itemGap;
-                first = false;
+                const float rh = c.rowH[it.row], ix = tx - shift[it.row] + it.x, iy = std::round(rowTop[it.row] + (rh - btnH) / 2);
                 const D2D1_RECT_F br{ix, iy, ix + it.w, iy + btnH};
-                ix += it.w;
                 const Action& a = actions_[it.index];
+                if (a.kind == 4) {  // 0.8.3.2: a list row's text (not clickable)
+                    d2dTarget_->DrawTextLayout({ix, std::round(rowTop[it.row] + (rh - textH(it.l.Get())) / 2)}, it.l.Get(), brush(pal_.fg, 0.86f * fade));
+                    setRect(it.index, D2D1_RECT_F{0, 0, 0, 0});
+                    continue;
+                }
                 if (a.kind == 3) {
                     const float hl = uiLevel(uiHot_, UiAction, it.index, now), fl = uiLevel(uiFocus_, UiAction, it.index, now);
                     if (hl > 0.003f) d2dTarget_->FillRoundedRectangle({br, btnH / 2, btnH / 2}, brush(pal_.accent, 0.12f * hl));

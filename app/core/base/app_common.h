@@ -45,6 +45,7 @@
 #include "pair_panel.h"
 #include "remote_panel.h"
 #include "remote_password_panel.h"
+#include "remote_guest_panel.h"
 #include "popup_menu.h"
 #include "resource.h"
 #include "share_panel.h"
@@ -280,6 +281,15 @@ enum Command : UINT {
     CmdAndScreenOff,         // 操控時關掉手機螢幕 ✓
     CmdAndStayAwake,         // 連線期間不休眠 ✓
     CmdAndUsb,               // 用 USB 線連線
+    // 0.8.3.2 允許遠端控制 / 臨時帳號 (app/remote/remote_actions.cpp); fixed ids for --dev DevCommand scripts.
+    CmdRemoteGuestNew = 440,   // 新增臨時帳號…
+    CmdRemoteAddrCopy,         // 441 複製網址 (the 本機網址: fixed, or the temporary one)
+    CmdRemoteTempShare,        // 442 產生臨時網址 (no fixed address: the cloudflared one)
+    CmdRemoteFixedSetup,       // 443 開啟設定頁 (the tailnet's Funnel / HTTPS enable page the CLI named)
+    CmdRemoteGuestDel0 = 450,  // 刪除 (row i, up to 10)
+    CmdRemoteGuestDelLast = CmdRemoteGuestDel0 + 9,
+    CmdRemoteGuestReset0 = 460,  // 重設密碼 (row i)
+    CmdRemoteGuestResetLast = CmdRemoteGuestReset0 + 9,
 };
 enum IdleOptionId : int { OptAutostart = 1, OptPin = 2, OptRemoteAudio = 3, OptRemoteMutePc = 4 };
 constexpr UINT_PTR kOrientationTimer = 1;

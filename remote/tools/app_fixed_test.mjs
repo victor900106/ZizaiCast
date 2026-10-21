@@ -125,7 +125,7 @@ try {
   results.firstPictureMs = Date.now() - t0;
   await sleep(2000);
   await shot('phone-3-playing.png');
-  await evalJs(`document.getElementById('bSet').click()`);  // the settings sheet: 音量 0-300 %
+  await evalJs(`document.getElementById('bSet').click()`);  // the settings sheet: 音量 0-400 % (0.8.3.2)
   await sleep(600);
   await shot('phone-3b-settings.png');
   await evalJs(`document.getElementById('bSet').click()`);

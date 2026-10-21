@@ -42,7 +42,7 @@ void VideoWindow::setIdleHelpLink(const std::wstring& label, std::function<void(
 
 void VideoWindow::setIdleCards(std::vector<IdleCard> cards) {
     std::vector<video::Renderer::Card> rc;
-    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted, std::move(c.qr), c.qrSize});
+    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted, std::move(c.qr), c.qrSize, std::move(c.big)});
     if (rc.size() > 4) rc.resize(4);  // 0.8.2: + 遠端操控
     {
         std::lock_guard lk(impl_->m);

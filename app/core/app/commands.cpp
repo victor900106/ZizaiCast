@@ -75,6 +75,9 @@ void runCommand(UINT cmd) {
     case CmdRemoteLanQr:
     case CmdRemoteTsQr:
     case CmdRemoteAdvanced:
+    case CmdRemoteLockOutside:  // 0.8.3.2: these three were never routed here (the menu items did nothing)
+    case CmdRemoteLockLan:
+    case CmdRemoteLog:
     case CmdRemoteTsHelp: remoteCommand(cmd); break;
     case CmdIdleTabCast:
     case CmdIdleTabRemote:
@@ -174,7 +177,9 @@ void runCommand(UINT cmd) {
     case CmdAndUsb: androidControlCommand(cmd); break;  // 0.8.3 Android 操控
     default:
         if ((cmd >= CmdInkColor0 && cmd <= CmdInkColorLast) || (cmd >= CmdInkWidth0 && cmd <= CmdInkWidthLast)) inkCommand(cmd);
-        else if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast)) remoteCommand(cmd);
+        else if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) ||
+                 (cmd >= CmdRemoteGuestNew && cmd <= CmdRemoteFixedSetup) || (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast))  // 0.8.3.2
+            remoteCommand(cmd);
         else if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {
             const int k = static_cast<int>(cmd - CmdTrDeleteLang0);

@@ -1972,3 +1972,121 @@ PM_JAKO(ShareClipStatus, L"スマホのページに PC のクリップボード�
         L"휴대폰 페이지에 PC 클립보드의 텍스트도 표시됩니다(공유를 멈추면 함께 멈춤)")
 PM_JAKO(PgFileTip, L"「ファイルをダウンロード」で保存（iPhone：「ファイル」App →「ダウンロード」）",
         L"‘파일 다운로드’를 눌러 저장(iPhone: 파일 앱 → 다운로드)")
+// 0.8.3.2 允許遠端控制 / 臨時帳號
+PM_JAKO(RemoteAllowTitle, L"リモート操作を許可",
+        L"원격 제어 허용")
+PM_JAKO(RemoteAllowAddr, L"このパソコンのアドレス（外出先からも接続可）",
+        L"이 PC의 주소(밖에서도 접속 가능)")
+PM_JAKO(RemoteAllowFoot, L"アドレス・アカウント・パスワードを相手に伝えます。接続時にパソコンで「許可」を押し、期限切れや使用後は自動で削除されます。",
+        L"주소, 계정, 비밀번호를 상대에게 알려 주세요. 접속하면 PC에서 “허용”을 누르고, 만료되거나 다 쓰면 자동으로 삭제됩니다.")
+PM_JAKO(RemoteAllowFixedOff, L"固定アドレスは今オフです。一時アカウントを使うにはオンにします。1 回だけの一時アドレスも作れます。",
+        L"고정 주소가 지금 꺼져 있습니다. 임시 계정을 쓰려면 켜세요. 한 번만 쓰는 임시 주소도 만들 수 있습니다.")
+PM_JAKO(RemoteAllowTempBody, L"ワンクリックで 1 回だけ使える一時アドレスとパスコードを作ります。接続時にパソコンで「許可」を押します。",
+        L"한 번 누르면 한 번만 쓰는 임시 주소와 통행 코드를 만듭니다. 접속하면 PC에서 “허용”을 누릅니다.")
+PM_JAKO(RemoteTempShare, L"一時アドレスを作る",
+        L"임시 주소 만들기")
+PM_JAKO(RemoteAllowSetPw, L"パスワードを設定（固定アドレスと一時アカウント）",
+        L"비밀번호 설정(고정 주소와 임시 계정)")
+PM_JAKO(RemoteGuestAdd, L"一時アカウントを追加",
+        L"임시 계정 추가")
+PM_JAKO(RemoteGuestsHead, L"一時アカウント（{0}/10）",
+        L"임시 계정({0}/10)")
+PM_JAKO(RemoteGuestDelete, L"削除",
+        L"삭제")
+PM_JAKO(RemoteGuestReset, L"パスワード再設定",
+        L"비밀번호 재설정")
+PM_JAKO(RemoteGuestLeftM, L"残り {0} 分",
+        L"{0}분 남음")
+PM_JAKO(RemoteGuestLeftH, L"残り {0} 時間",
+        L"{0}시간 남음")
+PM_JAKO(RemoteGuestLeftD, L"残り {0} 日",
+        L"{0}일 남음")
+PM_JAKO(RemoteGuestLastUsed, L"最終使用 {0}",
+        L"마지막 사용 {0}")
+PM_JAKO(RemoteGuestNever, L"未使用",
+        L"아직 안 씀")
+PM_JAKO(RemoteGuestInUse, L"接続中",
+        L"연결 중")
+PM_JAKO(RemoteGuestDeletedToast, L"一時アカウント {0} を削除しました",
+        L"임시 계정 {0}을(를) 삭제했습니다")
+PM_JAKO(RemoteGuestNewTitle, L"一時アカウントを追加",
+        L"임시 계정 추가")
+PM_JAKO(RemoteGuestNewBody, L"相手はこのアカウントとパスワードで、このパソコンのアドレスから接続します。接続時にパソコンで「許可」を押します。",
+        L"상대는 이 계정과 비밀번호로 이 PC의 주소에 접속합니다. 접속하면 PC에서 “허용”을 누릅니다.")
+PM_JAKO(RemoteGuestName, L"アカウント",
+        L"계정")
+PM_JAKO(RemoteGuestLife, L"有効期間",
+        L"유효 기간")
+PM_JAKO(RemoteGuestLifeOnce, L"1 回だけ",
+        L"한 번만")
+PM_JAKO(RemoteGuestLife1h, L"1 時間",
+        L"1시간")
+PM_JAKO(RemoteGuestLife24h, L"24 時間",
+        L"24시간")
+PM_JAKO(RemoteGuestLife7d, L"7 日",
+        L"7일")
+PM_JAKO(RemoteGuestRights, L"権限",
+        L"권한")
+PM_JAKO(RemoteGuestControl, L"操作できる",
+        L"조작 가능")
+PM_JAKO(RemoteGuestView, L"表示のみ",
+        L"보기만")
+PM_JAKO(RemoteGuestFiles, L"ファイル転送を許可（双方向）",
+        L"파일 전송 허용(양방향)")
+PM_JAKO(RemoteGuestNoFiles, L"ファイル転送なし",
+        L"파일 전송 안 됨")
+PM_JAKO(RemoteGuestWithFiles, L"ファイル転送あり",
+        L"파일 전송 가능")
+PM_JAKO(RemoteGuestCreate, L"作成",
+        L"만들기")
+PM_JAKO(RemoteGuestMadeTitle, L"一時アカウントを作成しました",
+        L"임시 계정을 만들었습니다")
+PM_JAKO(RemoteGuestResetTitle, L"パスワードを再設定しました",
+        L"비밀번호를 다시 설정했습니다")
+PM_JAKO(RemoteGuestUrl, L"アドレス",
+        L"주소")
+PM_JAKO(RemoteGuestPw, L"パスワード",
+        L"비밀번호")
+PM_JAKO(RemoteGuestOnceNote, L"パスワードは今だけ表示されます。あとで必要なら「パスワード再設定」を使います。相手が接続したらパソコンで「許可」を押します。",
+        L"비밀번호는 지금만 표시됩니다. 나중에 필요하면 “비밀번호 재설정”을 누르세요. 상대가 접속하면 PC에서 “허용”을 누릅니다.")
+PM_JAKO(RemoteGuestCopyAll, L"すべてコピー",
+        L"모두 복사")
+PM_JAKO(RemoteGuestDone, L"完了",
+        L"완료")
+PM_JAKO(RemoteGuestCopied, L"コピーしました。そのまま相手に送れます",
+        L"복사했습니다. 그대로 보내면 됩니다")
+PM_JAKO(RemoteGuestNameBad, L"英字・数字と - _ . のみ（1〜24 文字）",
+        L"영문자, 숫자와 - _ . 만(1–24자)")
+PM_JAKO(RemoteGuestNameTaken, L"そのアカウントはすでにあります。別の名前にしてください",
+        L"이미 있는 계정입니다. 다른 이름을 쓰세요")
+PM_JAKO(RemoteGuestFull, L"一時アカウントは最大 10 個です。先に不要なものを削除してください",
+        L"임시 계정은 최대 10개입니다. 먼저 안 쓰는 것을 지우세요")
+PM_JAKO(RemoteGuestNoAddr, L"固定アドレスがまだ準備できていません。先にオンにしてください",
+        L"고정 주소가 아직 준비되지 않았습니다. 먼저 켜세요")
+PM_JAKO(RemoteGuestCopyText, L"{0} リモート操作\nアドレス：{1}\nアカウント：{2}\nパスワード：{3}\n（{4}。接続時にパソコン側で「許可」します）",
+        L"{0} 원격 제어\n주소: {1}\n계정: {2}\n비밀번호: {3}\n({4}. 접속하면 PC에서 “허용”합니다)")
+PM_JAKO(RemoteAskGuest, L"一時アカウント",
+        L"임시 계정")
+PM_JAKO(RemoteAskGuestVal, L"{0}（{1}）",
+        L"{0}({1})")
+// 0.8.3.2 常駐外網: what to do when Funnel cannot start
+PM_JAKO(RemoteFixedWhyEnableFunnel, L"Tailscale アカウントで Funnel がまだオンになっていません（最初に 1 回だけ必要）：「設定ページを開く」を押し、Web ページで有効にしてから「有効にした、もう一度」を押してください",
+        L"Tailscale 계정에서 아직 Funnel이 켜져 있지 않습니다(처음 한 번만 필요): “설정 페이지 열기”를 눌러 웹 페이지에서 켠 뒤, 돌아와서 “켰어요, 다시 시도”를 누르세요")
+PM_JAKO(RemoteFixedWhyEnableHttps, L"Tailscale アカウントで HTTPS 証明書がまだオンになっていません（最初に 1 回だけ必要）：「設定ページを開く」を押し、Web ページで有効にしてから「有効にした、もう一度」を押してください",
+        L"Tailscale 계정에서 아직 HTTPS 인증서가 켜져 있지 않습니다(처음 한 번만 필요): “설정 페이지 열기”를 눌러 웹 페이지에서 켠 뒤, 돌아와서 “켰어요, 다시 시도”를 누르세요")
+PM_JAKO(RemoteFixedWhyNoAttr, L"Tailscale ネットワークでこの PC は Funnel を使えません（アクセス規則に funnel 属性がありません）：管理者に Access controls で追加してもらうか、今は一時アドレスを使ってください",
+        L"Tailscale 네트워크에서 이 PC는 Funnel을 쓸 수 없습니다(접근 규칙에 funnel 속성이 없음): 관리자에게 Access controls에서 추가해 달라고 하거나, 지금은 임시 주소를 쓰세요")
+PM_JAKO(RemoteFixedWhyPortTaken, L"この PC の Tailscale のポート 8443 は別のプログラムが使っています（{0}）。Zizai Cast は変更しません：そちらで止めるか、一時アドレスを使ってください",
+        L"이 PC Tailscale의 8443 포트를 다른 프로그램이 쓰고 있습니다({0}). Zizai Cast는 바꾸지 않습니다: 그 프로그램에서 끄거나 임시 주소를 쓰세요")
+PM_JAKO(RemoteFixedWhyOldCli, L"この PC の Tailscale が古すぎます（Funnel をバックグラウンドで使えません）：Tailscale を更新してから「再試行」を押してください",
+        L"이 PC의 Tailscale이 너무 오래되었습니다(백그라운드 Funnel 미지원): Tailscale을 업데이트한 뒤 “다시 시도”를 누르세요")
+PM_JAKO(RemoteFixedWhyNeedsLogin, L"Tailscale にログインしていません：Tailscale を開いてログインしてから「再試行」を押してください",
+        L"Tailscale에 로그인되어 있지 않습니다: Tailscale을 열어 로그인한 뒤 “다시 시도”를 누르세요")
+PM_JAKO(RemoteFixedWhyTimeout, L"Tailscale が応答しません（15 秒待ちました）：Tailscale が動いているか確認してから「再試行」を押してください",
+        L"Tailscale이 응답하지 않습니다(15초 기다림): Tailscale이 실행 중인지 확인한 뒤 “다시 시도”를 누르세요")
+PM_JAKO(RemoteFixedOpenSetup, L"設定ページを開く",
+        L"설정 페이지 열기")
+PM_JAKO(RemoteFixedRetryDone, L"有効にした、もう一度",
+        L"켰어요, 다시 시도")
+PM_JAKO(RemoteAskBodyGuest, L"このスマホは、あなたが作った一時アカウントでログインしました。渡した相手だと確認できたときだけ「許可」を押してください。画面上部に表示が出続け、Ctrl+D でいつでも切断できます。",
+        L"이 휴대폰은 당신이 만든 임시 계정으로 로그인했습니다. 계정을 준 사람이 맞을 때만 “허용”을 누르세요. 화면 위에 표시가 계속 나오며, Ctrl+D로 언제든 끊을 수 있습니다.")

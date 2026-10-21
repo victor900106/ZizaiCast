@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include "level.h"
+#include "synth_audio.h"
 #include "util.h"
 
 namespace pm::remote {
@@ -486,21 +488,28 @@ void LoopbackAudio::loop() {
     // into the same FIFO -> mix -> limiter -> Opus path. Nothing is played.
     //   "music": A = 440 Hz at 0.5, 3 s on / 3 s off; B = noise floor at 0.02 (like the HDMI device)
     //   "loud":  A and B = full-scale 440 / 660 Hz at 0.9 each (the sum would clip without the limiter)
+    //   "quiet": (0.8.3.2) A = music-like material at peak 0.03 (synth_audio.h; 0.8.3 used a 0.03 sine,
+    //            which has 3 dB between peak and RMS where music has ~13), B = noise floor 0.002
+    //   "speech": (0.8.3.2) A = speech-like material at peak 0.03, B = noise floor 0.002
     std::string synth;
     {
         std::lock_guard<std::mutex> lk(mu_);
         synth = synthetic_;
     }
     std::vector<int64_t> synthPos;
+    std::vector<float> synthLoop;  // 0.8.3.2: "quiet" / "speech" (8 s, peak 1)
+    if (synth == "quiet") synthLoop = pm::remote::synth::musicLike();
+    else if (synth == "speech") synthLoop = pm::remote::synth::speechLike();
     uint32_t noise = 12345;
     const int64_t synthT0 = nowUs();
     if (!synth.empty()) {
         fifos.resize(2);
         synthPos.assign(2, 0);
         std::lock_guard<std::mutex> lk(mu_);
-        curName_ = synth == "loud"    ? "mix: synthetic A 440 Hz 0.9 + synthetic B 660 Hz 0.9"
-                   : synth == "quiet" ? "mix: synthetic quiet music 0.03 (3 s on / 3 s off) + synthetic noise floor 0.002"
-                                      : "mix: synthetic music (3 s on / 3 s off) + synthetic noise floor 0.02";
+        curName_ = synth == "loud"     ? "mix: synthetic A 440 Hz 0.9 + synthetic B 660 Hz 0.9"
+                   : synth == "quiet"  ? "mix: synthetic quiet music-like material, peak 0.03 + synthetic noise floor 0.002"
+                   : synth == "speech" ? "mix: synthetic quiet speech-like material, peak 0.03 + synthetic noise floor 0.002"
+                                       : "mix: synthetic music (3 s on / 3 s off) + synthetic noise floor 0.02";
         logf("audio: TEST synthetic source \"%s\" (no device captured, nothing played): %s", synth.c_str(), curName_.c_str());
     }
     dirty_ = synth.empty();
@@ -510,10 +519,15 @@ void LoopbackAudio::loop() {
     int64_t nextWin = nowUs() + kWindowUs;
     float mixWin = 0, mixWins[4] = {0, 0, 0, 0};
     int mixWinIdx = 0;
-    float limGain = 1;
-    float agcG = 1, agcLoud = 0;  // 0.8.3 AGC: its gain, the smoothed RMS of the material
     const bool agcOn = agc_.load(), compOn = comp_.load();
-    logf("audio: level: AGC %s, volume compensation %s", agcOn ? "on (up to +12 dB towards -18 dBFS RMS)" : "off",
+    LevelChain level(agcOn);  // 0.8.3.2
+    agcGain_ = 1;
+    char agcText[256];
+    snprintf(agcText, sizeof(agcText),
+             "on (0.8.3.2: towards %.0f dBFS RMS, %+.0f..%+.0f dB, learns from frames above %.0f dBFS RMS, never from a steady noise floor; "
+             "noise gate: the pauses stay at x1)",
+             LevelChain::kTargetDb, LevelChain::kMinGainDb, LevelChain::kMaxGainDb, LevelChain::kGateDb);
+    logf("audio: level: AGC %s, limiter -1 dBFS, volume compensation %s", agcOn ? agcText : "off",
          compOn ? "on (software-volume devices, up to +18 dB)" : "off");
     while (!stop_ && en) {
         if (dirty_.exchange(false)) {
@@ -531,8 +545,8 @@ void LoopbackAudio::loop() {
                     const double t = double(synthPos[i]) / kRate;
                     float x = 0;
                     if (synth == "loud") x = float(0.9 * std::sin(2 * 3.14159265358979 * (i ? 660 : 440) * t));
-                    else if (synth == "quiet")  // 0.8.3: quiet material (-33 dBFS peak) 3 s on / 3 s off over a -54 dBFS noise floor
-                        x = i == 0 ? (std::fmod(t, 6.0) < 3.0 ? float(0.03 * std::sin(2 * 3.14159265358979 * 440 * t)) : 0.f)
+                    else if (!synthLoop.empty())  // 0.8.3.2: quiet music / speech (peak 0.03) over a -59 dBFS RMS noise floor
+                        x = i == 0 ? 0.03f * synthLoop[size_t(synthPos[i]) % synthLoop.size()]
                                    : (noise = noise * 1664525u + 1013904223u, 0.002f * (float(noise >> 8) / 8388608.f - 1.f));
                     else if (i == 0) x = std::fmod(t, 6.0) < 3.0 ? float(0.5 * std::sin(2 * 3.14159265358979 * 440 * t)) : 0.f;
                     else noise = noise * 1664525u + 1013904223u, x = 0.02f * (float(noise >> 8) / 8388608.f - 1.f);
@@ -615,39 +629,13 @@ void LoopbackAudio::loop() {
                 f.head += have;
                 f.firstUs += int64_t(have) * 1000000 / kRate;
             }
-            // 0.8.3 AGC: raise quiet material towards -18 dBFS RMS (at most x4 = +12 dB), never
-            // below x1; it only follows frames above -34 dBFS (music, speech), and in quieter
-            // stretches its gain drifts back to x1 (a noise floor is not pumped up).
-            if (agcOn) {
-                double sq = 0;
-                for (float x : mixed) sq += double(x) * x;
-                const float rms = float(std::sqrt(sq / double(mixed.size())));
-                float want = 1.f;
-                if (rms > 0.02f) {
-                    agcLoud = agcLoud > 0 ? agcLoud * 0.95f + rms * 0.05f : rms;
-                    want = std::clamp(0.125f / std::max(agcLoud, 1e-4f), 1.f, 4.f);
-                } else {
-                    want = std::max(1.f, agcG * 0.996f);  // ~ -0.7 dB/s back to x1
-                }
-                const float from = agcG;
-                agcG = want < agcG ? std::max(want, agcG * 0.9f) : std::min(want, agcG * 1.02f);  // down fast, up ~ +8.6 dB/s
-                if (from != 1.f || agcG != 1.f)
-                    for (size_t k = 0; k < mixed.size(); ++k) mixed[k] *= from + (agcG - from) * float(k) / float(mixed.size());
-                agcGain_ = agcG;
-            }
-            // Soft limiter: above 0.9 the gain eases down (fast attack, 1 s release), then a gentle clip.
+            // 0.8.3.2: AGC (towards -17 dBFS RMS, -6..+30 dB), noise gate and limiter: level.h.
+            level.process(mixed.data(), mixed.size());
+            if (agcOn) agcGain_ = level.gain();
             float peak = 0;
-            for (float x : mixed) peak = std::max(peak, std::fabs(x));
-            const float target = peak * limGain > 0.9f ? 0.9f / peak : 1.f;
-            const float from = limGain;
-            limGain = target < limGain ? target : std::min(1.f, limGain + 0.02f);
-            for (size_t k = 0; k < mixed.size(); ++k) {
-                const float g = from + (limGain - from) * float(k) / float(mixed.size());
-                float x = mixed[k] * g;
-                if (std::fabs(x) > 0.95f) x = std::copysign(0.95f + 0.05f * std::tanh((std::fabs(x) - 0.95f) / 0.05f), x);
-                mixed[k] = x;
-            }
-            peak = 0;
+            double sentSq = 0;
+            for (float x : mixed) sentSq += double(x) * x;
+            sentSqPico_ += int64_t(sentSq / double(mixed.size()) * 1e12), ++sentFrames_;  // mean square x 1e12
             for (float x : mixed) peak = std::max(peak, std::fabs(x));
             mixWin = std::max(mixWin, peak);
             const int pm = int(std::min(1.f, peak) * 1000000);

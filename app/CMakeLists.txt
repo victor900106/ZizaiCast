@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.3.1)
+set(PM_APP_VERSION 0.8.3.2)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -53,7 +53,8 @@ add_library(pm_app_ui STATIC popup_menu.cpp popup_menu.h pair_panel.cpp pair_pan
   ask_panel.cpp ask_panel.h share_panel.cpp share_panel.h share_picker.cpp share_picker.h update_panel.cpp update_panel.h
   settings_panel.cpp settings_panel.h tr_settings.cpp tr_settings.h volume_ui.cpp volume_ui.h volume_memory.h ui_anim.h
   remote_panel.cpp remote_panel.h
-  remote_password_panel.cpp remote_password_panel.h)
+  remote_password_panel.cpp remote_password_panel.h
+  remote_guest_panel.cpp remote_guest_panel.h)
 target_link_libraries(pm_app_ui PUBLIC pm_app_config)
 # 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
 if(PM_TRANSLATE_ENGINES)

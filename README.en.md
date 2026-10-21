@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="docs/readme/banner-en.png" alt="Zizai Cast — mirror your iPhone, iPad or Android to a Windows PC, wirelessly" width="100%">
+<img src="docs/readme/banner-en.png" alt="Zizai Cast — mirror your phone to a Windows PC, wirelessly, and control the PC from your phone too" width="100%">
 
 [繁體中文](README.md) ・ **English**
 
 # Zizai Cast 自在投影
 
-**Mirror your iPhone, iPad or Android phone to a Windows PC, wirelessly.**<br>
-No app on the iPhone, and you can drive an Android phone with your mouse and keyboard; or the other way round, control the PC from your phone. Free, open source, no ads, no account.
+**Mirror your iPhone, iPad or Android phone to a Windows PC, wirelessly — and the other way round: control the PC from your phone.**<br>
+No app on the iPhone, and you can drive an Android phone with your mouse and keyboard; away from home, a phone's browser is enough to see, hear and control the PC. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.1" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.2-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.2" height="40"></a>
 
-[Website](https://victor900106.github.io/ZizaiCast/#en) ・ [All releases](https://github.com/victor900106/ZizaiCast/releases) ・ [How to connect](#start) ・ [FAQ](#faq) ・ [Privacy](#privacy)
+[Website](https://victor900106.github.io/ZizaiCast/#en) ・ [All releases](https://github.com/victor900106/ZizaiCast/releases) ・ [How to connect](#start) ・ [Remote control](#remote) ・ [FAQ](#faq) ・ [Privacy](#privacy)
 
 <img src="docs/readme/demo-en.gif" alt="Demo: waiting → iPhone connects → mirroring → phone turned sideways → toolbar → screenshot" width="760">
 
@@ -23,6 +23,8 @@ No app on the iPhone, and you can drive an Android phone with your mouse and key
 
 What's on your phone often needs a bigger screen: showing an app to a class, making the text large enough for a parent to read, a menu abroad you can't read, a walkthrough you want to record. Zizai Cast does exactly that. Put the phone and the PC on the same Wi‑Fi, pick “Zizai Cast” on the phone, and the picture and sound appear on the PC. Recording, screenshots, zoom and translation all happen in that one window, and nothing leaves your home network.
 
+It also works the other way round: from the sofa, the office or a hotel, a phone's browser shows you the PC at home and controls it, with no app on the phone ([Remote control](#remote)).
+
 ## Highlights
 
 - **iPhone / iPad, no app needed**: Control Center → Screen Mirroring → “Zizai Cast”. Picture and sound (AirPlay).
@@ -31,7 +33,7 @@ What's on your phone often needs a bigger screen: showing an app to a class, mak
 - **Record, screenshot, send to phone**: one click to MP4 (with audio) or PNG, then send several files back to the phone at once.
 - **Magnifier and low-vision colours**: zoom up to 8×, more contrast, greyscale, inverted, yellow on black, freeze the picture.
 - **On-screen translation**: English, Japanese, Korean and Simplified Chinese into English, Traditional Chinese, Japanese or Korean. Text recognition and translation **run offline on your PC**; add the optional on-device AI translation, or turn on online translation with your own key.
-- **Remote control (new)**: see the PC's screen, hear its sound and control it with your fingers from the phone's browser, no app needed. Scan a QR code at home; away from home use a fixed address with a password, Tailscale or a temporary address. Off by default, and a new phone has to be allowed on the PC.
+- **Remote control (new)**: see the PC's screen, hear its sound and control it with your fingers from the phone's browser, no app needed. Scan a QR code at home; away from home use a fixed address with a password, Tailscale or a temporary address. Off by default, and a new phone has to be allowed on the PC. [How it works](#remote)
 - **Four UI languages**: English, 繁體中文, 日本語, 한국어; one-click updates when a new version is out (never updates by itself).
 - **Stays on your network**: no telemetry, no account; the only routine internet access is the update check, and remote control reaches outside only when you turn that on ([privacy](#privacy)).
 
@@ -46,6 +48,7 @@ What's on your phone often needs a bigger screen: showing an app to a class, mak
 | **Fixes** | Steadier AirPlay when phones switch or reconnect; Android reconnects by itself; a frozen Miracast picture is retried automatically; the first translation after installing takes about 3 s instead of about 30 s; 19 security fixes in remote control. |
 | **Uses less** | With no phone, the window wakes up 0.03 times a second instead of 8.7; with remote control on and waiting, memory drops from 266 MB to 111 MB; when Android isn't used, the background adb closes itself (it used to keep about 18 MB). |
 | **0.8.3.1 fixes** | Remote control on an iPhone (for example in Low Power Mode) no longer stays on “Connecting”: the picture still comes up, with “tap to show the screen”; if it can’t connect, you’re told why within 12 s and can try again. After a reboot, always-on access waits for Tailscale to finish starting instead of reporting a failure. |
+| **0.8.3.2** | Remote control sound was too quiet: the PC now sets a good level by itself (quiet videos are brought up to a normal level, without clipping); the phone’s volume is back at 100 %, up to 400 %. The Remote control tab starts with *Allow remote control*: this PC’s address in large letters, and temporary accounts for other people (valid for one use, 1 hour, 24 hours or 7 days, control or view only, file transfer if you want); you click Allow when they connect, and the account goes when it is used up or expires. Without a fixed address, one click makes a temporary one. A new Tailscale account without Funnel no longer freezes the app: the card says why and offers *Open the setup page*. *Lock the PC after remote control ends* is now off by default. |
 
 Full change list on the Releases page.
 
@@ -63,7 +66,7 @@ Full change list on the Releases page.
 | **Android: view only** (Miracast) | Open Quick Settings, tap *Cast* (Samsung: *Smart View*) | Pick **Zizai Cast** | The phone appears on the PC (the PC needs the Windows “Wireless Display” feature) |
 | **Android: control from the PC** (wireless debugging, Android 11+) | *Developer options → Wireless debugging → Pair device with QR code* | Scan the QR code from *Connect a phone ▸ Connect Android (scan QR)* on the PC | Control the phone with mouse and keyboard; it reconnects automatically |
 
-The picture shows an iPhone. Forgot how? *Connect a phone ▸ How to connect?* is always in the app.
+The picture shows an iPhone. Forgot how? *Connect a phone ▸ How to connect?* is always in the app. Want the other direction, controlling the PC from a phone? See [Remote control](#remote) below.
 
 <div align="center"><img src="docs/readme/phone-pc-en.png" alt="A phone on the left, the Zizai Cast window on a Windows PC on the right, connected over the same Wi‑Fi" width="760"></div>
 
@@ -85,6 +88,52 @@ All images show the real app; the phone content is a synthetic demo screen.
 <td valign="top"><img src="docs/readme/features/f-takeover-en.jpg" alt="When a second phone connects"><br><b>Several phones, in turn</b><br>When a second phone connects: switch to the new one, or keep the current one. No restart.</td>
 </tr>
 </table>
+
+<a id="remote"></a>
+
+### Remote control: use the PC from your phone
+
+The other way round: a phone's browser (Safari on iPhone, Chrome on Android) shows you the PC's screen, plays its sound, and lets you control the mouse and keyboard with your fingers. **No app on the phone**; the PC just needs Zizai Cast. At home, scan a QR code; away from home, use a fixed address and a password. It is off by default: switch to the *Remote control* tab in the main window to turn it on.
+
+#### Three ways to connect, 3 steps each
+
+<img src="docs/readme/remote-ways-en.png" alt="Three ways to connect: 1. at home on the same Wi‑Fi, scan a QR code; 2. away from home with a fixed address and a password; 3. a temporary address with a one-time QR code and a passcode" width="100%">
+
+| | 1 | 2 | 3 |
+|---|---|---|---|
+| **At home**: same Wi‑Fi | On the PC, open the *Remote control* tab, turn it on and press *Show QR code* under *At home (same Wi‑Fi)* | Scan the QR code with the phone's camera; the browser opens | The first time, the PC asks you to *Allow*; tick *Remember* so it doesn't ask next time |
+| **Away**: fixed address + password (Tailscale Funnel) | On the PC press *Set password* (8+ characters), then turn on the fixed address; tick *Always-on access* so it works from the moment the PC starts | Away from home, open the fixed address in the phone's browser (use *Copy address*, or scan its QR code) | Enter the password and you're in, with nothing to do on the PC first; that phone needn't ask again for 30 days |
+| **Temporary address** (no install, for the odd time) | On the PC pick the *No-app* tab: a one-time QR code and a 6-digit passcode appear | Scan the QR code (it works once) and enter the passcode | Press *Allow* on the PC; connecting once next to the PC (and ticking *Remember*) before you leave makes it easier |
+
+**Temporary accounts (from 0.8.3.2)**: to let someone else in for a while, press *Add a temporary account* on the *Remote control* tab, give it a name and choose how long it is valid (one use, 1 hour, 24 hours or 7 days), what it may do (*Control* or *View only*) and whether file transfer is allowed. *Create* gives you an address and a password; *Copy all* puts them on the clipboard to send. The password is shown only this once. When they connect, you still press *Allow* on the PC. Up to 10 accounts; delete one or reset its password when you like. The fixed address has to be on.
+
+Tailscale works too: with Tailscale on the phone as well (same account), press *Show QR code* under *Away: Tailscale* and it works like at home. The fixed address needs Tailscale on the PC with Funnel turned on; the temporary address needs nothing installed (the program bundles cloudflared and relays through it).
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="docs/readme/features/r-touch-en.jpg" alt="Finger control and trackpad: the gestures sheet and the control mode switch"><br><b>Finger control and trackpad</b><br>Two ways to control: <i>Direct</i> clicks where you tap (the default); <i>Trackpad</i> works like a laptop's: one finger moves the pointer, tap for a left click, two-finger tap for a right click, two fingers to scroll, pinch to zoom. A three-finger tap opens the phone keyboard; Ctrl / Alt / Win combinations and a two-way clipboard are there too.</td>
+<td width="33%" valign="top"><img src="docs/readme/features/r-audio-en.jpg" alt="The PC's sound on the phone: phone volume and the PC-side checkboxes"><br><b>The PC's sound on the phone</b><br>Whatever the PC plays, the phone plays; the phone volume goes up to 300% without clipping. Tick <i>Mute the PC while the phone plays sound</i> if you don't want it to be loud at home.</td>
+<td width="33%" valign="top"><img src="docs/readme/features/r-files-en.jpg" alt="Files both ways: phone to PC and PC to phone"><br><b>Files both ways</b><br>Phone to PC: saved in <i>Downloads\自在投影遠端</i>, several at once, up to 2 GB each; no file transfer in <i>View only</i>. PC to phone: copy files in File Explorer and tap <i>Refresh</i> on the phone.</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/readme/features/r-monitor-en.jpg" alt="Switching monitors, and picture quality"><br><b>Switching monitors</b><br>With two or more monitors, one tap on the phone picks the screen you see and control. Picture quality: Smooth (1080p), Standard (1440p) or Sharp (the PC's own resolution, up to 4K); it adjusts itself on a weak network.</td>
+<td valign="top"><img src="docs/readme/features/r-viewonly-en.jpg" alt="View only: the switch on the PC and the hint on the phone"><br><b>View only</b><br>Switch it on from the bar on the PC: the phone can only watch, and clicks, typing, files and the clipboard are all blocked. On a fixed-address session it takes the password on the phone to lift it.</td>
+<td valign="top"><img src="docs/readme/features/r-log-en.jpg" alt="Connection log: time, way, source and result of the last 50 connections"><br><b>Connection log</b><br><i>Remote control ▸ Connection log…</i> lists the last 50: time, way, source address (last two parts masked), device and result (connected / wrong password / blocked / denied). Passwords are never logged. <sub>Illustration.</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/readme/features/r-bar-en.jpg" alt="The bar on the PC: remote control in progress, End or Ctrl+D"><br><b>The bar on the PC, and Ctrl+D</b><br>While a phone is connected, a bar at the top of the PC screen says <i>Remote control in progress</i> and where it comes from; press <i>End</i> or Ctrl+D to cut it at any time. When a phone connected from outside drops, the PC can lock itself.</td>
+<td valign="top"></td>
+<td valign="top"></td>
+</tr>
+</table>
+
+**Safety**
+
+- **Off by default**: it is off at every start of the program and you turn it on yourself; it is not a background service. (*Always-on access* is a separate box you tick.)
+- **A new phone has to be allowed on the PC**: without your *Allow* on the PC a new phone can't get in, and a bar stays on the PC screen while connected so you can cut it at any time. On a fixed-address session, the password you set is the gate instead.
+- **Wrong passwords are limited per source**: an address that keeps typing it wrong is shut out for a while, without affecting anyone else; the PC stores only a salted hash, never the password itself.
+- **Only your own Tailscale account**: the fixed address and Tailscale both live inside your own account, with no server of ours in between; only if you pick the temporary address does it pass through Cloudflare's `trycloudflare.com` (and it still needs a one-time address, a passcode and your *Allow* on the PC).
+- One phone at a time; administrator windows, UAC prompts and the lock screen can't be controlled (a Windows limit). More in [Privacy](#privacy).
 
 ### Record and share
 
@@ -201,6 +250,32 @@ The installer isn't code-signed yet, so SmartScreen warns. Click *More info → 
 <summary><b>Can I control the iPhone from the PC?</b></summary>
 
 No. AirPlay carries picture and sound only and iOS offers no way for a PC to control the phone. PC control works for Android (wireless debugging).
+</details>
+
+<details>
+<summary><b>Do I need an app on the phone for Remote control?</b></summary>
+
+No. A browser is enough (Safari on iPhone, Chrome on Android), and you can *Add to Home Screen* to get an app-like icon. The PC needs Zizai Cast. Only if you pick the Tailscale way does the phone also need the Tailscale app.
+</details>
+
+<details>
+<summary><b>How do I reach my PC at home from outside?</b></summary>
+
+The recommended way is *fixed address + password*: at home, on the PC's *Remote control* tab press *Set password* (8+ characters) and turn on the fixed address; tick *Always-on access* so it works from the moment the PC starts. Away from home, open that address in the phone's browser and enter the password. The PC needs Tailscale installed with Funnel turned on. If you'd rather not install it, use the *temporary address* (nothing to install: a one-time QR code plus a 6-digit passcode, generated next to the PC). Neither way needs a port opened on your router.
+</details>
+
+<details>
+<summary><b>Is Remote control safe? Can strangers get in?</b></summary>
+
+It is off by default. Once on, a new phone has to be allowed on the PC (a fixed address needs the password you set); an address that keeps typing a wrong password is shut out for a while; a bar on the PC screen shows while connected, and *End* or Ctrl+D cuts it at any time; *View only* is one switch away, and the PC can lock itself when the phone drops. The fixed address and Tailscale use only your own Tailscale account, with no third-party server. Still, choose a long password and don't paste the address and password together.
+</details>
+
+<details>
+<summary><b>No sound in Remote control?</b></summary>
+
+1. Tap *Turn on sound* at the bottom of the phone screen (browsers insist on a tap before they play sound).
+2. On the PC's *Remote control* tab, *Send the PC's sound to the phone* must be ticked, and the PC has to be playing something, or the phone says the PC isn't playing sound.
+3. In the phone page's Settings raise *Phone volume* (up to 300%), and check the phone's own volume.
 </details>
 
 <details>

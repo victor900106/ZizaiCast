@@ -70,7 +70,29 @@ struct Peer {
     bool tailscale = false;  // came in over Tailscale (outside the LAN)
     bool tunnel = false;     // came in over the 外網連結 (cloudflared quick tunnel); ip = CF-Connecting-IP
     bool fixed = false;      // came in over the fixed link with the password (常駐外網, 0.8.2)
+    std::string guest;       // 0.8.3.2: came in with this 臨時帳號 (its name; "" = not a guest)
+    std::string guestId;     // ... and its id (GuestAccount::id)
 };
+
+// 0.8.3.2 臨時帳號 (guest accounts) on the fixed link: POST /login {"user", "password"}.
+// A guest always needs 允許 on the PC, never gets the 30-day login (its login lasts at
+// most 12 hours and only while the account is valid), and what it may do is enforced
+// here: 僅觀看 = every input message dropped (and no 解除僅觀看), no 傳檔 = upload,
+// download and the file list refused (403). Only hashes come in; never the password.
+struct GuestAccount {
+    std::string id;        // stable random id (the app's file)
+    std::string name;      // e.g. "guest-4821"; the login matches it without regard to case
+    std::string pwHash;    // hashPassword(guestPasswordKey(password))
+    long long expires = 0; // epoch seconds; 0 = no time limit (with once)
+    bool once = false;     // 用一次: spent the moment its first session ends (also a denied one)
+    bool viewOnly = false; // 僅觀看
+    bool files = false;    // 傳檔 allowed
+};
+// The guest passwords are 6 characters from an alphabet without 0 / O, 1 / l / I; what the
+// phone typed is upper-cased before it is checked (an iPhone keyboard's first capital
+// does not matter). Also used to hash a new one.
+std::string guestPasswordKey(const std::string& typed);
+std::string makeGuestPassword();  // 6 characters from "ABCDEFGHJKMNPQRSTUVWXYZ23456789" (31: no 0 O 1 I L)
 
 // Password hash for the fixed link: "pbkdf2-sha256$<iterations>$<salt hex>$<key hex>"
 // (PBKDF2-HMAC-SHA256, 16-byte random salt); never the password itself.
@@ -111,6 +133,15 @@ public:
     // Tests only: every tailscale CLI call goes to this instead of a process (nothing is run).
     using Runner = std::function<bool(const std::wstring& cmdLine, std::string& out, unsigned long& exitCode)>;
     static void setRunnerForTest(Runner r);
+    // 0.8.3.2 tests: a fake CLI program at this path is run instead of tailscale.exe (a real process:
+    // the "prints an enable page and never exits" case). Never tailscale itself.
+    static void setCliForTest(const std::wstring& path);
+    // 0.8.3.2: ends every CLI run still going (quit): its threads return at once. A CLI that prints
+    // "visit https://login.tailscale.com/f/..." (Funnel / HTTPS not on yet for this tailnet) is
+    // stopped as soon as it does; every run lasts at most 15 s. start()'s errors then say what to do:
+    // "needs-enable: funnel|https <url>", "no-funnel-attr: <url>", "port-taken: <target>",
+    // "cli-too-old", "needs-login", "timeout: ...", or "not-running: <BackendState>" as before.
+    static void cancelAll();
 };
 
 struct Options {
@@ -199,6 +230,10 @@ struct Options {
     std::string fixedSecret;        // signs the login tokens (30 days); a new one ends every login
     bool fixedNeedApproval = false; // 外面的新手機也要電腦按允許
     std::function<void(const std::string& ip, bool ok, int fails, bool locked)> onLogin;
+    // 0.8.3.2 臨時帳號 (see GuestAccount): the list at start (setGuests() later), and each
+    // guest login try (the name as typed, cut to 40 characters; never the password).
+    std::vector<GuestAccount> guests;
+    std::function<void(const std::string& ip, const std::string& user, bool ok, int fails, bool locked)> onGuestLogin;
     // 0.8.3: 中斷 on the PC ends that phone's fixed-link login (its token id; expiry in epoch
     // seconds): keep it (settings) and hand it back here, so a restart does not let it in again.
     std::vector<std::string> revokedLogins;  // "<token id>:<expiry>"
@@ -276,6 +311,9 @@ public:
     void setFixed(bool on);
     bool fixedOn() const;
     void setFixedOptions(const std::string& passwordHash, const std::string& secret, bool needApproval);
+    // 0.8.3.2 臨時帳號: replaces the list. An account no longer in it (deleted, expired and
+    // pruned) loses its logins at once, and its session (connected or waiting for 允許) ends.
+    void setGuests(std::vector<GuestAccount> guests);
     std::string fixedOrigin() const;  // "http://127.0.0.2:<port>"
     // 0.8.3: which relay serves the fixed link: cloudflared (its CF-Connecting-IP is the
     // phone) or Tailscale Funnel (false, the default: the last X-Forwarded-For entry).

@@ -52,7 +52,8 @@ struct Settings {
     // 0.8.3: logins ended by 中斷 ("<token id>:<expiry>,..."; the password is needed again) and
     // 遠端斷線後自動鎖定電腦 (from outside: the fixed link / 免安裝外網; on the LAN / Tailscale)
     std::string remoteRevoked;
-    bool remoteLockOutside = true;
+    // 0.8.3.2: both off by default (0.8.3 / 0.8.3.1: outside on). A saved value is kept as it is.
+    bool remoteLockOutside = false;
     bool remoteLockLan = false;
     std::string whatsNewSeen;          // the version whose 新功能 note was shown
     int idleTab = 0;                   // 0.8.2 main window page: 0 手機投影, 1 遠端控制 (the last one shown)
@@ -173,7 +174,7 @@ struct Settings {
         if (auto it = kv.find("remote_fixed_secret"); it != kv.end() && it->second.size() == 64) s.remoteFixedSecret = it->second;
         s.remoteFixedNeedApproval = flag("remote_fixed_approval", false);
         if (auto it = kv.find("remote_revoked"); it != kv.end() && it->second.size() < 8192) s.remoteRevoked = it->second;
-        s.remoteLockOutside = flag("remote_lock_outside", true);
+        s.remoteLockOutside = flag("remote_lock_outside", false);  // 0.8.3.2: default off
         s.remoteLockLan = flag("remote_lock_lan", false);
         if (s.remotePwHash.empty() || s.remoteFixedSecret.empty()) s.remotePersistent = false;  // no password: never on
         if (auto it = kv.find("whats_new_seen"); it != kv.end() && it->second.size() < 32) s.whatsNewSeen = it->second;
