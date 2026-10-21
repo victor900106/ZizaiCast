@@ -286,6 +286,7 @@ enum Command : UINT {
     CmdRemoteAddrCopy,         // 441 複製網址 (the 本機網址: fixed, or the temporary one)
     CmdRemoteTempShare,        // 442 產生臨時網址 (no fixed address: the cloudflared one)
     CmdRemoteFixedSetup,       // 443 開啟設定頁 (the tailnet's Funnel / HTTPS enable page the CLI named)
+    CmdRemoteTsDownload,       // 444 0.8.3.3 下載 Tailscale (the Tailscale card without Tailscale)
     CmdRemoteGuestDel0 = 450,  // 刪除 (row i, up to 10)
     CmdRemoteGuestDelLast = CmdRemoteGuestDel0 + 9,
     CmdRemoteGuestReset0 = 460,  // 重設密碼 (row i)

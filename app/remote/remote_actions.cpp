@@ -81,6 +81,11 @@ struct RemoteState {
     std::mutex cliMu, fixMu;
     std::atomic<int> cliRuns{0};
     std::string fixSetupUrl;        // 0.8.3.2: the page that turns Funnel / HTTPS on for this tailnet (開啟設定頁)
+    // 0.8.3.3: the address is known but not usable yet (the HTTPS certificate is still being issued):
+    // fixState stays 1 until a TLS check from this PC gets an answer; the page says 正在準備網址.
+    bool fixFake = false;            // --dev PM_REMOTE_FUNNELFAKE (no check unless PM_REMOTE_FUNNELPROBE)
+    bool fixPreparing = false;       // the check failed at least once: 正在準備網址，約 1–2 分鐘
+    std::shared_ptr<std::atomic<bool>> probeStop;  // ends the checking thread (it never touches RemoteState)
     int pageQr = 0;                 // 遠端控制 page: the QR shown in 1 在家 / 2 Tailscale (0 none)
 #ifdef PM_APP_REMOTE
     pm::remote::QuickTunnel fixTunnel;   // fallback when Funnel cannot be used
@@ -467,6 +472,11 @@ std::string suggestGuestName() {
     return "guest-" + std::to_string(nowEpoch() % 100000);
 }
 
+// 0.8.3.3: the address handed to a 臨時帳號 carries its name after "#" ("...:8443/#u=guest-4821"): the page
+// opens in 臨時帳號 mode with the account filled in, the friend only types the password. A fragment is
+// never sent to the server (nor to Tailscale's relay, nor in a Referer), so it is in no request log.
+std::string guestUrl(const std::string& base, const std::string& name) { return base + "#u=" + name; }
+
 // 複製全部 (--dev with PM_TEST_GUEST_OUT: into that test file instead of the real clipboard).
 void guestCopy(const std::wstring& all) {
     wchar_t outPath[MAX_PATH] = {};
@@ -502,7 +512,7 @@ pm::ui::RemoteGuestPanel::Callbacks guestCallbacks() {
         saveGuests();
         syncGuests();
         g.log->write("info", "remote: 臨時帳號 " + row.name + " created (" + toUtf8(guestSummary(row)) + "; only its hash is kept)");
-        res.url = toWide(r.fixUrl), res.name = q.name, res.password = toWide(pw), res.summary = guestSummary(row), res.reset = false;
+        res.url = toWide(guestUrl(r.fixUrl, row.name)), res.name = q.name, res.password = toWide(pw), res.summary = guestSummary(row), res.reset = false;
         std::fill(pw.begin(), pw.end(), '\0');
         remoteChanged();
         return true;
@@ -552,7 +562,7 @@ void resetGuest(size_t i) {
     saveGuests();
     syncGuests();
     g.log->write("info", "remote: 臨時帳號 " + v[i].name + ": a new password (only its hash is kept)");
-    pm::ui::RemoteGuestPanel::Result res{toWide(R().fixUrl), toWide(v[i].name), toWide(pw), guestSummary(v[i]), true};
+    pm::ui::RemoteGuestPanel::Result res{toWide(guestUrl(R().fixUrl, v[i].name)), toWide(v[i].name), toWide(pw), guestSummary(v[i]), true};
     std::fill(pw.begin(), pw.end(), '\0');
     R().guestPanel.showResult(g.hwnd, res, guestCallbacks());
     std::fill(res.password.begin(), res.password.end(), L'\0');
@@ -788,6 +798,8 @@ void stopFixed(const char* why) {
         ours = r.fixFunnel.exchange(false);
     }
     joinFixThread();
+    if (r.probeStop) *r.probeStop = true, r.probeStop.reset();  // 0.8.3.3: the TLS check ends too
+    r.fixPreparing = false;
     const bool was = r.fixState != 0 || ours;
 #ifdef PM_APP_REMOTE
     if (ours && !g.dev) funnelOffAsync(why);  // 0.8.3.2: in the background (a --dev instance never set it up: see startFixed)
@@ -855,6 +867,8 @@ void startFixed() {
     }
     const bool devNoCli = g.dev && fakeUrl.empty() && stubStarting == 0 && !fakeCli;
     r.fixSetupUrl.clear();
+    r.fixFake = !fakeFail && !fakeUrl.empty();
+    r.fixPreparing = false;
     ++r.cliRuns;
     r.fixThread = std::thread([h, gen, origin, fakeFail, fakeUrl, devNoCli] {
         struct Done {
@@ -932,6 +946,69 @@ void startFixedFallback(const std::wstring& why) {
     g.log->write("info", "remote: 常駐外網: cloudflared fallback -> 127.0.0.2:" + std::to_string(r.host.port()));
 #else
     (void)why;
+#endif
+}
+
+// 0.8.3.3: the fixed address answers (or a --dev made-up one needs no check): 已開啟 only now.
+void fixedReady(const std::string& how) {
+    RemoteState& r = R();
+    r.fixState = 2, r.fixInfo.clear(), r.fixPreparing = false;
+    if (r.probeStop) r.probeStop.reset();
+    g.log->write("info", "remote: 常駐外網 ready at " + r.fixUrl + " (Tailscale Funnel; port 443 untouched)" + how);
+    g.window->showToast(pm::i18n::fmt(S::RemoteFixedOnToast, {w(r.fixUrl)}), 4000);
+}
+
+// 0.8.3.3 (audit D2): the first time a tailnet uses Funnel, Tailscale issues the HTTPS certificate in
+// the background and for a minute or two every connection to the address is closed, while the CLI
+// already said "available". So: one HTTPS request from this PC (TailscaleFunnel::probeTls) at once,
+// then every 3 s for up to 5 minutes; until one gets an answer fixState stays 1 and the page says
+// 正在準備網址，約 1–2 分鐘 (after the first failure). --dev instances check only
+// PM_REMOTE_FUNNELPROBE=https://127.0.0.1:<port>/ (a fake local server in the tests); without it a
+// made-up address counts as ready at once. The thread never touches RemoteState (only its flag).
+void startFixedProbe() {
+#ifdef PM_APP_REMOTE
+    RemoteState& r = R();
+    std::string url = r.fixUrl;
+    bool insecure = false;
+    if (g.dev) {
+        wchar_t pv[256] = {};
+        const DWORD n = GetEnvironmentVariableW(L"PM_REMOTE_FUNNELPROBE", pv, 256);
+        url = n > 0 && n < 256 ? toUtf8(pv) : std::string();
+        if (url.rfind("https://127.0.0.1:", 0) != 0) url.clear();  // never anything but the test's own server
+        insecure = true;
+    }
+    if (url.empty()) {
+        fixedReady(g.dev ? std::string(" (--dev: not checked)") : std::string());
+        return;
+    }
+    ULONGLONG maxMs = 300000;  // 5 minutes (tests: PM_REMOTE_FUNNELPROBEMAX=<seconds>)
+    if (g.dev) {
+        wchar_t mx[8] = {};
+        if (GetEnvironmentVariableW(L"PM_REMOTE_FUNNELPROBEMAX", mx, 8) > 0) maxMs = static_cast<ULONGLONG>(std::clamp(_wtoi(mx), 3, 600)) * 1000;
+    }
+    if (r.probeStop) *r.probeStop = true;
+    auto stop = std::make_shared<std::atomic<bool>>(false);
+    r.probeStop = stop;
+    const HWND h = g.hwnd;
+    const unsigned gen = r.fixGen;
+    g.log->write("info", "remote: 常駐外網 address " + r.fixUrl + ": checking that it answers (HTTPS from this PC" +
+                             (g.dev ? ", --dev: the test's server " + url : std::string()) + ")");
+    std::thread([h, gen, url, insecure, stop, maxMs] {
+        const ULONGLONG t0 = GetTickCount64();
+        auto post = [&](int what, const std::string& d) {
+            auto* m = new RemoteMsg{gen, "", "", "", "", std::to_string(what) + ":" + std::to_string(GetTickCount64() - t0) + ":" + d};
+            if (!PostMessageW(h, WM_PM_REMOTE, RemFixedProbe, reinterpret_cast<LPARAM>(m))) delete m;
+        };
+        for (int i = 0; !*stop; ++i) {
+            std::string d;
+            const bool ok = pm::remote::TailscaleFunnel::probeTls(url, d, insecure);
+            if (*stop) return;
+            if (ok) return post(1, d);
+            if (GetTickCount64() - t0 > maxMs) return post(2, d);
+            if (i == 0 || i % 10 == 0) post(0, d);  // the first failure: 正在準備網址; then a log line every 30 s
+            for (int k = 0; k < 30 && !*stop; ++k) Sleep(100);
+        }
+    }).detach();
 #endif
 }
 
@@ -1021,6 +1098,10 @@ void startTunnel() {
             r.host.setTunnel(true);
             r.tunState = 2, r.tunErr.clear(), r.tunUrl = toUtf8(fk);
             g.log->write("info", "remote: 免安裝外網 (PM_REMOTE_TUNNELFAKE) shown at " + r.tunUrl + ": cloudflared not run");
+            wchar_t tp[4] = {};  // 0.8.3.3 tests: the one-time link and 通行碼, to come in as cloudflared would (127.0.0.1)
+            if (GetEnvironmentVariableW(L"PM_REMOTE_TESTPASS", tp, 4) > 0 && tp[0] == L'1')
+                g.log->write("info", "remote: test tunnel link " + r.tunUrl + r.host.tunnelLinkPath() + " passcode " + r.host.tunnelPasscode() +
+                                         " (local port " + std::to_string(r.host.port()) + ")");
             if (!r.panel.isOpen()) openRemotePanel(2);
             if (r.panel.isOpen()) r.panel.showTab(2);
             updateTunnelPanel();
@@ -1262,12 +1343,31 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         remoteChanged();
         return;
     }
+    if (m && kind == RemFixedProbe) {  // 0.8.3.3: the fixed address's TLS check
+        if (m->gen != r.fixGen || !r.on || r.fixState != 1 || r.fixUrl.empty()) return;
+        const size_t c2 = m->why.find(':', 2);
+        const std::string ms = m->why.size() > 2 ? m->why.substr(2, c2 == std::string::npos ? std::string::npos : c2 - 2) : std::string();
+        const std::string detail = c2 == std::string::npos ? std::string() : m->why.substr(c2 + 1);
+        if (m->why.rfind("1:", 0) == 0) {
+            fixedReady("; 固定網址 reachable after " + ms + " ms (" + detail + ")");
+        } else if (m->why.rfind("2:", 0) == 0) {
+            r.fixState = 3, r.fixErr = tr(S::RemoteFixedWhyCertSlow), r.fixInfo.clear(), r.fixPreparing = false, r.fixSetupUrl.clear();
+            r.probeStop.reset();
+            g.log->write("warn", "remote: 常駐外網: " + r.fixUrl + " still not reachable after " + ms + " ms (" + detail + "): gave up (Try again / temporary address)");
+        } else {
+            g.log->write("info", "remote: 常駐外網: " + r.fixUrl + " not reachable yet after " + ms + " ms (" + detail +
+                                     (r.fixPreparing ? ")" : "): 正在準備網址 (the HTTPS certificate is probably being issued)"));
+            r.fixPreparing = true;
+        }
+        updateFixedPanel();
+        remoteChanged();
+        return;
+    }
     if (m && (kind == RemFixedUp || kind == RemFixedFail || kind == RemFixedCfUrl || kind == RemFixedCfEnd)) {
         if (m->gen != r.fixGen || !r.on) return;  // stopped meanwhile (stopFixed removed the port)
         if (kind == RemFixedUp && r.fixState == 1) {
-            r.fixState = 2, r.fixUrl = m->why, r.fixInfo.clear();
-            g.log->write("info", "remote: 常駐外網 ready at " + r.fixUrl + " (Tailscale Funnel; port 443 untouched)");
-            g.window->showToast(pm::i18n::fmt(S::RemoteFixedOnToast, {w(r.fixUrl)}), 4000);
+            r.fixUrl = m->why, r.fixInfo.clear();  // 0.8.3.3: 已開啟 only once it answers (startFixedProbe)
+            startFixedProbe();
         } else if (kind == RemFixedFail && r.fixState == 1) {
             // Said in plain words on the page, with 「改用臨時網址」 (cloudflared: the address
             // is not fixed, so it is the owner's choice, not automatic).
@@ -1358,13 +1458,14 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUploadedToast, {w(m->why)}));
         break;
     case RemRequest: {
-        g.log->write("info", "remote: " + m->label + " from " + m->ip + (m->fixed ? " (常駐外網)" : m->tunnel ? " (免安裝外網)" : m->tailscale ? " (Tailscale)" : "") + " asks to connect");
+        g.log->write("info", "remote: " + m->label + " from " + m->ip + (m->fixed ? " (常駐外網)" : m->tunnel ? " (免安裝外網)" : m->tailscale ? " (Tailscale)" : "") + " asks to connect" +
+                                 (!m->guestId.empty() || (m->tunnel && !m->fixed) ? " (asked every time: no 記住)" : ""));
         r.askSession = m->session;
         r.askLabel = m->label;
         pm::ui::AskPanel::Info q;
         q.glyph = kIcoRemote;
         q.title = tr(S::RemoteAskTitle);
-        q.body = tr(m->guestId.empty() ? S::RemoteAskBody : S::RemoteAskBodyGuest);  // 0.8.3.2: someone else's phone
+        q.body = tr(!m->guestId.empty() ? S::RemoteAskBodyGuest : m->tunnel && !m->fixed ? S::RemoteAskBodyTemp : S::RemoteAskBody);  // 0.8.3.2 / 0.8.3.3: someone else's phone
         q.rows.push_back({tr(S::RemoteAskDevice), w(m->label)});
         q.rows.push_back({tr(S::RemoteAskFrom),
                           pm::i18n::fmt(m->fixed ? S::RemoteAskViaFixed : m->tunnel ? S::RemoteAskViaTunnel : m->tailscale ? S::RemoteAskViaTs : S::RemoteAskViaLan, {w(m->ip)})});
@@ -1377,10 +1478,11 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         q.primary = tr(S::RemoteAllow);
         q.secondary = tr(S::RemoteDeny);
         q.secondaryChoice = 2;
-        if (m->guestId.empty()) q.check = tr(S::RemoteRemember);
+        // 0.8.3.3: a 臨時帳號 and the temporary address are asked every time: no 記住這支手機
+        const bool guestAsk = !m->guestId.empty() || (m->tunnel && !m->fixed);
+        if (!guestAsk) q.check = tr(S::RemoteRemember);
         q.checked = false;
         const std::string session = m->session, device = m->device, label = m->label;
-        const bool guestAsk = !m->guestId.empty();
         q.done = [session, device, label, guestAsk](int choice) {
             RemoteState& rs = R();
             if (rs.askSession == session) rs.askSession.clear();
@@ -1494,7 +1596,7 @@ void remoteCommand(UINT cmd) {
         cmd == CmdRemoteFixedApproval || cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp || cmd == CmdRemoteAdvanced ||
         cmd == CmdRemoteLockOutside || cmd == CmdRemoteLockLan || cmd == CmdRemoteLog ||
         (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ||
-        cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd == CmdRemoteFixedSetup ||
+        cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd == CmdRemoteFixedSetup || cmd == CmdRemoteTsDownload ||
         (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) || (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast)) {
         if (fromPhone()) {
             refuseRemote(cmd == CmdRemoteToggle   ? "開啟遠端操控 (menu)"
@@ -1586,6 +1688,10 @@ void remoteCommand(UINT cmd) {
             stopFixed("retry");
             startFixed();
         }
+        break;
+    case CmdRemoteTsDownload:  // 0.8.3.3 下載 Tailscale (its own download page)
+        if (g.dev || g.testOffscreen) g.log->write("info", "remote: dev: would open https://tailscale.com/download/windows (not opened)");
+        else ShellExecuteW(nullptr, L"open", L"https://tailscale.com/download/windows", nullptr, nullptr, SW_SHOWNORMAL);
         break;
     case CmdRemoteFixedSetup:  // 0.8.3.2 開啟設定頁 (only a tailscale.com page from the CLI's answer)
         if (!R().fixSetupUrl.empty()) {
@@ -1889,6 +1995,14 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
             cards.push_back(std::move(c));
             act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i);
             if (guestRows().size() < kMaxGuests) act(tr(S::RemoteGuestAdd), true, CmdRemoteGuestNew, i);
+        } else if (hasPw && r.fixState == 1 && r.fixPreparing && !r.fixUrl.empty()) {
+            // 0.8.3.3: the address is known but does not answer yet (the HTTPS certificate): no QR
+            // code and no 臨時帳號 until it does; 已開啟 is said only then.
+            c.body = tr(S::RemoteFixedPreparing);
+            c.big = w(r.fixUrl);
+            cards.push_back(std::move(c));
+            act(tr(S::RemoteFixedClose), false, CmdRemoteFixedToggle, i);
+            return;
         } else if (hasPw) {
             c.body = r.fixState == 1 ? (r.fixInfo.empty() ? std::wstring(tr(S::RemoteFixedStarting)) : r.fixInfo)
                      : r.fixState == 3 ? pm::i18n::fmt(S::RemoteFixedFailed, {r.fixErr})
@@ -1936,7 +2050,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
         const bool show = r.on && r.pageQr == 2 && !ts.empty();
         if (show) qrOf(ts, c), c.note = w(ts);
         cards.push_back(std::move(c));
-        if (noTs) act(tr(S::RemoteTsGuide), false, CmdRemoteTsHelp, i);
+        if (noTs) act(tr(S::RemoteTsDownload), true, CmdRemoteTsDownload, i), act(tr(S::RemoteTsGuide), false, CmdRemoteTsHelp, i);  // 0.8.3.3
         else act(tr(show ? S::RemoteHideQr : S::RemoteShowQr), true, CmdRemoteTsQr, i);
     };
     allowCard();  // 0.8.3.2: 允許遠端控制 first, then 在家 and Tailscale as before

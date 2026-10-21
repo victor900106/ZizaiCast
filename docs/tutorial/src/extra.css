@@ -1,0 +1,27 @@
+
+/* 0.8.3 rewrite: "I want to…" table, task blocks (goal / steps / success / if not), real screenshots */
+.want{margin:30px 0 8px}
+.want table td:first-child{min-width:0;font-weight:600}
+.want td a{border:0;display:block}
+.want tr:hover td{background:var(--accent-dim)}
+.goal{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin:10px 0 16px;color:var(--soft)}
+.goal b{color:var(--accent);margin-right:8px;font-size:14px;letter-spacing:.06em}
+.ok,.ng{border-radius:10px;padding:12px 18px;margin:6px 0 16px;font-size:15.5px;color:var(--soft);border:1px solid var(--line)}
+.ok{border-left:3px solid #8FD3A8;background:rgba(143,211,168,.07)}
+.ng{border-left:3px solid var(--warn);background:rgba(232,195,138,.06)}
+.ok>b,.ng>b{display:block;color:var(--text);margin-bottom:2px;font-size:15px}
+.ng ul{margin:4px 0 0}.ng li{margin:2px 0}
+figure.real{text-align:center;padding:16px 12px 10px}
+figure.real img{max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.pair-img{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.pair-img figure.real{flex:1 1 240px;margin:12px 0}
+.shot.todo{border-color:#8A6F3E;background:#2A2419}
+.shot.todo b{color:var(--warn)}
+pre.cmd{white-space:pre-wrap;word-break:break-all;font-size:15.5px}
+.src{font-size:13.5px;color:var(--mute)}
+.src a{color:var(--mute)}
+@media print{.ok,.ng,.goal{background:none}}
+.side li a::before{content:none}
+.side li a{padding-left:14px}
+@media (max-width:820px){.ui{white-space:normal}.src{overflow-wrap:anywhere}}
+.src{overflow-wrap:anywhere}

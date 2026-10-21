@@ -14,10 +14,14 @@
 //   443-changed   the funnel command changes port 443 (it must not): failure, no retry
 // Every case also checks: no command other than status / funnel status / funnel --bg
 // --https=8443 http://127.0.0.2:8091; 443's config is identical at the end.
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
+#include <cstring>
 #include <thread>
 #include <string>
 #include <vector>
@@ -314,6 +318,59 @@ int main() {
         }
         TailscaleFunnel::setCliForTest(L"");
         DeleteFileW(pids.c_str()), DeleteFileW(state.c_str());
+    }
+    // 0.8.3.3: the fixed address's TLS check (probeTls) against local servers only (127.0.0.1): one that
+    // closes every connection (as Tailscale does while it issues the certificate), one that answers plain
+    // HTTP (no TLS); never a real address. The success case runs in the app test (app0833_test.mjs) against
+    // a fake TLS server with a self-signed certificate.
+    {
+        WSADATA wd;
+        WSAStartup(MAKEWORD(2, 2), &wd);
+        auto server = [](bool answerHttp, int& port, std::atomic<bool>& stop) {
+            SOCKET ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            sockaddr_in a{};
+            a.sin_family = AF_INET;
+            inet_pton(AF_INET, "127.0.0.1", &a.sin_addr);
+            bind(ls, reinterpret_cast<sockaddr*>(&a), sizeof(a));
+            int al = sizeof(a);
+            getsockname(ls, reinterpret_cast<sockaddr*>(&a), &al);
+            port = ntohs(a.sin_port);
+            listen(ls, 8);
+            return std::thread([ls, answerHttp, &stop] {
+                while (!stop) {
+                    fd_set r;
+                    FD_ZERO(&r);
+                    FD_SET(ls, &r);
+                    timeval tv{0, 100000};
+                    if (select(0, &r, nullptr, nullptr, &tv) <= 0) continue;
+                    SOCKET c = accept(ls, nullptr, nullptr);
+                    if (c == INVALID_SOCKET) continue;
+                    if (answerHttp) {
+                        char b[512];
+                        recv(c, b, sizeof(b), 0);
+                        const char* resp = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nnot found";
+                        send(c, resp, int(strlen(resp)), 0);
+                    }
+                    closesocket(c);
+                }
+                closesocket(ls);
+            });
+        };
+        std::atomic<bool> stop{false};
+        int p1 = 0, p2 = 0;
+        std::thread t1 = server(false, p1, stop), t2 = server(true, p2, stop);
+        std::string d;
+        const ULONGLONG t0 = GetTickCount64();
+        const bool closed = TailscaleFunnel::probeTls("https://127.0.0.1:" + std::to_string(p1) + "/", d, true, 3000);
+        check("probeTls: a server that closes every connection = not ready", !closed && GetTickCount64() - t0 < 4000, d);
+        const bool plain = TailscaleFunnel::probeTls("https://127.0.0.1:" + std::to_string(p2) + "/", d, true, 3000);
+        check("probeTls: no TLS (plain HTTP) = not ready", !plain, d);
+        check("probeTls: an http:// address is never checked", !TailscaleFunnel::probeTls("http://127.0.0.1:" + std::to_string(p2) + "/", d, true), d);
+        check("probeTls: the test's insecure mode only for 127.0.0.1", !TailscaleFunnel::probeTls("https://example-pc.example.ts.net:8443/", d, true) &&
+                                                                         d == "test probe: 127.0.0.1 only", d);
+        stop = true;
+        t1.join(), t2.join();
+        WSACleanup();
     }
     check("backendStarting: NoState / Starting yes, Stopped / NeedsLogin no",
           TailscaleFunnel::backendStarting("not-running: NoState") && TailscaleFunnel::backendStarting("not-running: Starting") &&

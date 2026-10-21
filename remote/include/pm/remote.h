@@ -142,6 +142,14 @@ public:
     // "needs-enable: funnel|https <url>", "no-funnel-attr: <url>", "port-taken: <target>",
     // "cli-too-old", "needs-login", "timeout: ...", or "not-running: <BackendState>" as before.
     static void cancelAll();
+    // 0.8.3.3: is the fixed address really usable yet? One HTTPS request to it from this PC (the
+    // name resolves to this node; the same certificate the phone gets). The first time a tailnet
+    // turns Funnel on, Tailscale issues the HTTPS certificate in the background: for a minute or
+    // two every TLS connection is closed (the phone sees ERR_CONNECTION_CLOSED). true = a TLS
+    // handshake with a valid certificate and an HTTP answer below 500; detail says what happened.
+    // insecureLocalTest (--dev tests only, a 127.0.0.1 address): a fake server's self-signed
+    // certificate is accepted.
+    static bool probeTls(const std::string& url, std::string& detail, bool insecureLocalTest = false, int timeoutMs = 5000);
 };
 
 struct Options {

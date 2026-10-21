@@ -17,7 +17,8 @@ enum RemoteEvent : WPARAM {
     RemFixedUp, RemFixedFail, RemFixedCfUrl, RemFixedCfEnd, RemFixedLogin, RemFixedStale,  // 常駐外網 (0.8.2)
     RemLoginRevoked, RemUnlocked, RemUploaded,  // 0.8.3
     RemFixedWait,  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
-    RemGuestLogin  // 0.8.3.2: a 臨時帳號 login try
+    RemGuestLogin,  // 0.8.3.2: a 臨時帳號 login try
+    RemFixedProbe   // 0.8.3.3: the fixed address's TLS check ("1:<ms>:<detail>" ok, "0:..." not yet, "2:..." gave up)
 };
 
 bool remoteAvailable();

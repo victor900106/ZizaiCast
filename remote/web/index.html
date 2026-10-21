@@ -29,8 +29,13 @@ html,body{margin:0;height:100%;background:#000;color:var(--fg);font:15px/1.4 -ap
 /* 通行碼 (外網連結) */
 #pass{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);
   padding:24px calc(24px + var(--sr)) calc(24px + var(--sb)) calc(24px + var(--sl));text-align:center}
-#passT{font-size:19px;font-weight:600}
-#passS{font-size:14px;opacity:.75;max-width:420px}
+#passT{font-size:21px;font-weight:600}
+#passS{font-size:16px;opacity:.8;max-width:420px}
+/* 0.8.3.3: the fixed link's two kinds of login (owner: the password only; 臨時帳號: the account, often from the address) */
+#userRow{font-size:16px;display:none;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+#userRow b{font-size:18px;color:var(--ac)}
+.lnk{border:0;background:none;color:var(--ac);font-size:15px;text-decoration:underline;padding:6px 4px}
+#pwEye{display:none}#pass.pw #pwEye{display:inline-block}
 #passIn{font:600 30px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:10px;width:min(270px,82vw);text-align:center;padding:10px 6px 10px 16px;border-radius:12px;
   border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--fg);-webkit-user-select:text;user-select:text;touch-action:auto}
 #passGo{flex:0 0 auto;min-width:140px;background:var(--ac);color:#2a1a1c;border:0;font-weight:600}
@@ -42,14 +47,18 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 #hud{position:absolute;left:calc(6px + var(--sl));top:calc(6px + var(--st));z-index:3;padding:4px 8px;background:rgba(0,0,0,.62);border-radius:8px;
   font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none;display:none;max-width:calc(100% - 12px);overflow:hidden}
 /* toolbar: small round icon buttons, bottom right (thumb reach), never over the middle */
-#bar{position:absolute;right:calc(8px + var(--sr));bottom:calc(8px + var(--sb));z-index:4;display:flex;gap:8px;align-items:center}
-.ib{width:44px;height:44px;border-radius:22px;border:1px solid rgba(255,255,255,.18);background:rgba(20,20,20,.62);display:flex;align-items:center;justify-content:center;padding:0}
+#bar{position:absolute;right:calc(8px + var(--sr));bottom:calc(24px + var(--sb));z-index:4;display:flex;gap:14px;align-items:center}
+.ib{position:relative;width:44px;height:44px;border-radius:22px;border:1px solid rgba(255,255,255,.18);background:rgba(20,20,20,.62);display:flex;align-items:center;justify-content:center;padding:0}
+/* 0.8.3.3: a word under every icon (聲音 / 放大 / 檔案 / 鍵盤 / 設定); the muted speaker says 開聲音 */
+.ib .bl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font-size:11px;line-height:1.2;white-space:nowrap;color:#fff;
+  text-shadow:0 1px 2px #000,0 0 4px #000;pointer-events:none}
+.ib .bl.call{color:var(--ac);font-weight:700}
 .ib svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ib.on{background:var(--ac);border-color:var(--ac)}.ib.on svg{stroke:#2a1a1c}
 #bar .ib{transition:opacity .4s}
 #bar.dim .ib{opacity:.35}
 
-#silent{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;max-width:calc(100% - 24px);bottom:calc(64px + var(--sb));z-index:4;padding:6px 14px;border-radius:14px;
+#silent{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;max-width:calc(100% - 24px);bottom:calc(84px + var(--sb));z-index:4;padding:6px 14px;border-radius:14px;
   background:rgba(0,0,0,.66);font-size:13px;display:none;text-align:center;pointer-events:none}
 body.sheet-open #silent{display:none!important}
 #badge{position:absolute;left:50%;transform:translateX(-50%);top:calc(6px + var(--st));z-index:4;padding:3px 10px;border-radius:12px;background:rgba(0,0,0,.6);
@@ -70,7 +79,7 @@ body.sheet-open #silent{display:none!important}
 #fileS progress{width:64px;height:6px}
 #upIn{display:none}
 /* "sound on" call to action, shown until used */
-#cta{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(64px + var(--sb));z-index:4;display:none;align-items:center;gap:8px;
+#cta{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sb));z-index:4;display:none;align-items:center;gap:8px;
   padding:10px 18px;border-radius:24px;border:0;background:var(--ac);color:#2a1a1c;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 #cta svg{width:20px;height:20px;fill:none;stroke:#2a1a1c;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* toast */
@@ -157,11 +166,11 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div id="badge"></div>
 <button id="cta"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span id="ctaT"></span></button>
 <div id="bar">
-  <button class="ib" id="bSnd"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path id="sndWave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="sndX" d="m16 9 6 6m0-6-6 6"/></svg></button>
-  <button class="ib" id="bZoom"><svg viewBox="0 0 24 24"><g id="zIn"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></g><g id="zFit"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g></svg></button>
-  <button class="ib" id="bFile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3-3 3 3"/></svg></button>
-  <button class="ib" id="bKb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
-  <button class="ib" id="bSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  <button class="ib" id="bSnd"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path id="sndWave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="sndX" d="m16 9 6 6m0-6-6 6"/></svg><span class="bl" id="lbSnd"></span></button>
+  <button class="ib" id="bZoom"><svg viewBox="0 0 24 24"><g id="zIn"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></g><g id="zFit"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g></svg><span class="bl" id="lbZoom"></span></button>
+  <button class="ib" id="bFile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3-3 3 3"/></svg><span class="bl" id="lbFile"></span></button>
+  <button class="ib" id="bKb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span class="bl" id="lbKb"></span></button>
+  <button class="ib" id="bSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="bl" id="lbSet"></span></button>
 </div>
 <div id="toast"></div>
 <div id="silent"></div>
@@ -170,7 +179,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 
 <div class="sheet" id="set">
   <h3><span id="setT"></span><button id="setClose"></button></h3>
-  <div class="row"><span class="lbl" id="lMode"></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
+  <div class="row"><span class="lbl"><span id="lMode"></span><span class="sub" id="lModeSub"></span></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
   <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="400" step="10"></div>
   <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
   <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
@@ -246,9 +255,12 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div id="msg"><div class="spin" id="msgSpin"></div><div id="msgT"></div><div id="msgS"></div><div id="msgB"></div></div>
 <div id="tapHint"><span id="tapHintT"></span></div>
 <div id="pass"><div id="passT"></div><div id="passS"></div>
+  <div id="userRow"><span><span id="userLbl"></span> <b id="userName"></b></span><button class="lnk" id="userNot"></button></div>
   <input id="userIn" maxlength="40" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="account" style="display:none">
   <input id="passIn" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="passcode">
-  <button class="btn" id="passGo"></button><div id="passErr"></div></div>
+  <button class="lnk" id="pwEye"></button>
+  <button class="btn" id="passGo"></button><div id="passErr"></div>
+  <button class="lnk" id="modeLnk" style="display:none"></button></div>
 
 <script>window.PM = /*PM_CONFIG*/{};</script>
 <script src="trackpad.js"></script>
@@ -277,19 +289,32 @@ const T = {
   stoppedSub: ['要再用：先在電腦上重新開啟「遠端控制」，再按「重新連線」。', 'To use it again: turn “Remote control” back on on the PC, then tap “Reconnect”.', 'もう一度使うには、パソコンで「リモート操作」をオンにしてから「再接続」を押してください。', '다시 쓰려면 PC에서 “원격 제어”를 다시 켠 뒤 “다시 연결”을 누르세요.'],
   pcOnly: ['這個按鈕只能在電腦上按（避免手機誤觸把連線關掉）', 'That button works on the PC only (so a tap from the phone can’t end the connection)', 'このボタンはパソコンでのみ押せます（スマホからの誤操作で接続が切れないように）', '이 버튼은 PC에서만 누를 수 있습니다(휴대폰에서 실수로 연결을 끊지 않도록)'],
   passT: ['輸入通行碼', 'Enter the passcode', 'パスコードを入力', '통행 코드 입력'],
-  passS: ['6 位數通行碼在電腦的「遠端控制」視窗，「免安裝外網」那一頁。', 'The 6-digit passcode is on the PC: the “Remote control” window, “No-app link” tab.', '6 桁のパスコードはパソコンの「リモート操作」画面の「アプリ不要」タブにあります。', '6자리 통행 코드는 PC의 “원격 제어” 창, “앱 없이 외부” 탭에 있습니다.'],
+  passS: ['6 位數通行碼在電腦的「遠端控制」視窗，「臨時網址」那一頁。', 'The 6-digit passcode is on the PC: the “Remote control” window, “Temporary” tab.', '6 桁のパスコードはパソコンの「リモート操作」画面の「一時アドレス」タブにあります。', '6자리 통행 코드는 PC의 “원격 제어” 창, “임시 주소” 탭에 있습니다.'],
   passGo: ['確定', 'OK', 'OK', '확인'],
   passWrong: ['通行碼不對，還可以再試 {0} 次', 'Wrong passcode: {0} tries left', 'パスコードが違います（あと {0} 回）', '통행 코드가 틀렸습니다({0}번 남음)'],
   passDead: ['錯太多次，這個連結已失效', 'Too many wrong tries: this link no longer works', '間違いが多すぎるため、このリンクは使えなくなりました', '너무 많이 틀려 이 링크를 더 이상 쓸 수 없습니다'],
-  pwT: ['登入這台電腦', 'Log in to this PC', 'このパソコンにログイン', '이 PC에 로그인'],
-  pwS: ['用你在電腦設定的密碼：帳號留空，登入一次這支手機 30 天內不用再輸入。別人給你的臨時帳號：帳號和密碼都要填，連上前電腦那邊要按允許。', 'Your own password from the PC: leave the account empty; this phone then stays logged in for 30 days. A temporary account you were given: fill in both, and the PC has to click “Allow”.', 'パソコンで設定した自分のパスワード：アカウントは空欄。一度ログインすると、このスマホでは 30 日間入力不要です。渡された一時アカウント：両方を入力し、パソコン側で「許可」が必要です。', 'PC에서 정한 내 비밀번호: 계정은 비워 두세요. 한 번 로그인하면 이 휴대폰에서 30일 동안 다시 입력하지 않아도 됩니다. 받은 임시 계정: 둘 다 입력하고, PC에서 ‘허용’을 눌러야 합니다.'],
-  userCue: ['帳號（用自己的密碼請留空）', 'Account (empty for your own password)', 'アカウント（自分のパスワードなら空欄）', '계정(내 비밀번호면 비워 두기)'],
+  pwT: ['輸入你設定的密碼', 'Enter your password', '自分で設定したパスワードを入力', '설정한 비밀번호 입력'],
+  pwS: ['這是你在電腦上為「固定網址」設定的密碼。登入一次，這支手機 30 天內不用再輸入。', 'The password you set on the PC for the fixed address. Log in once and this phone stays logged in for 30 days.', 'パソコンで「固定アドレス」に設定したパスワードです。一度ログインすると、このスマホでは 30 日間入力不要です。', 'PC에서 “고정 주소”용으로 정한 비밀번호입니다. 한 번 로그인하면 이 휴대폰에서 30일 동안 다시 입력하지 않아도 됩니다.'],
+  gT: ['輸入對方給你的密碼', 'Enter the password you were given', '渡されたパスワードを入力', '받은 비밀번호 입력'],
+  gS: ['用臨時帳號登入：連上後，對方要在電腦上按「允許」。', 'A temporary account: once you connect, the PC’s owner has to click “Allow”.', '一時アカウントでログインします。接続すると、相手がパソコンで「許可」を押します。', '임시 계정으로 로그인합니다. 연결하면 상대가 PC에서 “허용”을 눌러야 합니다.'],
+  acct: ['帳號', 'Account', 'アカウント', '계정'],
+  notYou: ['不是這個帳號？', 'Not this account?', 'このアカウントではない？', '이 계정이 아닌가요?'],
+  useGuest: ['用臨時帳號登入', 'Log in with a temporary account', '一時アカウントでログイン', '임시 계정으로 로그인'],
+  useOwn: ['我是電腦的主人：用自己的密碼', 'I own this PC: use my own password', 'パソコンの持ち主：自分のパスワードで', 'PC 주인: 내 비밀번호로'],
+  needUser: ['請輸入對方給你的帳號', 'Enter the account you were given', '渡されたアカウントを入力してください', '받은 계정을 입력하세요'],
+  showPw: ['顯示密碼', 'Show password', 'パスワードを表示', '비밀번호 표시'],
+  hidePw: ['隱藏密碼', 'Hide password', 'パスワードを隠す', '비밀번호 숨기기'],
+  userCue: ['對方給你的帳號', 'The account you were given', '渡されたアカウント', '받은 계정'],
   pwCue: ['密碼', 'Password', 'パスワード', '비밀번호'],
-  guestWrong: ['帳號或密碼不對（也可能已過期或用過了），還可以再試 {0} 次', 'Wrong account or password (or it expired / was used): {0} tries left', 'アカウントかパスワードが違います（期限切れ・使用済みの場合も）。あと {0} 回', '계정 또는 비밀번호가 틀렸습니다(만료되었거나 이미 쓴 경우도). {0}번 남음'],
+  guestWrong: ['帳號或密碼不對，還可以再試 {0} 次', 'Wrong account or password: {0} tries left', 'アカウントかパスワードが違います（あと {0} 回）', '계정 또는 비밀번호가 틀렸습니다({0}번 남음)'],
+  gExpired: ['這個臨時帳號已經過期了。請向給你帳號的人要一組新的。', 'This temporary account has expired. Ask the person who gave it to you for a new one.', 'この一時アカウントは期限切れです。渡してくれた人に新しいものをもらってください。', '이 임시 계정은 기간이 끝났습니다. 계정을 준 사람에게 새로 받으세요.'],
+  gUsed: ['這個臨時帳號只能用一次，已經用過了。請向給你帳號的人要一組新的。', 'This temporary account was for one use and has been used. Ask for a new one.', 'この一時アカウントは 1 回限りで、もう使われました。新しいものをもらってください。', '이 임시 계정은 한 번만 쓸 수 있는데 이미 사용했습니다. 새로 받으세요.'],
+  gDeleted: ['這個臨時帳號已經被刪除了。請向給你帳號的人確認。', 'This temporary account was deleted. Check with the person who gave it to you.', 'この一時アカウントは削除されました。渡してくれた人に確認してください。', '이 임시 계정은 삭제되었습니다. 계정을 준 사람에게 확인하세요.'],
+  gGone: ['這個臨時帳號已經不能用了（過期、用過或被刪除）。請向給你帳號的人要一組新的。', 'This temporary account no longer works (expired, used or deleted). Ask for a new one.', 'この一時アカウントはもう使えません（期限切れ・使用済み・削除）。新しいものをもらってください。', '이 임시 계정은 더 이상 쓸 수 없습니다(기간 종료, 사용됨 또는 삭제). 새로 받으세요.'],
   pwWrong: ['密碼不對，還可以再試 {0} 次', 'Wrong password: {0} tries left', 'パスワードが違います（あと {0} 回）', '비밀번호가 틀렸습니다({0}번 남음)'],
   pwLocked: ['錯太多次，請 {0} 分鐘後再試', 'Too many wrong tries: try again in {0} minutes', '間違いが多すぎます。{0} 分後にもう一度お試しください', '너무 많이 틀렸습니다. {0}분 후 다시 시도하세요'],
   pwNone: ['電腦還沒設定密碼', 'No password is set on the PC yet', 'パソコンでパスワードがまだ設定されていません', 'PC에 아직 비밀번호가 설정되지 않았습니다'],
-  passDeadSub: ['請在電腦上重新掃描「免安裝外網」的 QR 碼。', 'Scan the “No-app link” QR code on the PC again.', 'パソコンの「アプリ不要」の QR コードを読み取り直してください。', 'PC의 “앱 없이 외부” QR 코드를 다시 스캔하세요.'],
+  passDeadSub: ['請在電腦上重新掃描「臨時網址」的 QR 碼。', 'Scan the “Temporary” QR code on the PC again.', 'パソコンの「一時アドレス」の QR コードを読み取り直してください。', 'PC의 “임시 주소” QR 코드를 다시 스캔하세요.'],
   viaDirect: ['直連', 'Direct', '直接', '직접 연결'],
   viaTunnel: ['隧道', 'Tunnel', 'トンネル', '터널'],
   noCodecs: ['這個瀏覽器不能經隧道顯示畫面', 'This browser can’t show the picture through the tunnel', 'このブラウザーではトンネル経由で画面を表示できません', '이 브라우저는 터널로 화면을 표시할 수 없습니다'],
@@ -318,6 +343,13 @@ const T = {
   stuckRtc: ['畫面的連線一直接不起來', 'The picture connection does not come up', '映像の接続ができません', '화면 연결이 되지 않습니다'],
   stuckRtcSub: ['電腦有回應，但影像的路徑一直沒有通。請按「重試」，或看排除方法。', 'The PC answers, but the picture’s path never opens. Tap “Try again”, or see how to fix it.', 'パソコンは応答していますが、映像の経路がつながりません。「再試行」を押すか、対処方法を見てください。', 'PC는 응답하지만 화면 경로가 열리지 않습니다. “다시 시도”를 누르거나 해결 방법을 보세요.'],
   soundOn: ['開啟聲音', 'Turn on sound', '音を出す', '소리 켜기'],
+  tapSound: ['點一下開聲音', 'Tap for sound', 'タップで音を出す', '탭하면 소리가 나요'],
+  lbSndOff: ['開聲音', 'Sound on', '音を出す', '소리 켜기'],
+  lbSnd: ['聲音', 'Sound', '音', '소리'],
+  lbZoom: ['放大', 'Zoom', '拡大', '확대'],
+  lbFile: ['檔案', 'Files', 'ファイル', '파일'],
+  lbKb: ['鍵盤', 'Keyboard', 'キーボード', '키보드'],
+  lbSet: ['設定', 'Settings', '設定', '설정'],
   soundTapAgain: ['再點一次「開啟聲音」', 'Tap “Turn on sound” once more', 'もう一度「音を出す」をタップしてください', '“소리 켜기”를 한 번 더 누르세요'],
   pcSilent: ['電腦目前沒有在播放聲音', 'The PC isn’t playing any sound right now', 'パソコンは今、音を再生していません', 'PC에서 지금 재생 중인 소리가 없습니다'],
   vol: ['手機音量', 'Phone volume', 'スマホの音量', '휴대폰 음량'],
@@ -331,6 +363,7 @@ const T = {
   mode: ['操作方式', 'Control', '操作方法', '조작 방식'],
   trackpad: ['觸控板', 'Trackpad', 'トラックパッド', '트랙패드'],
   direct: ['直接點', 'Direct', '直接タップ', '직접 터치'],
+  modeSub: ['直接點：手指點哪裡就點哪裡。觸控板：像筆電的觸控板，手指滑動移動游標。', 'Direct: tap where you want to click. Trackpad: like a laptop trackpad, slide a finger to move the pointer.', '直接タップ：触れた場所をクリック。トラックパッド：ノート PC のように指を滑らせてポインターを動かします。', '직접 터치: 누른 곳을 클릭합니다. 트랙패드: 노트북 터치패드처럼 손가락을 밀어 포인터를 움직입니다.'],
   sens: ['游標速度', 'Pointer speed', 'ポインターの速度', '포인터 속도'],
   sensSub: ['手指滑越快，游標跑越遠', 'Faster swipes move the pointer further', '速く動かすほど遠くへ移動します', '빠르게 밀수록 더 멀리 이동합니다'],
   quality: ['畫質', 'Picture', '画質', '화질'],
@@ -406,7 +439,7 @@ const T = {
     ['누른 곳을 클릭(왼쪽 클릭)', '반 초 누르기: 오른쪽 클릭', '누른 채 움직이기: 드래그', '두 손가락: 스크롤, 핀치: 확대', '세 손가락 탭: 키보드']],
   // 0.8.3
   unlock: ['解除僅觀看', 'Lift view only', '表示のみを解除', '보기 전용 해제'],
-  unlockSub: ['再輸入一次「常駐外網」的密碼，這支手機就能完整操控電腦（只限這次連線；電腦上可以隨時再按「僅觀看」）。', 'Enter the “Always-on link” password again to fully control the PC from this phone (this connection only; “View only” on the PC turns it back on).', '「常時外部リンク」のパスワードをもう一度入力すると、このスマホからパソコンを完全に操作できます（この接続のみ。パソコンの「表示のみ」でいつでも戻せます）。', '“상시 외부 링크” 비밀번호를 다시 입력하면 이 휴대폰으로 PC를 완전히 조작할 수 있습니다(이번 연결만, PC에서 “보기 전용”을 누르면 다시 잠깁니다).'],
+  unlockSub: ['再輸入一次「固定網址」的密碼，這支手機就能完整操控電腦（只限這次連線；電腦上可以隨時再按「僅觀看」）。', 'Enter the fixed address password again to fully control the PC from this phone (this connection only; “View only” on the PC turns it back on).', '「固定アドレス」のパスワードをもう一度入力すると、このスマホからパソコンを完全に操作できます（この接続のみ。パソコンの「表示のみ」でいつでも戻せます）。', '“고정 주소” 비밀번호를 다시 입력하면 이 휴대폰으로 PC를 완전히 조작할 수 있습니다(이번 연결만, PC에서 “보기 전용”을 누르면 다시 잠깁니다).'],
   unlockOk: ['已解除僅觀看：現在可以操作電腦', 'View only lifted: you can control the PC now', '表示のみを解除しました。パソコンを操作できます', '보기 전용이 해제되었습니다. 이제 PC를 조작할 수 있습니다'],
   unlockBusy: ['請 {0} 秒後再試', 'Try again in {0} s', '{0} 秒後にもう一度お試しください', '{0}초 후 다시 시도하세요'],
   clipDenied: ['「僅觀看」時不能使用剪貼簿', 'The clipboard is off in “View only”', '「表示のみ」の間はクリップボードを使えません', '“보기 전용”에서는 클립보드를 쓸 수 없습니다'],
@@ -724,25 +757,48 @@ function updatePath() {
 }
 setInterval(updatePath, 1000);
 // ---- 通行碼 ----
+// 0.8.3.3: the fixed link has two kinds of login. The owner: the password only (no account field).
+// A 臨時帳號: the address the PC handed out carries the account after "#" (#u=guest-4821: a fragment
+// never reaches the server, a relay or a Referer), so the page opens in that mode with the account
+// filled in and the friend types only the password; 「不是這個帳號？」 lets them type another.
+const LOGIN = {guest: false, user: '', show: false};
+{
+  const m = /[#&]u=([A-Za-z0-9._-]{1,24})(?:&|$)/.exec(location.hash || '');
+  if (FIXED && m) LOGIN.guest = true, LOGIN.user = m[1];
+}
 function askPass(err) {
   hideMsg();
   $('pass').style.display = 'flex';
+  const i = $('passIn'), u = $('userIn');
   if (FIXED) {  // the owner's password instead of the 6 digits
-    const i = $('passIn');
     $('pass').classList.add('pw');
-    i.type = 'password'; i.removeAttribute('inputmode'); i.removeAttribute('pattern'); i.maxLength = 256;
+    i.type = LOGIN.show ? 'text' : 'password';
+    i.removeAttribute('inputmode'); i.removeAttribute('pattern'); i.maxLength = 256;
     i.autocomplete = 'current-password'; i.setAttribute('aria-label', 'password');
-    // 0.8.3.2: an account too (empty = the owner's own password, as before)
-    const u = $('userIn'); u.style.display = ''; u.placeholder = t('userCue'); i.placeholder = t('pwCue');
+    i.placeholder = t('pwCue');
+    $('pwEye').textContent = t(i.type === 'text' ? 'hidePw' : 'showPw');
+    const fixedUser = LOGIN.guest && !!LOGIN.user;
+    $('userRow').style.display = fixedUser ? 'flex' : 'none';
+    $('userLbl').textContent = t('acct') + (LANG === 0 || LANG === 2 ? '：' : ': ');
+    $('userName').textContent = LOGIN.user;
+    $('userNot').textContent = t('notYou');
+    u.style.display = LOGIN.guest && !fixedUser ? '' : 'none';
+    u.placeholder = t('userCue');
+    $('modeLnk').style.display = '';
+    $('modeLnk').textContent = t(LOGIN.guest ? 'useOwn' : 'useGuest');
   }
-  $('passT').textContent = t(FIXED ? 'pwT' : 'passT');
-  $('passS').innerHTML = nwHtml(t(FIXED ? 'pwS' : 'passS'));
+  $('passT').textContent = t(FIXED ? (LOGIN.guest ? 'gT' : 'pwT') : 'passT');
+  $('passS').innerHTML = nwHtml(t(FIXED ? (LOGIN.guest ? 'gS' : 'pwS') : 'passS'));
   $('passGo').textContent = t('passGo');
   $('passErr').textContent = err || '';
-  setTimeout(() => { try { $('passIn').focus(); } catch {} }, 60);
+  setTimeout(() => { try { (LOGIN.guest && !LOGIN.user && u.style.display !== 'none' && !u.value ? u : i).focus(); } catch {} }, 60);
 }
+$('modeLnk').onclick = () => { LOGIN.guest = !LOGIN.guest; if (!LOGIN.guest) $('userIn').value = ''; askPass(); };
+$('userNot').onclick = () => { LOGIN.user = ''; $('userIn').value = ''; askPass(); };
+$('pwEye').onclick = () => { LOGIN.show = !LOGIN.show; const i = $('passIn'); i.type = LOGIN.show ? 'text' : 'password'; $('pwEye').textContent = t(LOGIN.show ? 'hidePw' : 'showPw'); i.focus(); };
 async function submitPw() {
-  const password = $('passIn').value, user = $('userIn').value.trim();
+  const password = $('passIn').value, user = LOGIN.guest ? (LOGIN.user || $('userIn').value.trim()) : '';
+  if (LOGIN.guest && !user) return askPass(t('needUser'));
   if (!password || $('passGo').disabled) return;
   $('passGo').disabled = true;
   let r = null, j = null;
@@ -752,12 +808,16 @@ async function submitPw() {
   if (j && j.ok && j.token) {
     // 0.8.3.2: a 臨時帳號's login is for this page only (never kept for 30 days)
     store.set('fixedTok', j.guest ? '' : j.token);
+    S.guestLogin = !!j.guest;
     $('userIn').value = '';
+    LOGIN.show = false;
     BASE = '/k/' + j.token + '/';
     $('pass').style.display = 'none'; PM.verified = true; diag('password-ok'); connect(); return;
   }
   if (j && j.noPassword) return askPass(t('pwNone'));
   if (j && j.locked) return askPass(tf('pwLocked', Math.max(1, Math.ceil((j.retryAfter || 900) / 60))));
+  // 0.8.3.3: an account that is gone is named only with its right password (nothing is told about an unknown one)
+  if (j && j.gone) return askPass(t(j.gone === 'expired' ? 'gExpired' : j.gone === 'used' ? 'gUsed' : j.gone === 'deleted' ? 'gDeleted' : 'gGone'));
   if (j && j.left !== undefined) return askPass(tf(j.guest ? 'guestWrong' : 'pwWrong', j.left));
   askPass(t('unreachable'));
 }
@@ -963,7 +1023,15 @@ async function connect(reason) {
     return;
   }
   if (my !== gen) return;
-  if (r.status === 401) { S.state = 'passcode'; if (FIXED) store.set('fixedTok', ''); askPass(); return; }
+  if (r.status === 401) {
+    S.state = 'passcode';
+    if (FIXED) store.set('fixedTok', '');
+    // 0.8.3.3: a 臨時帳號's login stopped working (the account expired, was used or deleted)
+    const wasGuest = FIXED && S.guestLogin;
+    S.guestLogin = false;
+    askPass(wasGuest ? t('gGone') : '');
+    return;
+  }
   if (r.status === 429) {
     S.state = 'blocked';
     showMsg(t('blocked'), t('blockedSub'), [[t('retry'), () => { retryN = 0; connect(); }]]);
@@ -1149,6 +1217,9 @@ function setSound(on, quiet) {
   $('bSnd').classList.toggle('on', on);
   $('sndWave').style.display = on ? '' : 'none';
   $('sndX').style.display = on ? 'none' : '';
+  // 0.8.3.3: the muted speaker says what a tap does (開聲音), in the accent colour
+  $('lbSnd').textContent = t(on ? 'lbSnd' : 'lbSndOff');
+  $('lbSnd').classList.toggle('call', !on);
   $('cta').style.display = !on && S.audioOffered !== false && !store.get('soundUsed', false) ? 'flex' : 'none';
   if (!quiet) send({t: 'audio', on});
 }
@@ -1170,7 +1241,13 @@ function soundTap() {
 }
 $('bSnd').onclick = soundTap;
 $('cta').onclick = soundTap;
-$('ctaT').textContent = t('soundOn');
+$('ctaT').textContent = t('tapSound');  // 0.8.3.3: 「點一下開聲音」
+// 0.8.3.3: a word under every toolbar icon (and the same as a tooltip)
+for (const [b, k] of [['bSnd', 'lbSndOff'], ['bZoom', 'lbZoom'], ['bFile', 'lbFile'], ['bKb', 'lbKb'], ['bSet', 'lbSet']]) {
+  $('l' + b).textContent = t(k);
+  $(b).title = t(k);
+}
+$('lbSnd').classList.add('call');
 $('bSnd').setAttribute('aria-label', t('soundOn'));
 $('bKb').setAttribute('aria-label', t('keyboard'));
 $('bSet').setAttribute('aria-label', t('settings'));
@@ -1701,6 +1778,7 @@ $('setT').textContent = t('settings');
 $('setClose').textContent = t('close');
 $('setClose').onclick = closeSheets;
 $('lMode').textContent = t('mode');
+$('lModeSub').textContent = t('modeSub');  // 0.8.3.3: what 直接點 and 觸控板 do
 $('lSens').textContent = t('sens');
 $('lSensSub').textContent = t('sensSub');
 $('lQ').textContent = t('quality');

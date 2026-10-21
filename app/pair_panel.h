@@ -22,7 +22,8 @@ public:
         std::function<void()> onClose;  // 取消 / × / Esc (the panel is already gone)
         std::function<void(const std::wstring& hostPort, const std::wstring& code)> onPairCode;  // 配對
         std::function<void()> onQrMode;  // 改用 QR (back from the code form)
-        std::function<void()> onHelp;    // 「怎麼開啟無線偵錯？」 link
+        std::function<void()> onHelp;    // (0.8.3.2) the guide's Android section
+        std::function<void()> onHelpDevOpt;  // 0.8.3.3: 看圖文教學 in the 開發人員選項 steps (#adb-devopt)
     };
 
     // Shows the panel centred over `owner` (QR mode, "preparing" until
@@ -43,6 +44,10 @@ public:
     bool codeMode() const { return codeMode_; }  // 配對碼 form shown (else the QR)
     // Switches to the code form (also what 「用配對碼」 does).
     void showCodeForm();
+    // 0.8.3.3: 「① 還沒開過開發人員選項？看步驟」: the steps (連點版本號碼 7 下; Samsung / 小米 / Pixel)
+    // in place of the QR code / form until 回到 QR 圖碼. Also the --dev hook (DevCommand 987).
+    void showDevOpt(bool on);
+    bool devOptShown() const { return devOpt_; }
     // Pre-fills the IP:port box (e.g. from mDNS discovery) if it is empty.
     void suggestHostPort(const std::wstring& hostPort);
     // Re-reads the palette (theme change while open).
@@ -80,6 +85,7 @@ private:
     Callbacks cb_;
     UINT dpi_ = 96;
     bool codeMode_ = false;
+    bool devOpt_ = false;  // 0.8.3.3: the 開發人員選項 steps are shown
     std::vector<uint8_t> qr_;
     int qrSize_ = 0;
     std::wstring status_;

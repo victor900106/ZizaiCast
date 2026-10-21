@@ -95,29 +95,43 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
     1. Turn it on in the "Remote control" tab and open the "Same Wi-Fi" page: a QR code appears.
     2. Phone on the same Wi-Fi: scan the QR code with the camera.
     3. The PC asks "A phone wants to control this PC" -> click "Allow" only for your own phone (tick "Remember this phone" to skip it next time).
-    4. Tap "Turn on sound" on the phone to hear the PC.
+    4. Tap "Tap for sound" on the phone (or the speaker labelled "Sound on" at the bottom right) to hear the PC.
 
-  Outside (recommended): fixed address + a password you choose (the address never changes; nothing to install on the phone)
-    1. The first time, set a password on the PC, at least 8 characters (it can only be set on the PC).
-    2. Tick "Always-on access (works from the moment the PC starts)".
-    3. Open the fixed address on the phone and enter the password.
-    4. Add the page to the Home Screen (the icon is called "Zizai Remote"):
-       iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "menu" -> "Add to Home screen".
-    5 wrong passwords in a row lock sign-in for 15 minutes.
-  Outside (Tailscale): install Tailscale from https://tailscale.com/download on the PC and the phone, sign in with the same account,
-    turn remote control off and on, scan the QR code on the "Tailscale" page. On mobile data "Sharp" uses about 10 Mbps (about 4 GB an hour): pick "Smooth".
-  Outside (temporary address): Remote control window > "No-app" tab > "Get a temporary address"; scan the QR code
-    (works once), enter the 6-digit passcode; someone at the PC must click "Allow". The address (from cloudflared,
-    trycloudflare.com) is new every time. Do it once next to the PC before you go.
+  Away (for you): fixed address + a password you choose (the address never changes; nothing on the phone; Tailscale on the PC)
+    1. Install Tailscale on the PC from https://tailscale.com/download/windows, right-click its icon -> Log in,
+       sign in with a Google / Microsoft / GitHub / Apple account (the first time pick Personal use).
+    2. A new account must allow Funnel and HTTPS first (once): right-click Start -> Terminal and run
+         tailscale funnel --bg --https=8443 http://127.0.0.2:8091
+       The first time it prints a link: open it, sign in, approve (Enable).
+       Easier: just do step 3; Zizai Cast says why it can't start and offers "Open the setup page", then "Done, try again".
+    3. "Allow remote control" at the top of the "Remote control" tab -> "Set a password (fixed address + temporary accounts)"
+       (at least 8 characters) -> "Save and turn on".
+    4. The first time, wait a minute or two: the block says "Preparing the address, about 1-2 minutes" (Tailscale is getting the HTTPS
+       certificate; the phone can't open it yet). Zizai Cast checks it by itself and says "The fixed address is on" once it works.
+    5. Open the fixed address on the phone and enter just your password. To be reachable as soon as the PC starts,
+       tick "Turn the fixed address on when the PC starts".
+    6. Add the page to the Home Screen (the icon is called "Zizai Remote"):
+       iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "⋮" -> "Add to Home screen".
+    5 wrong passwords in a row lock sign-in for 15 minutes. With HTTPS on, the PC's name appears in public certificate logs: rename it first if it is your real name.
+  Away (Tailscale on the phone too): same account on both, scan the QR code on the "Away: Tailscale" card; no password, no Funnel.
+  Lend it to a friend (both ways alike: every time your friend connects, someone at the PC clicks "Allow"; it can't be remembered):
+    - Temporary account (recommended; the fixed address must be on): "Allow remote control" -> "Add a temporary account", pick
+      "Valid for" (One use / 1 hour / 24 hours / 7 days), "Allowed to" (Control / View only) and "Allow file transfer" if wanted -> "Create"
+      -> "Copy all" and paste it to your friend. The address carries the account: your friend only types the password.
+      The password is shown only once ("Reset password" makes a new one). It is deleted when it expires or is used up.
+    - Temporary address: without a fixed address "Create a temporary address"; with one, "More settings" -> "Temporary address (no app
+      on the phone ...)". After 10-20 s a QR code and a 6-digit passcode appear. "Copy address" and send it (works once, within
+      10 minutes), tell the passcode separately. "Stop the temporary address" when done.
 
-  Gestures (trackpad mode): one finger = move the pointer (faster = further), tap = left click, two-finger tap = right click,
-    two fingers = scroll, hold half a second then move = drag, pinch = zoom, three-finger tap = keyboard. Settings: "Direct", pointer speed, quality (Smooth / Standard / Sharp).
+  Control on the phone (Settings -> Control):
+    - Direct (default): your finger clicks where it touches; hold half a second = right click; hold and move = drag.
+    - Trackpad: slide to move the pointer, tap = left click, two-finger tap = right click, two fingers = scroll.
+    Pinch = zoom, three-finger tap = keyboard.
 
   Sound:
-    - The sound of all the PC's speakers is mixed together and sent to the phone; there is no device to pick.
-    - The phone page has a volume control, 0-300%.
-    - Tick "Mute the PC while the phone plays sound" to keep the PC's speakers silent while the phone plays.
-    - Switch the speakers off and the phone still has sound.
+    - The phone page starts silent: tap "Tap for sound", or the speaker labelled "Sound on" at the bottom right.
+    - The PC sets a good level by itself; "Phone volume" at its default 100% is usually enough. Too quiet: slide it right, up to 400%, no clipping.
+    - On the PC, "Send the PC's sound to the phone" must be ticked; "Mute the PC while the phone plays sound" keeps the PC's speakers silent.
     - Don't use Windows mute (taskbar speaker, keyboard mute key): the phone may go silent too.
 
   Safety:
@@ -129,9 +143,10 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
     - The PC must be on and signed in.
     - The fixed address needs Tailscale running on the PC.
   Troubleshooting:
-    - No sound: tap "Turn on sound" on the page (always on iPhone); check the page's volume isn't 0%; turn Windows mute off.
+    - No sound: tap "Tap for sound" on the page (always on iPhone); check the page's volume isn't 0%; turn Windows mute off.
     - Can't connect: at home use the same Wi-Fi (AP isolation / guest network, Windows Firewall or a VPN block it); for the fixed
-      address check the PC is on, signed in, Tailscale is running and "Always-on access" is ticked; after 5 wrong passwords wait 15 minutes.
+      address check the PC is on, signed in, Tailscale is running and "Turn the fixed address on when the PC starts" is ticked
+      (the first time, wait while it says "Preparing the address"); after 5 wrong passwords wait 15 minutes.
     - Forgot the password: reset it on the PC in the "Remote control" tab (it can't be reset from the phone).
 
 [Phone mirroring] FAQ

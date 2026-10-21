@@ -100,6 +100,8 @@ PM_JAKO(MenuDeviceFrame, L"iPhone の枠",
         L"iPhone 프레임")
 PM_JAKO(OptAutostart, L"Windows の起動時に開始",
         L"Windows 시작 시 실행")
+PM_JAKO(OptAutostartIdle, L"Windows の起動時に開始（バックグラウンドで待機）",
+        L"Windows 시작 시 실행(백그라운드에서 대기)")
 PM_JAKO(OptPin, L"新しいスマホは PIN で接続",
         L"새 휴대폰은 PIN으로 연결")
 PM_JAKO(OptMiracast, L"Android のキャストを受け入れる（Miracast）",
@@ -234,8 +236,8 @@ PM_JAKO(Sleepy3, L"ん…？",
         L"음…?")
 PM_JAKO(AirPlayRestartFail, L"AirPlay サービスを再起動できませんでした。アプリを開き直してください。",
         L"AirPlay 서비스를 다시 시작하지 못했습니다. 앱을 다시 여세요.")
-PM_JAKO(ShotSaved, L"スクリーンショットを保存しました",
-        L"스크린샷 저장됨")
+PM_JAKO(ShotSaved, L"スクリーンショットを「ピクチャ\\截圖」に保存しました",
+        L"스크린샷을 ‘사진\\截圖’에 저장했습니다")
 PM_JAKO(ShotNone, L"まだキャプチャできる画面がありません",
         L"아직 캡처할 화면이 없습니다")
 PM_JAKO(AutostartOn, L"Windows の起動時に開始：オン",
@@ -474,8 +476,16 @@ PM_JAKO(PairCodeCue, L"6 桁",
         L"6자리")
 PM_JAKO(PairAutoNote, L"ペア設定が済めば、ワイヤレス デバッグがオンのときに自動で接続します。",
         L"한 번 페어링하면 무선 디버깅이 켜질 때마다 휴대폰이 자동으로 연결됩니다.")
-PM_JAKO(PairHelpLink, L"ワイヤレス デバッグをオンにするには？",
-        L"무선 디버깅은 어떻게 켜나요?")
+PM_JAKO(PairHelpLink, L"① 開発者向けオプションがまだ？ 手順を見る",
+        L"① 개발자 옵션을 아직 안 켰나요? 단계 보기")
+PM_JAKO(PairDevOptTitle, L"まず開発者向けオプションをオン（1 回だけ）",
+        L"먼저 개발자 옵션 켜기(한 번만)")
+PM_JAKO(PairDevOptSteps, L"1  スマホの「設定」→「デバイス情報（端末情報）」を開きます。\n2  「ビルド番号」を 7 回続けてタップし、「これでデベロッパーになりました」と出るまで続けます（ロック解除の PIN を聞かれることがあります）。\n    Samsung：端末情報 → ソフトウェア情報 → ビルド番号\n    Xiaomi／Redmi：デバイス情報 → すべての仕様 → OS バージョン（または MIUI バージョン）\n    Pixel：デバイス情報 → ビルド番号（一番下）\n3  「設定」に戻って開発者向けオプションを開き（Samsung は設定の一番下、Xiaomi は「追加設定」、Pixel は「システム」）、ワイヤレス デバッグをオンにします。\n4  ワイヤレス デバッグで「QR コードによるデバイスのペア設定」をタップし、下の「QR コードに戻る」で読み取ります。",
+        L"1  휴대폰에서 설정 → 휴대전화 정보를 엽니다.\n2  “빌드번호”를 7번 연속 누릅니다. “개발자 모드를 켰습니다”가 나올 때까지(잠금 PIN을 물을 수 있음).\n    Samsung: 휴대전화 정보 → 소프트웨어 정보 → 빌드번호\n    Xiaomi/Redmi: 내 기기 → 전체 사양 → OS 버전(또는 MIUI 버전)\n    Pixel: 휴대전화 정보 → 빌드 번호(맨 아래)\n3  설정으로 돌아가 개발자 옵션을 열고(Samsung은 설정 맨 아래, Xiaomi는 추가 설정, Pixel은 시스템) 무선 디버깅을 켭니다.\n4  무선 디버깅에서 ‘QR 코드로 기기 페어링’을 누르고, 아래의 “QR 코드로 돌아가기”를 눌러 스캔합니다.")
+PM_JAKO(PairDevOptBack, L"QR コードに戻る",
+        L"QR 코드로 돌아가기")
+PM_JAKO(PairDevOptGuide, L"図解ガイド",
+        L"그림 설명 보기")
 PM_JAKO(PairUseQr, L"QR コードを使う",
         L"QR 코드 사용")
 PM_JAKO(PairUseCode, L"ペア設定コードを使う",
@@ -822,8 +832,8 @@ PM_JAKO(SharePickerAll, L"すべて選択",
         L"모두 선택")
 PM_JAKO(SharePickerNone, L"選択を解除",
         L"선택 해제")
-PM_JAKO(SharePickerSend, L"{0} 個を送る",
-        L"{0}개 보내기")
+PM_JAKO(SharePickerSend, L"この {0} 個をスマホへ送る",
+        L"이 {0}개를 휴대폰으로 보내기")
 PM_JAKO(SharePickerSent, L"送信済み",
         L"보냄")
 PM_JAKO(PgSaveAll, L"すべて保存（{0}）",
@@ -1493,14 +1503,14 @@ PM_JAKO(CardCastOldWindows, L"Windows 10 バージョン 2004 以降が必要で
         L"Windows 10 버전 2004 이상이 필요해요")
 PM_JAKO(CardCastPolicy, L"組織のポリシーで無効になっています",
         L"조직 정책으로 꺼져 있어요")
-PM_JAKO(CardCastNoWifi, L"Wi-Fi をオンにし、Wi-Fi Direct 対応のアダプターが必要です",
-        L"Wi-Fi를 켜야 하고 Wi-Fi Direct를 지원하는 어댑터가 필요해요")
+PM_JAKO(CardCastNoWifi, L"この PC は今 Android のキャストを受けられません。下の「Android（PC で操作）」を使ってください",
+        L"이 PC는 지금 Android 전송을 받을 수 없어요. 아래 “Android PC로 조작”을 쓰세요")
 PM_JAKO(CardCastOther, L"この PC は現在キャストを受信できません",
         L"이 PC는 지금 화면 전송을 받을 수 없어요")
 PM_JAKO(CardCastAlt, L"代わりに「Android（PC で操作）」を使えます",
         L"대신 ‘Android PC로 조작’을 쓸 수 있어요")
-PM_JAKO(CardAdbMissing, L"接続ツールが見つかりません。再インストールすると直ります",
-        L"연결 도구가 없어요. 다시 설치하면 해결돼요")
+PM_JAKO(CardAdbMissing, L"今は使えません。Zizai Cast を再インストールすると直ります",
+        L"지금은 쓸 수 없어요. Zizai Cast를 다시 설치하면 해결돼요")
 PM_JAKO(CardTurnOn, L"オンにする",
         L"켜기")
 PM_JAKO(CardHowInstall, L"追加方法",
@@ -1676,16 +1686,18 @@ PM_JAKO(RemoteFixedClose, L"オフにする",
         L"끄기")
 PM_JAKO(RemoteFixedCopy, L"アドレスをコピー",
         L"주소 복사")
-PM_JAKO(RemoteFixedTemp, L"一時アドレスを使う",
-        L"임시 주소 사용")
-PM_JAKO(RemoteCardPersistent, L"常時外部接続（PC の起動後すぐ使える）",
-        L"상시 외부 접속(PC 켜면 바로 사용)")
+PM_JAKO(RemoteFixedTemp, L"とりあえず一時アドレス（毎回変わる）",
+        L"우선 임시 주소 사용(매번 바뀜)")
+PM_JAKO(RemoteCardPersistent, L"PC の起動時に固定アドレスを自動でオン",
+        L"PC를 켜면 고정 주소 자동으로 켜기")
 PM_JAKO(RemoteCardTsTitle, L"外出先：Tailscale",
         L"밖에서: Tailscale")
 PM_JAKO(RemoteCardTsBody, L"スマホにも Tailscale を入れて同じアカウントでログインすれば、家と同じように接続",
         L"휴대폰에도 Tailscale을 설치하고 같은 계정으로 로그인하면 집처럼 연결")
 PM_JAKO(RemoteNoTsShort, L"この PC にはまだ Tailscale がありません",
         L"이 PC에는 아직 Tailscale이 없습니다")
+PM_JAKO(RemoteTsDownload, L"Tailscale をダウンロード",
+        L"Tailscale 다운로드")
 PM_JAKO(RemoteAdvanced, L"詳細設定",
         L"고급 설정")
 PM_JAKO(RemoteHowTo, L"使い方",
@@ -1706,22 +1718,24 @@ PM_JAKO(MenuRemoteTray, L"リモート操作",
         L"원격 제어")
 PM_JAKO(RemoteTabFixed, L"固定アドレス",
         L"고정 주소")
-PM_JAKO(RemoteFixedTitle, L"常時外部接続：固定アドレス＋パスワード",
-        L"상시 외부 접속: 고정 주소 + 비밀번호")
+PM_JAKO(RemoteFixedTitle, L"固定アドレス＋パスワード",
+        L"고정 주소 + 비밀번호")
 PM_JAKO(RemoteFixedIntro, L"オンにすると、PC の起動時に固定アドレスが用意されます。外出先でスマホから開いてパスワードを入れるだけで、先に PC を触る必要はありません。",
         L"켜 두면 PC가 켜질 때마다 고정 주소가 준비됩니다. 밖에서 휴대폰으로 열고 비밀번호만 입력하면 되며, 먼저 PC를 만질 필요가 없습니다.")
 PM_JAKO(RemoteFixedStart, L"パスワードを決めてオン",
         L"비밀번호 정하고 켜기")
-PM_JAKO(RemoteFixedStartNow, L"常時外部接続をオン",
-        L"상시 외부 접속 켜기")
+PM_JAKO(RemoteFixedStartNow, L"固定アドレスをオン",
+        L"고정 주소 켜기")
 PM_JAKO(RemoteFixedStarting, L"固定アドレスを準備しています…",
         L"고정 주소를 켜는 중…")
+PM_JAKO(RemoteFixedPreparing, L"アドレスを準備しています（約 1〜2 分。初回は Tailscale がセキュリティ証明書を取得します）。準備ができたらお知らせします。それまでスマホからは接続できません。",
+        L"주소를 준비하고 있습니다(약 1~2분, 처음에는 Tailscale이 보안 인증서를 받습니다). 준비되면 알려 드립니다. 그 전에는 휴대폰에서 연결할 수 없습니다.")
 PM_JAKO(RemoteScanFixed, L"スマホで読み取るかアドレスを開き、パスワードを入力",
         L"휴대폰으로 스캔하거나 주소를 열고 비밀번호를 입력")
 PM_JAKO(RemoteFixedNote, L"パスワードを 5 回間違えると 15 分ロックされます。ホーム画面に追加すると次からワンタップで開けます。",
         L"비밀번호를 5번 틀리면 15분 동안 잠깁니다. 홈 화면에 추가하면 다음부터 한 번에 열립니다.")
-PM_JAKO(RemoteFixedStop, L"常時外部接続をオフ",
-        L"상시 외부 접속 끄기")
+PM_JAKO(RemoteFixedStop, L"固定アドレスをオフ",
+        L"고정 주소 끄기")
 PM_JAKO(RemoteFixedChangePw, L"パスワード変更",
         L"비밀번호 변경")
 PM_JAKO(RemoteFixedFailed, L"固定アドレスを開始できません：{0}",
@@ -1740,18 +1754,20 @@ PM_JAKO(RemoteFixedWaitTs, L"Tailscale の起動を待っています…（{0} �
         L"Tailscale이 시작되기를 기다리는 중…({0}초 후 다시 시도)")
 PM_JAKO(RemoteFixedWhyTsSlow, L"Tailscale が 5 分たっても起動を完了しませんでした",
         L"Tailscale이 5분이 지나도 시작을 마치지 못했습니다")
-PM_JAKO(RemoteFixedOnToast, L"常時外部接続をオンにしました：{0}",
-        L"상시 외부 접속를 켰습니다: {0}")
-PM_JAKO(RemoteFixedOffToast, L"常時外部接続をオフにし、アドレスを削除しました",
-        L"상시 외부 접속를 끄고 주소를 없앴습니다")
+PM_JAKO(RemoteFixedWhyCertSlow, L"5 分待ってもアドレスにつながりません（Tailscale のセキュリティ証明書がまだです）。しばらくして「再試行」を押すか、一時アドレスを使ってください",
+        L"5분을 기다려도 주소에 연결되지 않습니다(Tailscale 보안 인증서가 아직 준비되지 않음). 잠시 후 “다시 시도”를 누르거나 우선 임시 주소를 쓰세요")
+PM_JAKO(RemoteFixedOnToast, L"固定アドレスをオンにしました：{0}",
+        L"고정 주소를 켰습니다: {0}")
+PM_JAKO(RemoteFixedOffToast, L"固定アドレスをオフにし、アドレスを削除しました",
+        L"고정 주소를 끄고 주소를 없앴습니다")
 PM_JAKO(RemoteFixedLockedBalloon, L"{0} からパスワードが 5 回間違えられたため、15 分ロックしました",
         L"{0}에서 비밀번호를 5번 틀려 15분 동안 잠갔습니다")
 PM_JAKO(RemoteAskViaFixed, L"{0}（固定アドレス・パスワード正解）",
         L"{0}(고정 주소, 비밀번호 맞음)")
 PM_JAKO(RemoteBannerFixed, L"固定アドレス",
         L"고정 주소")
-PM_JAKO(RemotePwTitle, L"常時外部接続のパスワード",
-        L"상시 외부 접속 비밀번호")
+PM_JAKO(RemotePwTitle, L"固定アドレスのパスワード",
+        L"고정 주소 비밀번호")
 PM_JAKO(RemotePwBody, L"外出先で固定アドレスを開くときに入力します。8 文字以上。PC にはハッシュだけを保存し、パスワード自体は保存しません。",
         L"밖에서 고정 주소를 열 때 입력하는 비밀번호입니다. 8자 이상. PC에는 해시만 저장하고 비밀번호 자체는 저장하지 않습니다.")
 PM_JAKO(RemotePwField1, L"パスワード",
@@ -1772,10 +1788,10 @@ PM_JAKO(RemotePwMismatch, L"2 回の入力が一致しません",
         L"두 비밀번호가 다릅니다")
 PM_JAKO(RemotePwSaved, L"パスワードを保存しました（ハッシュのみ）",
         L"비밀번호를 저장했습니다(해시만)")
-PM_JAKO(MenuRemotePersistent, L"常時外部接続（固定アドレス＋パスワード）",
-        L"상시 외부 접속(고정 주소 + 비밀번호)")
-PM_JAKO(MenuRemotePassword, L"常時外部接続のパスワードを変更…",
-        L"상시 외부 접속 비밀번호 변경…")
+PM_JAKO(MenuRemotePersistent, L"PC の起動時に固定アドレスを自動でオン",
+        L"PC를 켜면 고정 주소 자동으로 켜기")
+PM_JAKO(MenuRemotePassword, L"固定アドレスのパスワードを変更…",
+        L"고정 주소 비밀번호 변경…")
 PM_JAKO(MenuRemoteFixedApproval, L"外からの新しいスマホも PC で許可が必要",
         L"밖에서 접속하는 새 휴대폰도 PC에서 허용 필요")
 PM_JAKO(WhatsNewTitle, L"{0} の新機能",
@@ -1810,8 +1826,8 @@ PM_JAKO(RemotePcOnlyToast, L"スマホからはリモート操作をオフにで
         L"휴대폰에서는 원격 제어를 끌 수 없습니다. 이 버튼은 PC에서만 쓸 수 있습니다")
 PM_JAKO(RemoteTabTsShort, L"Tailscale",
         L"Tailscale")
-PM_JAKO(RemoteTabTunnel, L"アプリ不要",
-        L"앱 없이 외부")
+PM_JAKO(RemoteTabTunnel, L"一時アドレス",
+        L"임시 주소")
 PM_JAKO(RemoteTunnelTitle, L"スマホにアプリ不要、外からでも接続",
         L"휴대폰에 앱 없이 밖에서도 연결")
 PM_JAKO(RemoteTunnelIntro, L"スマホに Tailscale は不要。\nモバイル通信からこの PC に\n接続できます。\n\nCloudflare の無料の一時アドレス\n（trycloudflare.com）で、\n毎回変わります。",
@@ -1824,8 +1840,8 @@ PM_JAKO(RemoteScanTunnel, L"カメラで読み取り（1 回だけ有効）、�
         L"카메라로 스캔(한 번만 유효)한 뒤 통행 코드 입력")
 PM_JAKO(RemoteTunnelCode, L"パスコード  {0}",
         L"통행 코드  {0}")
-PM_JAKO(RemoteTunnelNote, L"3 つの保護：使い捨てアドレス・パスコード・この PC で「許可」。\n出かける前に PC のそばで一度つないで「記憶」してください。",
-        L"세 가지 보호: 일회용 주소, 통행 코드, 이 PC에서 “허용”.\n나가기 전에 PC 옆에서 한 번 연결하고 “기억”하세요.")
+PM_JAKO(RemoteTunnelNote, L"3 つの保護：使い捨てアドレス・パスコード・この PC で「許可」。\n毎回 PC のそばで「許可」が必要です。自分で外から使うなら固定アドレスを。",
+        L"세 가지 보호: 일회용 주소, 통행 코드, 이 PC에서 “허용”.\n매번 PC 옆에서 “허용”을 눌러야 합니다. 밖에서 직접 쓰려면 고정 주소를 쓰세요.")
 PM_JAKO(RemoteTunnelStop, L"一時アドレスを停止",
         L"임시 주소 중지")
 PM_JAKO(RemoteTunnelFailed, L"一時アドレスを取得できません：{0}",
@@ -1836,8 +1852,8 @@ PM_JAKO(RemoteTunnelMissing, L"cloudflared が見つかりません（一時ア�
         L"cloudflared가 없습니다(임시 주소에 필요). Zizai Cast를 다시 설치하세요.")
 PM_JAKO(RemoteAskViaTunnel, L"{0}（一時アドレス）",
         L"{0}(임시 주소)")
-PM_JAKO(MenuRemoteTunnel, L"アプリ不要の外部接続（一時アドレス、モバイル通信からも接続）",
-        L"앱 없이 외부 접속(임시 주소, 모바일 데이터로도 연결)")
+PM_JAKO(MenuRemoteTunnel, L"一時アドレス（スマホにアプリ不要、モバイル通信からも接続）",
+        L"임시 주소(휴대폰에 앱 없이, 모바일 데이터로도 연결)")
 PM_JAKO(RemoteTunnelOnToast, L"一時アドレスの準備ができました：QR コードを読み取り、パスコードを入力してください",
         L"임시 주소가 준비되었습니다: QR 코드를 스캔하고 통행 코드를 입력하세요")
 PM_JAKO(RemoteTunnelUnreachable, L"一時アドレスにまだ外から接続できません（Cloudflare 側の準備中）。「一時アドレスを停止」してから取り直してください",
@@ -1940,7 +1956,8 @@ PM_JAKO(DropInstalled, L"インストールしました：{0}", L"설치했습�
 PM_JAKO(DropInstallFail, L"インストールできませんでした：{0}（{1}）", L"설치하지 못했습니다: {0}({1})")
 PM_JAKO(DropPushed, L"スマホに送りました：{0}", L"휴대폰으로 보냈습니다: {0}")
 PM_JAKO(DropPushFail, L"送信できませんでした：{0}（{1}）", L"보내지 못했습니다: {0}({1})")
-PM_JAKO(DropNoFiles, L"ドロップできるのはファイルだけです（フォルダーは不可）", L"파일만 놓을 수 있습니다(폴더 불가)")
+PM_JAKO(DropNoFiles, L"ドロップできるのはファイルだけです（フォルダーは ZIP に圧縮してから）",
+        L"파일만 놓을 수 있습니다(폴더는 먼저 ZIP으로 압축하세요)")
 PM_JAKO(DropTooMany, L"一度に送れるのは {0} 個までです。残りは追加されませんでした", L"한 번에 최대 {0}개까지입니다. 나머지는 추가하지 않았습니다")
 PM_JAKO(DropAddedShare, L"「スマホに送る」に追加しました：{0}", L"휴대폰으로 보내기에 추가했습니다: {0}")
 PM_JAKO(AndCtrlCaption, L"Android 操作", L"Android 제어")
@@ -1950,8 +1967,8 @@ PM_JAKO(AndStayAwake, L"接続中はスリープしない", L"연결된 동안 �
 PM_JAKO(AndUsb, L"USB ケーブルで接続", L"USB 케이블로 연결")
 PM_JAKO(AndUsbNote, L"スマホで「USB デバッグ」をオンに", L"휴대폰에서 ‘USB 디버깅’을 켜세요")
 PM_JAKO(AndUsbTrying, L"USB で接続中…", L"USB로 연결하는 중…")
-PM_JAKO(AndUsbNone, L"USB 接続の Android スマホが見つかりません。ケーブルを差し、スマホで USB デバッグを許可してください",
-        L"USB로 연결된 Android 휴대폰이 없습니다. 케이블을 꽂고 휴대폰에서 USB 디버깅을 허용하세요")
+PM_JAKO(AndUsbNone, L"USB 接続の Android スマホが見つかりません。ケーブルを差し、スマホの開発者向けオプションで「USB デバッグ」をオンにして許可してください",
+        L"USB로 연결된 Android 휴대폰이 없습니다. 케이블을 꽂고 휴대폰 개발자 옵션에서 “USB 디버깅”을 켠 다음 허용하세요")
 PM_JAKO(AndUsbBusy, L"別の Android スマホをペアリング中または接続中です。終わってから USB ケーブルで接続してください",
         L"다른 Android 휴대폰을 페어링하거나 연결하는 중입니다. 끝난 뒤 USB 케이블로 다시 연결하세요")
 PM_JAKO(AndOptOn, L"{0}：オン", L"{0}: 켬")
@@ -1977,8 +1994,8 @@ PM_JAKO(RemoteAllowTitle, L"リモート操作を許可",
         L"원격 제어 허용")
 PM_JAKO(RemoteAllowAddr, L"このパソコンのアドレス（外出先からも接続可）",
         L"이 PC의 주소(밖에서도 접속 가능)")
-PM_JAKO(RemoteAllowFoot, L"アドレス・アカウント・パスワードを相手に伝えます。接続時にパソコンで「許可」を押し、期限切れや使用後は自動で削除されます。",
-        L"주소, 계정, 비밀번호를 상대에게 알려 주세요. 접속하면 PC에서 “허용”을 누르고, 만료되거나 다 쓰면 자동으로 삭제됩니다.")
+PM_JAKO(RemoteAllowFoot, L"一時アカウントのアドレス（アカウント入り）とパスワードを相手に渡します。接続時にパソコンで「許可」を押し、期限切れや使用後は自動で削除されます。",
+        L"임시 계정의 주소(계정 포함)와 비밀번호를 상대에게 보내세요. 접속하면 PC에서 “허용”을 누르고, 만료되거나 다 쓰면 자동으로 삭제됩니다.")
 PM_JAKO(RemoteAllowFixedOff, L"固定アドレスは今オフです。一時アカウントを使うにはオンにします。1 回だけの一時アドレスも作れます。",
         L"고정 주소가 지금 꺼져 있습니다. 임시 계정을 쓰려면 켜세요. 한 번만 쓰는 임시 주소도 만들 수 있습니다.")
 PM_JAKO(RemoteAllowTempBody, L"ワンクリックで 1 回だけ使える一時アドレスとパスコードを作ります。接続時にパソコンで「許可」を押します。",
@@ -2011,8 +2028,8 @@ PM_JAKO(RemoteGuestDeletedToast, L"一時アカウント {0} を削除しまし�
         L"임시 계정 {0}을(를) 삭제했습니다")
 PM_JAKO(RemoteGuestNewTitle, L"一時アカウントを追加",
         L"임시 계정 추가")
-PM_JAKO(RemoteGuestNewBody, L"相手はこのアカウントとパスワードで、このパソコンのアドレスから接続します。接続時にパソコンで「許可」を押します。",
-        L"상대는 이 계정과 비밀번호로 이 PC의 주소에 접속합니다. 접속하면 PC에서 “허용”을 누릅니다.")
+PM_JAKO(RemoteGuestNewBody, L"相手は渡したアドレス（アカウント入り）を開いて、パスワードを入力するだけで接続できます。接続時にパソコンで「許可」を押します。",
+        L"상대는 보낸 주소(계정 포함)를 열고 비밀번호만 입력하면 됩니다. 접속하면 PC에서 “허용”을 누릅니다.")
 PM_JAKO(RemoteGuestName, L"アカウント",
         L"계정")
 PM_JAKO(RemoteGuestLife, L"有効期間",
@@ -2047,8 +2064,8 @@ PM_JAKO(RemoteGuestUrl, L"アドレス",
         L"주소")
 PM_JAKO(RemoteGuestPw, L"パスワード",
         L"비밀번호")
-PM_JAKO(RemoteGuestOnceNote, L"パスワードは今だけ表示されます。あとで必要なら「パスワード再設定」を使います。相手が接続したらパソコンで「許可」を押します。",
-        L"비밀번호는 지금만 표시됩니다. 나중에 필요하면 “비밀번호 재설정”을 누르세요. 상대가 접속하면 PC에서 “허용”을 누릅니다.")
+PM_JAKO(RemoteGuestOnceNote, L"パスワードは今だけ表示されます。あとで必要なら「パスワード再設定」を使います。相手はアドレスを開いてパスワードを入力するだけです。接続したらパソコンで「許可」を押します。",
+        L"비밀번호는 지금만 표시됩니다. 나중에 필요하면 “비밀번호 재설정”을 누르세요. 상대는 주소를 열고 비밀번호만 입력하면 됩니다. 접속하면 PC에서 “허용”을 누릅니다.")
 PM_JAKO(RemoteGuestCopyAll, L"すべてコピー",
         L"모두 복사")
 PM_JAKO(RemoteGuestDone, L"完了",
@@ -2063,8 +2080,8 @@ PM_JAKO(RemoteGuestFull, L"一時アカウントは最大 10 個です。先に�
         L"임시 계정은 최대 10개입니다. 먼저 안 쓰는 것을 지우세요")
 PM_JAKO(RemoteGuestNoAddr, L"固定アドレスがまだ準備できていません。先にオンにしてください",
         L"고정 주소가 아직 준비되지 않았습니다. 먼저 켜세요")
-PM_JAKO(RemoteGuestCopyText, L"{0} リモート操作\nアドレス：{1}\nアカウント：{2}\nパスワード：{3}\n（{4}。接続時にパソコン側で「許可」します）",
-        L"{0} 원격 제어\n주소: {1}\n계정: {2}\n비밀번호: {3}\n({4}. 접속하면 PC에서 “허용”합니다)")
+PM_JAKO(RemoteGuestCopyText, L"{0} リモート操作\nアドレス：{1}\nアカウント：{2}（アドレスを開くと入力済み）\nパスワード：{3}\n（{4}。接続時にパソコン側で「許可」します）",
+        L"{0} 원격 제어\n주소: {1}\n계정: {2}(주소를 열면 이미 입력됨)\n비밀번호: {3}\n({4}. 접속하면 PC에서 “허용”합니다)")
 PM_JAKO(RemoteAskGuest, L"一時アカウント",
         L"임시 계정")
 PM_JAKO(RemoteAskGuestVal, L"{0}（{1}）",
@@ -2090,3 +2107,5 @@ PM_JAKO(RemoteFixedRetryDone, L"有効にした、もう一度",
         L"켰어요, 다시 시도")
 PM_JAKO(RemoteAskBodyGuest, L"このスマホは、あなたが作った一時アカウントでログインしました。渡した相手だと確認できたときだけ「許可」を押してください。画面上部に表示が出続け、Ctrl+D でいつでも切断できます。",
         L"이 휴대폰은 당신이 만든 임시 계정으로 로그인했습니다. 계정을 준 사람이 맞을 때만 “허용”을 누르세요. 화면 위에 표시가 계속 나오며, Ctrl+D로 언제든 끊을 수 있습니다.")
+PM_JAKO(RemoteAskBodyTemp, L"このスマホは一時アドレスとパスコードで接続しました。渡した相手であることを確かめてから「許可」を押してください。画面上部に表示が出続け、Ctrl+D でいつでも切断できます。",
+        L"이 휴대폰은 임시 주소와 통행 코드로 들어왔습니다. 주소를 보낸 그 사람이 맞을 때만 “허용”을 누르세요. 화면 위쪽에 계속 표시되며 Ctrl+D로 언제든 끊을 수 있습니다.")

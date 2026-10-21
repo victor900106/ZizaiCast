@@ -367,3 +367,87 @@ meanwhile the card had no address and no reason.
   the UI thread answers within 7 ms while the CLI runs; 關閉 during a hang 0.4 s; quit 4.5 s.
 - `node tools/shots_0832.mjs <app> <out> [--before] [--dpi]`: the page per language, the window, and
   the page as on a 1080p monitor at 125 % / 150 % (DevCommand 985: WM_DPICHANGED with a 1080p client).
+
+## 0.8.3.3 (usability, docs/ux-audit-083.md)
+
+### The fixed address before its HTTPS certificate (audit D2, P0)
+
+The first time a tailnet uses Funnel, `tailscale funnel --bg` answers at once (the app said 「常駐外網已開啟」)
+while Tailscale issues the HTTPS certificate in the background: for a minute or two every connection
+to `https://<pc>.<tailnet>.ts.net:8443/` is closed (the phone: ERR_CONNECTION_CLOSED). Now the address
+is said to be on only once it answers:
+
+- `TailscaleFunnel::probeTls(url, detail)` (`remote/src/funnel.cpp`): one HTTPS GET from this PC
+  (WinHTTP, no proxy, 5 s; the name resolves to this node, the certificate is the one phones get).
+  Ready = a TLS handshake with a valid certificate and an HTTP answer below 500 (502 / 503: Funnel is up
+  but cannot reach the app yet). WinHTTP 12030 = connection closed (the certificate case), 12175 =
+  certificate.
+- The app (`startFixedProbe`, after `RemFixedUp`): fixState stays 1 (starting); a thread checks at once,
+  then every 3 s, for up to 5 minutes (it never touches RemoteState; `stopFixed` ends it). After the first
+  failure the 允許遠端控制 block shows the address (no QR code, no 臨時帳號) and 「正在準備網址，約 1–2 分鐘…」;
+  when it answers: fixState 2, the toast 「固定網址已開啟」, log `常駐外網 ready at <url> (...); 固定網址
+  reachable after <ms> ms (HTTP <code>)`; after 5 minutes: failed, 「網址等了 5 分鐘還連不上…」 with 再試一次 /
+  先用臨時網址. The cloudflared fallback is not checked (it has its own self-check).
+- `--dev`: only `PM_REMOTE_FUNNELPROBE=https://127.0.0.1:<port>/` is ever checked (a fake local TLS server
+  with a self-signed certificate, accepted only there); without it a made-up / fake-CLI address is ready at
+  once (no DNS query for a made-up name). `PM_REMOTE_FUNNELPROBEMAX=<s>` shortens the 5 minutes.
+
+### One name each: 固定網址 and 臨時網址 (audit D4)
+
+「常駐外網」 is gone: the check box / menu item is 「開機自動開啟固定網址」, the toasts 「固定網址已開啟／已關閉」,
+the password window 「設定固定網址的密碼」. 「免安裝外網」: the panel's tab and the menu item are 「臨時網址」.
+Same in English (fixed address / temporary address; the tab: Temporary), 日本語 (固定アドレス／一時アドレス),
+한국어 (고정 주소／임시 주소), and on the phone page (通行碼 page, 解除僅觀看).
+
+### 臨時網址 = always 允許 on the PC (audit D-F1 / #7)
+
+The temporary address is for lending the PC, like a 臨時帳號: `Host` lets no "allowed before" or
+remembered phone straight in through it (`viaTempLink`: a tunnel request that is not the fixed link's), the
+question has no 記住這支手機 and says the phone came in with the temporary address (`RemoteAskBodyTemp`).
+The panel's note: 「每次連線都要有人在電腦旁按「允許」；自己出門用，請用固定網址。」 (it said 「出門前先在電腦旁連一次
+並勾記住」).
+
+### The phone's sign-in page: owner / 臨時帳號
+
+- Owner (the fixed address as is): only the password; 「輸入你設定的密碼」; the link 「用臨時帳號登入」.
+- 臨時帳號: the address 複製全部 gives (and the 已建立 window shows) is `…:8443/#u=<account>`. A fragment never
+  leaves the phone (not in the request to the PC, not at Tailscale's relay, never in a Referer: the page
+  already sends `no-referrer`), so the account is in no server log; a query string would be. The page opens
+  in this mode with the account shown (「不是這個帳號？」 to type another) and only the password to type:
+  「輸入對方給你的密碼」 / 「…連上後，對方要在電腦上按「允許」」.
+- Errors: owner 「密碼不對，還可以再試 N 次」; 臨時帳號 「帳號或密碼不對，還可以再試 N 次」 for a wrong password and
+  an unknown account alike. `Host` keeps the accounts that went (expired / used once / deleted) for 7 days in
+  memory (name, hash, why); only their right password gets `{"gone": "expired|used|deleted"}` (「這個臨時帳號已經
+  過期了／只能用一次，已經用過了／已經被刪除了」), with the same single PBKDF2 as any try (a valid account, a gone
+  one or the dummy) and counted like a wrong one. A guest login that stops working mid-visit: 「這個臨時帳號已經
+  不能用了…」.
+- 16 px text, 顯示密碼 / 隱藏密碼.
+
+### Phone page, pairing window, layout (audit #6, #9, #10, layout)
+
+- Toolbar: a word under each icon (聲音 / 放大 / 檔案 / 鍵盤 / 設定; muted: 「開聲音」 in the accent colour), also
+  as tooltips; the bar sits 16 px higher. The call to action reads 「點一下開聲音」.
+- 設定 ▸ 操作方式: 「直接點：手指點哪裡就點哪裡。觸控板：像筆電的觸控板，手指滑動移動游標。」
+- 連接 Android: 「① 還沒開過『開發人員選項』？看步驟」 (docs/app.md).
+- The block's big address breaks only between the host name and 「:8443/」 (or the path), after first trying
+  it on one line a little smaller; a 臨時帳號 row breaks only between its fields (explicit line breaks between
+  the U+3000-separated fields; the row is laid out without wrapping), so 「可 / 操作」 is gone.
+
+### Small ones (audit P2)
+
+A1 the first start opens the guide at `#want`; A2 the idle check box 「開機自動啟動（開機後在背景等手機）」; A3 the
+cards' notes in plain words; B2 「截圖已存到「圖片\截圖」資料夾」; B5 USB: 「…在手機的「開發人員選項」打開「USB 偵錯」…」;
+C1 a dropped folder: 「…可以先把資料夾壓縮成 zip」; C2 「傳送這 N 個到手機」; D5 「先用臨時網址（每次會變）」; D6 下載
+Tailscale on the Tailscale card (opens tailscale.com/download/windows; logged only in `--dev`).
+
+### Tests (tailscale / cloudflared never run; loopback only; nothing is ever allowed on the PC)
+
+- `pm_funnel_test.exe`: + probeTls against local servers (closes every connection / plain HTTP / an http://
+  address / the insecure mode outside 127.0.0.1).
+- `node remote/tools/app0833_test.mjs <app> <pm_fake_tailscale.exe> <out>` (36 checks): probe (a fake TLS server
+  drops every connection for 8 s: 正在準備網址, no "ready at" before it answers), cli (the same through the fake
+  CLI), giveup (PM_REMOTE_FUNNELPROBEMAX=6), login (owner page without the account field, `#u=` fills it in and
+  never reaches the log, wrong password = unknown account, a deleted account's right password says so), tunnel
+  (a phone remembered on this PC still waits for 允許 through the temporary address, no 記住; denied).
+- `node tools/shots_0833.mjs <app> <out> before|after`: every changed screen in four languages (off-screen,
+  made-up addresses; the phone page in headless Chrome).

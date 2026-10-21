@@ -75,7 +75,7 @@ Theme theme() {
 struct Factories {
     ComPtr<ID2D1Factory> d2d;
     ComPtr<IDWriteFactory> dw;
-    ComPtr<IDWriteTextFormat> title, body, label, button, link, status, note, icon;
+    ComPtr<IDWriteTextFormat> title, body, label, button, link, status, note, icon, steps;
     int lang = -1;  // language the text formats were made for (UI font)
     bool init() {
         if (!d2d && FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d.GetAddressOf()))) return false;
@@ -108,7 +108,10 @@ struct Factories {
         status = fmt(en ? 13 : 13.5f, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_TEXT_ALIGNMENT_CENTER, true);
         note = fmt(13, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_CENTER, true);
         icon = fmt(11, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_CENTER, false, L"Segoe Fluent Icons");
-        return title && body && label && button && link && status && note;
+        // 0.8.3.3: the 開發人員選項 steps (seven short paragraphs in the QR code's place)
+        steps = fmt(en ? 12 : 12.5f, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_LEADING, true);
+        if (steps) steps->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+        return title && body && label && button && link && status && note && steps;
     }
 };
 Factories& fx() {
@@ -174,6 +177,7 @@ bool PairPanel::open(HWND owner, Callbacks cb) {
     owner_ = owner;
     cb_ = std::move(cb);
     codeMode_ = false;
+    devOpt_ = false;
     qr_.clear();
     qrSize_ = 0;
     status_.clear();
@@ -307,6 +311,14 @@ void PairPanel::setStatus(const std::wstring& text, bool error) {
 
 void PairPanel::showCodeForm() { setMode(true); }
 
+void PairPanel::showDevOpt(bool on) {
+    if (!hwnd_ || on == devOpt_) return;
+    devOpt_ = on;
+    layout();
+    SetFocus(codeMode_ && !on ? editHost_ : hwnd_);
+    InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
 void PairPanel::suggestHostPort(const std::wstring& hostPort) {
     if (!editHost_ || GetWindowTextLengthW(editHost_) > 0) return;
     SetWindowTextW(editHost_, hostPort.c_str());
@@ -355,7 +367,7 @@ void PairPanel::layout() {
         const int y = static_cast<int>(std::lround((fieldY + kFieldH / 2) * s())) - lineH / 2;
         const int w = static_cast<int>(std::lround((kW - 2 * kPad - 28) * s()));
         SetWindowPos(e, nullptr, x, y, w, lineH, SWP_NOZORDER | SWP_NOACTIVATE);
-        ShowWindow(e, codeMode_ ? SW_SHOW : SW_HIDE);
+        ShowWindow(e, codeMode_ && !devOpt_ ? SW_SHOW : SW_HIDE);
     };
     place(editHost_, kHostFieldY);
     place(editCode_, kCodeFieldY);
@@ -412,7 +424,7 @@ PairPanel::Hit PairPanel::hitTest(POINT pt) const {
     const float bw = (kW - 2 * kPad - 12) / 2;
     if (in(rc(kPad, kBtnY, bw, kBtnH))) return HitSecondary;
     if (in(rc(kPad + bw + 12, kBtnY, bw, kBtnH))) return HitPrimary;
-    if (in(rc(kW / 2 - linkW_ / 2 - 6, kLinkY, linkW_ + 12, kLinkH))) return HitLink;
+    if (in(rc(kW / 2 - linkW_ / 2 - 16, kLinkY - 5, linkW_ + 32, kLinkH + 10))) return HitLink;
     return HitNone;
 }
 
@@ -424,15 +436,22 @@ void PairPanel::click(Hit h) {
         if (cb) cb();
         break;
     }
-    case HitSecondary:  // QR mode: 用配對碼 · code mode: 改用 QR
-        setMode(!codeMode_);
+    case HitSecondary:  // QR mode: 用配對碼 · code mode: 改用 QR · 0.8.3.3 steps: 回到 QR 圖碼
+        if (devOpt_) {
+            showDevOpt(false);
+            setMode(false);
+        } else {
+            setMode(!codeMode_);
+        }
         break;
-    case HitPrimary:  // QR mode: 取消 · code mode: 配對
-        if (codeMode_) submitCode();
+    case HitPrimary:  // QR mode / steps: 取消 · code mode: 配對
+        if (codeMode_ && !devOpt_) submitCode();
         else click(HitClose);
         break;
-    case HitLink:
-        if (cb_.onHelp) cb_.onHelp();
+    case HitLink:  // 0.8.3.3: 「① 還沒開過開發人員選項？看步驟」 / in the steps: 看圖文教學
+        if (!devOpt_) showDevOpt(true);
+        else if (cb_.onHelpDevOpt) cb_.onHelpDevOpt();
+        else if (cb_.onHelp) cb_.onHelp();
         break;
     default: break;
     }
@@ -533,7 +552,11 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
     }
 
-    if (!codeMode_) {
+    if (devOpt_) {  // 0.8.3.3: 開發人員選項, step by step (in place of the QR code / the form)
+        text(tr(S::PairDevOptTitle), f.label.Get(), rc(kPad, 56, kW - 2 * kPad, 24), t.fg);
+        fill(rc(kPad, 84, kW - 2 * kPad, kLinkY - 96), D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.05f}, 10);
+        text(tr(S::PairDevOptSteps), f.steps.Get(), rc(kPad + 10, 92, kW - 2 * kPad - 20, kLinkY - 112), t.fg);
+    } else if (!codeMode_) {
         text(tr(S::PairStepsQr), f.body.Get(), rc(kPad, 58, kW - 2 * kPad, 64), t.dim);
         // White card with the QR (quiet zone of at least 4 modules).
         const float cardX = (kW - kQrCard) / 2;
@@ -597,11 +620,12 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
     }
 
     // Status line.
-    if (!status_.empty())
+    if (!status_.empty() && !devOpt_)
         text(status_, f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, kStatusH), statusError_ ? t.error : t.accent);
-    // Help link.
+    // Help link. 0.8.3.3: 「① 還沒開過開發人員選項？看步驟」 as an outlined pill (the steps); in the
+    // steps: 看圖文教學 (the guide), a plain link.
     {
-        const std::wstring l = tr(S::PairHelpLink);
+        const std::wstring l = tr(devOpt_ ? S::PairDevOptGuide : S::PairHelpLink);
         ComPtr<IDWriteTextLayout> m;  // measured: the underline and the hit area follow the text
         if (SUCCEEDED(f.dw->CreateTextLayout(l.c_str(), static_cast<UINT32>(l.size()), f.link.Get(), kW, kLinkH, &m))) {
             DWRITE_TEXT_METRICS tm{};
@@ -609,9 +633,16 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
             linkW_ = (std::min)(tm.widthIncludingTrailingWhitespace, kW - 2 * kPad);
         }
         const float lh = hl(HitLink);
+        if (!devOpt_) {
+            const D2D1_RECT_F pr = rc(kW / 2 - linkW_ / 2 - 16, kLinkY - 5, linkW_ + 32, kLinkH + 10);
+            fill(pr, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.10f + 0.12f * lh}, (kLinkH + 10) / 2);
+            stroke(pr, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.75f}, (kLinkH + 10) / 2, 1.2f);
+        }
         text(l, f.link.Get(), rc(kPad, kLinkY, kW - 2 * kPad, kLinkH), animMix(t.accent, t.fg, lh));
-        b->SetColor(D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.45f + 0.45f * lh});
-        rt->DrawLine({kW / 2 - linkW_ / 2, kLinkY + kLinkH - 1}, {kW / 2 + linkW_ / 2, kLinkY + kLinkH - 1}, b, 1);
+        if (devOpt_) {
+            b->SetColor(D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.45f + 0.45f * lh});
+            rt->DrawLine({kW / 2 - linkW_ / 2, kLinkY + kLinkH - 1}, {kW / 2 + linkW_ / 2, kLinkY + kLinkH - 1}, b, 1);
+        }
     }
     // Buttons: [secondary] [primary].
     const float bw = (kW - 2 * kPad - 12) / 2;
@@ -620,14 +651,14 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
         pressAt(HitSecondary, r);
         fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.07f + 0.07f * hl(HitSecondary)}, 9);
         stroke(rc(kPad + 0.5f, kBtnY + 0.5f, bw - 1, kBtnH - 1), D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.2f}, 9);
-        text(tr(codeMode_ ? S::PairUseQr : S::PairUseCode), f.button.Get(), r, t.fg);
+        text(tr(devOpt_ ? S::PairDevOptBack : codeMode_ ? S::PairUseQr : S::PairUseCode), f.button.Get(), r, t.fg);
         rt->SetTransform(base);
     }
     {
         const D2D1_RECT_F r = rc(kPad + bw + 12, kBtnY, bw, kBtnH);
         const float ph = hl(HitPrimary);
         pressAt(HitPrimary, r);
-        if (codeMode_) {
+        if (codeMode_ && !devOpt_) {
             D2D1_COLOR_F c = t.accent;
             c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * ph);
             fill(r, c, 9);
@@ -717,7 +748,7 @@ LRESULT PairPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_KEYDOWN:
         if (wp == VK_ESCAPE) click(HitClose);
-        else if (wp == VK_RETURN && codeMode_) submitCode();
+        else if (wp == VK_RETURN && codeMode_ && !devOpt_) submitCode();
         return 0;
     case WM_APP + 40:  // key from an edit box (editProc)
         if (wp == VK_ESCAPE) click(HitClose);

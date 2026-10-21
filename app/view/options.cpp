@@ -20,7 +20,7 @@ void refreshIdleOptions() {
         opts.push_back({OptRemoteAudio, tr(S::MenuRemoteAudio), g.settings.remoteAudio});
         if (g.settings.remoteAudio) opts.push_back({OptRemoteMutePc, tr(S::MenuRemoteMutePc), g.settings.remoteMutePc});
     } else {
-        opts.push_back({OptAutostart, tr(S::OptAutostart), g.autostart});
+        opts.push_back({OptAutostart, tr(S::OptAutostartIdle), g.autostart});  // 0.8.3.3: says what it does (audit A2)
         opts.push_back({OptPin, tr(S::OptPin), g.settings.requirePin});
     }
     const HWND h = g.hwnd;

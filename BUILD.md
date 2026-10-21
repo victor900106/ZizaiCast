@@ -1,13 +1,13 @@
-# Building ZizaiCast 0.8.3.2 from source
+# Building ZizaiCast 0.8.3.3 from source
 
-This archive is the Corresponding Source of the ZizaiCast 0.8.3.2 installer
+This archive is the Corresponding Source of the ZizaiCast 0.8.3.3 installer
 (GPL-3.0, see `LICENSE`, `docs/licenses/SOURCE.md` and
 `docs/licenses/THIRD_PARTY_NOTICES.txt`).
 
-* git commit: `1d35531c519b0bd4ebfe5afc1937fa3b0d690026` (2026-10-21T12:31:04+08:00)
+* git commit: `016da34b48bf7b634fff576d6c201cf3b4653a4d` (2026-10-21T13:55:32+08:00)
 * vcpkg commit used for the release build: `f451d04d496aa089e294a1a2d799a269788d47ba`
 * Library sources (OpenSSL, libplist, pthreads4w, ALAC, FFmpeg, PCRE2 + vcpkg port scripts/patches; the complete source of `bergamot.dll`; licence and provenance of `onnxruntime.dll`; 遠端操控 (remote control): libdatachannel, libjuice, libsrtp, usrsctp, opus, plog, nlohmann-json):
-  `ZizaiCast-0.8.3.2-deps-source.zip` on the same release page.
+  `ZizaiCast-0.8.3.3-deps-source.zip` on the same release page.
 
 ## 1. Tools (Windows 10/11 x64)
 
@@ -106,7 +106,7 @@ VCPKG_ROOT=C:/vcpkg bash translate/tools/build_bergamot.sh
 
 Output: `build-translate/bergamot/bin/bergamot.dll`.
 
-**Offline, from `ZizaiCast-0.8.3.2-deps-source.zip`** — its
+**Offline, from `ZizaiCast-0.8.3.3-deps-source.zip`** — its
 `bergamot/BergamotTranslatorSharp/` is exactly that tree (every submodule at
 the commit recorded by its parent, unmodified; list in `DEPS-README.txt`).
 BergamotTranslatorSharp's own CMake applies its patches from
@@ -116,7 +116,7 @@ root of this archive, deps zip next to it; no download from GitHub needed):
 
 ```
 mkdir -p build-translate/x
-unzip -q ../ZizaiCast-0.8.3.2-deps-source.zip -d build-translate/x
+unzip -q ../ZizaiCast-0.8.3.3-deps-source.zip -d build-translate/x
 mv build-translate/x/bergamot/BergamotTranslatorSharp build-translate/bts-src
 M=build-translate/bts-src/bergamot-translator/3rd_party/marian-dev   # Marian's CMake reads its revision from git:
 git -C $M init -q
@@ -177,7 +177,7 @@ pm_audio_test pm_recorder_test pm_miracast_test pm_android_test`.
 
 (`installer\zizai.iss` packages the user guides from `docs\tutorial\` and
 the notices from `docs\licenses\`, both in this archive. Output:
-`installer\Output\自在投影-安裝程式-0.8.3.2.exe`, Traditional Chinese +
+`installer\Output\自在投影-安裝程式-0.8.3.3.exe`, Traditional Chinese +
 English.)
 
 ## 8. Replacing the LGPL libraries

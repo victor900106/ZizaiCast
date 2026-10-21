@@ -449,8 +449,11 @@ missing) greys 「連接 Android（掃 QR）」 and 自動連線.
   ×, step text 「手機：開發人員選項 → 無線偵錯 → 使用 QR 圖碼配對裝置…」, the QR
   from `beginQrPairing` on a white rounded card (nearest-neighbour at a whole
   multiple of the bitmap, ≥ 4 modules of quiet zone, pixel-aligned), status
-  line (accent; errors in a warm red), link 「怎麼開啟無線偵錯？」 (tutorial
-  `#adb`), buttons 用配對碼 / 取消. 用配對碼 switches to a form: 「IP 位址與連接埠」
+  line (accent; errors in a warm red), an outlined pill 「① 還沒開過『開發人員選項』？看步驟」
+  (0.8.3.3; before: the link 「怎麼開啟無線偵錯？」) that shows the steps in place of the QR / form
+  (連點版本號碼 7 下; where it is on Samsung / 小米 / Pixel; then 無線偵錯 → 使用 QR 圖碼配對裝置) with
+  回到 QR 圖碼 and the link 看圖文教學 (tutorial `#adb-devopt`; --dev DevCommand 987 lp 1 / 0),
+  buttons 用配對碼 / 取消. 用配對碼 switches to a form: 「IP 位址與連接埠」
   and 「配對碼」 (6 digits) — real EDIT controls coloured via
   `WM_CTLCOLOREDIT`, Enter = 配對, Tab, Esc = close — buttons 改用 QR 圖碼 /
   配對 (→ `pairWithCode`; input checked first). Draggable by its top, per-monitor

@@ -611,6 +611,15 @@ struct Host::Impl {
     std::vector<GuestAccount> guests;
     std::set<std::string> spentGuests;
     std::map<std::string, std::string> guestTokens;
+    // 0.8.3.3: accounts that are gone (expired / used once / deleted), kept in memory for 7 days by
+    // name and password hash: the right password for one of them is told why it no longer works
+    // ("gone"); a wrong password or an unknown name gets the same answer as ever (nothing is told
+    // about whether an account exists). Guarded by tunMu.
+    struct GoneGuest {
+        std::string nameLower, pwHash, why;  // why: expired | used | deleted
+        long long until = 0;                 // epoch seconds
+    };
+    std::vector<GoneGuest> goneGuests;
     bool guestFor(const std::string& tok, GuestAccount& out);  // the account behind a valid guest login (false: none / gone)
     void guestSessionEnded(const std::shared_ptr<Session>& s);
     static bool guestToken(const std::string& tok) { return tokenId(tok).rfind('g', 0) == 0; }
@@ -1266,9 +1275,12 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         // 常駐外網: the right password lets a phone in without 允許 (unless the owner asked
         // for it: fixedNeedApproval), never one that was just 中斷'd.
         const bool passwordIn = viaFixedReq && !fixedNeedsOk && !kicked && !s->guest();
-        // 0.8.3.2: a guest always waits for 允許 (never "allowed before" / remembered)
-        const bool ok = !s->guest() && (!opt.requireApproval || allowedDevices.count(device) ||
-                                        (!kicked && opt.remembered && opt.remembered(device)) || passwordIn);
+        // 0.8.3.2: a guest always waits for 允許 (never "allowed before" / remembered).
+        // 0.8.3.3: so does the temporary address (cloudflared, 臨時網址): it is for lending the PC to
+        // someone, and someone at the PC answers every time (no remembered phone goes straight in).
+        const bool viaTempLink = r.tunnel && !viaFixedReq;
+        const bool ok = !s->guest() && (!opt.requireApproval || (!viaTempLink && (allowedDevices.count(device) ||
+                                        (!kicked && opt.remembered && opt.remembered(device)))) || passwordIn);
         if (passwordIn && !allowedDevices.count(device))
             logf("host: %s from %s came in with the password (fixed link): no 允許 needed", s->label.c_str(), r.peer.c_str());
         if (ok) {
@@ -1801,21 +1813,30 @@ HttpServer::Response Host::Impl::guestLogin(const HttpServer::Request& r, int64_
         return s;
     };
     GuestAccount found;
+    std::string gone;  // 0.8.3.3: the right password of an account that is gone: why (expired / used / deleted)
     auto verify = [&](const std::string& typed) {
         GuestAccount cand;
+        std::string goneHash, goneWhy;
         {
             std::lock_guard<std::mutex> lk(tunMu);
             const long long nowS = epochMs() / 1000;
             for (const GuestAccount& g : guests)
-                if (lower(g.name) == lower(user) && !spentGuests.count(g.id) && g.expires > nowS) {
-                    cand = g;
+                if (lower(g.name) == lower(user)) {
+                    if (!spentGuests.count(g.id) && g.expires > nowS) cand = g;
+                    else goneHash = g.pwHash, goneWhy = spentGuests.count(g.id) ? "used" : "expired";
                     break;
                 }
+            if (cand.id.empty() && goneHash.empty())
+                for (const GoneGuest& t : goneGuests)
+                    if (t.nameLower == lower(user) && t.until > nowS) goneHash = t.pwHash, goneWhy = t.why;
         }
+        // One PBKDF2 whatever the case (a valid account, a gone one, or none at all: the dummy).
         std::string key = guestPasswordKey(typed);
-        const bool ok = verifyPassword(key, cand.id.empty() ? kDummy : cand.pwHash) && !cand.id.empty();
+        const bool match = verifyPassword(key, !cand.id.empty() ? cand.pwHash : !goneHash.empty() ? goneHash : kDummy);
         std::fill(key.begin(), key.end(), '\0');
+        const bool ok = match && !cand.id.empty();
         if (ok) found = cand;
+        else if (match && !goneWhy.empty()) gone = goneWhy;
         return ok;
     };
     const PwResult res = checkPassword(r.peer, pw, now, "a 臨時帳號 login", verify);
@@ -1836,6 +1857,11 @@ HttpServer::Response Host::Impl::guestLogin(const HttpServer::Request& r, int64_
     }
     if (res.delayMs == 0)
         return {429, "application/json", json{{"ok", false}, {"locked", res.locked}, {"retryAfter", res.retryAfter}, {"guest", true}}.dump()};
+    if (!gone.empty()) {
+        logf("fixed: %s: the right password of a 臨時帳號 that is gone (%s): told so", r.peer.c_str(), gone.c_str());
+        return {401, "application/json",
+                json{{"ok", false}, {"guest", true}, {"gone", gone}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.locked ? 900 : 0}}.dump()};
+    }
     return {401, "application/json",
             json{{"ok", false}, {"guest", true}, {"left", res.left}, {"locked", res.locked}, {"retryAfter", res.locked ? 900 : 0}, {"delayMs", res.delayMs}}.dump()};
 }
@@ -2419,6 +2445,22 @@ void Host::setGuests(std::vector<GuestAccount> list) {
         for (auto it = d.guestTokens.begin(); it != d.guestTokens.end();)
             if (keep.count(it->second)) ++it;
             else it = d.guestTokens.erase(it), ++dropped;
+        // 0.8.3.3: what went, and why (the phone is told only with the right password)
+        auto lower = [](std::string s) {
+            for (char& c : s) c = (c >= 'A' && c <= 'Z') ? char(c + 32) : c;
+            return s;
+        };
+        const long long nowS = epochMs() / 1000;
+        std::set<std::string> newNames;
+        for (const GuestAccount& g : list) newNames.insert(lower(g.name));
+        for (const GuestAccount& g : d.guests)
+            if (!keep.count(g.id))
+                d.goneGuests.push_back({lower(g.name), g.pwHash,
+                                        d.spentGuests.count(g.id) ? "used" : g.expires <= nowS ? "expired" : "deleted", nowS + 7 * 86400LL});
+        d.goneGuests.erase(std::remove_if(d.goneGuests.begin(), d.goneGuests.end(),
+                                          [&](const Impl::GoneGuest& t) { return t.until <= nowS || newNames.count(t.nameLower); }),
+                           d.goneGuests.end());
+        if (d.goneGuests.size() > 50) d.goneGuests.erase(d.goneGuests.begin(), d.goneGuests.end() - 50);
         d.guests = std::move(list);
     }
     logf("host: 臨時帳號: %zu account(s)%s", keep.size(), dropped ? (", " + std::to_string(dropped) + " login(s) of removed accounts ended").c_str() : "");

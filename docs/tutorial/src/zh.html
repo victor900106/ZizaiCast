@@ -1,0 +1,537 @@
+<nav class="side" aria-label="目錄">
+  <a class="brand" href="#top">
+    <span class="brand-mark"><i class="m"></i></span>
+    <div><b>自在投影</b><span>使用教學</span></div>
+  </a>
+  <ol>
+    <li class="grp">開始</li>
+    <li><a href="#want">我想要…</a></li>
+    <li><a href="#before">開始之前</a></li>
+    <li class="grp">手機投影</li>
+    <li><a href="#iphone">iPhone 投影</a></li>
+    <li><a href="#miracast">Android 投放</a></li>
+    <li><a href="#adb">Android 操控</a></li>
+    <li><a href="#record">錄影和截圖</a></li>
+    <li><a href="#ink">畫筆</a></li>
+    <li><a href="#share">拖檔和傳到手機</a></li>
+    <li><a href="#translate">翻譯</a></li>
+    <li class="grp">遠端控制</li>
+    <li><a href="#remote">用手機操控電腦</a></li>
+    <li><a href="#remote-home">在家</a></li>
+    <li><a href="#remote-outside">在外面（固定網址）</a></li>
+    <li><a href="#remote-friend">借給朋友用</a></li>
+    <li class="grp">其他</li>
+    <li><a href="#sound">聲音大小</a></li>
+    <li><a href="#faq">常見問題排除</a></li>
+  </ol>
+  <div class="side-foot">滑鼠移到投影畫面上，上方會出現工具列；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線；<kbd>F1</kbd> 看全部快速鍵。</div>
+</nav>
+
+<main id="top">
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <p class="eyebrow">自在投影 · 使用教學</p>
+    <h1>手機和電腦，<br>想怎麼連就怎麼連。</h1>
+    <p class="lede">自在投影有兩大功能：<strong>手機投影</strong>把手機畫面放到這台電腦上；<strong>遠端控制</strong>反過來，用手機操控這台電腦。每一段都照「你要做什麼 → 幾個步驟 → 看到什麼代表成功 → 不成功怎麼辦」寫，從下面的表直接跳過去就好。</p>
+  </div>
+  <i class="m hero-m" role="img" aria-label="自在投影的吉祥物投投"></i>
+</header>
+
+<section id="want">
+<h2><span class="num">★</span>我想要…</h2>
+<div class="tbl want"><table>
+  <tr><th>我想要…</th><th>看這一段</th></tr>
+  <tr><td><a href="#iphone">把 iPhone / iPad 的畫面放到電腦上</a></td><td>iPhone 投影（約 1 分鐘）</td></tr>
+  <tr><td><a href="#miracast">把 Android 手機的畫面放到電腦上，只要看</a></td><td>Android 投放（約 1 分鐘）</td></tr>
+  <tr><td><a href="#adb">用電腦的滑鼠、鍵盤操作 Android 手機</a></td><td>Android 操控（第一次約 5 分鐘）</td></tr>
+  <tr><td><a href="#record">把手機畫面錄下來、拍一張截圖</a></td><td>錄影和截圖</td></tr>
+  <tr><td><a href="#ink">在畫面上畫重點給別人看</a></td><td>畫筆</td></tr>
+  <tr><td><a href="#share">把電腦的檔案、照片傳到手機</a></td><td>拖檔和傳到手機</td></tr>
+  <tr><td><a href="#translate">看懂手機上的外文</a></td><td>翻譯</td></tr>
+  <tr><td><a href="#magnifier">把手機上的字放大</a></td><td>放大鏡</td></tr>
+  <tr><td><a href="#remote-home">在家用手機操控電腦（同一個 Wi-Fi）</a></td><td>遠端控制：在家</td></tr>
+  <tr><td><a href="#remote-outside">出門在外也能用手機操控家裡的電腦</a></td><td>遠端控制：固定網址</td></tr>
+  <tr><td><a href="#remote-friend">讓朋友暫時操控我的電腦（幫我看問題）</a></td><td>遠端控制：借給朋友用</td></tr>
+  <tr><td><a href="#sound">聲音太小、太大或沒聲音</a></td><td>聲音大小怎麼調</td></tr>
+  <tr><td><a href="#faq">照做了還是不行</a></td><td>常見問題排除</td></tr>
+</table></div>
+</section>
+
+<!-- ============ before ============ -->
+<section id="before">
+<h2><span class="num">0</span>開始之前</h2>
+<p class="intro">手機是透過網路找到電腦的。大部分「找不到自在投影」都是下面這幾件事。</p>
+{{fig:net}}
+<ol class="steps">
+  <li><strong>手機和電腦連同一個 Wi-Fi。</strong>電腦用網路線接在同一台分享器上也可以。手機的「行動數據」「個人熱點」「訪客 Wi-Fi」都不算。</li>
+  <li><strong>第一次開啟時允許防火牆。</strong>Windows 跳出「Windows 安全性警示」時，勾<span class="ui">私人網路</span>，按<span class="ui">允許存取</span>。按到取消的話看<a href="#faq-fw">這裡</a>。</li>
+  <li><strong>先關掉 VPN。</strong>電腦或手機開著 VPN，手機常常看不到電腦。</li>
+</ol>
+<h3 id="idle">打開自在投影會看到什麼</h3>
+<p>視窗上方有兩個分頁：<span class="ui">手機投影</span>和<span class="ui">遠端控制</span>。「手機投影」分頁寫著<span class="ui">請選你的手機</span>，下面三張卡片，點你的手機那一張的按鈕就好。</p>
+{{img:idle|等待畫面：三張卡片，各有一個按鈕|420}}
+<p>關掉視窗不會結束程式：它會問你要<span class="ui">結束</span>還是<span class="ui">背景待命</span>。選背景待命，它會縮到右下角時鐘旁邊的小圖示，手機一連上視窗就跳出來。</p>
+</section>
+
+<!-- ============ iPhone ============ -->
+<section id="iphone">
+<h2><span class="num">1</span>iPhone 投影</h2>
+<p class="goal"><b>你要做什麼</b>把 iPhone / iPad 的畫面和聲音放到電腦上。不用裝 App。</p>
+{{fig:iphone}}
+<ol class="steps">
+  <li>電腦上開著自在投影（視窗或右下角有它的圖示）。</li>
+  <li>iPhone 打開<strong>控制中心</strong>：有 Face ID 的從右上角往下滑；有圓形主畫面按鈕的從底部往上滑。</li>
+  <li>點<span class="ui">螢幕鏡像</span>（兩個重疊方框的圖示）。</li>
+  <li>在清單裡點<span class="ui">自在投影</span>。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>幾秒內電腦出現手機畫面，下方提示「已連線：手機名稱……滑鼠移到上方有工具列」。</div>
+{{img:toolbar|滑鼠移到畫面上，上方出現工具列：截圖、錄影、畫筆、傳到手機、音量、放大、翻譯……最右邊紅色是中斷連線|640}}
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>清單裡沒有「自在投影」：看<a href="#faq-notfound">找不到自在投影</a>。</li>
+  <li>有畫面沒聲音：按 iPhone 側邊的音量鍵調大，看<a href="#sound">聲音大小</a>。</li>
+  <li>要輸入 4 位數 PIN：電腦畫面上有數字，照著在 iPhone 輸入（設定裡開了「連線要輸入 PIN」才會問）。</li>
+</ul></div>
+<h3>結束投影</h3>
+<p>iPhone 控制中心 → <span class="ui">螢幕鏡像</span> → <span class="ui">停止鏡像輸出</span>；或在電腦按 <kbd>Ctrl</kbd><kbd>D</kbd>、工具列最右邊的紅色<span class="ui">中斷連線</span>。iPhone 鎖螢幕時畫面會暫停，解鎖後自動繼續。</p>
+<p id="disconnect">中斷連線的四個地方（iPhone、Android 都一樣）：工具列最右邊紅色按鈕、<kbd>Ctrl</kbd><kbd>D</kbd>、右鍵選單最上面的<span class="ui">中斷連線</span>、右下角圖示按右鍵 → <span class="ui">中斷連線（手機名稱）</span>。正在錄影會先存好。</p>
+</section>
+
+<!-- ============ Miracast ============ -->
+<section id="miracast">
+<h2><span class="num">2</span>Android 投放（Miracast）</h2>
+<p class="goal"><b>你要做什麼</b>把 Android 手機畫面放到電腦上，<strong>只看、不操作</strong>。不用設定，但電腦要有支援「無線顯示器」的 Wi-Fi 網卡（大部分筆電可以）。</p>
+{{fig:cast}}
+<ol class="steps">
+  <li>電腦開著自在投影，<strong>電腦的 Wi-Fi 要開著</strong>（就算用網路線上網也要開）。</li>
+  <li>手機從螢幕頂端往下滑兩次，找到投放的圖塊：Samsung 叫<span class="ui">Smart View</span>，小米叫<span class="ui">投放</span>，OPPO 叫<span class="ui">螢幕投放</span>，vivo 叫<span class="ui">投屏</span>。</li>
+  <li>在清單裡點<span class="ui">自在投影</span>，第一次可能要等 10～20 秒。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>電腦出現手機畫面，下方提示「已連線」。要結束：手機再點一次同一個圖塊，或電腦按 <kbd>Ctrl</kbd><kbd>D</kbd>。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>等待畫面的「Android 只要看」卡片是灰色、寫「了解原因」：這台電腦收不到 Miracast，點「了解原因」，或改用下一段的<a href="#adb">Android 操控</a>。</li>
+  <li>Google Pixel 沒有 Miracast（它的「投放」只給 Chromecast 用），請用<a href="#adb">Android 操控</a>。</li>
+  <li>一直停在「正在連線」：手機取消，等 10 秒再試；或看<a href="#faq-miracast">Miracast 連不上</a>。</li>
+</ul></div>
+<div class="tbl"><table>
+  <tr><th>品牌</th><th>快速設定圖塊</th><th>或在「設定」裡</th></tr>
+  <tr><td>Samsung</td><td>Smart View</td><td>設定 → 已連接的裝置 → Smart View</td></tr>
+  <tr><td>Xiaomi / Redmi / POCO</td><td>投放、無線投放</td><td>設定 → 連線與共享 → 投放</td></tr>
+  <tr><td>OPPO / realme / OnePlus</td><td>螢幕投放</td><td>設定 → 連線與共享 → 螢幕投放</td></tr>
+  <tr><td>vivo / iQOO</td><td>投屏</td><td>設定 → 其他網路與連線 → 投屏</td></tr>
+  <tr><td>ASUS / Sony</td><td>無線投影／螢幕鏡像</td><td>設定 → 已連線的裝置 → 連線偏好設定</td></tr>
+</table></div>
+</section>
+
+<!-- ============ adb ============ -->
+<section id="adb">
+<h2><span class="num">3</span>Android 操控（QR 配對、USB）</h2>
+<p class="goal"><b>你要做什麼</b>在電腦上看 Android 手機，<strong>還能用滑鼠點、用鍵盤打字</strong>。第一次要設定約 5 分鐘，之後自動連上。需要 Android 11 以上。</p>
+
+<h3 id="adb-devopt">第一步：打開「開發人員選項」（只做一次）</h3>
+{{fig:devopt}}
+<ol class="steps">
+  <li>手機：<span class="ui">設定</span> → <span class="ui">關於手機</span>（Samsung 再點<span class="ui">軟體資訊</span>）。</li>
+  <li>找到<span class="ui">版本號碼</span>，<strong>連點 7 下</strong>，可能要輸入手機解鎖密碼。</li>
+  <li>出現「你現在已成為開發人員」就好了。設定裡會多一個<span class="ui">開發人員選項</span>（通常在「系統」裡或最下面）。</li>
+</ol>
+<p>電腦上的配對視窗也有這些步驟：按<span class="ui">① 還沒開過「開發人員選項」？看步驟</span>。「版本號碼」在哪裡：Samsung 是關於手機 → 軟體資訊；小米／Redmi 是我的裝置 → 全部參數與資訊 → OS 版本（或 MIUI 版本），連點這一項 7 下；Pixel 是關於手機的最下面。之後的開發人員選項：Samsung 在設定最下面，小米在「更多設定」，Pixel 在「系統」。</p>
+{{img:pair-steps|配對視窗裡的「開發人員選項」步驟|340}}
+
+<h3 id="adb-pair">第二步：掃 QR 碼配對（只做一次）</h3>
+{{fig:pair}}
+<ol class="steps">
+  <li>手機：<span class="ui">開發人員選項</span> → 打開<span class="ui">無線偵錯</span>，問你要不要允許時按<span class="ui">允許</span>。</li>
+  <li>電腦：等待畫面「Android 用電腦操控」卡片按<span class="ui">顯示 QR 碼</span>（或右鍵選單 → <span class="ui">連接手機</span> → <span class="ui">連接 Android（掃 QR）</span>）。</li>
+  <li>手機：點「無線偵錯」這幾個字進去 → <span class="ui">使用 QR 圖碼配對裝置</span>，對準電腦上的 QR 碼。</li>
+</ol>
+{{img:pair|電腦上的配對視窗（示範用的假 QR 碼）|380}}
+<div class="ok"><b>看到這個就成功</b>配對視窗自己關掉，電腦出現手機畫面，提示「已連線：手機名稱。滑鼠移到上方有工具列；右鍵＝返回」。之後只要手機的無線偵錯開著、在同一個 Wi-Fi，就會自動連上。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>一直「等待手機掃描…」：手機和電腦不在同一個 Wi-Fi（訪客網路不行）。也可以按<span class="ui">用配對碼</span>，在手機點「使用配對碼配對裝置」，把手機上的 IP 位址:連接埠和 6 位數字輸入電腦。</li>
+  <li>配對失敗：視窗會換一個新的 QR 碼，手機重新點「使用 QR 圖碼配對裝置」再掃一次。</li>
+  <li>重開機後沒有自動連上：很多手機重開機會自動關掉無線偵錯，回開發人員選項再打開就好，<strong>不用重新配對</strong>。</li>
+</ul></div>
+
+<h3 id="adb-usb">沒有 Wi-Fi？用 USB 線</h3>
+<ol class="steps">
+  <li>手機：<span class="ui">開發人員選項</span> → 打開<span class="ui">USB 偵錯</span>。</li>
+  <li>用傳輸線接上電腦，手機問「要允許 USB 偵錯嗎？」時勾<span class="ui">一律允許這部電腦</span>，按<span class="ui">允許</span>。</li>
+  <li>電腦：右鍵選單 → <span class="ui">連接手機</span> → <span class="ui">用 USB 線連線</span>。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>提示「正在用 USB 線連線…」之後出現手機畫面。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>「找不到 USB 線上的 Android 手機」：換一條能傳資料的線（有些線只能充電），確認 USB 偵錯開著，拔掉重插。</li>
+  <li>手機沒問你要不要允許：手機下拉通知，把 USB 模式改成「檔案傳輸」再試。</li>
+</ul></div>
+
+<h3 id="adb-control">用滑鼠、鍵盤操作手機</h3>
+{{fig:mouse}}
+{{img:toolbar-android|Android 的工具列左邊多了返回、主畫面、最近使用|640}}
+<div class="tbl"><table>
+  <tr><th>電腦</th><th>手機上</th></tr>
+  <tr><td>左鍵點一下／按住拖曳</td><td>點一下／滑動</td></tr>
+  <tr><td>滾輪</td><td>上下捲動</td></tr>
+  <tr><td>右鍵</td><td>返回（要開選單：按住 <kbd>Shift</kbd> 再按右鍵，或點工具列的<span class="ui">⋯</span>）</td></tr>
+  <tr><td>鍵盤打字</td><td>打到手機上選好的輸入框（先在手機畫面上點一下輸入框）</td></tr>
+</table></div>
+<p>右鍵選單 → <span class="ui">連接手機</span>裡還有：<span class="ui">剪貼簿同步</span>（電腦複製、手機貼上，預設開）、<span class="ui">操控時關掉手機螢幕</span>、<span class="ui">連線期間不休眠</span>。</p>
+<div class="note warn"><span class="t">安全提醒</span>不用的時候把手機的「無線偵錯」關掉；不要在公共 Wi-Fi 開著。</div>
+</section>
+
+<div id="features"></div>
+<!-- ============ record ============ -->
+<section id="record">
+<h2><span class="num">4</span>錄影和截圖</h2>
+<p class="goal"><b>你要做什麼</b>把手機畫面拍一張圖，或錄成影片（有聲音的 MP4）。手機畫面出現以後才能用。</p>
+<ol class="steps">
+  <li>滑鼠移到手機畫面上，上方出現工具列。</li>
+  <li>截圖：點<span class="ui">截圖</span>（或按 <kbd>Ctrl</kbd><kbd>S</kbd>）。</li>
+  <li>錄影：點<span class="ui">錄影</span>（或 <kbd>Ctrl</kbd><kbd>R</kbd>），左上角出現紅點和秒數；要停止再點一次。</li>
+  <li>找檔案：右鍵選單 → <span class="ui">開啟截圖資料夾</span>／<span class="ui">開啟錄影資料夾</span>。</li>
+</ol>
+<div class="pair-img">
+{{img:snapshot|截圖：下方提示「截圖已儲存」|260}}
+{{img:recording|錄影中：左上角紅點和秒數|260}}
+</div>
+<div class="ok"><b>看到這個就成功</b>截圖後提示「截圖已儲存」；錄影停止後提示「錄影已儲存：檔名」。下方會出現一排小按鈕<span class="ui">開啟資料夾</span>·<span class="ui">傳到手機</span>。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>按鈕是灰色、寫「手機連上後可用」：先讓手機畫面出現。</li>
+  <li>不能錄影：硬碟剩不到 300 MB 時不能錄，清一點空間。</li>
+  <li>錄到一半手機斷線：已經錄的部分會自動存好。</li>
+</ul></div>
+</section>
+
+<!-- ============ ink ============ -->
+<section id="ink">
+<h2><span class="num">5</span>畫筆</h2>
+<p class="goal"><b>你要做什麼</b>在投影的畫面上畫線、畫箭頭、畫螢光筆，講解給旁邊的人看。筆跡只在電腦上，不會畫到手機裡。</p>
+<ol class="steps">
+  <li>滑鼠移到畫面上，點工具列的<span class="ui">畫筆</span>（或 <kbd>Ctrl</kbd><kbd>E</kbd>）。</li>
+  <li>按住滑鼠左鍵拖曳就能畫。工具列會換成<span class="ui">工具</span>（筆 → 螢光筆 → 箭頭）、<span class="ui">顏色</span>、<span class="ui">粗細</span>、<span class="ui">復原</span>、<span class="ui">清除</span>。</li>
+  <li>畫完按 <kbd>Esc</kbd> 結束畫筆，筆跡會留著；<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> 全部清除。</li>
+</ol>
+{{img:ink|畫筆模式：紅色的筆和黃色的筆，下方提示「筆 · 黃 · 中」|280}}
+<div class="ok"><b>看到這個就成功</b>提示「畫筆模式：在畫面上拖曳就能畫（Esc 結束）」，左下角有「畫筆模式 · Esc 結束」。截圖和錄影預設會包含筆跡（右鍵選單 → <span class="ui">畫筆</span>可以關掉）。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>Android 操控時一畫就點到手機：畫筆模式下滑鼠暫停操控手機；要點手機先按 <kbd>Esc</kbd>。</li>
+  <li>畫錯了：<kbd>Ctrl</kbd><kbd>Z</kbd> 復原上一筆。</li>
+</ul></div>
+</section>
+
+<!-- ============ share ============ -->
+<section id="share">
+<h2><span class="num">6</span>拖檔和傳到手機</h2>
+<p class="goal"><b>你要做什麼</b>把電腦上的照片、影片、文件，或剛剛的截圖、錄影，送到手機上。</p>
+<h3>方法一：把檔案拖進自在投影的視窗</h3>
+<ol class="steps">
+  <li>在檔案總管選好檔案，拖到自在投影的視窗上（不要放開），視窗會說放開會發生什麼。</li>
+  <li>放開。</li>
+</ol>
+{{img:drop|拖到 Android 手機的畫面上：「放開以安裝 App／傳到手機」|280}}
+<div class="ok"><b>看到這個就成功</b><strong>Android 操控中</strong>：直接傳進手機（.apk 會直接安裝），提示「已傳到手機：檔名」或「已安裝：檔名」。<strong>iPhone、Miracast 或還沒連手機</strong>：電腦出現 QR 碼，照方法二的第 3 步用手機掃。</div>
+<h3>方法二：傳到手機（QR 碼）</h3>
+<ol class="steps">
+  <li>右鍵選單 → <span class="ui">傳到手機</span> → <span class="ui">把最後一張截圖傳到手機</span>（或<span class="ui">傳到手機…</span>自己挑檔案）。工具列也有這顆按鈕。</li>
+  <li>有好幾個新檔案時會先讓你勾要傳哪些，按<span class="ui">傳送 N 個</span>。</li>
+  <li>手機連<strong>同一個 Wi-Fi</strong>，用相機掃電腦上的 QR 碼，打開網頁。照片：長按 →「加入照片」（iPhone）或「下載圖片」（Android）；影片：點「下載影片」。</li>
+</ol>
+<div class="pair-img">
+{{img:picker|有好幾個新檔案時：勾選要傳的|360}}
+{{img:share|手機掃這個 QR 碼（示範用，連結 10 分鐘後失效）|300}}
+</div>
+<div class="ok"><b>看到這個就成功</b>手機打開一個網頁，列出檔案，可以存到相簿。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>手機打不開網頁：手機不在同一個 Wi-Fi（訪客網路、行動數據都不行）。</li>
+  <li>「只能拖檔案進來（資料夾不行）」：把資料夾裡的檔案選起來拖，或先壓縮成 zip。</li>
+  <li>連結失效了：連結 10 分鐘後失效，重新按一次傳到手機。</li>
+</ul></div>
+</section>
+
+<!-- ============ translate ============ -->
+<section id="translate">
+<h2><span class="num">7</span>翻譯</h2>
+<p class="goal"><b>你要做什麼</b>手機上是英文、日文、韓文看不懂，把它翻成中文蓋在原文上。翻譯在這台電腦上進行，畫面上的字不會傳到網路。</p>
+<ol class="steps">
+  <li>手機畫面出現後，點工具列的<span class="ui">翻譯</span>（或 <kbd>Ctrl</kbd><kbd>L</kbd>）。</li>
+  <li>第一次會問要不要下載翻譯模型（約 50 MB，只要一次），按<span class="ui">下載</span>。</li>
+  <li>看完再按一次<span class="ui">翻譯</span>（或 <kbd>Ctrl</kbd><kbd>L</kbd>）關掉。</li>
+</ol>
+{{img:translate|翻好的中文直接蓋在原文上；翻譯時畫面暫時停住，左上角寫「畫面已凍結」|280}}
+<div class="ok"><b>看到這個就成功</b>原文的位置出現中文。翻譯的時候畫面會暫停（左上角「畫面已凍結」），這是正常的，關掉翻譯就恢復。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>「畫面上的文字已經是繁體中文」：畫面上本來就是中文，不用翻。</li>
+  <li>日文、韓文認不出來：Windows 要加裝那個語言的「光學字元辨識」，看<a href="#faq-translate">這裡</a>。</li>
+  <li>只想翻一小塊：右鍵選單 → 翻譯 → <span class="ui">翻譯框選範圍</span>（<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>），拖出一個框。</li>
+</ul></div>
+<h3 id="magnifier">放大鏡：字太小</h3>
+<p>工具列的<span class="ui">放大</span>點一下 2 倍、再點 4 倍、再點回原樣；<kbd>Ctrl</kbd>＋滾輪在滑鼠位置放大。右鍵選單 → <span class="ui">放大鏡</span>還有<span class="ui">加強對比</span>、<span class="ui">黃字黑底</span>等顏色（<kbd>Ctrl</kbd><kbd>K</kbd> 切換），和<span class="ui">凍結畫面</span>（<kbd>Ctrl</kbd><kbd>P</kbd>）。</p>
+<h3 id="update">更新</h3>
+<p>有新版本時會跳出「自在投影有新版本」，按<span class="ui">立即更新</span>就好：程式會先關掉，裝好後自己打開。不想現在更新就按<span class="ui">稍後提醒</span>。也可以在右鍵選單 → <span class="ui">說明</span> → <span class="ui">檢查更新</span>。</p>
+{{img:update|「有新版本」視窗（示範用的假版本）|420}}
+</section>
+
+<div class="part"><small>功能二</small><b>遠端控制</b><span>用手機操控這台電腦</span></div>
+
+<!-- ============ remote ============ -->
+<section id="remote">
+<h2><span class="num">8</span>遠端控制：用手機操控電腦</h2>
+<p class="intro">用手機的瀏覽器看這台電腦的畫面、聽電腦的聲音、用手指操作。手機不用裝 App（iPhone 用 Safari，Android 用 Chrome）。先選你的情況：</p>
+<div class="tbl"><table>
+  <tr><th>情況</th><th>用什麼</th><th>誰要在電腦前</th></tr>
+  <tr><td><a href="#remote-home">在家，手機和電腦同一個 Wi-Fi</a></td><td>掃 QR 碼</td><td>第一次要按「允許」</td></tr>
+  <tr><td><a href="#remote-outside">我自己出門在外</a></td><td>固定網址＋密碼（要先設定 Tailscale）</td><td>設定時要，之後不用</td></tr>
+  <tr><td><a href="#remote-friend">借給朋友用一下</a></td><td>臨時帳號（建議），或臨時網址</td><td>每次都要在電腦按「允許」</td></tr>
+</table></div>
+
+<h3 id="remote-open">打開遠端控制</h3>
+<p>主畫面上方切到<span class="ui">遠端控制</span>分頁，打開最上面的開關。每次啟動自在投影，遠端控制都是關的（除非勾了<span class="ui">開機自動開啟固定網址</span>）。連著時，電腦螢幕上方一直有「正在被遠端控制」的提示列，按<span class="ui">中斷</span>或 <kbd>Ctrl</kbd><kbd>D</kbd> 隨時斷開。</p>
+{{img:remote-off|遠端控制分頁（還沒設密碼、開關關著）：最上面是「允許遠端控制」區塊，下面是在家和 Tailscale|420}}
+{{img:remote-allow|固定網址開好以後的「允許遠端控制」區塊：本機網址、QR 碼、新增臨時帳號（示範用的假網址）|420}}
+
+<h3 id="remote-home">情境一：在家（同一個 Wi-Fi）</h3>
+<p class="goal"><b>你要做什麼</b>躺在沙發上，用手機操作書房的電腦。</p>
+{{fig:remotehome}}
+<ol class="steps">
+  <li>電腦：<span class="ui">遠端控制</span>分頁 →<span class="ui">在家（同一個 Wi-Fi）</span>卡片按<span class="ui">顯示 QR 碼</span>（開關沒開會自動打開）。</li>
+  <li>手機連<strong>同一個 Wi-Fi</strong>，用相機掃 QR 碼，點跳出的網址。</li>
+  <li>電腦跳出「有手機想要操控這台電腦」：是你自己的手機就按<span class="ui">允許</span>。勾<span class="ui">記住這支手機，下次不用再問</span>，以後不用再按。</li>
+  <li>手機上點<span class="ui">點一下開聲音</span>，或右下角寫著<span class="ui">開聲音</span>的喇叭，就聽得到電腦的聲音（iPhone 一定要點一下）。</li>
+</ol>
+{{img:remote-lan|按「顯示 QR 碼」後（示範用的假網址）|420}}
+<div class="ok"><b>看到這個就成功</b>手機上出現電腦畫面，電腦上方出現「● 正在被遠端控制」。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>手機一直轉圈「請在電腦上按『允許』」：去電腦按允許（視窗可能被別的視窗擋住）。</li>
+  <li>網頁打不開：手機不在同一個 Wi-Fi，或分享器開了「AP 隔離」。看<a href="#remote-trouble">連不上</a>。</li>
+</ul></div>
+
+<h3 id="remote-outside">情境二：自己在外面用（固定網址）</h3>
+<p class="goal"><b>你要做什麼</b>出門在外，用手機的行動網路連回家裡的電腦。網址永遠不變，用你自己設的密碼登入。電腦要裝 Tailscale（免費），手機不用裝。</p>
+<div class="note"><span class="t">一共三件事，第一次大約 15 分鐘</span>① 電腦裝 Tailscale 並登入 → ② 讓 Tailscale 允許 Funnel（對外的網址）和 HTTPS → ③ 在自在投影設密碼、開固定網址。之後每天只要打開手機的網址。</div>
+
+<h4 id="remote-tailscale">① 電腦裝 Tailscale、註冊、登入</h4>
+<ol class="steps">
+  <li>電腦打開 <a href="https://tailscale.com/download/windows">tailscale.com/download/windows</a>，下載安裝（Windows 10 以上）。</li>
+  <li>裝好後右下角時鐘旁出現 Tailscale 圖示（找不到就點<span class="ui">^</span>）。在圖示上按右鍵 → <span class="ui">Log in</span>，會打開瀏覽器。</li>
+  <li>用 Google、Microsoft、GitHub 或 Apple 帳號登入（Tailscale 沒有自己的密碼，也不能只用 email 註冊）。第一次會問用途，選<span class="ui">Personal use</span>。</li>
+  <li>回到 Tailscale 圖示按右鍵，看到自己的帳號和<span class="ui">Connected</span>就好了。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>自在投影的<span class="ui">在外面：Tailscale</span>卡片不再寫「這台電腦還沒有 Tailscale」（如果還在，把遠端控制關掉再打開）。</div>
+
+<h4 id="remote-funnel">② 允許 Funnel 和 HTTPS（新帳號一定要做）</h4>
+<p>新的 Tailscale 帳號預設<strong>不允許對外的網址</strong>（Funnel），也還沒開 HTTPS 憑證。只要做一次，最簡單的方法是讓自在投影帶你做：</p>
+<ol class="steps">
+  <li>先做下面的 ③，按<span class="ui">開啟固定網址</span>。</li>
+  <li>區塊寫「你的 Tailscale 帳號還沒開啟 Funnel（第一次要開一次）」（或 HTTPS 憑證）：按<span class="ui">開啟設定頁</span>，瀏覽器會打開 Tailscale 的網頁，用同一個帳號登入，按啟用（Enable）。</li>
+  <li>回到自在投影按<span class="ui">我開好了，再試一次</span>。</li>
+</ol>
+{{img:remote-enable|新帳號第一次開固定網址：區塊說明原因，並有「開啟設定頁」和「我開好了，再試一次」|420}}
+<p>備案（用指令，結果一樣）：</p>
+<ol class="steps">
+  <li>在「開始」按右鍵 → <span class="ui">終端機</span>（或搜尋「命令提示字元」）。</li>
+  <li>貼上這一行，按 <kbd>Enter</kbd>（數字照抄就好，等一下自在投影會自己改成正確的設定）：
+<pre class="cmd">tailscale funnel --bg --https=8443 http://127.0.0.2:8091</pre></li>
+  <li>第一次會印出一個網址，說要你同意開啟 Funnel。用滑鼠選起來複製，貼到瀏覽器打開，用同一個帳號登入，按同意（Enable）。Tailscale 會自動幫你打開 HTTPS 憑證和 Funnel。</li>
+  <li>回到終端機，如果它還在等，再執行一次同一行；看到沒有錯誤訊息就可以關掉終端機。</li>
+</ol>
+
+<div class="note warn"><span class="t">電腦名稱會被公開</span>開啟 HTTPS 時，Tailscale 會說電腦名稱和你的 tailnet 名稱會記在公開的憑證紀錄裡。電腦名稱如果是你的真名，先到 Windows「設定 → 系統 → 系統資訊 → 重新命名這部電腦」改掉。</div>
+
+<h4>③ 在自在投影設密碼、開固定網址</h4>
+<ol class="steps">
+  <li><span class="ui">遠端控制</span>分頁最上面的<span class="ui">允許遠端控制</span>區塊按<span class="ui">設定密碼（取得固定網址和臨時帳號）</span>，輸入兩次，至少 8 個字（越長越好，別的地方沒用過的）。按<span class="ui">儲存並開啟</span>。</li>
+  <li><strong>第一次要等一兩分鐘</strong>：區塊寫「正在準備網址，約 1–2 分鐘」，Tailscale 正在申請 HTTPS 憑證，這段時間手機打不開。自在投影會自己測試，通了才顯示「固定網址已開啟」。</li>
+  <li>區塊出現 <code>https://你的電腦名稱.….ts.net:8443/</code> 和 QR 碼。用手機掃，或按<span class="ui">複製網址</span>傳給自己。</li>
+  <li>手機打開網址，只有一個<strong>密碼</strong>欄：輸入你設的密碼。登入一次，這支手機 30 天內不用再輸入。把網頁<a href="#remote-pwa">加入主畫面</a>，以後點圖示就能連。</li>
+  <li>想讓電腦開機後就能從外面連：勾區塊下面的<span class="ui">開機自動開啟固定網址</span>。</li>
+</ol>
+{{img:remote-preparing|第一次開：「正在準備網址，約 1–2 分鐘」（還沒有 QR 碼）|420}}
+<div class="pair-img">
+{{img:remote-fixed|固定網址開好了（示範用的假網址）|360}}
+{{img:phone-login|手機打開固定網址：只要輸入你設的密碼|260}}
+</div>
+<div class="ok"><b>看到這個就成功</b>手機輸入密碼後出現電腦畫面。在外面時電腦不用有人。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>區塊寫「你的 Tailscale 帳號還沒開啟 Funnel」或「還沒開啟 HTTPS 憑證」：照上面的 <a href="#remote-funnel">②</a>，按<span class="ui">開啟設定頁</span>，啟用後按<span class="ui">我開好了，再試一次</span>。</li>
+  <li>區塊寫「Tailscale 還沒登入」或「沒有回應」：打開電腦上的 Tailscale，登入，再按<span class="ui">再試一次</span>。</li>
+  <li>區塊一直寫「正在準備網址」：再等一下；5 分鐘還不行會改成「網址等了 5 分鐘還連不上」，按<span class="ui">再試一次</span>，或先用<span class="ui">先用臨時網址（每次會變）</span>。</li>
+  <li>已經顯示「固定網址已開啟」，手機還是打不開：看<a href="#faq-funnel">這裡</a>。</li>
+  <li>密碼錯 5 次會鎖 15 分鐘，等時間到再試。密碼忘了：只能在電腦上按<span class="ui">變更密碼</span>重設。</li>
+</ul></div>
+<p class="src">Tailscale 步驟出處（2026-10 查閱）：<a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a>（Funnel：需要 MagicDNS、HTTPS、funnel 屬性；執行 tailscale funnel 會引導你同意開啟；只能用 443、8443、10000 埠）、<a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a>（指令 <code>--bg</code>、<code>--https</code>、<code>off</code>）、<a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a>（在 DNS 頁 Enable HTTPS、Let's Encrypt 憑證、名稱會公開）。</p>
+
+<h4>另一種：手機也裝 Tailscale</h4>
+<p>手機也裝 Tailscale App、登入<strong>同一個帳號</strong>，就能像在家一樣連：<span class="ui">在外面：Tailscale</span>卡片按<span class="ui">顯示 QR 碼</span>，在家先掃一次並加入主畫面，出門時手機的 Tailscale 開著就能用。不用設密碼，也不用 Funnel。</p>
+{{fig:ts}}
+
+<h3 id="remote-pwa">把網頁加入主畫面</h3>
+<ul>
+  <li><strong>iPhone：</strong>Safari 打開網頁 → <span class="ui">分享</span> → <span class="ui">加入主畫面</span>。</li>
+  <li><strong>Android：</strong>Chrome 打開網頁 → 右上角<span class="ui">⋮</span> → <span class="ui">加到主畫面</span>。</li>
+</ul>
+
+<h3 id="remote-friend">情境三：借給朋友用</h3>
+<p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>每次朋友連進來，都要有人在電腦前按「允許」</strong>（不能「記住」）。</p>
+<h4 id="remote-guest">方法 A：臨時帳號（建議，要先開好固定網址）</h4>
+<ol class="steps">
+  <li>電腦：<span class="ui">遠端控制</span>分頁最上面的<span class="ui">允許遠端控制</span>區塊 → <span class="ui">新增臨時帳號</span>。</li>
+  <li><span class="ui">帳號</span>已經幫你取好（例如 guest-4821，可以改）。選<span class="ui">有效時間</span>：用一次、1 小時、24 小時或 7 天；<span class="ui">權限</span>：可操作或僅觀看；要讓朋友傳檔案就勾<span class="ui">允許傳檔（手機和電腦互傳）</span>。按<span class="ui">建立</span>。</li>
+  <li>按<span class="ui">複製全部</span>，貼給朋友。網址後面已經帶上帳號（<code>#u=guest-4821</code>）；<strong>密碼只顯示這一次</strong>，忘了就按<span class="ui">重設密碼</span>。</li>
+  <li>朋友打開網址，帳號已經填好，<strong>只要輸入密碼</strong>。你的電腦跳出「有手機想要操控這台電腦」，確認是朋友才按<span class="ui">允許</span>。</li>
+  <li>到期或「用一次」用完，帳號會自動刪除；也可以在列表按<span class="ui">刪除</span>，正在連的會立刻中斷。最多 10 個。</li>
+</ol>
+<div class="pair-img">
+{{img:guest-new|新增臨時帳號（有效時間、權限、傳檔）|300}}
+{{img:guest-made|建立好了：網址（已帶上帳號）、密碼只顯示這一次|300}}
+</div>
+{{img:phone-login-guest|朋友打開網址：帳號已填好，只要輸入密碼|260}}
+<h4 id="remote-nolink">方法 B：臨時網址（不用開固定網址）</h4>
+<ol class="steps">
+  <li>電腦：沒有固定網址時，<span class="ui">允許遠端控制</span>區塊按<span class="ui">產生臨時網址</span>；有固定網址時，<span class="ui">進階設定</span> → <span class="ui">臨時網址（手機不用裝 App，用行動網路也能連）</span>。約 10～20 秒後出現 QR 碼和 6 位數<span class="ui">通行碼</span>（小視窗的<span class="ui">臨時網址</span>分頁也有）。</li>
+  <li>按<span class="ui">複製網址</span>把網址傳給朋友，通行碼另外告訴他。<strong>網址只能用一次</strong>，10 分鐘內有效。</li>
+  <li>朋友打開網址、輸入通行碼，你的電腦跳出「有手機想要操控這台電腦」，<strong>你要在電腦前按「允許」</strong>。</li>
+  <li>用完按<span class="ui">停止臨時網址</span>，或直接把遠端控制關掉。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>朋友的手機出現你的電腦畫面，你的電腦上方有「● 正在被遠端控制」，你隨時可以按<span class="ui">中斷</span>或 <kbd>Ctrl</kbd><kbd>D</kbd>。</div>
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>朋友說「這個網址已失效」：網址只能用一次、10 分鐘有效，停止後再取得一次新的。</li>
+  <li>朋友一直等「請在電腦上按『允許』」：你要在電腦前按允許（臨時網址和臨時帳號都一樣，每次都要按）。</li>
+  <li>「臨時網址目前從外面連不到」：按<span class="ui">停止臨時網址</span>再取得一次。</li>
+</ul></div>
+<div class="note warn"><span class="t">借完記得</span>朋友用完後，按<span class="ui">中斷</span>並停止臨時網址。對方看得到你的整個螢幕：先把私人的視窗關掉。想讓他只能看，電腦上方提示列打開<span class="ui">僅觀看</span>。</div>
+
+<h3 id="remote-gestures">手機上怎麼操作：直接點和觸控板</h3>
+<p>手機頁右下角有五個圖示，下面都有字：<span class="ui">開聲音</span>（開了以後是<span class="ui">聲音</span>）、<span class="ui">放大</span>、<span class="ui">檔案</span>、<span class="ui">鍵盤</span>、<span class="ui">設定</span>。在<span class="ui">設定</span> → <span class="ui">操作方式</span>選（下面那行小字就是兩者的差別）：</p>
+<div class="tbl"><table>
+  <tr><th>操作方式</th><th>怎麼用</th><th>適合</th></tr>
+  <tr><td>直接點（預設）</td><td>手指點哪裡就按哪裡；按住半秒＝右鍵；按住拖＝拖曳</td><td>大按鈕、點選單、長輩</td></tr>
+  <tr><td>觸控板</td><td>像筆電的觸控板：手指滑動移動游標，點一下＝左鍵，兩指點＝右鍵，兩指滑＝捲動</td><td>要點很小的東西、選文字</td></tr>
+</table></div>
+{{img:phone-bar|手機頁右下角：開聲音、放大、檔案、鍵盤、設定（示範用的假桌面）|300}}
+<p>兩指捏合放大畫面；三指點一下開關鍵盤。鍵盤面板有 Ctrl、Alt、Win、方向鍵、複製、貼上和剪貼簿。</p>
+
+<h3 id="remote-safety">安全須知</h3>
+<ul>
+  <li>固定網址是公開的，擋住別人的只有密碼：用夠長、別處沒用過的密碼。</li>
+  <li>連著時電腦上方一直有「● 正在被遠端控制」，<kbd>Ctrl</kbd><kbd>D</kbd> 在任何程式裡都能中斷。</li>
+  <li>手機 30 分鐘沒碰會自動中斷（<span class="ui">進階設定</span>可以改）。</li>
+  <li><span class="ui">進階設定</span> → <span class="ui">遠端斷線後自動鎖定電腦</span>：斷線後鎖住電腦。預設<strong>關</strong>（從外網和在家都不鎖），需要就自己打開。</li>
+  <li>不再需要從外面連：取消勾選<span class="ui">開機自動開啟固定網址</span>，按<span class="ui">關閉固定網址</span>。</li>
+</ul>
+<h3 id="remote-limits">做不到的事</h3>
+<ul>
+  <li>以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面，手機都不能操作（Windows 的限制）。</li>
+  <li>電腦關機、睡眠或停在登入畫面時連不上。一次只能一支手機。</li>
+</ul>
+</section>
+
+<div class="part"><small>其他</small><b>聲音、問題排除</b><span></span></div>
+
+<!-- ============ sound ============ -->
+<section id="sound">
+<h2><span class="num">9</span>聲音大小怎麼調</h2>
+<p class="goal"><b>你要做什麼</b>聲音太小、太大，或完全沒聲音。先看你是哪一種：</p>
+<h3>手機投影到電腦（聲音從電腦出來）</h3>
+<ol class="steps">
+  <li>iPhone：直接按 iPhone 側邊的音量鍵，電腦的音量跟著變；自在投影會記住。</li>
+  <li>電腦：右鍵選單 → <span class="ui">音量</span>（例如「音量：50%」）調大，或調電腦右下角的喇叭音量。</li>
+  <li>還是沒聲音：右下角喇叭按右鍵 →「音量混合程式」，確認自在投影沒有被靜音。</li>
+</ol>
+<div class="ok"><b>看到這個就成功</b>調音量時畫面上會短暫顯示目前的音量。</div>
+<h3 id="remote-audio">遠端控制（電腦的聲音到手機）</h3>
+<ol class="steps">
+  <li>手機頁一開始是靜音的（iPhone 規定），點<span class="ui">點一下開聲音</span>，或右下角寫著<span class="ui">開聲音</span>的喇叭。</li>
+  <li>電腦會自動把聲音調到適當大小，<span class="ui">手機音量</span>預設 100% 通常就夠。還是太小：手機頁右下角<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉，最高 400%，不會爆音。</li>
+  <li>手機本身的音量鍵也要調大，iPhone 側邊的靜音開關要關掉。</li>
+  <li>電腦：<span class="ui">遠端控制</span>分頁的<span class="ui">電腦聲音傳到手機</span>要勾著。不想讓電腦也出聲，勾<span class="ui">手機播聲音時電腦靜音</span>。</li>
+</ol>
+{{img:phone-settings|手機頁的設定：操作方式（下面有說明）、手機音量（預設 100%，最高 400%）|300}}
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>頁面寫「電腦目前沒有在播放聲音」：電腦真的沒在放聲音。</li>
+  <li>電腦按了 Windows 靜音：取消 Windows 靜音；想讓電腦安靜用「手機播聲音時電腦靜音」。</li>
+  <li>更多看<a href="#remote-faq-nosound">遠端沒聲音</a>、<a href="#faq-audio">投影沒聲音</a>。</li>
+</ul></div>
+</section>
+
+<!-- ============ faq ============ -->
+<section id="faq">
+<h2><span class="num">10</span>常見問題排除</h2>
+<p class="intro">點問題展開答案。</p>
+<h3>手機投影</h3>
+<details id="faq-notfound"><summary>手機的清單裡找不到「自在投影」</summary><div><ul>
+  <li>確認自在投影開著（右下角有圖示）。</li>
+  <li>手機和電腦連<strong>同一個</strong> Wi-Fi，不是訪客網路，手機沒用行動數據。</li>
+  <li>關掉電腦和手機的 VPN；確認防火牆有允許（見<a href="#faq-fw">防火牆</a>）。</li>
+  <li>學校、公司、飯店的網路常常擋住，換家裡的網路或電腦開熱點。</li>
+  <li>電腦上同時開著 AirServer、LonelyScreen 之類的程式，先關掉。</li>
+  <li>手機 Wi-Fi 關掉再開，或重新開啟自在投影。</li>
+</ul></div></details>
+<details id="faq-audio"><summary>投影有畫面，沒有聲音</summary><div><ul>
+  <li>按 iPhone 音量鍵調大，iPhone 側邊靜音開關關掉。</li>
+  <li>電腦右下角喇叭和「音量混合程式」裡自在投影沒被靜音。</li>
+  <li>換了耳機或喇叭：重新連線一次。</li>
+  <li>有些影音 App 為了版權，投影時不給聲音或畫面，這不是自在投影的問題。</li>
+</ul></div></details>
+<details id="faq-lag"><summary>畫面延遲、會卡</summary><div><ul>
+  <li>手機和電腦都連 5 GHz Wi-Fi、靠近分享器，電腦可以用網路線。</li>
+  <li>右鍵選單 → 設定 → <span class="ui">畫面清晰度</span>改成<span class="ui">標準（順暢）</span>。</li>
+  <li>關掉正在大量下載的程式。</li>
+</ul></div></details>
+<details id="faq-blur"><summary>畫面糊糊的</summary><div><ul>
+  <li>右鍵選單 → 設定 → 畫面清晰度改成「高」或「最高」；灰色不能選時，到 Microsoft Store 安裝「HEVC 影片延伸模組」。</li>
+  <li>改了以後按提示旁的<span class="ui">現在重新連線套用</span>。</li>
+</ul></div></details>
+<details id="faq-takeover"><summary>投影到一半被別人的手機換掉</summary><div><p>右鍵選單 → 設定 → <span class="ui">第二支手機連上時</span>改成<span class="ui">維持原本的</span>；也可以打開<span class="ui">連線要輸入 PIN（新手機）</span>。</p></div></details>
+<details id="faq-fw"><summary>防火牆：當初按了「取消」</summary><div><ol>
+  <li>開始 → 搜尋「允許應用程式通過 Windows 防火牆」。</li>
+  <li>按<span class="ui">變更設定</span>，找到「自在投影」，勾<span class="ui">私人</span>。</li>
+  <li>找不到就按<span class="ui">允許其他應用程式…</span>，選安裝資料夾的「自在投影.exe」。</li>
+</ol></div></details>
+<details id="faq-vpn"><summary>開了 VPN 就連不上</summary><div><p>投影時先中斷電腦和手機的 VPN。有些 VPN 有「允許區域網路存取」選項，打開也可以。</p></div></details>
+<details id="faq-miracast"><summary>Android 投放（Miracast）連不上</summary><div><ul>
+  <li>電腦的 Wi-Fi 要開著，不要同時開「行動熱點」。</li>
+  <li>檢查電腦支不支援：「開始」按右鍵 → 終端機，輸入 <code>netsh wlan show drivers</code>，找「Wireless Display Supported」（支援無線顯示器）兩個都是 Yes 才行。</li>
+  <li>是 No 或 Google Pixel：改用 <a href="#adb">Android 操控</a>。</li>
+</ul></div></details>
+<details id="faq-adb"><summary>Android 操控斷線、下次沒自動連上</summary><div><ul>
+  <li>手機重開機或換 Wi-Fi 後無線偵錯常被關掉，回開發人員選項打開就好，不用重新配對。</li>
+  <li>手機省電模式可能在螢幕關掉後斷 Wi-Fi，連線時打開<span class="ui">連線期間不休眠</span>。</li>
+  <li>用 <kbd>Ctrl</kbd><kbd>D</kbd> 中斷過的手機不會自己連回來：用「連接 Android（掃 QR）」再連一次，或重開自在投影。</li>
+  <li>還是不行：手機「無線偵錯 → 已配對的裝置」刪掉這台電腦，重新配對。</li>
+</ul></div></details>
+<details id="faq-disconnect"><summary>找不到「中斷連線」</summary><div><p>滑鼠移到畫面上，工具列最右邊紅色按鈕；或 <kbd>Ctrl</kbd><kbd>D</kbd>；或右下角圖示按右鍵 → 中斷連線。Android 畫面上右鍵是「返回」，要選單請按 <kbd>Shift</kbd>＋右鍵。</p></div></details>
+<details id="faq-translate"><summary>翻譯沒反應，或日文、韓文翻不出來</summary><div><ul>
+  <li>第一次要下載翻譯模型，問你時按<span class="ui">下載</span>（約 50 MB；日文、韓文翻成中文約 100 MB）。</li>
+  <li>日文、韓文認不出來：按提示的<span class="ui">開啟語言設定</span>，或 Windows 設定 → 時間與語言 → 語言與地區 → 新增語言 → 選日文（韓文）→ 只勾「光學字元辨識」→ 安裝。</li>
+</ul></div></details>
+<h3 id="remote-trouble">遠端控制</h3>
+<details id="faq-funnel"><summary>固定網址開不起來（新的 Tailscale 帳號）</summary><div><ul>
+  <li>新帳號要先允許 Funnel 和 HTTPS：區塊上按<span class="ui">開啟設定頁</span>，或照<a href="#remote-funnel">② 允許 Funnel 和 HTTPS</a> 做一次。</li>
+  <li>也可以到 Tailscale 管理頁（login.tailscale.com/admin）的 <span class="ui">DNS</span> 頁：打開 MagicDNS，在 HTTPS Certificates 按 <span class="ui">Enable HTTPS</span>；再到 Access controls 加上 funnel 權限。命令列的方法比較簡單。</li>
+  <li>電腦上的 Tailscale 要開著、登入。</li>
+</ul></div></details>
+<details id="faq-funnel-wait"><summary>固定網址剛開好，手機打開是 ERR_CONNECTION_CLOSED</summary><div><p>第一次開固定網址時，Tailscale 要先申請 HTTPS 憑證，這段時間會連不上。自在投影會自己測試：區塊寫「正在準備網址，約 1–2 分鐘」時請等；通了才會顯示「固定網址已開啟」。已經顯示開啟了手機還打不開，可能是手機那邊的 DNS 還沒查到新網址（Tailscale 說最久可能要 10 分鐘），等一下再重新整理。還是不行，在電腦按<span class="ui">關閉固定網址</span>再<span class="ui">開啟固定網址</span>。</p></div></details>
+<details id="remote-faq-noconnect"><summary>手機連不上電腦</summary><div><ul>
+  <li><strong>在家掃 QR 打不開：</strong>手機不在同一個 Wi-Fi（訪客網路、行動數據都不行），或分享器開了 AP 隔離。</li>
+  <li><strong>固定網址打不開：</strong>電腦要開機、登入、Tailscale 開著；第一次看上一題。</li>
+  <li><strong>網頁打得開但「影像連線被擋住了」：</strong>Windows 防火牆擋住了（第一次開遠端控制時要按允許存取）、AP 隔離，或開了其他 VPN。</li>
+  <li><strong>「這個網址已失效」：</strong>重新掃一次電腦上的 QR 碼（主畫面圖示也要重加）。</li>
+</ul></div></details>
+<details id="remote-faq-nosound"><summary>遠端沒聲音、太小聲</summary><div><ul>
+  <li>點<span class="ui">點一下開聲音</span>（或寫著<span class="ui">開聲音</span>的喇叭）；還太小，手機頁<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉（預設 100%，最高 400%）。</li>
+  <li>iPhone 靜音開關、手機音量。</li>
+  <li>電腦不要按 Windows 靜音；電腦上<span class="ui">電腦聲音傳到手機</span>要勾著。</li>
+</ul></div></details>
+<details id="remote-faq-forgot"><summary>固定網址的密碼忘了</summary><div><p>只能在<strong>電腦上</strong>重設：遠端控制分頁 → <span class="ui">允許遠端控制</span>區塊 → <span class="ui">變更密碼</span>。手機要用新密碼重新登入。</p></div></details>
+<details><summary>電腦被鎖住了</summary><div><p>遠端斷線後電腦會自動鎖定（如果有開；預設關）。用你的 Windows 密碼或 PIN 解鎖。不想要的話：<span class="ui">進階設定</span> → <span class="ui">遠端斷線後自動鎖定電腦</span>取消。</p></div></details>
+<details><summary>關掉視窗後程式還在嗎？</summary><div><p>在，它在右下角背景待命。要完全結束：右下角圖示按右鍵 → <span class="ui">結束</span>。</p></div></details>
+
+<div class="foot">
+  <i class="m foot-m"></i>
+  <div>自在投影 · 授權 GPL-3.0。AirPlay 部分移植自 UxPlay。<br>還有問題？設定和記錄檔在 <code>%LOCALAPPDATA%\PhoneMirror</code>，回報時可以附上 phonemirror.log。<br>本教學的截圖都是測試用的假資料（假手機畫面、203.0.113.x、example 網址）。</div>
+</div>
+</section>
+
+</div>
+</main>

@@ -225,6 +225,7 @@ void openPairPanel() {
         cb.onPairCode = [](const std::wstring&, const std::wstring&) { g.pairPanel.setStatus(tr(S::PairPairing)); };
         cb.onQrMode = []() {};
         cb.onHelp = []() { openTutorial(L"adb"); };
+        cb.onHelpDevOpt = []() { openTutorial(L"adb-devopt"); };  // 0.8.3.3
         if (!g.pairPanel.open(g.hwnd, std::move(cb))) return;
         constexpr int n = 33;
         std::vector<uint8_t> px(n * n * 4, 255);
@@ -266,6 +267,7 @@ void openPairPanel() {
     };
     cb.onQrMode = []() { startQrPairing(); };
     cb.onHelp = []() { openTutorial(L"adb"); };
+    cb.onHelpDevOpt = []() { openTutorial(L"adb-devopt"); };  // 0.8.3.3
     if (!g.pairPanel.open(g.hwnd, std::move(cb))) {
         g.window->showToast(tr(S::PairPanelFail));
         return;

@@ -419,7 +419,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (!g.settings.tutorialShown && !background) {
         g.settings.tutorialShown = true;
         saveSettings();
-        openTutorial(nullptr);
+        openTutorial(L"want");  // 0.8.3.3 (audit A1): at the 「我想要…」 table, not the top of a long page
     }
 
     std::atomic<bool> feedStop{false};

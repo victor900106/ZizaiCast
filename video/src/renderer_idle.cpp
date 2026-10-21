@@ -706,6 +706,24 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
     auto lead = [](IDWriteTextLayout* l) {
         if (l) l->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     };
+    // 0.8.3.3: a list row's fields (separated by U+3000) packed into lines that fit w, broken only
+    // between fields (explicit line breaks; the row is then laid out without wrapping).
+    auto packFields = [&](const std::wstring& s, float fs, float w) {
+        std::wstring out, line;
+        size_t a = 0;
+        while (a <= s.size()) {
+            size_t b = s.find(L'\x3000', a);
+            if (b == std::wstring::npos) b = s.size();
+            const std::wstring f = s.substr(a, b - a);
+            const std::wstring cand = line.empty() ? f : line + L'\x3000' + f;
+            if (!line.empty() && textW(layout(keepAll(cand), fs, 4096.f, DWRITE_FONT_WEIGHT_NORMAL, false).Get()) > w)
+                out += line + L"\n", line = f;
+            else
+                line = cand;
+            a = b + 1;
+        }
+        return out + line;
+    };
     // A wrapped line: as narrow as keeps its line count, so the last line
     // is not one lone character (「選「自在投 / 影」」).
     auto balance = [](IDWriteTextLayout* l, float w) {
@@ -775,7 +793,11 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
                     float lw = 0;
                     for (size_t j = k + 1; j < c.its.size() && actions_[c.its[j].index].kind == 5; ++j) lw += c.its[j].w + itemGap;
                     const float tw = std::max(colW - lw, std::min(colW, size * 6));
-                    it.l = layout(keepAll(actions_[it.index].label), noteSize * 1.08f, tw, DWRITE_FONT_WEIGHT_NORMAL, true);
+                    // 0.8.3.3: lines break only between the fields (separated by an ideographic space):
+                    // 「可 / 操作」 never again; DirectWrite alone breaks Han text anywhere.
+                    const std::wstring& rowText = actions_[it.index].label;
+                    const bool fields = rowText.find(L'\x3000') != std::wstring::npos;  // (a plain sentence wraps as before)
+                    it.l = layout(keepAll(fields ? packFields(rowText, noteSize * 1.08f, tw) : rowText), noteSize * 1.08f, tw, DWRITE_FONT_WEIGHT_NORMAL, !fields);
                     lead(it.l.Get());
                     it.w = tw, it.x = 0, it.row = rowNo;
                     c.rowH[rowNo] = std::max(btnH, std::ceil(textH(it.l.Get())) + 2);
@@ -797,10 +819,23 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         c.tw = c.side ? inner - c.bw - pad : colW;
         c.t = layout(keepAll(cd.title), titleSize, c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD);
         lead(c.t.Get());
-        if (!cd.big.empty()) {  // 0.8.3.2: a big line (an address: may break after / . : -)
-            std::wstring g;
-            for (wchar_t ch : cd.big) g += ch, g += (ch == L'/' || ch == L'.' || ch == L':' || ch == L'-') ? std::wstring(1, L'\x200B') : std::wstring();
-            lead((c.g = layout(g, q(size * 1.22f), c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD)).Get());
+        if (!cd.big.empty()) {  // 0.8.3.2: a big line (an address)
+            // 0.8.3.3: never broken inside the host name (「…example.ts.」 / 「net:8443/」): on one line, a little
+            // smaller if need be; else the host name and 「:8443/」 (or the path) on two lines; else smaller still.
+            const float big = q(size * 1.22f);
+            std::vector<std::pair<std::wstring, float>> tries{{cd.big, size * 1.0f}};
+            const size_t hs = cd.big.find(L"://");
+            const size_t he = hs == std::wstring::npos ? std::wstring::npos : cd.big.find_first_of(L":/", hs + 3);
+            if (he != std::wstring::npos && he + 1 < cd.big.size()) tries.push_back({cd.big.substr(0, he) + L"\n" + cd.big.substr(he), size * 0.62f});
+            for (size_t k = 0; k < tries.size(); ++k) {
+                const auto probe = layout(tries[k].first, big, 4096.f, DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
+                const float w = std::max(1.f, textW(probe.Get()));
+                const float fs = std::min(big, std::floor(big * (c.tw - 1) / w * 4) / 4);
+                if (fs >= tries[k].second || k + 1 == tries.size()) {
+                    lead((c.g = layout(tries[k].first, std::max(fs, size * 0.62f), c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD, false)).Get());
+                    break;
+                }
+            }
         }
         if (!cd.body.empty() && mode == 0) {
             lead((c.b = layout(keepAll(cd.body), bodySize, c.tw)).Get());

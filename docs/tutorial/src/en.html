@@ -1,0 +1,537 @@
+<nav class="side" aria-label="Contents">
+  <a class="brand" href="#top">
+    <span class="brand-mark"><i class="m"></i></span>
+    <div><b>Zizai Cast</b><span>User guide</span></div>
+  </a>
+  <ol>
+    <li class="grp">Start</li>
+    <li><a href="#want">I want to…</a></li>
+    <li><a href="#before">Before you start</a></li>
+    <li class="grp">Phone mirroring</li>
+    <li><a href="#iphone">iPhone</a></li>
+    <li><a href="#miracast">Android casting</a></li>
+    <li><a href="#adb">Android control</a></li>
+    <li><a href="#record">Recording and screenshots</a></li>
+    <li><a href="#ink">Pen</a></li>
+    <li><a href="#share">Drop files, send to phone</a></li>
+    <li><a href="#translate">Translate</a></li>
+    <li class="grp">Remote control</li>
+    <li><a href="#remote">Control this PC from a phone</a></li>
+    <li><a href="#remote-home">At home</a></li>
+    <li><a href="#remote-outside">Away (fixed address)</a></li>
+    <li><a href="#remote-friend">Lend it to a friend</a></li>
+    <li class="grp">More</li>
+    <li><a href="#sound">Sound volume</a></li>
+    <li><a href="#faq">Troubleshooting</a></li>
+  </ol>
+  <div class="side-foot">Move the mouse over the phone picture for the toolbar; <kbd>Ctrl</kbd><kbd>D</kbd> disconnects; <kbd>F1</kbd> lists every shortcut.</div>
+</nav>
+
+<main id="top">
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <p class="eyebrow">Zizai Cast · User guide</p>
+    <h1>Your phone and your PC,<br>connected your way.</h1>
+    <p class="lede">Zizai Cast does two things: <strong>phone mirroring</strong> puts your phone’s screen on this PC; <strong>remote control</strong> works the other way round, so you can control this PC from your phone. Every part is written as “what you want to do → a few steps → what success looks like → what to do if it doesn’t work”. Jump straight in from the table below.</p>
+  </div>
+  <i class="m hero-m" role="img" aria-label="Toutou, the Zizai Cast mascot"></i>
+</header>
+
+<section id="want">
+<h2><span class="num">★</span>I want to…</h2>
+<div class="tbl want"><table>
+  <tr><th>I want to…</th><th>Read</th></tr>
+  <tr><td><a href="#iphone">Show my iPhone / iPad screen on the PC</a></td><td>iPhone (about 1 minute)</td></tr>
+  <tr><td><a href="#miracast">Show my Android phone on the PC, just to watch</a></td><td>Android casting (about 1 minute)</td></tr>
+  <tr><td><a href="#adb">Use my Android phone with the PC’s mouse and keyboard</a></td><td>Android control (about 5 minutes the first time)</td></tr>
+  <tr><td><a href="#record">Record the phone screen or take a screenshot</a></td><td>Recording and screenshots</td></tr>
+  <tr><td><a href="#ink">Draw on the picture to point something out</a></td><td>Pen</td></tr>
+  <tr><td><a href="#share">Send files or photos from the PC to my phone</a></td><td>Drop files, send to phone</td></tr>
+  <tr><td><a href="#translate">Understand a foreign language on my phone</a></td><td>Translate</td></tr>
+  <tr><td><a href="#magnifier">Make the text on my phone bigger</a></td><td>Magnifier</td></tr>
+  <tr><td><a href="#remote-home">Control the PC from my phone at home (same Wi-Fi)</a></td><td>Remote control: at home</td></tr>
+  <tr><td><a href="#remote-outside">Control my home PC from my phone when I’m out</a></td><td>Remote control: fixed address</td></tr>
+  <tr><td><a href="#remote-friend">Let a friend control my PC for a while (to help me)</a></td><td>Remote control: lend it to a friend</td></tr>
+  <tr><td><a href="#sound">Fix sound that is too quiet, too loud or missing</a></td><td>Sound volume</td></tr>
+  <tr><td><a href="#faq">I followed the steps and it still doesn’t work</a></td><td>Troubleshooting</td></tr>
+</table></div>
+</section>
+
+<!-- ============ before ============ -->
+<section id="before">
+<h2><span class="num">0</span>Before you start</h2>
+<p class="intro">The phone finds the PC over the network. Most “I can’t find Zizai Cast” cases come down to one of these.</p>
+{{fig:net}}
+<ol class="steps">
+  <li><strong>Phone and PC on the same Wi-Fi.</strong> A PC plugged into the same router with a cable is fine. Mobile data, a personal hotspot or a guest Wi-Fi do not count.</li>
+  <li><strong>Allow the firewall the first time.</strong> When Windows shows “Windows Security Alert”, tick <span class="ui">Private networks</span> and click <span class="ui">Allow access</span>. If you clicked Cancel, see <a href="#faq-fw">here</a>.</li>
+  <li><strong>Turn off VPNs.</strong> With a VPN on the PC or the phone, the phone often can’t see the PC.</li>
+</ol>
+<h3 id="idle">What you see when you open Zizai Cast</h3>
+<p>The window has two tabs at the top: <span class="ui">Phone mirroring</span> and <span class="ui">Remote control</span>. The phone mirroring tab says <span class="ui">Choose your phone</span> with three cards: click the button on the card for your phone.</p>
+{{img:idle|The waiting screen: three cards, one button each|420}}
+<p>Closing the window doesn’t quit: it asks whether to <span class="ui">Quit</span> or <span class="ui">Keep running</span>. Keep running puts it next to the clock at the bottom right, and the window comes back as soon as a phone connects.</p>
+</section>
+
+<!-- ============ iPhone ============ -->
+<section id="iphone">
+<h2><span class="num">1</span>iPhone mirroring</h2>
+<p class="goal"><b>What you want to do</b>Show your iPhone / iPad screen and sound on the PC. No app to install.</p>
+{{fig:iphone}}
+<ol class="steps">
+  <li>Zizai Cast is running on the PC (its window or its icon at the bottom right).</li>
+  <li>Open <strong>Control Center</strong> on the iPhone: swipe down from the top-right corner (Face ID models) or up from the bottom (models with a round Home button).</li>
+  <li>Tap <span class="ui">Screen Mirroring</span> (two overlapping rectangles).</li>
+  <li>Tap <span class="ui">Zizai Cast</span> in the list.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>Within a few seconds the phone’s screen appears on the PC with “Connected: phone name … Toolbar at the top”.</div>
+{{img:toolbar|Move the mouse over the picture and the toolbar appears: screenshot, record, pen, send to phone, volume, zoom, translate… the red button at the right disconnects|640}}
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>“Zizai Cast” isn’t in the list: see <a href="#faq-notfound">Can’t find Zizai Cast</a>.</li>
+  <li>Picture but no sound: turn up the iPhone’s volume buttons; see <a href="#sound">Sound volume</a>.</li>
+  <li>It asks for a 4-digit PIN: type the digits shown on the PC (only when <span class="ui">Ask new phones for a PIN</span> is on in Settings).</li>
+</ul></div>
+<h3>Stop mirroring</h3>
+<p>iPhone Control Center → <span class="ui">Screen Mirroring</span> → <span class="ui">Stop Mirroring</span>; or on the PC press <kbd>Ctrl</kbd><kbd>D</kbd> or the red <span class="ui">Disconnect</span> button at the right end of the toolbar. When the iPhone locks, the picture pauses and continues by itself after unlocking.</p>
+<p id="disconnect">Four places to disconnect (iPhone and Android alike): the red button at the right of the toolbar, <kbd>Ctrl</kbd><kbd>D</kbd>, <span class="ui">Disconnect</span> at the top of the right-click menu, and right-click on the icon at the bottom right → <span class="ui">Disconnect (phone name)</span>. A recording in progress is saved first.</p>
+</section>
+
+<!-- ============ Miracast ============ -->
+<section id="miracast">
+<h2><span class="num">2</span>Android casting (Miracast)</h2>
+<p class="goal"><b>What you want to do</b>Show an Android phone on the PC, <strong>to watch only</strong>. Nothing to set up, but the PC needs a Wi-Fi adapter that supports “wireless display” (most laptops do).</p>
+{{fig:cast}}
+<ol class="steps">
+  <li>Zizai Cast is running and <strong>the PC’s Wi-Fi is on</strong> (even if the PC uses a network cable).</li>
+  <li>On the phone, swipe down twice from the top and find the cast tile: Samsung calls it <span class="ui">Smart View</span>, Xiaomi <span class="ui">Cast</span>, OPPO <span class="ui">Screencast</span>, vivo <span class="ui">Screen mirroring</span>.</li>
+  <li>Tap <span class="ui">Zizai Cast</span> in the list; the first time can take 10–20 seconds.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>The phone’s screen appears on the PC with “Connected”. To stop: tap the same tile again on the phone, or press <kbd>Ctrl</kbd><kbd>D</kbd> on the PC.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>The “Android: just watch” card is grey with a “Why?” link: this PC can’t receive Miracast. Click the link, or use <a href="#adb">Android control</a> instead.</li>
+  <li>Google Pixel has no Miracast (its “Cast” is for Chromecast only): use <a href="#adb">Android control</a>.</li>
+  <li>Stuck on “Connecting”: cancel on the phone, wait 10 seconds and try again, or see <a href="#faq-miracast">Miracast doesn’t connect</a>.</li>
+</ul></div>
+<div class="tbl"><table>
+  <tr><th>Brand</th><th>Quick Settings tile</th><th>Or in Settings</th></tr>
+  <tr><td>Samsung</td><td>Smart View</td><td>Settings → Connected devices → Smart View</td></tr>
+  <tr><td>Xiaomi / Redmi / POCO</td><td>Cast, Wireless display</td><td>Settings → Connection &amp; sharing → Cast</td></tr>
+  <tr><td>OPPO / realme / OnePlus</td><td>Screencast</td><td>Settings → Connection &amp; sharing → Screencast</td></tr>
+  <tr><td>vivo / iQOO</td><td>Screen mirroring</td><td>Settings → Other networks &amp; connections → Screen mirroring</td></tr>
+  <tr><td>ASUS / Sony</td><td>Wireless display / Screen mirroring</td><td>Settings → Connected devices → Connection preferences</td></tr>
+</table></div>
+</section>
+
+<!-- ============ adb ============ -->
+<section id="adb">
+<h2><span class="num">3</span>Android control (QR pairing, USB)</h2>
+<p class="goal"><b>What you want to do</b>See an Android phone on the PC <strong>and use it with the mouse and keyboard</strong>. About 5 minutes to set up the first time, automatic after that. Needs Android 11 or later.</p>
+
+<h3 id="adb-devopt">Step 1: turn on “Developer options” (once)</h3>
+{{fig:devopt}}
+<ol class="steps">
+  <li>Phone: <span class="ui">Settings</span> → <span class="ui">About phone</span> (Samsung: then <span class="ui">Software information</span>).</li>
+  <li>Find <span class="ui">Build number</span> and <strong>tap it 7 times</strong>; it may ask for the phone’s unlock code.</li>
+  <li>When it says “You are now a developer”, you’re done. Settings now has <span class="ui">Developer options</span> (usually under “System” or at the bottom).</li>
+</ol>
+<p>The pairing window on the PC has these steps too: <span class="ui">① Developer options not on yet? See the steps</span>. Where “Build number” is: Samsung: About phone → Software information; Xiaomi / Redmi: My device → All specs → OS version (or MIUI version), tap that 7 times; Pixel: About phone, at the bottom. Developer options then is at the bottom of Settings (Samsung), under Additional settings (Xiaomi) or under System (Pixel).</p>
+{{img:pair-steps|The steps in the pairing window|340}}
+
+<h3 id="adb-pair">Step 2: pair with a QR code (once)</h3>
+{{fig:pair}}
+<ol class="steps">
+  <li>Phone: <span class="ui">Developer options</span> → turn on <span class="ui">Wireless debugging</span>; tap <span class="ui">Allow</span> when asked.</li>
+  <li>PC: on the waiting screen’s “Android: control from the PC” card, click <span class="ui">Show QR code</span> (or right-click menu → <span class="ui">Connect a phone</span> → <span class="ui">Connect Android (scan QR)</span>).</li>
+  <li>Phone: tap the words “Wireless debugging” to open it → <span class="ui">Pair device with QR code</span>, and point it at the QR code on the PC.</li>
+</ol>
+{{img:pair|The pairing window on the PC (a made-up QR code)|380}}
+<div class="ok"><b>Success looks like this</b>The pairing window closes by itself, the phone’s screen appears, and the PC says “Connected: phone name. Toolbar at the top; right-click = Back”. From then on it connects by itself whenever Wireless debugging is on and you’re on the same Wi-Fi.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>Stuck on “Waiting for the phone to scan…”: phone and PC aren’t on the same Wi-Fi (guest networks don’t work). You can also click <span class="ui">Use pairing code</span>, tap “Pair device with pairing code” on the phone and type the phone’s IP address:port and 6-digit code into the PC.</li>
+  <li>Pairing failed: the window shows a new QR code; tap “Pair device with QR code” on the phone again and rescan.</li>
+  <li>It doesn’t reconnect after a restart: many phones turn Wireless debugging off when they restart. Turn it back on in Developer options; <strong>no need to pair again</strong>.</li>
+</ul></div>
+
+<h3 id="adb-usb">No Wi-Fi? Use a USB cable</h3>
+<ol class="steps">
+  <li>Phone: <span class="ui">Developer options</span> → turn on <span class="ui">USB debugging</span>.</li>
+  <li>Plug the phone into the PC. When it asks “Allow USB debugging?”, tick <span class="ui">Always allow from this computer</span> and tap <span class="ui">Allow</span>.</li>
+  <li>PC: right-click menu → <span class="ui">Connect a phone</span> → <span class="ui">Connect over USB cable</span>.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>“Connecting over USB…”, then the phone’s screen.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>“No Android phone found on USB”: try a cable that carries data (some only charge), check USB debugging is on, unplug and plug in again.</li>
+  <li>The phone never asks to allow: pull down the notifications, set the USB mode to “File transfer” and try again.</li>
+</ul></div>
+
+<h3 id="adb-control">Use the phone with the mouse and keyboard</h3>
+{{fig:mouse}}
+{{img:toolbar-android|On Android the toolbar also has Back, Home and Recents on the left|640}}
+<div class="tbl"><table>
+  <tr><th>PC</th><th>Phone</th></tr>
+  <tr><td>Left click / hold and drag</td><td>Tap / swipe</td></tr>
+  <tr><td>Wheel</td><td>Scroll</td></tr>
+  <tr><td>Right click</td><td>Back (for the menu: hold <kbd>Shift</kbd> and right-click, or click <span class="ui">⋯</span> on the toolbar)</td></tr>
+  <tr><td>Typing</td><td>Goes into the phone’s selected text box (tap the box on the phone picture first)</td></tr>
+</table></div>
+<p>Right-click menu → <span class="ui">Connect a phone</span> also has <span class="ui">Sync the clipboard</span> (copy on the PC, paste on the phone; on by default), <span class="ui">Turn the phone screen off while controlling</span> and <span class="ui">Keep the phone awake while connected</span>.</p>
+<div class="note warn"><span class="t">Safety</span>Turn Wireless debugging off on the phone when you don’t need it, and never leave it on on public Wi-Fi.</div>
+</section>
+
+<div id="features"></div>
+<!-- ============ record ============ -->
+<section id="record">
+<h2><span class="num">4</span>Recording and screenshots</h2>
+<p class="goal"><b>What you want to do</b>Take a picture of the phone screen, or record it as a video (MP4 with sound). Works once the phone’s picture is shown.</p>
+<ol class="steps">
+  <li>Move the mouse over the phone picture; the toolbar appears at the top.</li>
+  <li>Screenshot: click <span class="ui">Shot</span> (or <kbd>Ctrl</kbd><kbd>S</kbd>).</li>
+  <li>Recording: click <span class="ui">Rec</span> (or <kbd>Ctrl</kbd><kbd>R</kbd>); a red dot and the seconds appear at the top left. Click again to stop.</li>
+  <li>Find the files: right-click menu → <span class="ui">Open screenshots folder</span> / <span class="ui">Open recordings folder</span>.</li>
+</ol>
+<div class="pair-img">
+{{img:snapshot|Screenshot: “Screenshot saved” at the bottom|260}}
+{{img:recording|Recording: red dot and seconds at the top left|260}}
+</div>
+<div class="ok"><b>Success looks like this</b>“Screenshot saved” after a screenshot; “Recording saved: file name” when a recording stops. A small row of buttons <span class="ui">Open folder</span> · <span class="ui">Send to phone</span> appears at the bottom.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>The buttons are grey with “Once a phone is connected”: get the phone’s picture on screen first.</li>
+  <li>Recording refused: there is less than 300 MB free on the disk.</li>
+  <li>The phone disconnected while recording: what was recorded is saved automatically.</li>
+</ul></div>
+</section>
+
+<!-- ============ ink ============ -->
+<section id="ink">
+<h2><span class="num">5</span>Pen</h2>
+<p class="goal"><b>What you want to do</b>Draw lines, arrows or highlights on the mirrored picture to explain something. The drawing stays on the PC; nothing is drawn on the phone.</p>
+<ol class="steps">
+  <li>Move the mouse over the picture and click <span class="ui">Pen</span> on the toolbar (or <kbd>Ctrl</kbd><kbd>E</kbd>).</li>
+  <li>Hold the left button and drag to draw. The toolbar now has <span class="ui">Tool</span> (pen → highlighter → arrow), <span class="ui">Color</span>, <span class="ui">Thickness</span>, <span class="ui">Undo</span> and <span class="ui">Clear</span>.</li>
+  <li>Press <kbd>Esc</kbd> to stop drawing; the drawing stays. <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> clears everything.</li>
+</ol>
+{{img:ink|Pen mode: a red pen and a yellow pen; the hint at the bottom shows the current pen|280}}
+<div class="ok"><b>Success looks like this</b>“Pen mode: drag on the screen to draw (Esc to stop)”, and a small “Pen mode · Esc to stop” label at the bottom left. Screenshots and recordings include the drawing by default (right-click menu → <span class="ui">Pen</span> to change that).</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>With Android control, drawing taps the phone: in pen mode the mouse stops controlling the phone; press <kbd>Esc</kbd> before using the phone again.</li>
+  <li>Wrong stroke: <kbd>Ctrl</kbd><kbd>Z</kbd> undoes the last one.</li>
+</ul></div>
+</section>
+
+<!-- ============ share ============ -->
+<section id="share">
+<h2><span class="num">6</span>Drop files and send to phone</h2>
+<p class="goal"><b>What you want to do</b>Put photos, videos or documents from the PC, or the screenshot you just took, on your phone.</p>
+<h3>Way 1: drag files onto the Zizai Cast window</h3>
+<ol class="steps">
+  <li>Select the files in File Explorer and drag them over the Zizai Cast window (don’t let go yet): the window says what will happen.</li>
+  <li>Let go.</li>
+</ol>
+{{img:drop|Dragging onto an Android phone: “Drop to install the app / send the files”|280}}
+<div class="ok"><b>Success looks like this</b><strong>With Android control</strong>: the files go straight onto the phone (an .apk is installed), with “Sent to the phone: name” or “Installed: name”. <strong>iPhone, Miracast or no phone</strong>: a QR code appears on the PC; scan it as in step 3 of Way 2.</div>
+<h3>Way 2: Send to phone (QR code)</h3>
+<ol class="steps">
+  <li>Right-click menu → <span class="ui">Send to phone</span> → <span class="ui">Send the last screenshot to the phone</span> (or <span class="ui">Send to phone…</span> to pick files). The toolbar has this button too.</li>
+  <li>With several new files you first tick which ones to send, then click <span class="ui">Send N</span>.</li>
+  <li>With the phone on the <strong>same Wi-Fi</strong>, scan the QR code on the PC with the camera and open the page. Photos: long-press → “Add to Photos” (iPhone) or “Download image” (Android); videos: tap “Download video”.</li>
+</ol>
+<div class="pair-img">
+{{img:picker|Several new files: tick the ones to send|360}}
+{{img:share|Scan this QR code with the phone (example; the link expires after 10 minutes)|300}}
+</div>
+<div class="ok"><b>Success looks like this</b>The phone opens a page listing the files, ready to save to the photo library.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>The page doesn’t open: the phone isn’t on the same Wi-Fi (guest networks and mobile data don’t work).</li>
+  <li>“Only files can be dropped here (not folders)”: drag the files inside the folder, or zip the folder first.</li>
+  <li>The link expired: links last 10 minutes; send again.</li>
+</ul></div>
+</section>
+
+<!-- ============ translate ============ -->
+<section id="translate">
+<h2><span class="num">7</span>Translate</h2>
+<p class="goal"><b>What you want to do</b>Read English, Japanese, Korean or Chinese on the phone in your language, laid over the original. Translation runs on this PC; the text on your screen is never sent to the internet.</p>
+<ol class="steps">
+  <li>With the phone’s picture shown, click <span class="ui">Translate</span> on the toolbar (or <kbd>Ctrl</kbd><kbd>L</kbd>).</li>
+  <li>The first time, it asks to download a translation model (about 50 MB, once): click <span class="ui">Download</span>.</li>
+  <li>Click <span class="ui">Translate</span> again (or <kbd>Ctrl</kbd><kbd>L</kbd>) to close it.</li>
+</ol>
+{{img:translate|The translation sits on top of the original; while translating the picture pauses and “Picture frozen” shows at the top|280}}
+<div class="ok"><b>Success looks like this</b>The translated text appears where the original was. While translating, the picture pauses (“Picture frozen” at the top): that’s normal and ends when you close the translation.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>It says the text is already in your language: nothing to translate.</li>
+  <li>Japanese or Korean isn’t recognised: Windows needs that language’s “Optical character recognition”; see <a href="#faq-translate">here</a>.</li>
+  <li>Only a small part: right-click menu → Translate → <span class="ui">Translate an area</span> (<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>) and drag a box.</li>
+</ul></div>
+<h3 id="magnifier">Magnifier: text too small</h3>
+<p>Click <span class="ui">Zoom</span> on the toolbar once for 2×, again for 4×, again to go back; <kbd>Ctrl</kbd> + wheel zooms where the mouse is. Right-click menu → <span class="ui">Magnifier</span> also has colours such as <span class="ui">More contrast</span> and <span class="ui">Yellow on black</span> (<kbd>Ctrl</kbd><kbd>K</kbd> switches) and <span class="ui">Freeze picture</span> (<kbd>Ctrl</kbd><kbd>P</kbd>).</p>
+<h3 id="update">Updates</h3>
+<p>When there is a new version, a window says so: click <span class="ui">Update now</span>. Zizai Cast closes, installs and opens again by itself. Not now? Click <span class="ui">Remind me later</span>. You can also use right-click menu → <span class="ui">Help</span> → <span class="ui">Check for updates</span>.</p>
+{{img:update|The new-version window (a made-up version)|420}}
+</section>
+
+<div class="part"><small>Feature two</small><b>Remote control</b><span>Control this PC from a phone</span></div>
+
+<!-- ============ remote ============ -->
+<section id="remote">
+<h2><span class="num">8</span>Remote control: control this PC from a phone</h2>
+<p class="intro">See this PC’s screen in the phone’s browser, hear its sound and use it with your fingers. No app on the phone (Safari on iPhone, Chrome on Android). Pick your situation first:</p>
+<div class="tbl"><table>
+  <tr><th>Situation</th><th>Use</th><th>Someone at the PC?</th></tr>
+  <tr><td><a href="#remote-home">At home, phone and PC on the same Wi-Fi</a></td><td>Scan a QR code</td><td>To click “Allow” the first time</td></tr>
+  <tr><td><a href="#remote-outside">Me, away from home</a></td><td>Fixed address + password (set up Tailscale first)</td><td>For the setup only</td></tr>
+  <tr><td><a href="#remote-friend">A friend, for a while</a></td><td>A temporary account (recommended), or a temporary address</td><td>To click “Allow” every time</td></tr>
+</table></div>
+
+<h3 id="remote-open">Turn on remote control</h3>
+<p>Switch to the <span class="ui">Remote control</span> tab at the top of the main window and turn on the switch at the top. Remote control is off every time Zizai Cast starts (unless <span class="ui">Turn the fixed address on when the PC starts</span> is ticked). While a phone is connected, a “Remote control in progress” bar stays at the top of the PC’s screen; <span class="ui">End</span> or <kbd>Ctrl</kbd><kbd>D</kbd> ends it any time.</p>
+{{img:remote-off|The Remote control tab (no password yet, switched off): the “Allow remote control” block at the top, then At home and Tailscale|420}}
+{{img:remote-allow|“Allow remote control” once the fixed address is on: this PC’s address, its QR code, Add a temporary account (a made-up address)|420}}
+
+<h3 id="remote-home">Situation 1: at home (same Wi-Fi)</h3>
+<p class="goal"><b>What you want to do</b>Sit on the sofa and use the PC in the study from your phone.</p>
+{{fig:remotehome}}
+<ol class="steps">
+  <li>PC: <span class="ui">Remote control</span> tab → <span class="ui">At home (same Wi-Fi)</span> card → <span class="ui">Show QR code</span> (this turns the switch on if needed).</li>
+  <li>With the phone on the <strong>same Wi-Fi</strong>, scan the QR code with the camera and tap the address.</li>
+  <li>The PC asks “A phone wants to control this PC”: if it’s your phone, click <span class="ui">Allow</span>. Tick <span class="ui">Remember this phone, don't ask again</span> so you won’t be asked again.</li>
+  <li>On the phone, tap <span class="ui">Tap for sound</span>, or the speaker labelled <span class="ui">Sound on</span> at the bottom right, to hear the PC (iPhone requires that tap).</li>
+</ol>
+{{img:remote-lan|After “Show QR code” (a made-up address)|420}}
+<div class="ok"><b>Success looks like this</b>The PC’s screen is on the phone and “● Remote control in progress” is at the top of the PC’s screen.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>The phone keeps spinning on “Click ‘Allow’ on the PC”: click Allow on the PC (the window may be behind another one).</li>
+  <li>The page doesn’t open: the phone isn’t on the same Wi-Fi, or the router has “AP isolation” on. See <a href="#remote-trouble">can’t connect</a>.</li>
+</ul></div>
+
+<h3 id="remote-outside">Situation 2: me, away from home (fixed address)</h3>
+<p class="goal"><b>What you want to do</b>Reach your home PC over mobile data. The address never changes and you sign in with your own password. The PC needs Tailscale (free); the phone needs nothing.</p>
+<div class="note"><span class="t">Three things, about 15 minutes the first time</span>① install Tailscale on the PC and sign in → ② let Tailscale allow Funnel (the public address) and HTTPS → ③ set a password in Zizai Cast and turn on the fixed address. After that you just open the address on the phone.</div>
+
+<h4 id="remote-tailscale">① Install Tailscale on the PC, sign up, sign in</h4>
+<ol class="steps">
+  <li>On the PC open <a href="https://tailscale.com/download/windows">tailscale.com/download/windows</a>, download and install it (Windows 10 or later).</li>
+  <li>A Tailscale icon appears next to the clock (click <span class="ui">^</span> if you don’t see it). Right-click it → <span class="ui">Log in</span>; a browser opens.</li>
+  <li>Sign in with a Google, Microsoft, GitHub or Apple account (Tailscale has no passwords of its own and can’t sign up with just an email). The first time it asks what for: choose <span class="ui">Personal use</span>.</li>
+  <li>Right-click the Tailscale icon again: your account and <span class="ui">Connected</span> mean you’re done.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>Zizai Cast’s <span class="ui">Away: Tailscale</span> card no longer says “Tailscale isn’t on this PC yet” (if it still does, turn remote control off and on).</div>
+
+<h4 id="remote-funnel">② Allow Funnel and HTTPS (a must for new accounts)</h4>
+<p>A new Tailscale account <strong>doesn’t allow a public address</strong> (Funnel) yet, and has no HTTPS certificates. It’s needed once; the easiest way is to let Zizai Cast walk you through it:</p>
+<ol class="steps">
+  <li>Do ③ below first and click <span class="ui">Turn on</span>.</li>
+  <li>The block says “Funnel isn’t turned on for your Tailscale account yet (needed once)” (or HTTPS certificates): click <span class="ui">Open the setup page</span>; Tailscale’s page opens in the browser; sign in with the same account and click Enable.</li>
+  <li>Back in Zizai Cast, click <span class="ui">Done, try again</span>.</li>
+</ol>
+{{img:remote-enable|A new account’s first fixed address: the block says why, with “Open the setup page” and “Done, try again”|420}}
+<p>Or with a command (the same result):</p>
+<ol class="steps">
+  <li>Right-click Start → <span class="ui">Terminal</span> (or search for “Command Prompt”).</li>
+  <li>Paste this line and press <kbd>Enter</kbd> (copy it as it is; Zizai Cast puts its own settings in afterwards):
+<pre class="cmd">tailscale funnel --bg --https=8443 http://127.0.0.2:8091</pre></li>
+  <li>The first time it prints a link asking you to allow Funnel. Select and copy it, open it in the browser, sign in with the same account and approve (Enable). Tailscale turns on HTTPS certificates and Funnel for you.</li>
+  <li>Back in the terminal, if it’s still waiting, run the same line once more; when there’s no error you can close the terminal.</li>
+</ol>
+
+<div class="note warn"><span class="t">Your PC’s name becomes public</span>When HTTPS is turned on, Tailscale warns that the machine name and your tailnet name are written to public certificate logs. If the PC is named after you, rename it first in Windows Settings → System → About → Rename this PC.</div>
+
+<h4>③ Set a password in Zizai Cast and turn on the fixed address</h4>
+<ol class="steps">
+  <li>In the <span class="ui">Allow remote control</span> block at the top of the <span class="ui">Remote control</span> tab, click <span class="ui">Set a password (fixed address + temporary accounts)</span>; type it twice, at least 8 characters (longer is better, not used anywhere else). Click <span class="ui">Save and turn on</span>.</li>
+  <li><strong>The first time, wait a minute or two</strong>: the block says “Preparing the address, about 1–2 minutes” while Tailscale gets the HTTPS certificate; until then the phone can’t open the page. Zizai Cast checks it by itself and says “The fixed address is on” only when it works.</li>
+  <li>The block shows <code>https://your-pc-name.….ts.net:8443/</code> and a QR code. Scan it with the phone, or click <span class="ui">Copy address</span> and send it to yourself.</li>
+  <li>Open the address on the phone: there is only a <strong>password</strong> field; enter yours. After one sign-in the phone won’t ask again for 30 days. <a href="#remote-pwa">Add it to the home screen</a> to open it with one tap.</li>
+  <li>To be reachable as soon as the PC starts, tick <span class="ui">Turn the fixed address on when the PC starts</span> in the block.</li>
+</ol>
+{{img:remote-preparing|The first time: “Preparing the address, about 1–2 minutes” (no QR code yet)|420}}
+<div class="pair-img">
+{{img:remote-fixed|The fixed address is on (a made-up address)|360}}
+{{img:phone-login|The fixed address on the phone: just your password|260}}
+</div>
+<div class="ok"><b>Success looks like this</b>After the password the PC’s screen appears on the phone. Nobody needs to be at the PC.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>The block says Funnel or HTTPS certificates aren’t turned on for your Tailscale account yet: as in <a href="#remote-funnel">②</a>, click <span class="ui">Open the setup page</span>, enable it, then <span class="ui">Done, try again</span>.</li>
+  <li>“Tailscale isn’t signed in” or “didn’t answer”: open Tailscale on the PC, sign in, click <span class="ui">Try again</span>.</li>
+  <li>The block keeps saying “Preparing the address”: give it a little longer; after 5 minutes it says the address still didn’t answer: click <span class="ui">Try again</span>, or <span class="ui">Use a temporary address for now (it changes)</span>.</li>
+  <li>It says “The fixed address is on” but the phone still can’t open it: see <a href="#faq-funnel">here</a>.</li>
+  <li>5 wrong passwords lock it for 15 minutes; wait and try again. Forgot it: only the PC can reset it with <span class="ui">Change password</span>.</li>
+</ul></div>
+<p class="src">Tailscale steps checked against (Oct 2026): <a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a> (Funnel: needs MagicDNS, HTTPS and the funnel attribute; running tailscale funnel walks you through enabling it; ports 443, 8443, 10000 only), <a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a> (the command, <code>--bg</code>, <code>--https</code>, <code>off</code>), <a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a> (Enable HTTPS on the DNS page, Let’s Encrypt certificates, names are public).</p>
+
+<h4>Another way: Tailscale on the phone too</h4>
+<p>With the Tailscale app on the phone, signed in to <strong>the same account</strong>, it works like at home: <span class="ui">Away: Tailscale</span> card → <span class="ui">Show QR code</span>, scan it once at home and add it to the home screen; when you’re out, keep Tailscale on in the phone. No password and no Funnel needed.</p>
+{{fig:ts}}
+
+<h3 id="remote-pwa">Add the page to the home screen</h3>
+<ul>
+  <li><strong>iPhone:</strong> open the page in Safari → <span class="ui">Share</span> → <span class="ui">Add to Home Screen</span>.</li>
+  <li><strong>Android:</strong> open the page in Chrome → <span class="ui">⋮</span> at the top right → <span class="ui">Add to Home screen</span>.</li>
+</ul>
+
+<h3 id="remote-friend">Situation 3: lend it to a friend</h3>
+<p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>every time your friend connects, someone at the PC clicks “Allow”</strong> (it can’t be remembered).</p>
+<h4 id="remote-guest">Way A: a temporary account (recommended; the fixed address must be on)</h4>
+<ol class="steps">
+  <li>PC: the <span class="ui">Allow remote control</span> block at the top of the <span class="ui">Remote control</span> tab → <span class="ui">Add a temporary account</span>.</li>
+  <li>The <span class="ui">Account</span> name is filled in for you (for example guest-4821; you can change it). Pick <span class="ui">Valid for</span>: One use, 1 hour, 24 hours or 7 days; <span class="ui">Allowed to</span>: Control or View only; tick <span class="ui">Allow file transfer (both ways)</span> if they should send files. Click <span class="ui">Create</span>.</li>
+  <li>Click <span class="ui">Copy all</span> and paste it to your friend. The address already carries the account (<code>#u=guest-4821</code>); <strong>the password is shown only now</strong> (lost it? <span class="ui">Reset password</span>).</li>
+  <li>Your friend opens the address: the account is filled in, <strong>they only type the password</strong>. Your PC asks “A phone wants to control this PC”; click <span class="ui">Allow</span> once you’re sure it’s your friend.</li>
+  <li>When it expires or its one use is over, the account is deleted by itself; or click <span class="ui">Delete</span> in the list (a connected phone is cut off at once). At most 10.</li>
+</ol>
+<div class="pair-img">
+{{img:guest-new|Add a temporary account (valid for, allowed to, file transfer)|300}}
+{{img:guest-made|Ready: the address (carrying the account) and the password, shown only now|300}}
+</div>
+{{img:phone-login-guest|Your friend opens the address: the account is filled in, only the password to type|260}}
+<h4 id="remote-nolink">Way B: a temporary address (no fixed address needed)</h4>
+<ol class="steps">
+  <li>PC: without a fixed address, click <span class="ui">Create a temporary address</span> in the <span class="ui">Allow remote control</span> block; with one, <span class="ui">More settings</span> → <span class="ui">Temporary address (no app on the phone; works on mobile data)</span>. After 10–20 seconds a QR code and a 6-digit <span class="ui">Passcode</span> appear (also on the <span class="ui">Temporary</span> tab of the small window).</li>
+  <li>Click <span class="ui">Copy address</span> and send the address to your friend; tell them the passcode separately. <strong>The address works once</strong>, within 10 minutes.</li>
+  <li>Your friend opens it and enters the passcode; your PC asks “A phone wants to control this PC” and <strong>you click “Allow” at the PC</strong>.</li>
+  <li>When you’re done, click <span class="ui">Stop the temporary address</span>, or just turn remote control off.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>Your friend’s phone shows your PC, “● Remote control in progress” is at the top of your screen, and you can click <span class="ui">End</span> or press <kbd>Ctrl</kbd><kbd>D</kbd> any time.</div>
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>Your friend sees “This address is no longer valid”: an address works once, for 10 minutes; stop it and get a new one.</li>
+  <li>Your friend keeps waiting on “Click ‘Allow’ on the PC”: you must click Allow at the PC (temporary addresses and temporary accounts alike, every time).</li>
+  <li>“The temporary address can't be reached from outside yet”: stop it and get a new one.</li>
+</ul></div>
+<div class="note warn"><span class="t">Afterwards</span>When your friend is done, click <span class="ui">End</span> and stop the temporary address. They can see your whole screen: close private windows first. To let them only watch, turn on <span class="ui">View only</span> in the bar at the top of the PC’s screen.</div>
+
+<h3 id="remote-gestures">Using the phone: Direct or Trackpad</h3>
+<p>The phone page has five icons at the bottom right, each with a word under it: <span class="ui">Sound on</span> (then <span class="ui">Sound</span>), <span class="ui">Zoom</span>, <span class="ui">Files</span>, <span class="ui">Keyboard</span>, <span class="ui">Settings</span>. In <span class="ui">Settings</span> → <span class="ui">Control</span> pick (the small line under it says what each does):</p>
+<div class="tbl"><table>
+  <tr><th>Control</th><th>How it works</th><th>Good for</th></tr>
+  <tr><td>Direct (default)</td><td>Your finger clicks where it touches; hold half a second = right-click; hold and drag = drag</td><td>Big buttons, menus, beginners</td></tr>
+  <tr><td>Trackpad</td><td>Like a laptop trackpad: slide to move the pointer, tap = left click, two-finger tap = right-click, two-finger slide = scroll</td><td>Small targets, selecting text</td></tr>
+</table></div>
+{{img:phone-bar|Bottom right of the phone page: Sound on, Zoom, Files, Keyboard, Settings (a made-up desktop)|300}}
+<p>Pinch to zoom the picture; a three-finger tap opens or closes the keyboard. The keyboard panel has Ctrl, Alt, Win, arrows, copy, paste and the clipboard.</p>
+
+<h3 id="remote-safety">Safety</h3>
+<ul>
+  <li>The fixed address is public and only your password keeps others out: use a long one you don’t use anywhere else.</li>
+  <li>While connected, “● Remote control in progress” stays at the top of the PC’s screen; <kbd>Ctrl</kbd><kbd>D</kbd> ends it from any program.</li>
+  <li>After 30 minutes without a touch the phone is disconnected (change it in <span class="ui">More settings</span>).</li>
+  <li><span class="ui">More settings</span> → <span class="ui">Lock the PC after remote control ends</span>: locks the PC when a session ends. <strong>Off</strong> by default (from outside and at home); turn it on if you want it.</li>
+  <li>No longer need outside access: untick <span class="ui">Turn the fixed address on when the PC starts</span> and click <span class="ui">Turn off</span> in the block.</li>
+</ul>
+<h3 id="remote-limits">What it can’t do</h3>
+<ul>
+  <li>Windows run as administrator, UAC prompts and the lock screen can’t be used from the phone (a Windows rule).</li>
+  <li>A PC that is off, asleep or at the sign-in screen can’t be reached. One phone at a time.</li>
+</ul>
+</section>
+
+<div class="part"><small>More</small><b>Sound, troubleshooting</b><span></span></div>
+
+<!-- ============ sound ============ -->
+<section id="sound">
+<h2><span class="num">9</span>Sound volume</h2>
+<p class="goal"><b>What you want to do</b>Fix sound that is too quiet, too loud or missing. First, which one is it?</p>
+<h3>Phone mirrored to the PC (sound from the PC)</h3>
+<ol class="steps">
+  <li>iPhone: just press the iPhone’s volume buttons; the PC’s volume follows and Zizai Cast remembers it.</li>
+  <li>PC: right-click menu → <span class="ui">Volume</span> (e.g. “Volume: 50%”), or the speaker icon at the bottom right of the screen.</li>
+  <li>Still silent: right-click the speaker icon → “Volume mixer” and check Zizai Cast isn’t muted.</li>
+</ol>
+<div class="ok"><b>Success looks like this</b>The current volume shows briefly on the picture while you change it.</div>
+<h3 id="remote-audio">Remote control (the PC’s sound on the phone)</h3>
+<ol class="steps">
+  <li>The phone page starts silent (an iPhone rule): tap <span class="ui">Tap for sound</span>, or the speaker labelled <span class="ui">Sound on</span> at the bottom right.</li>
+  <li>The PC sets a good level by itself, so <span class="ui">Phone volume</span> at its default 100% is usually enough. Still too quiet: <span class="ui">Settings</span> at the bottom right → <span class="ui">Phone volume</span>, slide right, up to 400% without distortion.</li>
+  <li>Turn up the phone’s own volume too, and switch off the iPhone’s silent switch.</li>
+  <li>PC: <span class="ui">Send the PC's sound to the phone</span> on the Remote control tab must be ticked. To keep the PC quiet, tick <span class="ui">Mute the PC while the phone plays sound</span>.</li>
+</ol>
+{{img:phone-settings|Phone page settings: Control (with what it means), Phone volume (100% by default, up to 400%)|300}}
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>“The PC isn’t playing any sound right now”: the PC really is silent.</li>
+  <li>Windows is muted on the PC: unmute it; to keep the PC quiet use “Mute the PC while the phone plays sound”.</li>
+  <li>More: <a href="#remote-faq-nosound">no sound in remote control</a>, <a href="#faq-audio">no sound while mirroring</a>.</li>
+</ul></div>
+</section>
+
+<!-- ============ faq ============ -->
+<section id="faq">
+<h2><span class="num">10</span>Troubleshooting</h2>
+<p class="intro">Click a question to open the answer.</p>
+<h3>Phone mirroring</h3>
+<details id="faq-notfound"><summary>“Zizai Cast” isn’t in the phone’s list</summary><div><ul>
+  <li>Check Zizai Cast is running (icon at the bottom right).</li>
+  <li>Phone and PC on the <strong>same</strong> Wi-Fi, not a guest network, phone not on mobile data.</li>
+  <li>Turn off VPNs on both; check the firewall allows it (see <a href="#faq-fw">Firewall</a>).</li>
+  <li>School, office and hotel networks often block it: use a home network or a hotspot from the PC.</li>
+  <li>Close other receivers such as AirServer or LonelyScreen.</li>
+  <li>Turn the phone’s Wi-Fi off and on, or reopen Zizai Cast.</li>
+</ul></div></details>
+<details id="faq-audio"><summary>Picture but no sound while mirroring</summary><div><ul>
+  <li>Turn up the iPhone’s volume buttons and switch off its silent switch.</li>
+  <li>Check the PC’s speaker icon and the “Volume mixer” don’t mute Zizai Cast.</li>
+  <li>Changed headphones or speakers: reconnect once.</li>
+  <li>Some video apps block sound or picture while mirroring for copyright reasons; that isn’t Zizai Cast.</li>
+</ul></div></details>
+<details id="faq-lag"><summary>The picture lags or stutters</summary><div><ul>
+  <li>Use 5 GHz Wi-Fi on both, close to the router; a cable for the PC helps.</li>
+  <li>Right-click menu → Settings → <span class="ui">Picture quality</span> → <span class="ui">Standard (smoothest)</span>.</li>
+  <li>Pause big downloads.</li>
+</ul></div></details>
+<details id="faq-blur"><summary>The picture is blurry</summary><div><ul>
+  <li>Right-click menu → Settings → Picture quality → High or Highest; if they are grey, install “HEVC Video Extensions” from the Microsoft Store.</li>
+  <li>After a change, click <span class="ui">Reconnect now to apply</span> next to the hint.</li>
+</ul></div></details>
+<details id="faq-takeover"><summary>Another phone took over in the middle</summary><div><p>Right-click menu → Settings → <span class="ui">When a second phone connects</span> → <span class="ui">Keep the current one</span>; you can also turn on <span class="ui">Ask new phones for a PIN</span>.</p></div></details>
+<details id="faq-fw"><summary>Firewall: I clicked “Cancel” the first time</summary><div><ol>
+  <li>Start → search for “Allow an app through Windows Firewall”.</li>
+  <li>Click <span class="ui">Change settings</span>, find “自在投影” (Zizai Cast) and tick <span class="ui">Private</span>.</li>
+  <li>Not in the list: <span class="ui">Allow another app…</span> and pick “自在投影.exe” in the install folder.</li>
+</ol></div></details>
+<details id="faq-vpn"><summary>It stops working with a VPN on</summary><div><p>Disconnect the VPN on the PC and the phone while mirroring. Some VPNs have an “Allow LAN access” option that also works.</p></div></details>
+<details id="faq-miracast"><summary>Android casting (Miracast) doesn’t connect</summary><div><ul>
+  <li>The PC’s Wi-Fi must be on and its mobile hotspot off.</li>
+  <li>Check support: right-click Start → Terminal, type <code>netsh wlan show drivers</code> and look for “Wireless Display Supported”: both must be Yes.</li>
+  <li>No, or a Google Pixel: use <a href="#adb">Android control</a>.</li>
+</ul></div></details>
+<details id="faq-adb"><summary>Android control drops or doesn’t reconnect next time</summary><div><ul>
+  <li>After a restart or a Wi-Fi change the phone often turns Wireless debugging off: turn it back on in Developer options, no new pairing needed.</li>
+  <li>Battery saving may cut Wi-Fi when the screen is off: turn on <span class="ui">Keep the phone awake while connected</span>.</li>
+  <li>A phone you disconnected with <kbd>Ctrl</kbd><kbd>D</kbd> doesn’t come back by itself: use “Connect Android (scan QR)” or reopen Zizai Cast.</li>
+  <li>Still no luck: remove this PC under “Wireless debugging → Paired devices” on the phone and pair again.</li>
+</ul></div></details>
+<details id="faq-disconnect"><summary>Where is “Disconnect”?</summary><div><p>Move the mouse over the picture: the red button at the right end of the toolbar. Or <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the icon at the bottom right → Disconnect. On an Android picture right-click is “Back”; for the menu use <kbd>Shift</kbd> + right-click.</p></div></details>
+<details id="faq-translate"><summary>Translate does nothing, or Japanese / Korean isn’t translated</summary><div><ul>
+  <li>The first time a model is downloaded: click <span class="ui">Download</span> when asked (about 50 MB; Japanese or Korean into Chinese about 100 MB).</li>
+  <li>Japanese or Korean not recognised: click <span class="ui">Open language settings</span> in the hint, or Windows Settings → Time &amp; language → Language &amp; region → Add a language → Japanese (Korean) → tick only “Optical character recognition” → Install.</li>
+</ul></div></details>
+<h3 id="remote-trouble">Remote control</h3>
+<details id="faq-funnel"><summary>The fixed address won’t start (new Tailscale account)</summary><div><ul>
+  <li>A new account must allow Funnel and HTTPS first: click <span class="ui">Open the setup page</span> in the block, or do <a href="#remote-funnel">② Allow Funnel and HTTPS</a> once.</li>
+  <li>Or in the Tailscale admin console (login.tailscale.com/admin), <span class="ui">DNS</span> page: turn on MagicDNS and click <span class="ui">Enable HTTPS</span> under HTTPS Certificates, then add the funnel permission in Access controls. The command is easier.</li>
+  <li>Tailscale must be running and signed in on the PC.</li>
+</ul></div></details>
+<details id="faq-funnel-wait"><summary>The fixed address is new and the phone shows ERR_CONNECTION_CLOSED</summary><div><p>The first time, Tailscale has to get an HTTPS certificate; until then the page can’t open. Zizai Cast checks it by itself: while the block says “Preparing the address, about 1–2 minutes”, wait; it says “The fixed address is on” only once it works. If it says so and the phone still can’t open it, the phone’s DNS may not know the new name yet (Tailscale says up to 10 minutes): wait and reload. Still not: click <span class="ui">Turn off</span> and <span class="ui">Turn on</span> in the block.</p></div></details>
+<details id="remote-faq-noconnect"><summary>The phone can’t reach the PC</summary><div><ul>
+  <li><strong>The QR code at home doesn’t open:</strong> the phone isn’t on the same Wi-Fi (guest networks and mobile data don’t work), or the router has AP isolation on.</li>
+  <li><strong>The fixed address doesn’t open:</strong> the PC must be on, signed in, with Tailscale running; the first time, see the question above.</li>
+  <li><strong>The page opens but says “The picture connection is blocked”:</strong> Windows Firewall blocked it (click Allow access the first time you turn remote control on), AP isolation, or another VPN.</li>
+  <li><strong>“This address is no longer valid”:</strong> scan the QR code on the PC again (and re-add the home screen icon).</li>
+</ul></div></details>
+<details id="remote-faq-nosound"><summary>No sound or too quiet in remote control</summary><div><ul>
+  <li>Tap <span class="ui">Tap for sound</span> (or the speaker labelled <span class="ui">Sound on</span>); still quiet: phone page <span class="ui">Settings</span> → <span class="ui">Phone volume</span>, slide right (100% by default, up to 400%).</li>
+  <li>The iPhone’s silent switch and the phone’s volume.</li>
+  <li>Don’t mute Windows on the PC; <span class="ui">Send the PC's sound to the phone</span> must be ticked.</li>
+</ul></div></details>
+<details id="remote-faq-forgot"><summary>I forgot the fixed address password</summary><div><p>Only <strong>the PC</strong> can reset it: Remote control tab → <span class="ui">Allow remote control</span> block → <span class="ui">Change password</span>. Phones then sign in with the new one.</p></div></details>
+<details><summary>My PC got locked</summary><div><p>If it’s turned on (it’s off by default), the PC locks when a remote session ends. Unlock it with your Windows password or PIN. Don’t want it: <span class="ui">More settings</span> → untick <span class="ui">Lock the PC after remote control ends</span>.</p></div></details>
+<details><summary>Is it still running after I close the window?</summary><div><p>Yes, it waits in the background at the bottom right. To quit completely: right-click the icon → <span class="ui">Quit</span>.</p></div></details>
+
+<div class="foot">
+  <i class="m foot-m"></i>
+  <div>Zizai Cast · GPL-3.0. The AirPlay part is ported from UxPlay.<br>Still stuck? Settings and the log are in <code>%LOCALAPPDATA%\PhoneMirror</code>; attach phonemirror.log to a report.<br>All screenshots in this guide use made-up test data (a fake phone screen, 203.0.113.x, example addresses).</div>
+</div>
+</section>
+
+</div>
+</main>

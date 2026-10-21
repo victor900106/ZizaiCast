@@ -4,6 +4,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <winhttp.h>
 
 #include <nlohmann/json.hpp>
 
@@ -206,6 +207,50 @@ bool TailscaleFunnel::targetAnswers(const std::string& target) {
     }
     WSACleanup();
     return answers;
+}
+
+// 0.8.3.3: one HTTPS GET of the fixed address from this PC (see remote.h). No proxy: the name is
+// this node's own (MagicDNS answers with its tailnet address, else public DNS with Funnel's relay).
+bool TailscaleFunnel::probeTls(const std::string& url, std::string& detail, bool insecureLocalTest, int timeoutMs) {
+    detail.clear();
+    if (url.rfind("https://", 0) != 0) return detail = "not an https address", false;
+    std::string rest = url.substr(8);
+    const size_t slash = rest.find('/');
+    std::string hostPort = rest.substr(0, slash), path = slash == std::string::npos ? "/" : rest.substr(slash);
+    INTERNET_PORT port = INTERNET_DEFAULT_HTTPS_PORT;
+    if (const size_t c = hostPort.rfind(':'); c != std::string::npos) {
+        port = static_cast<INTERNET_PORT>(std::atoi(hostPort.c_str() + c + 1));
+        hostPort.resize(c);
+    }
+    if (hostPort.empty() || port == 0) return detail = "bad address", false;
+    if (insecureLocalTest && hostPort != "127.0.0.1") return detail = "test probe: 127.0.0.1 only", false;
+    const std::wstring host(hostPort.begin(), hostPort.end()), wpath(path.begin(), path.end());
+    bool ok = false;
+    HINTERNET s = WinHttpOpen(L"ZizaiCast-fixed-check", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!s) return detail = "WinHttpOpen failed", false;
+    WinHttpSetTimeouts(s, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
+    if (HINTERNET c = WinHttpConnect(s, host.c_str(), port, 0)) {
+        if (HINTERNET r = WinHttpOpenRequest(c, L"GET", wpath.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE)) {
+            if (insecureLocalTest) {
+                DWORD f = SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_FLAG_IGNORE_CERT_CN_INVALID | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+                WinHttpSetOption(r, WINHTTP_OPTION_SECURITY_FLAGS, &f, sizeof(f));
+            }
+            if (WinHttpSendRequest(r, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) && WinHttpReceiveResponse(r, nullptr)) {
+                DWORD code = 0, sz = sizeof(code);
+                WinHttpQueryHeaders(r, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, nullptr, &code, &sz, nullptr);
+                ok = code > 0 && code < 500;  // 502 / 503: Funnel is up but cannot reach this app yet
+                detail = "HTTP " + std::to_string(code);
+            } else {
+                const DWORD e = GetLastError();
+                detail = "no answer (WinHTTP error " + std::to_string(e) +
+                         (e == 12030 || e == 12152 ? ": connection closed" : e == 12175 || e == 12045 || e == 12169 ? ": certificate" : e == 12002 ? ": timeout" : e == 12007 ? ": name not found" : e == 12029 ? ": cannot connect" : "") + ")";
+            }
+            WinHttpCloseHandle(r);
+        }
+        WinHttpCloseHandle(c);
+    }
+    WinHttpCloseHandle(s);
+    return ok;
 }
 
 void TailscaleFunnel::setRunnerForTest(Runner r) { testRunner() = std::move(r); }

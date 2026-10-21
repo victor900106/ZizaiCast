@@ -178,7 +178,7 @@ void runCommand(UINT cmd) {
     default:
         if ((cmd >= CmdInkColor0 && cmd <= CmdInkColorLast) || (cmd >= CmdInkWidth0 && cmd <= CmdInkWidthLast)) inkCommand(cmd);
         else if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) ||
-                 (cmd >= CmdRemoteGuestNew && cmd <= CmdRemoteFixedSetup) || (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast))  // 0.8.3.2
+                 (cmd >= CmdRemoteGuestNew && cmd <= CmdRemoteTsDownload) || (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast))  // 0.8.3.2
             remoteCommand(cmd);
         else if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {
