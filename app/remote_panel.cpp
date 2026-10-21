@@ -517,7 +517,11 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
         } else {
             fill(rc(cardX - 10, kQrY, kQrCard + 20, kQrCard), withA(t.fg, 0.06f), 14);
             if (fixState_ == 1) {
-                text(tr(S::RemoteFixedStarting), f.scan.Get(), rc(cardX + 6, kQrY + kQrCard / 2 - 20, kQrCard - 12, 40), t.fg);
+                if (fixInfo_.empty()) {
+                    text(tr(S::RemoteFixedStarting), f.scan.Get(), rc(cardX + 6, kQrY + kQrCard / 2 - 20, kQrCard - 12, 40), t.fg);
+                } else {  // 0.8.3.1: 等待 Tailscale 啟動…（n 秒後再試）, two lines
+                    text(fixInfo_, f.note.Get(), rc(cardX + 6, kQrY + kQrCard / 2 - 30, kQrCard - 12, 60), t.fg);
+                }
             } else {
                 const std::wstring body = fixState_ == 3 ? pm::i18n::fmt(S::RemoteFixedFailed, {fixErr_}) : std::wstring(tr(S::RemoteFixedIntro));
                 text(body, f.note.Get(), rc(cardX + 4, kQrY + 12, kQrCard - 8, kQrCard - 72), fixState_ == 3 ? D2D1_COLOR_F{1.0f, 0.62f, 0.62f, 1} : t.fg);
@@ -760,7 +764,8 @@ void RemoteBanner::show(const std::wstring& device, bool viewOnly, Callbacks cb)
     const float sc = dpi_ / 96.0f;
     const float w = 16 + 12 + 10 + textW_ + 14 + viewW_ + 8 + stopW_ + 8;
     const int pw = static_cast<int>(std::lround(w * sc)), ph = static_cast<int>(std::lround(kBannerH * sc));
-    const int x = (mi.rcWork.left + mi.rcWork.right) / 2 - pw / 2, y = mi.rcWork.top + static_cast<int>(std::lround(8 * sc));
+    int x = (mi.rcWork.left + mi.rcWork.right) / 2 - pw / 2, y = mi.rcWork.top + static_cast<int>(std::lround(8 * sc));
+    if (testOffscreen) x = GetSystemMetrics(SM_XVIRTUALSCREEN) - pw - 2000, y = GetSystemMetrics(SM_YVIRTUALSCREEN);  // off every monitor
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, pw, ph, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     if (impl_ && impl_->rt) {
         impl_->rt->Resize(D2D1::SizeU(pw, ph));

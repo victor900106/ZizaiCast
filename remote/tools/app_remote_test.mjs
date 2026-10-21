@@ -1,5 +1,10 @@
 // End-to-end test of 遠端操控 inside the real app (node 22+):
-//   node app_remote_test.mjs <自在投影.exe> <outDir> [--lang zh-TW|en|ja|ko]
+//   node app_remote_test.mjs <自在投影.exe> <outDir> [--lang zh-TW|en|ja|ko] [--no-ts] [--loopback]
+// --block-autoplay (0.8.3.1): at the end, remote control on again and a second tab whose video.play()
+// is refused until a tap (like the owner's iPhone in Low Power Mode, videoWidth 0 while paused): what the
+// page says (no endless 連線中), then a tap (CDP touch on that page only) and the picture.
+// --loopback (0.8.3.1): PM_REMOTE_LOOPBACK=1, the remote side on 127.0.0.3 only and Edge with
+// loopback ICE candidates: nothing listens on the LAN, so a fresh build path gets no firewall prompt.
 // Runs a --dev --test-offscreen --test-no-network instance with its own data
 // folder (PM_DEV_INSTANCE=remote081), input in dry-run (PM_REMOTE_DRYRUN=1:
 // the real mouse / keyboard are never touched) and a test clipboard. Drives it
@@ -15,8 +20,8 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 
 const [exe, outDir, ...rest] = process.argv.slice(2);
-let lang = 'zh-TW', noTs = false;
-for (let i = 0; i < rest.length; i++) { if (rest[i] === '--lang') lang = rest[++i]; else if (rest[i] === '--no-ts') noTs = true; }
+let lang = 'zh-TW', noTs = false, loopback = false, blockAutoplay = false;
+for (let i = 0; i < rest.length; i++) { if (rest[i] === '--lang') lang = rest[++i]; else if (rest[i] === '--no-ts') noTs = true; else if (rest[i] === '--loopback') loopback = true; else if (rest[i] === '--block-autoplay') blockAutoplay = true; }
 fs.mkdirSync(outDir, {recursive: true});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
@@ -35,7 +40,7 @@ const appLog = path.join(dataDir, 'phonemirror.log');
 const readLog = () => { try { return fs.readFileSync(appLog, 'utf8'); } catch { return ''; } };
 
 const app = spawn(exe, ['--dev', '--test-offscreen', '--test-no-network'], {
-  stdio: 'ignore', env: {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote081', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: noTs ? '1' : '0'}});
+  stdio: 'ignore', env: {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote081', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: noTs || loopback ? '1' : '0', PM_REMOTE_LOOPBACK: loopback ? '1' : '0'}});
 log('app pid', app.pid);
 const dev = (cmd, lp = 0, wait = 600) => {
   try { execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', devCmdPs1, '-ProcessId', String(app.pid), '-Cmd', String(cmd), '-Lp', String(lp), '-Wait', String(wait)], {stdio: 'pipe'}); }
@@ -71,7 +76,7 @@ try {
   const cdpPort = 9400 + Math.floor(Math.random() * 400);
   edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run', '--no-default-browser-check', '--disable-extensions',
-     '--headless=new', 'about:blank'], {stdio: 'ignore'});
+     ...(loopback ? ['--allow-loopback-in-peer-connection'] : []), '--headless=new', 'about:blank'], {stdio: 'ignore'});
   let ver;
   for (let i = 0; i < 50 && !ver; i++) { await sleep(200); try { ver = await (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).json(); } catch {} }
   ws = new WebSocket(ver.webSocketDebuggerUrl);
@@ -168,6 +173,50 @@ try {
   results.offByPcClick = await until(async () => (readLog().match(/remote: off/g) || []).length >= 2, 5000);
   results.stoppedOnPhone = await until(() => evalJs(`S.bye === 'stopped' && $('msgT').textContent === t('stopped')`), 6000);
   await shot('phone-7-pc-turned-off.png');
+  if (blockAutoplay) {
+    // ---- 0.8.3.1: the owner's 07:48 case inside the app: play() refused, nobody taps ----
+    dev(330, 0, 2000);  // remote control on again (the remembered phone goes straight in)
+    const {targetId: t2} = await cdp('Target.createTarget', {url: 'about:blank'});
+    const {sessionId: S2} = await cdp('Target.attachToTarget', {targetId: t2, flatten: true});
+    await cdp('Page.enable', {}, S2);
+    await cdp('Runtime.enable', {}, S2);
+    await cdp('Emulation.setDeviceMetricsOverride', {width: 440, height: 764, deviceScaleFactor: 2, mobile: true}, S2);
+    await cdp('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5}, S2);
+    await cdp('Page.addScriptToEvaluateOnNewDocument', {source: `(() => {
+      const op = HTMLMediaElement.prototype.play, vw = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'videoWidth');
+      HTMLMediaElement.prototype.play = function () { if (!this.__ok) { if (navigator.userActivation && navigator.userActivation.isActive) this.__ok = true;
+        else return Promise.reject(new DOMException('blocked (test)', 'NotAllowedError')); } return op.apply(this, arguments); };
+      Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', {configurable: true, get() { return this.paused ? 0 : vw.get.call(this); }});
+      const h = () => { const v = document.getElementById('v'); if (!v) return setTimeout(h, 5); v.autoplay = false; v.removeAttribute('autoplay'); }; h();
+    })();`}, S2);
+    const ev2 = async expr => (await cdp('Runtime.evaluate', {expression: expr, returnByValue: true}, S2)).result.value;  // (no user gesture)
+    const st2 = () => ev2(`({state: S.state, msg: msg.classList.contains('hide') ? '' : $('msgT').textContent, spin: !msg.classList.contains('hide') && $('msgSpin').style.display !== 'none', btns: Array.from(document.querySelectorAll('#msgB button')).map(b => b.textContent), pill: $('tapHint').style.display === 'flex' ? $('tapHintT').textContent || '(empty pill)' : '', playing: !v.paused && v.videoWidth > 16})`).catch(() => ({}));
+    const t0 = Date.now();
+    await cdp('Page.navigate', {url}, S2);
+    const seen = [];
+    let last = '';
+    while (Date.now() - t0 < 12000) {
+      await sleep(300);
+      const s = await st2();
+      const k = JSON.stringify([s.msg, s.spin, s.btns, s.pill]);
+      if (k !== last) { last = k; seen.push({ms: Date.now() - t0, ...s}); }
+    }
+    results.blockedTimeline = seen;
+    log('autoplay refused:', JSON.stringify(seen));
+    await cdp('Page.captureScreenshot', {format: 'png'}, S2).then(r => fs.writeFileSync(path.join(outDir, 'phone-8-autoplay-refused.png'), Buffer.from(r.data, 'base64'))).catch(() => {});
+    const fin = await st2();
+    results.blockedSaysTap = fin.state === 'connected' && fin.msg === await ev2(`t('tapReady')`).catch(() => '?') && !fin.spin;
+    results.blockedNoEndlessSpinner = !(fin.spin && /連線中|Connecting/.test(fin.msg || ''));
+    await cdp('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: 220, y: 382}]}, S2);
+    await cdp('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []}, S2);
+    const tapT = Date.now();
+    let ok = false;
+    while (Date.now() - tapT < 6000 && !(ok = !!(await st2()).playing)) await sleep(100);
+    results.blockedTapToPicture = ok ? Date.now() - tapT : -1;
+    results.tapIdrLogged = await waitLog(/asked for a key frame [(]the video plays after a tap[)]/, 3000);
+    log('autoplay refused: tap -> picture', results.blockedTapToPicture, 'ms');
+    await cdp('Page.captureScreenshot', {format: 'png'}, S2).then(r => fs.writeFileSync(path.join(outDir, 'phone-9-after-tap.png'), Buffer.from(r.data, 'base64'))).catch(() => {});
+  }
 } catch (e) {
   console.error('test failed:', e);
   code = 1;
@@ -211,6 +260,10 @@ const checks = [
   ['0.8.1 a plain click on the PC turns it off', results.offByPcClick === true],
   ['0.8.1 phone shows 「電腦端已關閉遠端操控」 (bye arrived)', results.stoppedOnPhone === true],
   ['app quit cleanly', results.appExited === true],
+  ...(blockAutoplay ? [
+    ['0.8.3.1 autoplay refused: the page says 已連上，點一下 (no endless 連線中)', results.blockedSaysTap === true && results.blockedNoEndlessSpinner === true],
+    ['0.8.3.1 autoplay refused: a tap -> picture within 2 s', results.blockedTapToPicture >= 0 && results.blockedTapToPicture <= 2000],
+    ['0.8.3.1 autoplay refused: a key frame asked for after the tap', results.tapIdrLogged === true]] : []),
 ];
 let ok = code === 0;
 const lines = [];

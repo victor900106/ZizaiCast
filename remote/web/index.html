@@ -303,6 +303,15 @@ const T = {
   noRtc: ['這個瀏覽器不能用遠端控制', 'This browser can’t do remote control', 'このブラウザーではリモート操作を使えません', '이 브라우저에서는 원격 제어를 사용할 수 없습니다'],
   noRtcSub: ['請用 iPhone 的 Safari 或 Android 的 Chrome 開啟。', 'Open it in Safari (iPhone) or Chrome (Android).', 'iPhone は Safari、Android は Chrome で開いてください。', 'iPhone은 Safari, Android는 Chrome으로 여세요.'],
   tapStart: ['點一下開始顯示畫面', 'Tap to show the screen', 'タップして画面を表示', '탭하여 화면 표시'],
+  // 0.8.3.1: connected, but this browser plays video only after a tap (the owner's iPhone, saved login: no tap at all)
+  tapReady: ['已連上電腦，點一下就會出現畫面', 'Connected: tap to show the screen', 'つながりました。タップすると画面が出ます', '연결되었습니다. 탭하면 화면이 나옵니다'],
+  tapReadySub: ['這支手機的瀏覽器要先點一下才會播放影片（例如開了「低耗電模式」）。', 'This phone’s browser plays video only after a tap (for example in Low Power Mode).', 'このスマホのブラウザーは、タップするまで動画を再生しません（「低電力モード」など）。', '이 휴대폰 브라우저는 탭해야 동영상을 재생합니다(예: “저전력 모드”).'],
+  tapBtn: ['顯示畫面', 'Show the screen', '画面を表示', '화면 표시'],
+  // 0.8.3.1: never an endless spinner: after a while the reason and what to do
+  stuckSess: ['電腦一直沒有回應', 'The PC is not answering', 'パソコンから応答がありません', 'PC가 응답하지 않습니다'],
+  stuckSessSub: ['網路太慢或中途斷了，也可能電腦睡著或關機了。請按「重試」；一直這樣的話，確認電腦開著、自在投影在執行。', 'The network is slow or dropped, or the PC is asleep or off. Tap “Try again”; if it keeps happening, check that the PC is on and 自在投影 is running.', '通信が遅いか途切れたか、パソコンがスリープ中か電源オフです。「再試行」を押してください。続く場合はパソコンの電源と自在投影が動いているか確認してください。', '네트워크가 느리거나 끊겼거나, PC가 절전 중이거나 꺼져 있습니다. “다시 시도”를 누르세요. 계속되면 PC가 켜져 있고 自在投影이 실행 중인지 확인하세요.'],
+  stuckRtc: ['畫面的連線一直接不起來', 'The picture connection does not come up', '映像の接続ができません', '화면 연결이 되지 않습니다'],
+  stuckRtcSub: ['電腦有回應，但影像的路徑一直沒有通。請按「重試」，或看排除方法。', 'The PC answers, but the picture’s path never opens. Tap “Try again”, or see how to fix it.', 'パソコンは応答していますが、映像の経路がつながりません。「再試行」を押すか、対処方法を見てください。', 'PC는 응답하지만 화면 경로가 열리지 않습니다. “다시 시도”를 누르거나 해결 방법을 보세요.'],
   soundOn: ['開啟聲音', 'Turn on sound', '音を出す', '소리 켜기'],
   soundTapAgain: ['再點一次「開啟聲音」', 'Tap “Turn on sound” once more', 'もう一度「音を出す」をタップしてください', '“소리 켜기”를 한 번 더 누르세요'],
   pcSilent: ['電腦目前沒有在播放聲音', 'The PC isn’t playing any sound right now', 'パソコンは今、音を再生していません', 'PC에서 지금 재생 중인 소리가 없습니다'],
@@ -488,11 +497,37 @@ function probeStream() {
     return c.captureStream ? c.captureStream(0) : null;
   } catch { return null; }
 }
+$('tapHintT').textContent = t('tapStart');  // 0.8.3.1: 0.8.1-0.8.3 showed this pill with no text at all
 function setNeedTap(on) {
   needTap = on;
   document.body.classList.toggle('need-tap', on);
-  $('tapHint').style.display = on ? 'flex' : 'none';
-  if (on) mark('tapAsk');
+  if (on) { mark('tapAsk'); S.wasBlocked = true; }
+  refreshTap();
+}
+// 0.8.3.1: is a picture on the screen (the video playing, or the tunnel's canvas)?
+const picShown = () => (!v.paused && v.videoWidth > 16) || (tun.media && scr.width > 16);
+// 0.8.3.1 (owner, 2026-10-21 07:48, iPhone Safari, saved login): connected, the first picture
+// decoded, but play() refused (NotAllowedError) and no tap on the page yet: 0.8.1-0.8.3 kept
+// 「連線中…」 with a spinner and an empty pill, then blamed the router at 10 s. Now: once
+// connected, the page says so and asks for the tap in words (a button; any tap works); on the
+// 外網 / fixed links the picture also comes over the tunnel's canvas (no autoplay needed there)
+// until the tap lets the video play.
+let tapTunTimer = 0;
+function refreshTap() {
+  const connected = !!(pc && pc.connectionState === 'connected');
+  const pic = picShown();
+  $('tapHint').style.display = needTap && !pic && S.msgKind !== 'tap' ? 'flex' : 'none';
+  if (needTap && connected && !pic && !S.bye && (S.msgKind === 'connecting' || S.msgKind === 'noVideo' || msg.classList.contains('hide'))) {
+    showMsg(t('tapReady'), t('tapReadySub'), [[t('tapBtn'), unlockTap]], {kind: 'tap'});
+    $('tapHint').style.display = 'none';
+    diag('needs-tap', {playErr: S.playErr, ms: Math.round(performance.now())});
+    if (TUN && !tun.media && typeof VideoDecoder !== 'undefined') {
+      clearTimeout(tapTunTimer);
+      tapTunTimer = setTimeout(() => {
+        if (needTap && v.paused && !tun.media && pc && pc.connectionState === 'connected') setTunnelMedia(true, 'autoplay refused: over the tunnel until a tap');
+      }, 1500);
+    }
+  } else if (S.msgKind === 'tap' && (!needTap || pic)) hideMsg();
 }
 function unlockTap() {
   if (!needTap) return;
@@ -502,7 +537,7 @@ function unlockTap() {
   v.muted = true;
   setNeedTap(false);
   const pr = v.play();
-  if (pr) pr.then(() => { S.playErr = ''; if (v.videoWidth && S.state === 'connected') hideMsg(); })
+  if (pr) pr.then(() => { S.playErr = ''; refreshTap(); if (v.videoWidth && S.state === 'connected') hideMsg(); })
             .catch(e => { S.playErr = String(e && e.name || e); if (e && e.name === 'NotAllowedError') setNeedTap(true); });
 }
 document.addEventListener('touchend', unlockTap, {capture: true});
@@ -633,9 +668,10 @@ function drawFrame(frame) {
     if (lat > -50 && lat < 10000) S.lat.push(lat);
   }
   if (!S.ttff) {
-    S.ttff = performance.now(); mark('frame'); setNeedTap(false);
+    S.ttff = performance.now(); mark('frame');
+    if (!v.paused) setNeedTap(false); else refreshTap();  // 0.8.3.1: a refused video still takes the next tap (then direct)
     window.__pmFirstFrame = S.ttff;
-    diag('first-frame', {ph: S.ph, via: 'tunnel'});
+    diag('first-frame', {ph: S.ph, via: 'tunnel', needTap});
   }
   if (S.state !== 'pending') hideMsg();
 }
@@ -718,7 +754,16 @@ async function startFixed() {
   const tok = store.get('fixedTok', '');
   if (tok) {
     let st = 0;
-    try { st = (await fetch('/k/' + tok + '/check', {method: 'POST', cache: 'no-store'})).status; } catch {}
+    // 0.8.3.1: at most 10 s (a hanging relay must not leave the page on its first spinner)
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const tm = ac ? setTimeout(() => ac.abort(), 10000) : 0;
+    try { st = (await fetch('/k/' + tok + '/check', {method: 'POST', cache: 'no-store', signal: ac ? ac.signal : undefined})).status; } catch {}
+    clearTimeout(tm);
+    if (!st) {
+      diag('fixed-check-failed');
+      showMsg(t('stuckSess'), t('stuckSessSub'), [[t('retry'), () => { showMsg(t('connecting'), '', [], {spin: true, kind: 'connecting'}); startFixed(); }]], {kind: 'stuck'});
+      return;
+    }
     if (st === 204) { BASE = '/k/' + tok + '/'; PM.verified = true; connect(); return; }
     if (st === 401) store.set('fixedTok', '');
   }
@@ -805,8 +850,9 @@ function showMsg(title, sub, buttons, opts) {
   }
   msg.classList.toggle('over', !!opts.over);
   msg.classList.remove('hide');
+  S.msgKind = opts.kind || '';  // 0.8.3.1: which message is up (connecting / tap / noVideo / ...)
 }
-const hideMsg = () => msg.classList.add('hide');
+const hideMsg = () => { msg.classList.add('hide'); S.msgKind = ''; };
 let toastTimer = 0;
 function toast(text, ms) {
   const el = $('toast'); el.textContent = text; el.style.display = 'block';
@@ -830,10 +876,45 @@ function scheduleRetry(fn) {
   const ms = Math.min(10000, 1000 * Math.pow(2, Math.min(retryN++, 4)));
   retryTimer = setTimeout(fn, ms);
 }
-let watchdog = 0;
+let watchdog = 0, stuckTimer = 0, recoverTimer = 0;
+// 0.8.3.1: 「連線中…」 never spins for ever: after 12 s without a picture (and not waiting for
+// 允許 / a tap / a password) the page says why in plain words and what to do.
+const kStuckMs = 12000;
+function stuckCheck(my) {
+  if (my !== gen || S.bye || picShown() || S.msgKind !== 'connecting') return;
+  const rtcUp = !!(pc && pc.connectionState === 'connected');
+  diag('stuck-connecting', {phase: S.state, ph: S.ph, rtc: pc ? pc.connectionState : '', ws: tun.wsOpen, needTap});
+  if (needTap && rtcUp) return refreshTap();
+  const noAnswer = S.state === 'session' || S.state === 'new';
+  showMsg(t(noAnswer ? 'stuckSess' : 'stuckRtc'), t(noAnswer ? 'stuckSessSub' : 'stuckRtcSub'),
+          [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]], {kind: 'stuck'});
+}
+// 0.8.3.1: connected but no picture (and no tap to wait for): ask the PC for a key frame (3 s),
+// then the other path (外網 / fixed links: the tunnel) or, when frames arrive but none decodes,
+// a smaller picture (6 s); the 10 s watchdog says what is wrong if none of it helped.
+async function recover(my, p, step) {
+  if (my !== gen || S.bye || picShown() || needTap) return;
+  if (p.connectionState !== 'connected') { if (step < 6) recoverTimer = setTimeout(() => recover(my, p, step + 1), 1000); return; }
+  let got = 0, dec = 0;
+  try { (await p.getStats()).forEach(s => { if (s.type === 'inbound-rtp' && s.kind === 'video') { got = s.framesReceived || 0; dec = s.framesDecoded || 0; } }); } catch {}
+  if (my !== gen || picShown() || needTap) return;
+  if (step < 6) {
+    diag('no-video-idr', {got, dec});
+    send({t: 'idr', why: 'no picture yet (frames received ' + got + ', decoded ' + dec + ')'});
+    recoverTimer = setTimeout(() => recover(my, p, 6), 3000);
+  } else if (got > 0 && dec === 0 && curQ > 0) {
+    diag('no-video-lower-q', {got, dec, q: curQ});
+    curQ = 0; adapt.reset(); connect('switch');  // this session only (prefs.q is kept)
+  } else if (TUN && !tun.media) {
+    diag('no-video-tunnel', {got, dec});
+    setTunnelMedia(true, 'no picture over direct WebRTC');
+  } else send({t: 'idr', why: 'still no picture (frames received ' + got + ', decoded ' + dec + ')'});
+}
 async function connect(reason) {
   clearTimeout(retryTimer);
   const my = ++gen;
+  clearTimeout(stuckTimer); clearTimeout(recoverTimer);
+  stuckTimer = setTimeout(() => stuckCheck(my), kStuckMs);
   stopPc();
   S.bye = '';
   if (typeof RTCPeerConnection === 'undefined') {
@@ -842,7 +923,7 @@ async function connect(reason) {
     diag('no-rtcpeerconnection');
     return;
   }
-  if (reason !== 'switch') showMsg(t('connecting'), '', [], {spin: true});
+  if (reason !== 'switch') showMsg(t('connecting'), '', [], {spin: true, kind: 'connecting'});
   S.state = 'session';
   let r;
   try {
@@ -855,7 +936,7 @@ async function connect(reason) {
     while (r.status === 202 && my === gen) {
       const p = await r.json();
       S.state = 'pending';
-      showMsg(t('waitTitle'), t('waitSub'), [], {spin: true});
+      showMsg(t('waitTitle'), t('waitSub'), [], {spin: true, kind: 'pending'});
       r = await post('session?id=' + encodeURIComponent(p.id), '');
     }
   } catch (e) {
@@ -942,6 +1023,7 @@ async function connect(reason) {
       retryN = 0; diag('pc-connected');
       S.everConnected = true; p.wasConnected = true;
       if (v.videoWidth) hideMsg();
+      refreshTap();  // 0.8.3.1: a refused autoplay is said now, not after 10 s of 「連線中…」
     }
     if (S.state === 'failed' || S.state === 'disconnected' || S.state === 'closed') {
       if (S.bye) return;  // the PC ended it: no reconnect
@@ -993,6 +1075,7 @@ async function connect(reason) {
       }, Q.has('simice') ? 0 : 2500);
     }
     if (S.state === 'session') S.state = 'connecting';
+    recoverTimer = setTimeout(() => recover(my, p, 0), 3000);
   } catch (e) {
     if (my !== gen) return;
     S.state = 'error: ' + e.message;
@@ -1003,14 +1086,17 @@ async function connect(reason) {
   }
   clearTimeout(watchdog);
   watchdog = setTimeout(async () => {
-    if (my !== gen || v.videoWidth || (tun.media && scr.width)) return;
+    if (my !== gen || picShown()) return;
     let cands = [];
     try { (await p.getStats()).forEach(s => { if (s.type === 'local-candidate' || s.type === 'remote-candidate' || s.type === 'candidate-pair')
       cands.push(s.type + ':' + (s.candidateType || s.state || '') + ':' + (s.address || s.ip || '') + ':' + (s.port || '')); }); } catch {}
-    diag('no-video-after-10s', {videoW: v.videoWidth, paused: v.paused, playErr: S.playErr, cands, reason: p.wasConnected ? 'no-video' : 'firewall'});
+    const tapWait = needTap && p.wasConnected;
+    diag('no-video-after-10s', {videoW: v.videoWidth, paused: v.paused, playErr: S.playErr, cands, reason: tapWait ? 'needs-tap' : p.wasConnected ? 'no-video' : 'firewall'});
+    // 0.8.3.1: a refused autoplay is not "the router": the tap message stays (it says what to do).
+    if (tapWait) return refreshTap();
     // Never got a media path: say so (not "connected but no picture").
-    if (!v.videoWidth) showMsg(p.wasConnected ? t('noVideo') : t('whyFirewall'), p.wasConnected ? t('noVideoSub') : t('whyFirewallSub'),
-                               [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]]);
+    if (!picShown()) showMsg(p.wasConnected ? t('noVideo') : t('whyFirewall'), p.wasConnected ? t('noVideoSub') : t('whyFirewallSub'),
+                               [[t('retry'), () => { retryN = 0; connect(); }], [t('howTo'), () => openHelp('remote-trouble'), true]], {kind: 'noVideo'});
   }, 10000);
 }
 function retry() { retryN = 0; connect(); return true; }
@@ -1036,7 +1122,11 @@ function startPlay() {
     setNeedTap(true);
   });
 }
-v.addEventListener('playing', () => { if (S.state === 'connected') hideMsg(); });
+v.addEventListener('playing', () => {
+  if (S.state === 'connected') hideMsg();
+  // 0.8.3.1: playing only now (after a tap): a fresh key frame, so nothing waits for the next change on the PC
+  if (S.wasBlocked && v.srcObject instanceof MediaStream) { S.wasBlocked = false; send({t: 'idr', why: 'the video plays after a tap'}); }
+});
 v.addEventListener('loadedmetadata', () => { applyFill(); });
 v.addEventListener('resize', () => { applyFill(); });
 

@@ -9,7 +9,7 @@
 **Mirror your iPhone, iPad or Android phone to a Windows PC, wirelessly.**<br>
 No app on the iPhone, and you can drive an Android phone with your mouse and keyboard; or the other way round, control the PC from your phone. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.1" height="40"></a>
 
 [Website](https://victor900106.github.io/ZizaiCast/#en) ・ [All releases](https://github.com/victor900106/ZizaiCast/releases) ・ [How to connect](#start) ・ [FAQ](#faq) ・ [Privacy](#privacy)
 
@@ -45,6 +45,7 @@ What's on your phone often needs a bigger screen: showing an app to a class, mak
 | **Remote control** | Send files both ways; lock the PC automatically after a remote session; a connection log; lift *View only* from the phone with the password; touch now clicks where you tap by default; 60 fps while the picture moves. |
 | **Fixes** | Steadier AirPlay when phones switch or reconnect; Android reconnects by itself; a frozen Miracast picture is retried automatically; the first translation after installing takes about 3 s instead of about 30 s; 19 security fixes in remote control. |
 | **Uses less** | With no phone, the window wakes up 0.03 times a second instead of 8.7; with remote control on and waiting, memory drops from 266 MB to 111 MB; when Android isn't used, the background adb closes itself (it used to keep about 18 MB). |
+| **0.8.3.1 fixes** | Remote control on an iPhone (for example in Low Power Mode) no longer stays on “Connecting”: the picture still comes up, with “tap to show the screen”; if it can’t connect, you’re told why within 12 s and can try again. After a reboot, always-on access waits for Tailscale to finish starting instead of reporting a failure. |
 
 Full change list on the Releases page.
 

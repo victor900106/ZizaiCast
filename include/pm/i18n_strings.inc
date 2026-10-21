@@ -930,6 +930,8 @@ PM_STR(RemoteFixedWhyNoTs, L"這台電腦沒有安裝 Tailscale", L"Tailscale is
 PM_STR(RemoteFixedWhyNotRunning, L"Tailscale 沒有登入或沒有在執行", L"Tailscale isn’t signed in or isn’t running")
 PM_STR(RemoteFixedWhyNoFunnel, L"你的 Tailscale 帳號還沒允許 Funnel（在 Tailscale 管理頁的 Access controls 開啟）", L"Funnel isn’t allowed for your Tailscale account (turn it on under Access controls in the Tailscale admin console)")
 PM_STR(RemoteFixedWhyOther, L"Tailscale Funnel 沒有成功（{0}）", L"Tailscale Funnel didn’t work ({0})")
+PM_STR(RemoteFixedWaitTs, L"等待 Tailscale 啟動…（{0} 秒後再試）", L"Waiting for Tailscale to start… (trying again in {0} s)")
+PM_STR(RemoteFixedWhyTsSlow, L"Tailscale 等了 5 分鐘還沒啟動完成", L"Tailscale still hadn’t finished starting after 5 minutes")
 PM_STR(RemoteFixedOnToast, L"常駐外網已開啟：{0}", L"Always-on access is on: {0}")
 PM_STR(RemoteFixedOffToast, L"常駐外網已關閉，網址已撤掉", L"Always-on access is off; the address was removed")
 PM_STR(RemoteFixedLockedBalloon, L"有人在 {0} 連續輸錯密碼 5 次，已鎖 15 分鐘", L"Someone at {0} got the password wrong 5 times: locked for 15 minutes")

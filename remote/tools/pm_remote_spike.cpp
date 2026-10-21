@@ -54,6 +54,7 @@ void usage() {
         "  --port N           HTTP port (default 8090; 0 = any)\n"
         "  --token T          fixed token (default random)\n"
         "  --no-tailscale     do not also listen on the Tailscale address\n"
+        "  --loopback         tests: the \"LAN\" side on 127.0.0.3 only (nothing on the LAN: no firewall prompt)\n"
         "  --quality 0|1|2    picture preset to start with (0 smooth 1080p, 1 standard 1440p, 2 clear native; default 2)\n"
         "  --size WxH --fps N --kbps N   override the preset\n"
         "  --monitor N        monitor index (0 = primary)\n"
@@ -320,6 +321,7 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--port") o.port = uint16_t(_wtoi(next()));
         else if (a == L"--token") o.token = u8(next());
         else if (a == L"--no-tailscale") o.tailscale = false;
+        else if (a == L"--loopback") o.loopbackTest = true, o.tailscale = false;
         else if (a == L"--quality") o.quality = _wtoi(next());
         else if (a == L"--monitor") o.monitor = _wtoi(next());
         else if (a == L"--size") {

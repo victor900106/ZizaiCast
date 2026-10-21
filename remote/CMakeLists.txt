@@ -73,3 +73,12 @@ if(MSVC)
   target_compile_options(pm_remote_spike PRIVATE /W4 /utf-8)
   target_compile_definitions(pm_remote_spike PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
+
+# 0.8.3.1: 常駐外網 Funnel start-up retry against a stubbed tailscale CLI (no process is run).
+add_executable(pm_funnel_test tools/funnel_retry_test.cpp)
+target_link_libraries(pm_funnel_test PRIVATE pm_remote)
+target_include_directories(pm_funnel_test PRIVATE src)  # util.h: the log handler
+if(MSVC)
+  target_compile_options(pm_funnel_test PRIVATE /W4 /utf-8)
+  target_compile_definitions(pm_funnel_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+endif()

@@ -132,6 +132,9 @@ public:
     void testClick(int which, bool fromPhone);
     LRESULT handle(UINT msg, WPARAM wp, LPARAM lp);
     HWND hwnd() const { return hwnd_; }
+    // 0.8.3.1: --dev --test-offscreen: the bar goes left of every monitor (the remote tests had
+    // it at the top of the real screen).
+    static inline bool testOffscreen = false;
 
 private:
     void paint();

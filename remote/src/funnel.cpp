@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -19,9 +20,21 @@ namespace {
 
 using json = nlohmann::json;
 
+// 0.8.3.1 tests: the stubbed tailscale CLI (setRunnerForTest); empty = real processes.
+TailscaleFunnel::Runner& testRunner() {
+    static TailscaleFunnel::Runner r;
+    return r;
+}
+
 // Runs a command line without a window, its output (stdout + stderr) and exit code.
 bool runCapture(const std::wstring& cmd, DWORD timeoutMs, std::string& out, DWORD& code) {
     out.clear(), code = DWORD(-1);
+    if (const auto& r = testRunner()) {  // tests: never a real process
+        unsigned long c = DWORD(-1);
+        const bool ok = r(cmd, out, c);
+        code = DWORD(c);
+        return ok;
+    }
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
     HANDLE rd = nullptr, wr = nullptr;
     if (!CreatePipe(&rd, &wr, &sa, 0)) return false;
@@ -102,7 +115,10 @@ bool TailscaleFunnel::targetAnswers(const std::string& target) {
     return answers;
 }
 
+void TailscaleFunnel::setRunnerForTest(Runner r) { testRunner() = std::move(r); }
+
 std::wstring TailscaleFunnel::findCli() {
+    if (testRunner()) return L"tailscale-test-stub.exe";  // (never started: runCapture uses the stub)
     wchar_t b[MAX_PATH] = {};
     for (const wchar_t* v : {L"ProgramFiles", L"ProgramW6432", L"ProgramFiles(x86)"}) {
         const DWORD n = GetEnvironmentVariableW(v, b, MAX_PATH);
@@ -155,6 +171,13 @@ FunnelStatus TailscaleFunnel::status(int port) {
 bool TailscaleFunnel::start(int port, const std::string& target, std::string& url, std::string& err) {
     const FunnelStatus before = status(port);
     if (!before.running) return err = before.error, false;
+    // 0.8.3.1: tailscaled keeps its serve config across restarts: 8443 already pointing at our
+    // origin with Funnel on is left exactly as it is (no command, nothing changes).
+    if (before.hasPort && before.portFunnel && before.target == target && !before.dnsName.empty()) {
+        url = "https://" + before.dnsName + ":" + std::to_string(port) + "/";
+        logf("funnel: on: %s -> %s (kept by tailscaled, nothing changed; port 443 untouched)", url.c_str(), target.c_str());
+        return true;
+    }
     const std::wstring cmd = L"\"" + findCli() + L"\" funnel --bg --https=" + std::to_wstring(port) + L" " + widen(target);
     std::string out;
     DWORD code = 0;
@@ -178,6 +201,43 @@ bool TailscaleFunnel::start(int port, const std::string& target, std::string& ur
     url = "https://" + after.dnsName + ":" + std::to_string(port) + "/";
     logf("funnel: on: %s -> %s (port 443 unchanged)", url.c_str(), target.c_str());
     return true;
+}
+
+bool TailscaleFunnel::backendStarting(const std::string& err) {
+    std::string e = err;
+    for (char& c : e) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    if (e.rfind("not-running: ", 0) != 0) return false;
+    const std::string st = trimmed(e.substr(13));
+    if (st == "nostate" || st == "starting" || st.empty()) return true;
+    // The service is not listening yet (tailscaled still starting after a reboot).
+    return st.find("failed to connect to local tailscale") != std::string::npos || st.find("is tailscale running") != std::string::npos ||
+           st.find("tailscaled") != std::string::npos;
+}
+
+bool TailscaleFunnel::startPatiently(int port, const std::string& target, std::string& url, std::string& err,
+                                     const std::function<bool(int, int)>& wait, int maxTotalSeconds) {
+    int waited = 0;
+    for (int attempt = 1;; ++attempt) {
+        err.clear();
+        if (start(port, target, url, err)) {
+            if (attempt > 1) logf("funnel: up on try %d, after %d s of waiting for Tailscale to start", attempt, waited);
+            return true;
+        }
+        if (!backendStarting(err)) return false;  // signed out, no Funnel, 443 changed, ...: not a wait
+        int delay = (std::min)(60, 2 << (std::min)(attempt - 1, 5));  // 2 4 8 16 32 60 60 ... (the last one up to the limit)
+        if (waited + delay > maxTotalSeconds) delay = maxTotalSeconds - waited;  // (2 4 8 16 32 60 60 60 58 = 300 s)
+        if (delay <= 0) {
+            logf("funnel: Tailscale still not running after %d s (%s): giving up", waited, err.c_str());
+            err = "still-starting: " + err.substr((std::min<size_t>)(err.size(), 13));
+            return false;
+        }
+        logf("funnel: Tailscale is still starting (%s): try %d in %d s", err.c_str(), attempt + 1, delay);
+        if (!wait(attempt, delay)) {
+            err = "cancelled";
+            return false;
+        }
+        waited += delay;
+    }
 }
 
 bool TailscaleFunnel::stop(int port, std::string& err) {

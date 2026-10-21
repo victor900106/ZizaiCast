@@ -7,8 +7,10 @@
 
 #include <bcrypt.h>
 
+#include <algorithm>
 #include <atomic>
 #include <fstream>
+#include <memory>
 #include <set>
 #include <thread>
 
@@ -68,7 +70,7 @@ struct RemoteState {
     int fixState = 0;               // 0 off, 1 starting, 2 ready, 3 failed
     std::string fixUrl;             // https://<pc>.<tailnet>.ts.net:8443/ (or a cloudflared fallback)
     std::wstring fixErr, fixInfo;   // failed: why; info: why the cloudflared fallback is used
-    unsigned fixGen = 0;            // a stale Funnel answer is ignored
+    std::atomic<unsigned> fixGen{0};  // a stale Funnel answer is ignored (0.8.3.1: also read by the waiting thread)
     std::thread fixThread;          // tailscale CLI calls (a few hundred ms) off the UI thread
     std::atomic<bool> fixFunnel{false};  // port 8443 is ours (turned off at stop / quit)
     int pageQr = 0;                 // 遠端控制 page: the QR shown in 1 在家 / 2 Tailscale (0 none)
@@ -330,6 +332,8 @@ bool startHost() {
         if (GetEnvironmentVariableW(L"PM_REMOTE_DRYRUN", v, 8) > 0 && v[0] == L'1') o.inject = false;
         if (GetEnvironmentVariableW(L"PM_REMOTE_TESTCLIP", v, 8) > 0 && v[0] == L'1') o.testClipboard = true;
         if (GetEnvironmentVariableW(L"PM_REMOTE_NOTS", v, 8) > 0 && v[0] == L'1') o.tailscale = false;  // as if no Tailscale
+        // 0.8.3.1: PM_REMOTE_LOOPBACK=1 = the LAN side on 127.0.0.3 only (a test build path gets no firewall prompt)
+        if (GetEnvironmentVariableW(L"PM_REMOTE_LOOPBACK", v, 8) > 0 && v[0] == L'1') o.loopbackTest = true, o.tailscale = false;
         // 0.8.3 files: PM_REMOTE_TESTFILES="a;b" = the "copied files" (with PM_REMOTE_TESTCLIP); uploads go
         // to the instance's own data folder (never the owner's Downloads) or PM_REMOTE_UPLOADDIR.
         wchar_t tf[2048] = {};
@@ -441,6 +445,7 @@ std::wstring funnelWhy(const std::string& err) {
     std::string e = err;
     for (char& c : e) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     if (e == "no-tailscale") return tr(S::RemoteFixedWhyNoTs);
+    if (e.rfind("still-starting", 0) == 0) return tr(S::RemoteFixedWhyTsSlow);  // 0.8.3.1: waited 5 minutes
     if (e.rfind("not-running", 0) == 0 || e.find("logged out") != std::string::npos || e.find("needslogin") != std::string::npos)
         return tr(S::RemoteFixedWhyNotRunning);
     if (e.find("funnel") != std::string::npos &&
@@ -495,13 +500,47 @@ void startFixed() {
     const std::string fakeUrl = fkn > 0 && fkn < 256 ? toUtf8(fk) : std::string();
     // 0.8.2.1: --dev instances never run the tailscale CLI (a test could change the
     // owner's real Funnel): without PM_REMOTE_FUNNELFAKE they fail like PM_REMOTE_FUNNELFAIL.
-    const bool devNoCli = g.dev && fakeUrl.empty();
+    // 0.8.3.1 --dev shots: PM_REMOTE_FUNNELSTARTING=<n> = a stubbed tailscale CLI (no process): BackendState
+    // NoState for n checks, then Running with 8443 kept by tailscaled (a made-up name), to show
+    // 「等待 Tailscale 啟動」. The stub stays for the whole instance: nothing real can run after it.
+    wchar_t fst[4] = {};
+    const int stubStarting = g.dev && GetEnvironmentVariableW(L"PM_REMOTE_FUNNELSTARTING", fst, 4) > 0 ? std::clamp(_wtoi(fst), 0, 9) : 0;
+    if (stubStarting > 0) {
+        auto calls = std::make_shared<int>(0);
+        pm::remote::TailscaleFunnel::setRunnerForTest([calls, stubStarting, origin](const std::wstring& cmd, std::string& out, unsigned long& code) {
+            code = 0;
+            const std::string name = "pc.tail-test.ts.net";
+            if (cmd.find(L" funnel status --json") != std::wstring::npos)
+                out = "{\"TCP\":{\"8443\":{\"HTTPS\":true}},\"Web\":{\"" + name + ":8443\":{\"Handlers\":{\"/\":{\"Proxy\":\"" + origin +
+                      "\"}}}},\"AllowFunnel\":{\"" + name + ":8443\":true}}";
+            else if (cmd.find(L" status --json") != std::wstring::npos)
+                out = std::string("{\"BackendState\":\"") + ((*calls)++ < stubStarting ? "NoState" : "Running") + "\",\"Self\":{\"DNSName\":\"" + name + ".\"}}";
+            else out = "refused (dev stub)", code = 1;
+            return true;
+        });
+        g.log->write("info", "remote: 常駐外網 (PM_REMOTE_FUNNELSTARTING): stubbed tailscale CLI, NoState x" + std::to_string(stubStarting));
+    }
+    const bool devNoCli = g.dev && fakeUrl.empty() && stubStarting == 0;
     r.fixThread = std::thread([h, gen, origin, fakeFail, fakeUrl, devNoCli] {
         std::string url, err = devNoCli ? std::string("--dev: the tailscale CLI is not run (PM_REMOTE_FUNNELFAKE=<url> for a made-up address)")
                                         : std::string("Funnel not available; \"funnel\" node attribute not set (test)");
         const bool fake = !fakeFail && !fakeUrl.empty();
         if (fake) url = fakeUrl;
-        const bool ok = fake || (!fakeFail && !devNoCli && pm::remote::TailscaleFunnel::start(kFixedPort, origin, url, err));
+        // 0.8.3.1: right after a reboot tailscaled is up before it is Running (the owner's 09:14 log:
+        // "not-running: NoState", 8443 fine a minute later): wait and try again (2, 4, 8 ... 60 s, about
+        // 5 minutes), the page says 「等待 Tailscale 啟動」; stopping 常駐外網 / quitting ends the wait.
+        auto wait = [h, gen](int attempt, int secs) {
+            auto* wm = new RemoteMsg{gen, "", "", "", "", std::to_string(secs)};
+            wm->fails = attempt;
+            if (!PostMessageW(h, WM_PM_REMOTE, RemFixedWait, reinterpret_cast<LPARAM>(wm))) delete wm;
+            for (int i = 0; i < secs * 4; ++i) {
+                if (R().fixGen != gen) return false;  // stopFixed (also at quit) bumps it, then joins
+                Sleep(250);
+            }
+            return R().fixGen == gen;
+        };
+        const bool ok = fake || (!fakeFail && !devNoCli && pm::remote::TailscaleFunnel::startPatiently(kFixedPort, origin, url, err, wait));
+        if (!ok && err == "cancelled") return;  // stopped meanwhile: nothing to say
         if (ok && !fake) R().fixFunnel = true;  // ours to remove, whatever happens to the message
         auto* m = new RemoteMsg{gen, "", "", "", "", ok ? url : err};
         if (!PostMessageW(h, WM_PM_REMOTE, ok ? RemFixedUp : RemFixedFail, reinterpret_cast<LPARAM>(m))) delete m;
@@ -858,16 +897,24 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         g.log->write("info", "remote: " + m->why);
         return;
     }
+    if (m && kind == RemFixedWait) {  // 0.8.3.1: Tailscale is still starting: 「等待 Tailscale 啟動」, not 改用臨時網址
+        if (m->gen != r.fixGen || !r.on || r.fixState != 1) return;
+        r.fixInfo = pm::i18n::fmt(S::RemoteFixedWaitTs, {w(m->why)});
+        g.log->write("info", "remote: 常駐外網: waiting for Tailscale to start (try " + std::to_string(m->fails + 1) + " in " + m->why + " s)");
+        updateFixedPanel();
+        remoteChanged();
+        return;
+    }
     if (m && (kind == RemFixedUp || kind == RemFixedFail || kind == RemFixedCfUrl || kind == RemFixedCfEnd)) {
         if (m->gen != r.fixGen || !r.on) return;  // stopped meanwhile (stopFixed removed the port)
         if (kind == RemFixedUp && r.fixState == 1) {
-            r.fixState = 2, r.fixUrl = m->why;
+            r.fixState = 2, r.fixUrl = m->why, r.fixInfo.clear();
             g.log->write("info", "remote: 常駐外網 ready at " + r.fixUrl + " (Tailscale Funnel; port 443 untouched)");
             g.window->showToast(pm::i18n::fmt(S::RemoteFixedOnToast, {w(r.fixUrl)}), 4000);
         } else if (kind == RemFixedFail && r.fixState == 1) {
             // Said in plain words on the page, with 「改用臨時網址」 (cloudflared: the address
             // is not fixed, so it is the owner's choice, not automatic).
-            r.fixState = 3, r.fixErr = funnelWhy(m->why);
+            r.fixState = 3, r.fixErr = funnelWhy(m->why), r.fixInfo.clear();
             g.log->write("warn", "remote: 常駐外網: Funnel failed: " + m->why + " (the page offers a temporary address)");
         } else if (kind == RemFixedCfUrl && r.fixState == 1) {
             r.fixState = 2, r.fixUrl = m->why + "/";
@@ -1420,7 +1467,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
             c.note = w(r.fixUrl) + (r.fixInfo.empty() ? std::wstring() : L"\n" + r.fixInfo);
             qrOf(r.fixUrl, c);
         } else if (r.fixState == 1) {
-            c.body = tr(S::RemoteFixedStarting);
+            c.body = r.fixInfo.empty() ? std::wstring(tr(S::RemoteFixedStarting)) : r.fixInfo;  // 0.8.3.1: 等待 Tailscale 啟動
         } else if (r.fixState == 3) {
             c.body = pm::i18n::fmt(S::RemoteFixedFailed, {r.fixErr});
         } else {
@@ -1473,11 +1520,21 @@ std::wstring remoteStatusLine() {
     return r.active ? pm::i18n::fmt(S::CardRemoteOnActive, {path, L"1"}) : pm::i18n::fmt(S::CardRemoteOnIdle, {path});
 }
 
+// 0.8.3.1: 新功能 belongs to a feature release (x.y.z): a fix-up (0.8.3.1) neither shows 0.8.3's
+// again nor calls it 0.8.3.1's.
+static std::string newsVersion() {
+    std::string v = kAppVersion;
+    size_t p = 0;
+    for (int dots = 0; (p = v.find('.', p)) != std::string::npos; ++p)
+        if (++dots == 3) return v.substr(0, p);
+    return v;
+}
+
 void showWhatsNew() {
     RemoteState& r = R();
     pm::ui::AskPanel::Info q;
     q.glyph = kIcoRemote;
-    q.title = pm::i18n::fmt(S::WhatsNewTitle, {toWide(kAppVersion)});
+    q.title = pm::i18n::fmt(S::WhatsNewTitle, {toWide(newsVersion())});
     q.body = tr(S::WhatsNewBody);
     // 0.8.3
     q.rows.push_back({tr(S::WhatsNewLabel1), tr(S::WhatsNewInk)});
@@ -1489,7 +1546,7 @@ void showWhatsNew() {
     q.secondary = tr(S::WhatsNewTry);
     q.secondaryChoice = 2;
     q.done = [](int choice) {
-        g.settings.whatsNewSeen = kAppVersion;
+        g.settings.whatsNewSeen = newsVersion();
         saveSettings();
         g.log->write("info", std::string("what's new ") + kAppVersion + " closed (" + std::to_string(choice) + ")");
         if (choice == 2) openTutorial(nullptr);  // 0.8.3: the guide from the top
@@ -1500,9 +1557,9 @@ void showWhatsNew() {
 void remoteStartup(bool background) {
     RemoteState& r = R();
     // 新功能: once, after an upgrade (a first start gets the tutorial instead), not from autostart.
-    if (g.settings.whatsNewSeen != kAppVersion) {
+    if (g.settings.whatsNewSeen != newsVersion()) {
         if (!g.settings.tutorialShown) {
-            g.settings.whatsNewSeen = kAppVersion;  // first start: nothing is "new"
+            g.settings.whatsNewSeen = newsVersion();  // first start: nothing is "new"
             saveSettings();
         } else if (!background) {
             showWhatsNew();

@@ -192,3 +192,49 @@ HTTP (behind the link / login): `POST up?id=&f=&n=&o=&t=` (a file piece -> `{ok,
 `--upload-max`, `--test-files`, `--no-agc`, `--no-volume-comp`, `--synthetic-audio quiet`.
 App `--dev`: `PM_REMOTE_TESTFILES`, `PM_REMOTE_UPLOADDIR`, DevCommand 965 (1 連線紀錄 text,
 2 中斷 from the PC).
+
+## 0.8.3.1
+
+### No picture on the owner's iPhone Safari (fixed link, 2026-10-21 07:48)
+
+The page came in with its saved 30-day login (no password typed: no tap on the page at all),
+WebRTC connected, the first IDR was decoded (`page-report`: `w` 3440, `dec_ms` 10) but
+`video.play()` was refused (`playErr: NotAllowedError`, `paused: true`, `videoW: 0`): this
+iPhone refuses even muted autoplay (WebKit does so in Low Power Mode; every session of this
+phone in the log has `tapAsk`). Since 0.8.1 the tap prompt was a pill whose text was never set,
+under the full-page 「連線中…」 spinner; at 10 s the page blamed the router. 0.8.2 worked only
+because the password was typed on that page load (a tap). The decoder was never the problem
+(0.8.2, 01:31: the same phone at 3440x1440 level 5.2, 57.8 fps).
+
+- Connected + play refused: 「已連上電腦，點一下就會出現畫面」 with 顯示畫面 (any tap works);
+  on the 外網 / fixed links the picture comes over the tunnel's WebCodecs canvas after 1.5 s
+  (no autoplay needed) and the first tap moves to direct WebRTC with a fresh IDR
+  (`{"t":"idr","why":...}`, logged, at most one per 300 ms).
+- No picture and nothing to tap for: IDR request at 3 s; at 6 s the tunnel (外網 / fixed) or,
+  when frames arrive but none decodes, quality 0 for this session; the 10 s watchdog keeps the
+  tap message when that is the reason.
+- 「連線中…」 never spins for ever: 12 s -> 「電腦一直沒有回應」 / 「畫面的連線一直接不起來」 with
+  重試 and 看排除方法 (`page-diag stuck-connecting`); the saved-login check gives up after 10 s.
+
+### 常駐外網 after a reboot
+
+`TailscaleFunnel::startPatiently`: BackendState NoState / Starting (or the CLI not reaching
+tailscaled yet) = wait and try again after 2, 4, 8, 16, 32, 60, 60, 60, 58 s (300 s); the card
+and the panel say 「等待 Tailscale 啟動…（n 秒後再試）」, no temporary address is offered.
+NeedsLogin / Stopped / no Funnel / 443 changed fail at once as before. 8443 already pointing at
+our origin with Funnel on (tailscaled keeps it across restarts) is left as it is (no command).
+After 5 minutes: 「Tailscale 等了 5 分鐘還沒啟動完成」.
+
+### Tests (none listens on the LAN: no firewall prompt; tailscale / cloudflared never run)
+
+- `--loopback` (spike) / `PM_REMOTE_LOOPBACK=1` (app `--dev`): the LAN side on 127.0.0.3, no LAN
+  or Tailscale listener, no STUN; `edge_test.mjs --loopback`, `app_remote_test.mjs --loopback`
+  (Edge with `--allow-loopback-in-peer-connection`).
+- `node remote/tools/novideo_test.mjs <spike> <out>`: owner / tap / normal / stuck / nopic, with a
+  WebKit-like autoplay block, the saved login, quality 2, static scene.
+- `app_remote_test.mjs --block-autoplay`: the same case inside the app.
+- `pm_funnel_test.exe`: the retry against a stubbed CLI (`TailscaleFunnel::setRunnerForTest`).
+- `node remote/tools/funnel_wait_shots.mjs <自在投影.exe> <out>`: 「等待 Tailscale 啟動」 in the app
+  (`PM_REMOTE_FUNNELSTARTING=<n>`: stubbed CLI inside a `--dev` instance).
+- The connected-phone banner is placed off every monitor in `--test-offscreen` (it was shown at
+  the top of the real screen).

@@ -15,7 +15,8 @@ namespace pm_app {
 enum RemoteEvent : WPARAM {
     RemRequest = 1, RemActive, RemEnded, RemBlocked, RemTrouble, RemTunnelUrl, RemTunnelEnd, RemTunnelLink, RemTunnelCheck,
     RemFixedUp, RemFixedFail, RemFixedCfUrl, RemFixedCfEnd, RemFixedLogin, RemFixedStale,  // 常駐外網 (0.8.2)
-    RemLoginRevoked, RemUnlocked, RemUploaded  // 0.8.3
+    RemLoginRevoked, RemUnlocked, RemUploaded,  // 0.8.3
+    RemFixedWait  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
 };
 
 bool remoteAvailable();

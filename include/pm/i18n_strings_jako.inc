@@ -1736,6 +1736,10 @@ PM_JAKO(RemoteFixedWhyNoFunnel, L"Tailscale アカウントで Funnel が許可�
         L"Tailscale 계정에서 Funnel이 허용되지 않았습니다(관리 페이지의 Access controls에서 켭니다)")
 PM_JAKO(RemoteFixedWhyOther, L"Tailscale Funnel が使えませんでした（{0}）",
         L"Tailscale Funnel이 작동하지 않았습니다({0})")
+PM_JAKO(RemoteFixedWaitTs, L"Tailscale の起動を待っています…（{0} 秒後に再試行）",
+        L"Tailscale이 시작되기를 기다리는 중…({0}초 후 다시 시도)")
+PM_JAKO(RemoteFixedWhyTsSlow, L"Tailscale が 5 分たっても起動を完了しませんでした",
+        L"Tailscale이 5분이 지나도 시작을 마치지 못했습니다")
 PM_JAKO(RemoteFixedOnToast, L"常時外部接続をオンにしました：{0}",
         L"상시 외부 접속를 켰습니다: {0}")
 PM_JAKO(RemoteFixedOffToast, L"常時外部接続をオフにし、アドレスを削除しました",

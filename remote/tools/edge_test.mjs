@@ -1,6 +1,8 @@
 // Automated Edge test for pm_remote_spike (node 22+, built-in WebSocket).
 //   node edge_test.mjs <spike.exe> <outDir> [--via lan|tailscale] [--visible] [--seconds N]
-//                      [--profile DIR] [--page-query q] [spike args...]
+//                      [--profile DIR] [--page-query q] [--loopback] [spike args...]
+// --loopback (0.8.3.1): the spike serves its "LAN" side on 127.0.0.3 only and Edge may use
+// loopback ICE candidates: a fresh build path makes no Windows Firewall prompt.
 // Starts the spike and Microsoft Edge with a throw-away profile (default
 // %TEMP%\edge-080), opens the page through the LAN IP (or this PC's Tailscale
 // IP), emulates a phone (touch, 390x844), plays trackpad gestures through
@@ -17,7 +19,7 @@ import crypto from 'node:crypto';
 
 const [spikeExe, outDir, ...rest] = process.argv.slice(2);
 if (!spikeExe || !outDir) { console.error('usage: node edge_test.mjs <spike.exe> <outDir> [--via lan|tailscale] [--visible] [--seconds N] [spike args]'); process.exit(2); }
-let visible = false, seconds = 30, pageQuery = '', via = 'lan', profileDir = path.join(os.tmpdir(), 'edge-080'), lockoutTest = false;
+let visible = false, seconds = 30, pageQuery = '', via = 'lan', profileDir = path.join(os.tmpdir(), 'edge-080'), lockoutTest = false, loopbackRun = false;
 const spikeArgs = [];
 for (let i = 0; i < rest.length; i++) {
   if (rest[i] === '--visible') visible = true;
@@ -26,6 +28,7 @@ for (let i = 0; i < rest.length; i++) {
   else if (rest[i] === '--via') via = rest[++i];
   else if (rest[i] === '--profile') profileDir = rest[++i];
   else if (rest[i] === '--lockout-test') lockoutTest = true;
+  else if (rest[i] === '--loopback') { loopbackRun = true; spikeArgs.push('--loopback'); }
   else spikeArgs.push(rest[i]);
 }
 const inject = spikeArgs.includes('--inject');
@@ -62,7 +65,7 @@ for (let i = 0; i < 100 && !lanUrl; i++) {
 if (!lanUrl) { console.error('spike did not print a URL\n' + spikeOut); spike.kill(); process.exit(1); }
 const url = via === 'tailscale' ? tsUrl : lanUrl;
 if (!url) { console.error('no ' + via + ' URL (Tailscale not up?)'); spike.stdin.end(); await sleep(3000); process.exit(1); }
-if (url.includes('//127.')) { console.error('URL is loopback'); spike.kill(); process.exit(1); }
+if (url.includes('//127.') && !(loopbackRun && url.includes('//127.0.0.3:'))) { console.error('URL is loopback'); spike.kill(); process.exit(1); }
 log('page via', via, url);
 
 // ---- Edge (own temp profile) ----
@@ -73,6 +76,7 @@ const edgeArgs = [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${cd
                   '--disable-features=msEdgeSidebarV2,msHubApps,msEdgeShoppingUI', '--window-size=420,900'];
 // No --autoplay-policy flag: the page must cope with the browser default
 // (muted autoplay ok, sound only after a tap), like iOS Safari.
+if (loopbackRun) edgeArgs.push('--allow-loopback-in-peer-connection');
 if (!visible) edgeArgs.push('--headless=new');
 edgeArgs.push('about:blank');
 // A fresh profile every run (page settings live in its localStorage). Only our own temp profile.
@@ -383,10 +387,10 @@ try {
   const checks = [
     ['wrong token -> 403', badToken === 403],
     ['no token -> 403', noToken === 403],
-    ['not reachable on 127.0.0.1 (LAN/Tailscale bind only)', loopback === 'refused'],
+    ['not reachable on 127.0.0.1 (LAN/Tailscale bind only)', loopbackRun ? loopback !== 200 : loopback === 'refused'],
     ['403s logged with source IP', /\d+\.\d+\.\d+\.\d+ GET \/[^ ]* .*-> 403/.test(L)],
     [`page served via ${via} IP ${viaIp}`, new RegExp(`GET page via ${viaIp.replace(/\./g, '\\.')}`).test(L)],
-    ['Tailscale listener up', /listening on 100\.\d+\.\d+\.\d+:\d+ \(Tailscale peers only\)/.test(L)],
+    [loopbackRun ? 'Tailscale listener (n/a: --loopback)' : 'Tailscale listener up', loopbackRun || /listening on 100\.\d+\.\d+\.\d+:\d+ \(Tailscale peers only\)/.test(L)],
     ['video track open', /video track open/.test(L)],
     ['audio track open', /audio track open/.test(L)],
     ['DataChannel open', /DataChannel open/.test(L)],

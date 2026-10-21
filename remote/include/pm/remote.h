@@ -98,12 +98,29 @@ public:
     // 0.8.2.1: does something answer at the Funnel's target ("http://127.0.0.2:<port>")?
     // Then another running 自在投影 serves it, and it is not stale.
     static bool targetAnswers(const std::string& target);
+
+    // 0.8.3.1: right after Windows starts, tailscaled is up before it is Running (BackendState
+    // NoState / Starting, or the CLI cannot reach it yet): that is "wait", not "failed".
+    static bool backendStarting(const std::string& err);
+    // start(), and while the backend is still starting: again after 2, 4, 8, 16, 32, then every
+    // 60 s, for about 5 minutes in all. wait(attempt, seconds) sleeps before the next try and
+    // returns false to give up (the app was closed / 常駐外網 turned off). err after the last try:
+    // "still-starting: <the CLI's state>" when the backend never came up.
+    static bool startPatiently(int port, const std::string& target, std::string& url, std::string& err,
+                               const std::function<bool(int attempt, int seconds)>& wait, int maxTotalSeconds = 300);
+    // Tests only: every tailscale CLI call goes to this instead of a process (nothing is run).
+    using Runner = std::function<bool(const std::wstring& cmdLine, std::string& out, unsigned long& exitCode)>;
+    static void setRunnerForTest(Runner r);
 };
 
 struct Options {
     std::string bindIp;      // LAN IPv4 to bind; empty = the first real LAN interface
     bool tailscale = true;   // also listen on the Tailscale address (if any)
-    uint16_t port = 8090;    // 0 = any free port
+    // 0.8.3.1 tests only: the "LAN" side is 127.0.0.3 (HTTP and the WebRTC UDP), no LAN or
+    // Tailscale listener at all, so a fresh build path never makes Windows Firewall ask (the
+    // browser needs --allow-loopback-in-peer-connection). The app sets it only in --dev runs.
+    bool loopbackTest = false;
+    uint16_t port = 8090;   // 0 = any free port
     std::string token;       // empty = random 32 chars
     int quality = 2;         // qualityPreset() level to start with (the page may change it)
     int maxWidth = 0, maxHeight = 0, fps = 0, kbps = 0;  // > 0: override the preset (spike / tests)

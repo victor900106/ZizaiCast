@@ -461,6 +461,7 @@ struct Session {
     int64_t startUs = 0;
     std::atomic<bool> firstFrameSent{false};
     std::atomic<int64_t> lastMsgUs{0};  // last DataChannel message (pings every 500 ms)
+    std::atomic<int64_t> lastIdrAskUs{0};  // 0.8.3.1: the page's last {"t":"idr"} (rate limit)
     std::mutex gmu;
     std::condition_variable gcv;
     bool gathered = false;
@@ -793,8 +794,16 @@ bool Host::start(const Options& o) {
     }
     // LAN interface: same choice as 傳到手機 (real LAN adapters first), never
     // the Tailscale adapter (that one is the second, optional bind).
-    const auto lans = pm::share::lanInterfaces();
+    const auto lans = o.loopbackTest ? std::vector<pm::share::LanInterface>{} : pm::share::lanInterfaces();
     d.bindIp.clear();
+    if (o.loopbackTest) {  // 0.8.3.1 tests: 127.0.0.3 stands in for the LAN (no firewall prompt)
+        in_addr a{}, m{};
+        inet_pton(AF_INET, "127.0.0.3", &a);
+        inet_pton(AF_INET, "255.0.0.0", &m);
+        d.bindIp = "127.0.0.3", d.lanAddr = a.s_addr, d.lanMask = m.s_addr;
+        d.opt.stunServers.clear();  // (nothing to reach from 127.0.0.3)
+        logf("host: loopback test mode: the LAN side is 127.0.0.3 (nothing listens on the LAN)");
+    }
     for (const auto& l : lans) {
         if (isTailnet(l.addr)) continue;
         if (o.bindIp.empty() || l.ip == o.bindIp) {
@@ -821,7 +830,7 @@ bool Host::start(const Options& o) {
         binds.push_back({"127.0.0.2", lo2.s_addr, 0, false, true, true});
     }
     d.tsIp.clear();
-    if (o.tailscale) {
+    if (o.tailscale && !o.loopbackTest) {
         const std::string ts = tailscaleIp();
         if (!ts.empty()) {
             in_addr a{};
@@ -2412,6 +2421,12 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         return;
     }
     if (t == "idr") {
+        // 0.8.3.1: the page asks when it has no picture yet / starts playing after a tap (with a
+        // reason, logged); at most one every 300 ms whatever a page sends.
+        if (now - s->lastIdrAskUs < 300000) return;
+        s->lastIdrAskUs = now;
+        if (j.contains("why") && j["why"].is_string())
+            logf("page %s: asked for a key frame (%s) -> IDR", s->peer.c_str(), j["why"].get<std::string>().substr(0, 80).c_str());
         enc.forceKeyFrame();
         return;
     }

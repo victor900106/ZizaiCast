@@ -9,7 +9,7 @@
 **把 iPhone、iPad、Android 手機畫面，無線投影到 Windows 電腦。**<br>
 iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控；也能反過來，用手機遠端控制電腦。免費、開源、沒有廣告、不用帳號。
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3.1-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3.1" height="40"></a>
 
 [介紹頁](https://victor900106.github.io/ZizaiCast/) ・ [所有版本](https://github.com/victor900106/ZizaiCast/releases) ・ [怎麼連線](#start) ・ [常見問題](#faq) ・ [隱私](#privacy)
 
@@ -45,6 +45,7 @@ iPhone 不用裝 App；Android 還能用滑鼠鍵盤直接操控；也能反過�
 | **遠端控制** | 手機和電腦可以互傳檔案；遠端斷線後可以自動鎖定電腦；有連線紀錄；「僅觀看」時在手機輸入密碼就能解除；觸控預設改成「直接點」；畫面在動時維持每秒 60 張。 |
 | **修正** | AirPlay 換手機、重連更穩；Android 斷線會自動重連；Miracast 畫面凍結會自動重試；安裝後第一次翻譯從約 30 秒縮短到約 3 秒；遠端控制 19 項安全性修正。 |
 | **更省資源** | 沒有手機時，視窗每秒被喚醒從 8.7 次降到 0.03 次；開著遠端控制等手機時，記憶體 266 MB → 111 MB；Android 不用時，背景的 adb 會自己關掉（原本一直占約 18 MB）。 |
+| **0.8.3.1 修正** | 遠端控制在 iPhone 上（例如開了低耗電模式）不再一直停在「連線中」：畫面會照樣出來，並提示「點一下就會出現畫面」；連不上時 12 秒內會說明原因並可重試。重開機後 Tailscale 還在啟動時，常駐外網會等它好再連，不再誤判失敗。 |
 
 完整更新內容見 Releases 頁面。
 
