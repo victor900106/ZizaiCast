@@ -202,11 +202,9 @@
 <nav><div class="wrap">
   <a class="brand" href="#top"><img src="img/icon.png" alt="" width="28" height="28"><span><span class="zh-only">自在投影</span><span class="en-only">Zizai Cast</span></span></a>
   <div class="links">
-    <a href="#story"><span class="zh-only">能做什麼</span><span class="en-only">What it does</span></a>
-    <a href="#how"><span class="zh-only">怎麼連線</span><span class="en-only">Connect</span></a>
-    <a href="#remote"><span class="zh-only">遠端控制</span><span class="en-only">Remote</span></a>
-    <a href="#features"><span class="zh-only">功能</span><span class="en-only">Features</span></a>
-    <a href="#privacy"><span class="zh-only">隱私</span><span class="en-only">Privacy</span></a>
+    <a href="#mirror"><span class="zh-only">手機投影</span><span class="en-only">Phone mirroring</span></a>
+    <a href="#remote"><span class="zh-only">遠端控制</span><span class="en-only">Remote control</span></a>
+    <a href="#requirements"><span class="zh-only">下載</span><span class="en-only">Download</span></a>
     <a href="#faq"><span class="zh-only">常見問題</span><span class="en-only">FAQ</span></a>
     <a href="https://github.com/victor900106/ZizaiCast">GitHub</a>
   </div>
@@ -217,14 +215,15 @@
 <main id="main">
 <header class="hero" id="top"><div class="wrap">
   <div>
-    <p class="eyebrow"><span class="zh-only">Windows 手機投影・免費開源</span><span class="en-only">Phone mirroring for Windows · Free &amp; open source</span></p>
+    <p class="eyebrow"><span class="zh-only">手機投影 + 遠端控制・免費開源</span><span class="en-only">Phone mirroring + remote control · Free &amp; open source</span></p>
     <h1><span class="zh-only">把手機畫面，<br>自在投到電腦上。</span><span class="en-only">Your phone,<br>on your PC.</span></h1>
-    <p class="lead"><span class="zh-only">iPhone、iPad 不用裝 App；Android 還能用滑鼠鍵盤直接操控；新的「遠端控制」讓手機反過來，在家或在外面都能看到、聽到、操控你的電腦。錄影、截圖、放大、翻譯，都在同一個視窗裡，資料不離開你家的網路。</span><span class="en-only">No app on the iPhone or iPad; drive an Android phone with your mouse and keyboard; new Remote control works the other way round: from home or away, the phone sees, hears and controls your PC. Record, capture, zoom and translate in one window, and nothing leaves your home network.</span></p>
+    <p class="lead"><span class="zh-only">把手機畫面投到 Windows 電腦；也能反過來，用手機遠端控制電腦。iPhone 不用裝 App，Android 可用滑鼠鍵盤操控，遠端控制只要手機瀏覽器。錄影、截圖、放大、翻譯都在同一個視窗，資料不離開你家的網路。</span><span class="en-only">Put your phone on a Windows PC, or the other way round: control the PC from your phone. No app on the iPhone, mouse and keyboard control for Android, and remote control needs only a phone browser. Record, capture, zoom and translate in one window; nothing leaves your home network.</span></p>
     <div class="cta">
       <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 Windows 版</span><span class="en-only">Download for Windows</span></a>
-      <a class="btn secondary" href="#how"><span class="zh-only">看怎麼連線</span><span class="en-only">How to connect</span></a>
+      <a class="btn secondary" href="#mirror"><span class="zh-only">手機投影</span><span class="en-only">Phone mirroring</span></a>
+      <a class="btn secondary" href="#remote"><span class="zh-only">遠端控制</span><span class="en-only">Remote control</span></a>
     </div>
-    <p class="meta"><span class="zh-only">v0.8.3.2・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.8.3.2 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
+    <p class="meta"><span class="zh-only">v0.8.3.3・Windows 10 / 11（64 位元）・GPL-3.0・沒有廣告、不用帳號</span><span class="en-only">v0.8.3.3 · Windows 10 / 11 (64-bit) · GPL-3.0 · No ads, no account</span></p>
   </div>
   <div class="stage">
     <img class="shot" src="img/hero-zh.jpg" data-en="img/hero-en.jpg" alt="自在投影視窗裡顯示著 iPhone 的相簿畫面" width="560" height="640" fetchpriority="high">
@@ -233,61 +232,11 @@
   </div>
 </div></header>
 
-<section id="story"><div class="wrap">
+<section id="mirror"><div class="wrap">
   <div class="head">
-    <p class="eyebrow"><span class="zh-only">能做什麼</span><span class="en-only">What it does</span></p>
-    <h2><span class="zh-only">手機上的東西，常常需要大一點的螢幕</span><span class="en-only">What's on your phone often needs a bigger screen</span></h2>
-    <p class="intro"><span class="zh-only">四個常見的時刻，自在投影各用一個動作解決。</span><span class="en-only">Four everyday moments, each solved in one step.</span></p>
-  </div>
-
-  <div class="scene">
-    <div class="pic"><img src="img/f-iphone.jpg" data-en="img/f-iphone-en.jpg" alt="iPhone 畫面出現在電腦上" width="600" height="380" loading="lazy"></div>
-    <div>
-      <p class="num">01</p>
-      <h3><span class="zh-only">給大家看：上課、開會、示範一個 App</span><span class="en-only">Show it: a class, a meeting, an app demo</span></h3>
-      <p class="zh-only">iPhone 從控制中心選「螢幕鏡像」，Android 從快速設定選「投放」，畫面和聲音就到了電腦上，再接投影機或大螢幕。手機轉橫向，視窗也跟著轉。</p>
-      <p class="en-only">On the iPhone pick Screen Mirroring in Control Center; on Android pick Cast in Quick Settings. Picture and sound arrive on the PC, ready for a projector or big screen. Turn the phone sideways and the window follows.</p>
-    </div>
-  </div>
-
-  <div class="scene">
-    <div class="pic"><img src="img/f-control.jpg" data-en="img/f-control-en.jpg" alt="用電腦滑鼠操控 Android 手機" width="600" height="380" loading="lazy"></div>
-    <div>
-      <p class="num">02</p>
-      <h3><span class="zh-only">在電腦上用手機：滑鼠點、鍵盤打字</span><span class="en-only">Use the phone from the PC: click and type</span></h3>
-      <p class="zh-only">Android 開啟「無線偵錯」，掃一次 QR 碼就配對。之後點擊、滑動、捲動、打字都在電腦上完成，右鍵就是返回。</p>
-      <p class="en-only">Turn on Wireless debugging on Android and scan a QR code once. Then tap, swipe, scroll and type from the PC; right-click is Back.</p>
-    </div>
-  </div>
-
-  <div class="scene">
-    <div class="pic"><img src="img/f-magnifier.jpg" data-en="img/f-magnifier-en.jpg" alt="放大鏡與黃字黑底濾鏡" width="600" height="380" loading="lazy"></div>
-    <div>
-      <p class="num">03</p>
-      <h3><span class="zh-only">看清楚：字太小、對比太淡</span><span class="en-only">See it clearly: text too small, contrast too faint</span></h3>
-      <p class="zh-only">放大鏡最多 8 倍，搭配弱視濾鏡（加強對比、黑白、反轉、黃字黑底），還能凍結畫面慢慢看。</p>
-      <p class="en-only">Zoom up to 8×, with low-vision colours (more contrast, greyscale, inverted, yellow on black), and freeze the picture to read at your pace.</p>
-      <p class="keys"><kbd>Ctrl</kbd> + <span class="zh-only">滾輪</span><span class="en-only">wheel</span> ・ <kbd>Ctrl</kbd> + <kbd>K</kbd> ・ <kbd>Ctrl</kbd> + <kbd>P</kbd></p>
-    </div>
-  </div>
-
-  <div class="scene">
-    <div class="pic"><img src="img/f-translate.jpg" data-en="img/f-translate-en.jpg" alt="日文菜單在原位翻譯（合成測試圖）" width="600" height="380" loading="lazy"></div>
-    <div>
-      <p class="num">04</p>
-      <h3><span class="zh-only">看得懂：外文菜單、App、網頁</span><span class="en-only">Read it: a foreign menu, app or web page</span></h3>
-      <p class="zh-only">按一下，英、日、韓、簡中就翻成繁體中文，譯文直接蓋在原文上；即時翻譯會跟著畫面捲動。文字辨識和翻譯都在電腦上離線執行，不會上傳。</p>
-      <p class="en-only">One key and English, Japanese, Korean or Simplified Chinese is translated right over the original; live translation follows the screen as it scrolls. Text recognition and translation run offline on your PC; nothing is uploaded.</p>
-      <p class="keys"><kbd>Ctrl</kbd> + <kbd>L</kbd> <span class="zh-only">・圖中菜單為合成的測試圖</span><span class="en-only">· the menu is a synthetic test picture</span></p>
-    </div>
-  </div>
-</div></section>
-
-<section id="how" class="tint"><div class="wrap">
-  <div class="head">
-    <p class="eyebrow"><span class="zh-only">怎麼連線</span><span class="en-only">How to connect</span></p>
-    <h2><span class="zh-only">三個步驟，不用帳號</span><span class="en-only">Three steps, no account</span></h2>
-    <p class="intro pre"><b><span class="zh-only">開始前</span><span class="en-only">Before you start</span></b><span class="zh-only">：<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe">下載並安裝自在投影</a>（不需要系統管理員權限），手機和電腦連同一個 Wi‑Fi（不是訪客網路）。第一次開啟時 Windows 防火牆詢問，請允許「私人網路」。</span><span class="en-only">: <a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe">download and install Zizai Cast</a> (no admin rights) and put the phone and PC on the same Wi‑Fi (not a guest network). Allow Private networks when Windows Firewall asks the first time.</span></p>
+    <p class="eyebrow"><span class="zh-only">手機投影</span><span class="en-only">Phone mirroring</span></p>
+    <h2><span class="zh-only">手機畫面，自在投到電腦上</span><span class="en-only">Your phone, on your PC</span></h2>
+    <p class="intro pre"><b><span class="zh-only">開始前</span><span class="en-only">Before you start</span></b><span class="zh-only">：<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe">下載並安裝自在投影</a>（不需要系統管理員權限），手機和電腦連同一個 Wi‑Fi（不是訪客網路、先關 VPN）。第一次開啟時 Windows 防火牆詢問，請允許「私人網路」。低延遲（電腦端解碼到顯示約 3 ms），最高 4K 60 fps。</span><span class="en-only">: <a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe">download and install Zizai Cast</a> (no admin rights) and put the phone and PC on the same Wi‑Fi (not a guest network; turn VPNs off). Allow Private networks when Windows Firewall asks the first time. Low latency (about 3 ms decode to display on the PC), up to 4K at 60 fps.</span></p>
   </div>
   <div class="steps-scroll"><img class="steps-img" src="img/steps.jpg" data-en="img/steps-en.jpg" alt="iPhone：1 打開控制中心點螢幕鏡像 2 選自在投影 3 電腦出現手機畫面" width="1200" height="470" loading="lazy"></div>
   <div class="rows">
@@ -316,10 +265,21 @@
       </ol>
     </div>
   </div>
-  <p class="note"><span class="zh-only">上圖以 iPhone 為例。忘了怎麼連？程式裡「連接手機 ▸ 怎麼連線？」隨時看得到。</span><span class="en-only">The picture shows an iPhone. Forgot how? Connect a phone ▸ How to connect? is always in the app.</span></p>
+
+  <div class="group" style="margin-top:56px">
+    <div class="grid">
+      <article class="feat"><img src="img/f-iphone.jpg" data-en="img/f-iphone-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">iPhone / iPad 鏡像</span><span class="en-only">iPhone / iPad mirroring</span></h4><p><span class="zh-only">AirPlay，免裝 App，畫面加聲音。</span><span class="en-only">AirPlay, no app on the phone, picture and sound.</span></p></article>
+      <article class="feat"><img src="img/f-miracast.jpg" data-en="img/f-miracast-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">Android 投放</span><span class="en-only">Android Cast</span></h4><p><span class="zh-only">手機內建的「投放／Smart View」直接選自在投影。</span><span class="en-only">Pick it from the phone's Cast / Smart View tile.</span></p></article>
+      <article class="feat"><img src="img/f-control.jpg" data-en="img/f-control-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">用電腦操控 Android</span><span class="en-only">Control Android from the PC</span></h4><p><span class="zh-only">點擊、滑動、滾輪、打字；掃 QR 碼配對，之後自動重連。</span><span class="en-only">Click, swipe, scroll, type; pair with a QR code, it reconnects by itself.</span></p></article>
+      <article class="feat"><img src="img/f-record.jpg" data-en="img/f-record-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">錄影與截圖</span><span class="en-only">Recording and screenshots</span></h4><p><span class="zh-only"><kbd>Ctrl</kbd>+<kbd>R</kbd> 錄 MP4（60 fps、含聲音），<kbd>Ctrl</kbd>+<kbd>S</kbd> 存 PNG，<kbd>Ctrl</kbd>+<kbd>F</kbd> 加 iPhone 外框。</span><span class="en-only"><kbd>Ctrl</kbd>+<kbd>R</kbd> records MP4 (60 fps, with audio), <kbd>Ctrl</kbd>+<kbd>S</kbd> saves a PNG, <kbd>Ctrl</kbd>+<kbd>F</kbd> adds an iPhone frame.</span></p></article>
+      <article class="feat"><img src="img/f-magnifier.jpg" data-en="img/f-magnifier-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">放大鏡與弱視濾鏡</span><span class="en-only">Magnifier and low-vision colours</span></h4><p><span class="zh-only">最多 8 倍，加強對比、黑白、反轉、黃字黑底，可凍結畫面。</span><span class="en-only">Up to 8×, more contrast, greyscale, inverted, yellow on black; freeze the picture.</span></p></article>
+      <article class="feat"><img src="img/f-translate.jpg" data-en="img/f-translate-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">畫面翻譯</span><span class="en-only">On-screen translation</span></h4><p><span class="zh-only"><kbd>Ctrl</kbd>+<kbd>L</kbd>：英、日、韓、簡中翻成繁中，離線在電腦上執行（圖中菜單為合成測試圖）。</span><span class="en-only"><kbd>Ctrl</kbd>+<kbd>L</kbd>: English, Japanese, Korean and Simplified Chinese, offline on your PC (the menu is a synthetic test picture).</span></p></article>
+    </div>
+  </div>
+  <p class="note"><span class="zh-only">另有簡報畫筆、拖檔到視窗、傳到手機、四種主題、四語介面和一鍵更新（不會自己偷偷更新）。iPhone 不能從電腦操控（AirPlay 的限制）。</span><span class="en-only">Also: a presentation pen, drop files on the window, send to phone, four themes, four UI languages and one-click updates (never by itself). An iPhone can't be controlled from the PC (an AirPlay limit).</span></p>
 </div></section>
 
-<section id="remote"><div class="wrap">
+<section id="remote" class="tint"><div class="wrap">
   <div class="head">
     <p class="eyebrow"><span class="zh-only">遠端控制</span><span class="en-only">Remote control</span></p>
     <h2><span class="zh-only">反過來：用手機操控電腦</span><span class="en-only">The other way round: control the PC from your phone</span></h2>
@@ -338,7 +298,7 @@
     <div class="row">
       <div class="who"><h3><span class="zh-only">在外面：固定網址＋密碼</span><span class="en-only">Away: fixed address + password</span></h3><p class="tag"><span class="zh-only">Tailscale Funnel・推薦</span><span class="en-only">Tailscale Funnel · recommended</span></p></div>
       <ol>
-        <li><span class="zh-only">電腦按「設定密碼」（至少 8 個字），再按「開啟固定網址」；勾「常駐外網」就能開機後直接從外面連</span><span class="en-only">On the PC press Set password (8+ characters), then turn on the fixed address; tick Always-on access to use it from the moment the PC starts</span></li>
+        <li><span class="zh-only">電腦按「設定密碼」（至少 8 個字），再按「開啟固定網址」；勾「開機自動開啟固定網址」就能開機後直接從外面連</span><span class="en-only">On the PC press Set password (8+ characters), then turn on the fixed address; tick Turn the fixed address on when the PC starts to use it right after the PC starts</span></li>
         <li><span class="zh-only">在外面用手機瀏覽器打開固定網址（可按「複製網址」，或掃它的 QR 碼）</span><span class="en-only">Away from home, open the fixed address in the phone's browser (Copy address, or scan its QR code)</span></li>
         <li><span class="zh-only">輸入密碼就連上了，不用先碰電腦；這支手機 30 天內不用再輸入</span><span class="en-only">Enter the password and you're in, nothing to do on the PC first; that phone needn't ask again for 30 days</span></li>
       </ol>
@@ -346,24 +306,19 @@
     <div class="row">
       <div class="who"><h3><span class="zh-only">臨時網址</span><span class="en-only">Temporary address</span></h3><p class="tag"><span class="zh-only">免安裝・偶爾用一次</span><span class="en-only">Nothing to install · for the odd time</span></p></div>
       <ol>
-        <li><span class="zh-only">電腦「遠端控制」分頁選「免安裝外網」，畫面出現一次性 QR 碼和 6 位數通行碼</span><span class="en-only">On the PC pick the No-app tab: a one-time QR code and a 6-digit passcode appear</span></li>
+        <li><span class="zh-only">電腦「遠端控制」分頁選「臨時網址」，畫面出現一次性 QR 碼和 6 位數通行碼</span><span class="en-only">On the PC pick the Temporary tab: a one-time QR code and a 6-digit passcode appear</span></li>
         <li><span class="zh-only">手機掃 QR 碼（只能用一次），輸入通行碼</span><span class="en-only">Scan the QR code (it works once) and enter the passcode</span></li>
-        <li><span class="zh-only">電腦按「允許」；出門前先在電腦旁連一次並勾「記住」，之後比較省事</span><span class="en-only">Press Allow on the PC; connecting once next to the PC (and ticking Remember) before you leave makes it easier</span></li>
+        <li><span class="zh-only">電腦按「允許」（臨時網址每次都要按，不能記住）</span><span class="en-only">Press Allow on the PC (needed every time with a temporary address; it can't be remembered)</span></li>
       </ol>
     </div>
   </div>
-  <p class="note"><span class="zh-only">臨時帳號（0.8.3.2 起）：要讓別人暫時連進來，按「新增臨時帳號」，選有效時間（用一次、1 小時、24 小時或 7 天）、權限（可操作或僅觀看）和要不要允許傳檔，把產生的網址和密碼傳給對方（密碼只顯示一次）；對方連上時你還是要在電腦按「允許」。最多 10 個，需要先開好固定網址。</span><span class="en-only">Temporary accounts (from 0.8.3.2): to let someone else in for a while, press Add a temporary account and choose how long it is valid (one use, 1 hour, 24 hours or 7 days), what it may do (Control or View only) and whether file transfer is allowed, then send them the address and password it gives you (the password is shown once); when they connect, you still press Allow on the PC. Up to 10 accounts; the fixed address has to be on.</span></p>
-  <p class="note"><span class="zh-only">手機也裝 Tailscale、登入同一個帳號，也能「像在家一樣」連。固定網址需要電腦裝好 Tailscale 並開啟 Funnel；臨時網址不用裝任何東西，由程式附帶的 cloudflared 轉送。以下都是程式與手機頁面的實際畫面（網址、手機內容皆為示範用的虛構資料）。</span><span class="en-only">With Tailscale on the phone too (same account) it also works like at home. The fixed address needs Tailscale on the PC with Funnel turned on; the temporary address needs nothing installed (the program bundles cloudflared and relays through it). The images are the real program and phone page; the addresses and phone content are made up.</span></p>
+  <p class="note"><span class="zh-only"><b>給朋友用</b>：你自己只要輸入密碼。要讓別人暫時連進來，按「新增臨時帳號」，選有效時間（用一次到 7 天）、可操作或僅觀看、能不能傳檔，再按「複製全部」把網址和密碼傳給對方。網址已經帶上帳號（在 # 後面），朋友打開後也只要輸入密碼；連上時你在電腦按「允許」，到期自動刪除（需先開固定網址）。手機也裝 Tailscale 的話，還能「像在家一樣」連；臨時網址不用裝任何東西，由程式附帶的 cloudflared 轉送。圖中的網址、手機內容都是示範用的虛構資料。</span><span class="en-only"><b>For a friend</b>: you only type the password yourself. To let someone in for a while, press Add a temporary account, pick the validity (once to 7 days), operate or view only, and whether files are allowed, then use Copy all to send them the address and password. The address already carries the account (after the #), so your friend also only types the password; you press Allow on the PC when they connect, and the account is deleted when it expires (the fixed address has to be on). With Tailscale on the phone too it works like at home; the temporary address needs nothing installed (the program bundles cloudflared). The addresses and phone content in the images are made up.</span></p>
 
   <div class="group" style="margin-top:56px">
-    <h3><span class="zh-only">用手機能做什麼</span><span class="en-only">What you can do from the phone</span></h3>
     <div class="grid">
       <article class="feat"><img src="img/r-touch.jpg" data-en="img/r-touch-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">手指操控和觸控板</span><span class="en-only">Finger control and trackpad</span></h4><p><span class="zh-only">「直接點」點哪裡按哪裡（預設）；「觸控板」像筆電：單指移動、點一下左鍵、雙指點右鍵、雙指捲動、捏合縮放。三指點一下叫出鍵盤，也有 Ctrl／Alt／Win 組合鍵和雙向剪貼簿。</span><span class="en-only"><i>Direct</i> clicks where you tap (the default); <i>Trackpad</i> works like a laptop: one finger moves, tap to click, two-finger tap to right-click, two fingers to scroll, pinch to zoom. A three-finger tap opens the keyboard; Ctrl / Alt / Win combinations and a two-way clipboard too.</span></p></article>
-      <article class="feat"><img src="img/r-audio.jpg" data-en="img/r-audio-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">電腦聲音傳到手機</span><span class="en-only">The PC's sound on the phone</span></h4><p><span class="zh-only">電腦在播什麼，手機就聽到什麼；手機音量可放大到 300% 而不爆音。想要的話，勾「手機播聲音時電腦靜音」。</span><span class="en-only">Whatever the PC plays, the phone plays; the phone volume goes up to 300% without clipping. Tick Mute the PC while the phone plays sound if you like.</span></p></article>
+      <article class="feat"><img src="img/r-audio.jpg" data-en="img/r-audio-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">電腦聲音傳到手機</span><span class="en-only">The PC's sound on the phone</span></h4><p><span class="zh-only">電腦在播什麼，手機就聽到什麼；聲音會自動調到適當大小，手機音量最高 400%。想要的話，勾「手機播聲音時電腦靜音」。</span><span class="en-only">Whatever the PC plays, the phone plays; the phone volume goes up to 400%, levelled automatically. Tick Mute the PC while the phone plays sound if you like.</span></p></article>
       <article class="feat"><img src="img/r-files.jpg" data-en="img/r-files-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">雙向傳檔</span><span class="en-only">Files both ways</span></h4><p><span class="zh-only">手機傳到電腦：存進「下載\自在投影遠端」，單檔最大 2 GB；「僅觀看」時不能傳檔。電腦傳到手機：在檔案總管複製檔案，手機按「重新整理」就能下載。</span><span class="en-only">Phone to PC: saved in Downloads\自在投影遠端, up to 2 GB each; no file transfer in View only. PC to phone: copy files in File Explorer and tap Refresh on the phone.</span></p></article>
-      <article class="feat"><img src="img/r-monitor.jpg" data-en="img/r-monitor-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">多螢幕切換</span><span class="en-only">Switching monitors</span></h4><p><span class="zh-only">電腦有兩個以上的螢幕時，手機上一點就切換。畫質有流暢（1080p）、標準（1440p）、清晰（原解析度，最高 4K），網路不穩時自動調整。</span><span class="en-only">With two or more monitors, one tap on the phone picks the screen. Quality: Smooth (1080p), Standard (1440p) or Sharp (native, up to 4K), adjusting itself on a weak network.</span></p></article>
-      <article class="feat"><img src="img/r-viewonly.jpg" data-en="img/r-viewonly-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">僅觀看</span><span class="en-only">View only</span></h4><p><span class="zh-only">在電腦上的提示列一鍵打開：手機只能看，點擊、打字、傳檔、剪貼簿全部擋掉。用固定網址連線時，要在手機輸入密碼才能解除。</span><span class="en-only">Switch it on from the bar on the PC: the phone can only watch; clicks, typing, files and the clipboard are blocked. On a fixed-address session it takes the password on the phone to lift it.</span></p></article>
-      <article class="feat"><img src="img/r-log.jpg" data-en="img/r-log-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">連線紀錄</span><span class="en-only">Connection log</span></h4><p><span class="zh-only">列出最近 50 筆：時間、方式、來源位址（遮蔽後兩段）、裝置、結果；不記密碼。圖為示意。</span><span class="en-only">The last 50: time, way, source address (last two parts masked), device and result; never a password. Illustration.</span></p></article>
       <article class="feat"><img src="img/r-bar.jpg" data-en="img/r-bar-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">電腦端提示列和 Ctrl+D</span><span class="en-only">The bar on the PC, and Ctrl+D</span></h4><p><span class="zh-only">連線期間，電腦螢幕上方一直顯示「正在被遠端控制」與連線來源；按「中斷」或 <kbd>Ctrl</kbd>+<kbd>D</kbd> 隨時切斷。從外面連線的手機斷線後，電腦可以自動鎖定。</span><span class="en-only">While a phone is connected a bar at the top of the PC screen says Remote control in progress and where it comes from; press End or <kbd>Ctrl</kbd>+<kbd>D</kbd> to cut it any time. When a phone connected from outside drops, the PC can lock itself.</span></p></article>
     </div>
   </div>
@@ -371,103 +326,66 @@
   <div class="group">
     <h3><span class="zh-only">安全</span><span class="en-only">Safety</span></h3>
     <ul class="plain zh-only">
-      <li><b>預設關閉。</b>每次啟動程式都是關閉的，要你自己打開；不是背景常駐的服務。（「常駐外網」是你另外勾選的選項。）</li>
-      <li><b>新手機要在電腦上按「允許」。</b>沒有你點頭，新的手機進不來；連線期間電腦上方一直有提示列，隨時能中斷。用固定網址連線時，改由你設定的密碼把關。</li>
-      <li><b>密碼錯誤依來源限制。</b>同一個來源位址連續輸錯，那個來源會被暫時擋掉，不會連累其他人；電腦只存加密過的雜湊，不存密碼本身。</li>
-      <li><b>只用你自己的 Tailscale 帳號。</b>固定網址和 Tailscale 都在你自己的帳號裡，沒有我們的伺服器；只有你選「臨時網址」時，才經過 Cloudflare 的 <code>trycloudflare.com</code> 轉送（還要一次性網址、通行碼、電腦上的「允許」三道關卡）。</li>
-      <li>一次只能一支手機連線；不能操作系統管理員視窗、UAC 提示和鎖定畫面（Windows 的限制）。</li>
+      <li><b>預設關閉。</b>要你自己打開；連線時電腦上方有提示列，隨時能用「中斷」或 Ctrl+D 切斷。</li>
+      <li><b>新手機要在電腦上按「允許」。</b>密碼輸錯會依來源位址限制，不會連累別人；電腦只存加密過的雜湊。</li>
+      <li><b>只用你自己的 Tailscale 帳號</b>，沒有我們的伺服器；只有選「臨時網址」才經過 Cloudflare。一次只能一支手機，不能操作系統管理員視窗、UAC 和鎖定畫面。</li>
     </ul>
     <ul class="plain en-only">
-      <li><b>Off by default.</b> It is off at every start of the program and you turn it on yourself; it is not a background service. (Always-on access is a separate box you tick.)</li>
-      <li><b>A new phone has to be allowed on the PC.</b> Without your Allow a new phone can't get in, and a bar stays on the PC screen while connected so you can cut it any time. On a fixed-address session, the password you set is the gate instead.</li>
-      <li><b>Wrong passwords are limited per source.</b> An address that keeps typing it wrong is shut out for a while, without affecting anyone else; the PC stores only a salted hash, never the password itself.</li>
-      <li><b>Only your own Tailscale account.</b> The fixed address and Tailscale both live inside your own account, with no server of ours in between; only if you pick the temporary address does it pass through Cloudflare's <code>trycloudflare.com</code> (and it still needs a one-time address, a passcode and your Allow on the PC).</li>
-      <li>One phone at a time; administrator windows, UAC prompts and the lock screen can't be controlled (a Windows limit).</li>
+      <li><b>Off by default.</b> You turn it on yourself; a bar on the PC shows while connected, and End or Ctrl+D cuts it at any time.</li>
+      <li><b>A new phone has to be allowed on the PC.</b> Wrong passwords are limited per source address without affecting anyone else; the PC stores only a salted hash.</li>
+      <li><b>Only your own Tailscale account</b>, no server of ours; only the temporary address passes through Cloudflare. One phone at a time; administrator windows, UAC and the lock screen can't be controlled.</li>
     </ul>
   </div>
 </div></section>
 
-<section id="features"><div class="wrap">
+<section id="new"><div class="wrap">
   <div class="head">
-    <p class="eyebrow"><span class="zh-only">功能</span><span class="en-only">Features</span></p>
-    <h2><span class="zh-only">該有的都有，沒有多餘的</span><span class="en-only">What you need, nothing you don't</span></h2>
-    <p class="intro"><span class="zh-only">以下都是程式的實際畫面；手機內容是示範用的合成畫面。</span><span class="en-only">All images show the real app; the phone content is a synthetic demo screen.</span></p>
-  </div>
-
-  <div class="group">
-    <h3><span class="zh-only">投影與操控</span><span class="en-only">Mirror and control</span></h3>
-    <div class="grid">
-      <article class="feat"><img src="img/f-miracast.jpg" data-en="img/f-miracast-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">Android 投放</span><span class="en-only">Android Cast</span></h4><p><span class="zh-only">手機內建的「投放／Smart View」直接選自在投影。</span><span class="en-only">Pick it from the phone's Cast / Smart View tile.</span></p></article>
-      <article class="feat"><img src="img/f-qr.jpg" data-en="img/f-qr-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">掃 QR 碼配對</span><span class="en-only">QR-code pairing</span></h4><p><span class="zh-only">Android 11 以上掃一下就配對，之後自動重連；也可輸入配對碼。</span><span class="en-only">Android 11+: scan once, reconnects automatically; a pairing code works too.</span></p></article>
-      <article class="feat"><img src="img/f-rotate.jpg" data-en="img/f-rotate-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">橫向與旋轉</span><span class="en-only">Landscape and rotation</span></h4><p><span class="zh-only">手機轉橫向，視窗自動跟著轉；也能手動旋轉、翻轉。</span><span class="en-only">Turn the phone and the window follows; rotate or flip by hand.</span></p></article>
-      <article class="feat"><img src="img/f-takeover.jpg" data-en="img/f-takeover-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">多支手機輪流</span><span class="en-only">Several phones, in turn</span></h4><p><span class="zh-only">第二支手機連上時，選「換成新的」或「維持原本的」。</span><span class="en-only">When a second phone connects: switch to it, or keep the current one.</span></p></article>
-      <article class="feat"><img src="img/f-pin.jpg" data-en="img/f-pin-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">連線 PIN 碼</span><span class="en-only">Connection PIN</span></h4><p><span class="zh-only">新的 iPhone 要輸入電腦上顯示的 4 位數 PIN（示意圖）。</span><span class="en-only">A new iPhone enters the 4-digit PIN shown on the PC (illustration).</span></p></article>
-      <article class="feat"><div class="txt"><h4><span class="zh-only">遠端控制（新）</span><span class="en-only">Remote control (new)</span></h4><p><span class="zh-only">手機用瀏覽器看電腦畫面、聽電腦聲音、用手指操控電腦，不用裝 App。在家掃 QR 碼；在外面用固定網址＋密碼、Tailscale 或臨時網址。預設關閉，新手機要在電腦上按「允許」。<a href="#remote">看詳細說明</a></span><span class="en-only">See the PC's screen, hear its sound and control it with your fingers from the phone's browser, no app needed. Scan a QR code at home; away, use a fixed address with a password, Tailscale or a temporary address. Off by default; a new phone has to be allowed on the PC. <a href="#remote">Details</a></span></p></div></article>
-      <article class="feat"><img src="img/f-speed.jpg" data-en="img/f-speed-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">低延遲、最高 4K60</span><span class="en-only">Low latency, up to 4K60</span></h4><p><span class="zh-only">電腦端解碼到顯示約 3 ms（H.264 硬體解碼）。</span><span class="en-only">About 3 ms decode → display on the PC (H.264, hardware).</span></p></article>
-    </div>
-  </div>
-
-  <div class="group">
-    <h3><span class="zh-only">記錄與分享</span><span class="en-only">Record and share</span></h3>
-    <div class="grid">
-      <article class="feat"><img src="img/f-record.jpg" data-en="img/f-record-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">錄影</span><span class="en-only">Recording</span></h4><p><span class="zh-only"><kbd>Ctrl</kbd>+<kbd>R</kbd> 錄成 MP4（60 fps、含聲音），斷線時自動存檔。</span><span class="en-only"><kbd>Ctrl</kbd>+<kbd>R</kbd> records MP4 (60 fps, with audio), saved on disconnect.</span></p></article>
-      <article class="feat"><img src="img/f-shot.jpg" data-en="img/f-shot-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">截圖與 iPhone 外框</span><span class="en-only">Screenshots and iPhone frame</span></h4><p><span class="zh-only"><kbd>Ctrl</kbd>+<kbd>S</kbd> 存成 PNG；開著外框時連外框一起截。</span><span class="en-only"><kbd>Ctrl</kbd>+<kbd>S</kbd> saves a PNG, with the device frame when it's on.</span></p></article>
-      <article class="feat"><img src="img/f-phone.jpg" data-en="img/f-phone-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">傳到手機</span><span class="en-only">Send to phone</span></h4><p><span class="zh-only">iPhone 掃 QR 碼「全部下載（ZIP）」；Android 直接存入相簿（手機外框為示意）。</span><span class="en-only">An iPhone scans a QR code for Download all (ZIP); Android saves straight to the gallery (phone frame drawn).</span></p></article>
-    </div>
-  </div>
-
-  <div class="group">
-    <h3><span class="zh-only">看得懂</span><span class="en-only">Read it</span></h3>
-    <div class="grid">
-      <article class="feat"><img src="img/f-translate-list.jpg" data-en="img/f-translate-list-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">翻譯清單顯示</span><span class="en-only">Translation as a list</span></h4><p><span class="zh-only">原文標上編號，譯文整理成清單；可切換自動／原位／清單。</span><span class="en-only">Numbered marks on the original, translations in a list; or automatic / in place.</span></p></article>
-      <article class="feat"><div class="txt"><h4><span class="zh-only">本機 AI 翻譯（選用）</span><span class="en-only">On-device AI translation (optional)</span></h4><p><span class="zh-only">日文、韓文用詞更自然。在這台電腦上執行，有獨立顯示卡時加速；需要時再下載（約 1.3 GB，小模型約 560 MB），可隨時刪除。</span><span class="en-only">More natural Japanese and Korean. Runs on this PC, faster with a dedicated graphics card; downloaded only if you want it (about 1.3 GB, or 560 MB small), removable any time.</span></p></div></article>
-      <article class="feat"><div class="txt"><h4><span class="zh-only">線上翻譯（選用）</span><span class="en-only">Online translation (optional)</span></h4><p><span class="zh-only">用你自己的 DeepL 或 Azure 金鑰。預設關閉；開啟並同意後，才把辨識出的文字（不含畫面）送出。</span><span class="en-only">Bring your own DeepL or Azure key. Off by default; only after you turn it on and agree is the recognised text (never the picture) sent.</span></p></div></article>
-    </div>
-  </div>
-
-  <div class="group">
-    <h3><span class="zh-only">用起來順手</span><span class="en-only">Comfortable to use</span></h3>
-    <div class="grid">
-      <article class="feat"><img src="img/f-themes.jpg" data-en="img/f-themes-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">4 種主題與投投</span><span class="en-only">4 themes, and Toutou</span></h4><p><span class="zh-only">櫻花粉、薄荷綠、夜空藍、奶茶；等待時有雲朵精靈「投投」陪你。</span><span class="en-only">Sakura, Mint, Night, Milk tea; Toutou the cloud sprite waits with you.</span></p></article>
-      <article class="feat"><img src="img/f-language.jpg" data-en="img/f-language-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">四語介面</span><span class="en-only">Four UI languages</span></h4><p>繁體中文・English・日本語・한국어<span class="zh-only">，預設跟隨 Windows。</span><span class="en-only">, following Windows by default.</span></p></article>
-      <article class="feat"><img src="img/f-menu.jpg" data-en="img/f-menu-en.jpg" alt="" width="600" height="380" loading="lazy"><h4><span class="zh-only">背景待命與一鍵更新</span><span class="en-only">Background and one-click updates</span></h4><p><span class="zh-only">關閉視窗後可在背景等手機；有新版時選「更新到 vX.Y.Z」，不會自己偷偷更新。</span><span class="en-only">Keeps waiting for phones in the background; “Update to vX.Y.Z” when there's a new version, never on its own.</span></p></article>
-    </div>
-  </div>
-</div></section>
-
-<section id="new" class="tint"><div class="wrap">
-  <div class="head">
-    <p class="eyebrow"><span class="zh-only">0.8.3 新功能</span><span class="en-only">New in 0.8.3</span></p>
-    <h2><span class="zh-only">在畫面上畫重點，檔案拖進來就送到手機</span><span class="en-only">Draw on the picture, drop files to the phone</span></h2>
+    <p class="eyebrow"><span class="zh-only">新功能・v0.8.3.3</span><span class="en-only">What's new · v0.8.3.3</span></p>
+    <h2><span class="zh-only">最新版重點</span><span class="en-only">Highlights of the latest version</span></h2>
   </div>
   <div class="new">
-    <div><h3><span class="zh-only">簡報畫筆</span><span class="en-only">Presentation pen</span></h3><p class="zh-only">投影時按 Ctrl+E，用筆、螢光筆或箭頭在畫面上標重點；截圖和錄影可以留下筆跡。</p><p class="en-only">Press Ctrl+E while mirroring to mark the picture with a pen, a highlighter or arrows; screenshots and recordings can keep them.</p></div>
-    <div><h3><span class="zh-only">拖檔到視窗</span><span class="en-only">Drop files on the window</span></h3><p class="zh-only">Android 手機直接收到檔案，APK 直接安裝；iPhone 掃 QR 碼下載。</p><p class="en-only">An Android phone gets the files straight away and APKs are installed; an iPhone scans a QR code.</p></div>
-    <div><h3><span class="zh-only">Android 更好操控</span><span class="en-only">Better Android control</span></h3><p class="zh-only">剪貼簿同步、USB 線連線、操控時關手機螢幕、連線期間不休眠。</p><p class="en-only">Clipboard sync, USB cable, phone screen off while you control it, stays awake while connected.</p></div>
-    <div><h3><span class="zh-only">遠端控制</span><span class="en-only">Remote control</span></h3><p class="zh-only">手機和電腦互傳檔案、斷線後自動鎖電腦、連線紀錄、密碼解除「僅觀看」、觸控直接點、每秒 60 張。</p><p class="en-only">Files both ways, lock the PC after a session, a connection log, lift View only with the password, tap where you touch, 60 fps.</p></div>
-    <div><h3><span class="zh-only">修正</span><span class="en-only">Fixes</span></h3><p class="zh-only">AirPlay、Android 重新連線更穩，Miracast 凍結會自動重試，第一次翻譯從約 30 秒變約 3 秒，遠端控制 19 項安全性修正。</p><p class="en-only">Steadier AirPlay and Android reconnects, a frozen Miracast picture is retried, the first translation takes about 3 s instead of 30 s, 19 security fixes in remote control.</p></div>
-    <div><h3><span class="zh-only">更省資源</span><span class="en-only">Uses less</span></h3><p class="zh-only">沒有手機時視窗每秒喚醒 8.7 次 → 0.03 次；遠端控制待機記憶體 266 MB → 111 MB；不用 Android 時背景 adb 自動關閉。</p><p class="en-only">With no phone the window wakes 0.03 times a second instead of 8.7; remote control waiting: 266 MB → 111 MB of memory; adb closes itself when Android isn't used.</p></div>
+    <div><h3><span class="zh-only">固定網址</span><span class="en-only">Fixed address</span></h3><p class="zh-only">第一次開啟時，電腦會先自己測通網址才說「已開啟」（約 1–2 分鐘），不再提早顯示。</p><p class="en-only">The first time, the PC checks the address itself before it says it is on (about 1–2 minutes), instead of too early.</p></div>
+    <div><h3><span class="zh-only">借給朋友</span><span class="en-only">Lending to a friend</span></h3><p class="zh-only">「複製全部」的網址已經帶上帳號，朋友只要輸入密碼；錯誤訊息分開說明（過期、用過、已刪除）。</p><p class="en-only">The address from Copy all already carries the account, so your friend only types the password; errors are told apart (expired, used, deleted).</p></div>
+    <div><h3><span class="zh-only">統一名稱</span><span class="en-only">Two names</span></h3><p class="zh-only">只剩「固定網址」和「臨時網址」；臨時網址每次都要在電腦按「允許」。</p><p class="en-only">Only fixed address and temporary address; a temporary address needs Allow on the PC every time.</p></div>
+    <div><h3><span class="zh-only">手機頁</span><span class="en-only">Phone page</span></h3><p class="zh-only">右下角圖示下面都有字，靜音時寫「開聲音」；登入頁字放大，可以顯示密碼。</p><p class="en-only">A word under each icon at the bottom right, Sound on while muted; larger sign-in page with Show password.</p></div>
+    <div><h3><span class="zh-only">Android 配對</span><span class="en-only">Android pairing</span></h3><p class="zh-only">配對視窗新增打開「開發人員選項」的步驟（Samsung、小米、Pixel）。</p><p class="en-only">The pairing window shows how to turn on Developer options (Samsung, Xiaomi, Pixel).</p></div>
   </div>
-  <p class="fine"><span class="zh-only">0.8.3.1 修正：iPhone 遠端控制不再停在「連線中」（低耗電模式也會出現畫面，連不上會說明原因）；重開機後常駐外網會等 Tailscale 啟動好再連。</span><span class="en-only">0.8.3.1 fixes: remote control on an iPhone no longer stays on “Connecting” (the picture comes up in Low Power Mode too, and a failure is explained); after a reboot, always-on access waits for Tailscale to start.</span></p>
-  <p class="fine"><span class="zh-only">0.8.3.2：遠端控制的聲音會自動調到正常大小（手機頁音量回到 100%、最高 400%）；新增「允許遠端控制」與臨時帳號（給別人用，你按允許，到期或用完自動刪除）；新的 Tailscale 帳號還沒開 Funnel 時不再卡住，會說明怎麼開；「遠端斷線後自動鎖定電腦」預設不鎖。</span><span class="en-only">0.8.3.2: remote control sound is brought to a normal level by itself (phone volume back at 100 %, up to 400 %); new “Allow remote control” with temporary accounts (for other people; you click Allow; they go when they expire or are used up); a new Tailscale account without Funnel no longer freezes the app and says how to turn it on; “Lock the PC after remote control ends” is off by default.</span></p>
   <p class="fine"><span class="zh-only">完整更新內容見 Releases 頁面。</span><span class="en-only">Full change list on the Releases page.</span></p>
 </div></section>
 
-<section id="measured"><div class="wrap">
-  <div class="head">
-    <p class="eyebrow"><span class="zh-only">實測</span><span class="en-only">Measured</span></p>
-    <h2><span class="zh-only">快、清楚、撐得久</span><span class="en-only">Fast, sharp, and it lasts</span></h2>
+<section id="requirements" class="tint"><div class="wrap two">
+  <div class="side">
+    <p class="eyebrow"><span class="zh-only">需求與下載</span><span class="en-only">Requirements &amp; downloads</span></p>
+    <h2><span class="zh-only">你需要的只有這些</span><span class="en-only">All you need</span></h2>
+    <img src="img/phone-pc.jpg" data-en="img/phone-pc-en.jpg" alt="手機與電腦連同一個 Wi‑Fi" width="1200" height="600" loading="lazy">
   </div>
-  <div class="stats">
-    <div class="stat"><b>≈3 ms</b><span class="zh-only">電腦端 解碼 → 顯示（H.264 硬體解碼）</span><span class="en-only">PC decode → display (H.264, hardware)</span></div>
-    <div class="stat"><b>4K60</b><span class="zh-only">最高 3840×2160、60 fps（H.265）</span><span class="en-only">Up to 3840×2160 at 60 fps (H.265)</span></div>
-    <div class="stat"><b>&lt;50 ms</b><span class="zh-only">音訊恢復</span><span class="en-only">Audio resume</span></div>
-    <div class="stat"><b>61 min</b><span class="zh-only">連續測試，記憶體與資源無洩漏</span><span class="en-only">Soak test, no memory or resource leaks</span></div>
+  <div>
+    <table class="zh-only">
+      <tr><th>電腦</th><td>Windows 10 / 11，64 位元</td></tr>
+      <tr><th>網路</th><td>手機和電腦在同一個區域網路（建議 5 GHz Wi‑Fi 或電腦接網路線）</td></tr>
+      <tr><th>iPhone / iPad</th><td>有「螢幕鏡像」即可，免裝 App</td></tr>
+      <tr><th>Android 投放</th><td>手機支援投放／Smart View；電腦需「無線顯示器」功能與支援的 Wi‑Fi 網卡（Pixel 不支援 Miracast）</td></tr>
+      <tr><th>Android 電腦操控</th><td>Android 11 以上，開啟無線偵錯</td></tr>
+      <tr><th>1440p / 4K</th><td>需要「HEVC 影片延伸模組」，沒有時自動用 1080p</td></tr>
+    </table>
+    <table class="en-only">
+      <tr><th>PC</th><td>Windows 10 / 11, 64-bit</td></tr>
+      <tr><th>Network</th><td>Phone and PC on the same LAN (5 GHz Wi‑Fi or a wired PC recommended)</td></tr>
+      <tr><th>iPhone / iPad</th><td>Screen Mirroring, no app needed</td></tr>
+      <tr><th>Android Cast</th><td>Phone with Cast / Smart View; PC with the “Wireless Display” feature and a supporting Wi‑Fi adapter (Pixel phones don't do Miracast)</td></tr>
+      <tr><th>Android control</th><td>Android 11+ with Wireless debugging</td></tr>
+      <tr><th>1440p / 4K</th><td>HEVC Video Extensions; otherwise 1080p</td></tr>
+    </table>
+    <table class="files">
+      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.8.3.3），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.8.3.3), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
+      <tr><td><code>ZizaiCast-&lt;版本&gt;-source.zip</code></td><td><span class="zh-only">該版本的完整原始碼與建置說明（在 Release 頁面）</span><span class="en-only">Complete source of that version with build instructions (on the release page)</span></td></tr>
+      <tr><td><code>ZizaiCast-&lt;版本&gt;-deps-source.zip</code></td><td><span class="zh-only">安裝程式內含第三方函式庫的原始碼</span><span class="en-only">Sources of the bundled third-party libraries</span></td></tr>
+    </table>
+    <p class="fine"><span class="zh-only">開發者在一台電腦上的實測（RTX 3060 Ti，2026 年 10 月）：電腦端解碼到顯示約 3 ms、最高 3840×2160 60 fps、連續 61 分鐘無記憶體洩漏；整體延遲還包含手機編碼與 Wi‑Fi，會依設備與網路而不同。</span><span class="en-only">Developer measurements on one PC (RTX 3060 Ti, October 2026): about 3 ms decode → display on the PC, up to 3840×2160 at 60 fps, 61 minutes continuous with no memory leaks; end-to-end latency also includes the phone's encoder and Wi‑Fi and varies by device and network.</span></p>
   </div>
-  <p class="fine"><span class="zh-only">開發者在一台電腦上的實測（RTX 3060 Ti，2026 年 10 月）。整體延遲還包含手機編碼與 Wi‑Fi，會依設備與網路而不同。</span><span class="en-only">Developer measurements on one PC (RTX 3060 Ti, October 2026). End-to-end latency also includes the phone's encoder and Wi‑Fi and varies by device and network.</span></p>
 </div></section>
 
-<section id="privacy" class="tint"><div class="wrap two">
+<section id="privacy"><div class="wrap two">
   <div>
     <p class="eyebrow"><span class="zh-only">隱私</span><span class="en-only">Privacy</span></p>
     <h2><span class="zh-only">畫面不離開你家的網路</span><span class="en-only">Your screen stays on your network</span></h2>
@@ -496,37 +414,6 @@
   </div>
 </div></section>
 
-<section id="requirements"><div class="wrap two">
-  <div class="side">
-    <p class="eyebrow"><span class="zh-only">需求與下載</span><span class="en-only">Requirements &amp; downloads</span></p>
-    <h2><span class="zh-only">你需要的只有這些</span><span class="en-only">All you need</span></h2>
-    <img src="img/phone-pc.jpg" data-en="img/phone-pc-en.jpg" alt="手機與電腦連同一個 Wi‑Fi" width="1200" height="600" loading="lazy">
-  </div>
-  <div>
-    <table class="zh-only">
-      <tr><th>電腦</th><td>Windows 10 / 11，64 位元</td></tr>
-      <tr><th>網路</th><td>手機和電腦在同一個區域網路（建議 5 GHz Wi‑Fi 或電腦接網路線）</td></tr>
-      <tr><th>iPhone / iPad</th><td>有「螢幕鏡像」即可，免裝 App</td></tr>
-      <tr><th>Android 投放</th><td>手機支援投放／Smart View；電腦需「無線顯示器」功能與支援的 Wi‑Fi 網卡（Pixel 不支援 Miracast）</td></tr>
-      <tr><th>Android 電腦操控</th><td>Android 11 以上，開啟無線偵錯</td></tr>
-      <tr><th>1440p / 4K</th><td>需要「HEVC 影片延伸模組」，沒有時自動用 1080p</td></tr>
-    </table>
-    <table class="en-only">
-      <tr><th>PC</th><td>Windows 10 / 11, 64-bit</td></tr>
-      <tr><th>Network</th><td>Phone and PC on the same LAN (5 GHz Wi‑Fi or a wired PC recommended)</td></tr>
-      <tr><th>iPhone / iPad</th><td>Screen Mirroring, no app needed</td></tr>
-      <tr><th>Android Cast</th><td>Phone with Cast / Smart View; PC with the “Wireless Display” feature and a supporting Wi‑Fi adapter (Pixel phones don't do Miracast)</td></tr>
-      <tr><th>Android control</th><td>Android 11+ with Wireless debugging</td></tr>
-      <tr><th>1440p / 4K</th><td>HEVC Video Extensions; otherwise 1080p</td></tr>
-    </table>
-    <table class="files">
-      <tr><td><a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><b>zizai-setup-latest.exe</b></a></td><td><span class="zh-only">Windows 安裝程式（v0.8.3.2），免系統管理員權限。備用：<a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>。</span><span class="en-only">The Windows installer (v0.8.3.2), no admin rights. Backup: <a href="https://github.com/victor900106/ZizaiCast/releases/latest">GitHub Releases</a>.</span></td></tr>
-      <tr><td><code>ZizaiCast-&lt;版本&gt;-source.zip</code></td><td><span class="zh-only">該版本的完整原始碼與建置說明（在 Release 頁面）</span><span class="en-only">Complete source of that version with build instructions (on the release page)</span></td></tr>
-      <tr><td><code>ZizaiCast-&lt;版本&gt;-deps-source.zip</code></td><td><span class="zh-only">安裝程式內含第三方函式庫的原始碼</span><span class="en-only">Sources of the bundled third-party libraries</span></td></tr>
-    </table>
-  </div>
-</div></section>
-
 <section id="faq" class="tint"><div class="wrap two">
   <div>
     <p class="eyebrow">FAQ</p>
@@ -539,9 +426,9 @@
       <details><summary>iPhone 找不到「自在投影」？</summary><div><ul><li>手機和電腦要在同一個 Wi‑Fi（不是訪客網路）；學校、公司、飯店網路可能封鎖裝置探索。</li><li>Windows 防火牆要允許「私人網路」。</li><li>先關掉 VPN；同一台電腦只能有一個 AirPlay 接收程式。</li></ul></div></details>
       <details><summary>可以用電腦操控 iPhone 嗎？</summary><div>不行，AirPlay 只傳畫面和聲音。用電腦操控只支援 Android（無線偵錯）。</div></details>
       <details><summary>遠端控制要在手機裝 App 嗎？</summary><div>不用。手機只要有瀏覽器（iPhone 的 Safari、Android 的 Chrome），也可以「加入主畫面」變成像 App 的圖示。電腦要裝自在投影。只有你選「Tailscale」這種連法時，手機才需要另外裝 Tailscale。</div></details>
-      <details><summary>人在外面，怎麼連回家裡的電腦？</summary><div>最推薦「固定網址＋密碼」：在家先在電腦的「遠端控制」分頁設定密碼（至少 8 個字）、開啟固定網址，勾「常駐外網」就連開機後都能用；到外面用手機瀏覽器打開那個網址、輸入密碼即可。電腦要裝好 Tailscale 並開啟 Funnel。不想裝的話改用「臨時網址」（免安裝，一次性 QR 碼加 6 位數通行碼，要在電腦旁產生）。兩種都不用在路由器開連接埠。</div></details>
+      <details><summary>人在外面，怎麼連回家裡的電腦？</summary><div>最推薦「固定網址＋密碼」：在家先在電腦的「遠端控制」分頁設定密碼（至少 8 個字）、開啟固定網址，勾「開機自動開啟固定網址」，開機後就能用；到外面用手機瀏覽器打開那個網址、輸入密碼即可。電腦要裝好 Tailscale 並開啟 Funnel。不想裝的話改用「臨時網址」（免安裝，一次性 QR 碼加 6 位數通行碼，要在電腦旁產生）。兩種都不用在路由器開連接埠。</div></details>
       <details><summary>遠端控制安全嗎？別人會不會連進來？</summary><div>預設關閉，打開後新手機要在電腦上按「允許」（固定網址則要你設定的密碼）；密碼連續輸錯會依來源位址暫時擋掉；連線時電腦上方一直有提示列，按「中斷」或 Ctrl+D 隨時切斷，也能開「僅觀看」；斷線後可自動鎖定電腦。固定網址和 Tailscale 只走你自己的 Tailscale 帳號，沒有第三方伺服器。仍請設一組夠長的密碼，不要把網址和密碼一起貼給別人。</div></details>
-      <details><summary>遠端控制沒有聲音怎麼辦？</summary><div><ul><li>手機畫面下方按「開啟聲音」（瀏覽器規定要手動點一下才能出聲）。</li><li>電腦主視窗「遠端控制」分頁要勾「電腦聲音傳到手機」；電腦也要真的在播放聲音，不然手機會顯示「電腦目前沒有在播放聲音」。</li><li>手機頁面的設定裡，「手機音量」可以調高（最高 300%），也檢查手機本身的音量。</li></ul></div></details>
+      <details><summary>遠端控制沒有聲音怎麼辦？</summary><div><ul><li>手機畫面下方按「開啟聲音」（瀏覽器規定要手動點一下才能出聲）。</li><li>電腦主視窗「遠端控制」分頁要勾「電腦聲音傳到手機」；電腦也要真的在播放聲音，不然手機會顯示「電腦目前沒有在播放聲音」。</li><li>手機頁面的設定裡，「手機音量」可以調高（最高 400%），也檢查手機本身的音量。</li></ul></div></details>
       <details><summary>看 Netflix 等影片是黑畫面？</summary><div>有 DRM 保護的影片在鏡像時會被手機本身遮黑，任何接收程式都無法繞過。</div></details>
       <details><summary>Android 投放（Miracast）不能用？</summary><div>電腦要安裝 Windows 選用功能「無線顯示器」並重新開機，Wi‑Fi 網卡也要支援（<code>netsh wlan show drivers</code> 顯示 Wireless Display Supported: Yes）。不行就改用無線偵錯。</div></details>
       <details><summary>關掉視窗後程式跑去哪了？</summary><div>選了「背景待命」時，程式會繼續接收投影，手機連上時視窗自動出現；要自己打開，按工作列右邊的自在投影圖示（沒看到就先按「^」）。要完全結束，在圖示上按右鍵 →「結束」。</div></details>
@@ -554,9 +441,9 @@
       <details><summary>The iPhone doesn't see Zizai Cast?</summary><div><ul><li>Same Wi‑Fi (not a guest network); school, office and hotel networks often block discovery.</li><li>Allow the app on Private networks in Windows Firewall.</li><li>Turn VPNs off; only one AirPlay receiver can run per PC.</li></ul></div></details>
       <details><summary>Can I control the iPhone from the PC?</summary><div>No. AirPlay carries picture and sound only. PC control works for Android (wireless debugging).</div></details>
       <details><summary>Do I need an app on the phone for Remote control?</summary><div>No. A browser is enough (Safari on iPhone, Chrome on Android), and you can Add to Home Screen for an app-like icon. The PC needs Zizai Cast. Only if you pick the Tailscale way does the phone also need the Tailscale app.</div></details>
-      <details><summary>How do I reach my PC at home from outside?</summary><div>The recommended way is fixed address + password: at home, on the PC's Remote control tab set a password (8+ characters) and turn on the fixed address; tick Always-on access so it works from the moment the PC starts. Away from home, open that address in the phone's browser and enter the password. The PC needs Tailscale installed with Funnel turned on. If you'd rather not install it, use the temporary address (nothing to install: a one-time QR code plus a 6-digit passcode, generated next to the PC). Neither way needs a port opened on your router.</div></details>
+      <details><summary>How do I reach my PC at home from outside?</summary><div>The recommended way is fixed address + password: at home, on the PC's Remote control tab set a password (8+ characters) and turn on the fixed address; tick Turn the fixed address on when the PC starts so it works right after the PC starts. Away from home, open that address in the phone's browser and enter the password. The PC needs Tailscale installed with Funnel turned on. If you'd rather not install it, use the temporary address (nothing to install: a one-time QR code plus a 6-digit passcode, generated next to the PC). Neither way needs a port opened on your router.</div></details>
       <details><summary>Is Remote control safe? Can strangers get in?</summary><div>It is off by default. Once on, a new phone has to be allowed on the PC (a fixed address needs the password you set); an address that keeps typing a wrong password is shut out for a while; a bar on the PC screen shows while connected, and End or Ctrl+D cuts it any time; View only is one switch away, and the PC can lock itself when the phone drops. The fixed address and Tailscale use only your own Tailscale account, with no third-party server. Still, choose a long password and don't paste the address and password together.</div></details>
-      <details><summary>No sound in Remote control?</summary><div><ul><li>Tap Turn on sound at the bottom of the phone screen (browsers insist on a tap before they play sound).</li><li>On the PC's Remote control tab, Send the PC's sound to the phone must be ticked, and the PC has to be playing something, or the phone says the PC isn't playing sound.</li><li>In the phone page's Settings raise Phone volume (up to 300%), and check the phone's own volume.</li></ul></div></details>
+      <details><summary>No sound in Remote control?</summary><div><ul><li>Tap Turn on sound at the bottom of the phone screen (browsers insist on a tap before they play sound).</li><li>On the PC's Remote control tab, Send the PC's sound to the phone must be ticked, and the PC has to be playing something, or the phone says the PC isn't playing sound.</li><li>In the phone page's Settings raise Phone volume (up to 400%), and check the phone's own volume.</li></ul></div></details>
       <details><summary>Netflix shows a black screen?</summary><div>DRM-protected video is blacked out by the phone itself during mirroring; no receiver can bypass that.</div></details>
       <details><summary>Android Cast (Miracast) doesn't work?</summary><div>Install the Windows optional feature “Wireless Display”, reboot, and check your Wi‑Fi adapter (<code>netsh wlan show drivers</code> should say Wireless Display Supported: Yes). Otherwise use wireless debugging.</div></details>
       <details><summary>Where did the app go after I closed the window?</summary><div>With Keep running in the background, it keeps receiving mirroring and the window comes back when a phone connects. To open it yourself, click its icon at the right end of the taskbar (click ^ if you don't see it). To quit, right-click the icon → Quit.</div></details>
@@ -588,7 +475,7 @@
   <h2><span class="zh-only">讓手機畫面，自在地出現在電腦上</span><span class="en-only">Your phone, on your PC, at ease</span></h2>
   <p><span class="zh-only">免費、開源、沒有廣告、不用帳號。</span><span class="en-only">Free, open source, no ads, no account.</span></p>
   <div class="cta">
-    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.8.3.2</span><span class="en-only">Download v0.8.3.2</span></a>
+    <a class="btn primary" href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="zh-only">免費下載 v0.8.3.3</span><span class="en-only">Download v0.8.3.3</span></a>
     <a class="btn secondary" href="https://github.com/victor900106/ZizaiCast"><span class="zh-only">GitHub 原始碼</span><span class="en-only">Source on GitHub</span></a>
   </div>
 </div></section>
