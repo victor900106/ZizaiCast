@@ -90,6 +90,10 @@
 //                    zoomed, mirrored), busy card, region select (also with
 //                    rotation 90 + mirror + zoom; Esc), device frame + zoom,
 //                    onReset; window shots mag_*.png in DIR
+//   --view0834 DIR   0.8.3.4 畫面組, off-screen, self-checking (PASS/FAIL, exit code =
+//                    failures): toolbar back near the top / on entering, the
+//                    clickable toast, window shots of the 凍結 badge + toolbar
+//                    and of pen mode in DIR
 //   --freeze-stream DIR  the stream file decoded (DXVA / NV12) for ~7 s:
 //                    freeze (window still, frame tap continues), grabPicture,
 //                    zoom 3x + contrast filter shot, unfreeze
@@ -1280,7 +1284,8 @@ void runAnimShots(pm::VideoWindow& win, const std::wstring& dir) {
     const LPARAM b0 = hook(11, 0), b4 = hook(11, 4), b5 = hook(11, 5);
     std::printf("[shots] toolbar buttons %s %s %s\n", b0 == -1 ? "none" : "ok", b4 == -1 ? "none" : "ok",
                 b5 == -1 ? "none" : "ok");
-    auto keepUp = [&] { move(MAKELPARAM(rc.right / 2, rc.bottom / 2 + 1)); };
+    // (0.8.3.4: near the top -- moves over the middle no longer bring it back)
+    auto keepUp = [&] { move(MAKELPARAM(rc.right / 2 + 1, rc.bottom / 9)); };
     strip(L"tool_hover_in", [&] { move(b0); }, hoverTimes);
     strip(L"tool_press", [&] { PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, b0); }, {0, 35, 70, 120});
     strip(L"tool_release", [&] { PostMessageW(h, WM_LBUTTONUP, 0, b0); }, {0, 60, 120});
@@ -1296,6 +1301,130 @@ void runAnimShots(pm::VideoWindow& win, const std::wstring& dir) {
     sleep(2600);  // the toolbar hides
     strip(L"xfade_out", [&] { win.onReset(); }, {0, 80, 160, 280, 420, 560});
     sleep(800);
+}
+
+// ---- --view0834 DIR: 0.8.3.4 畫面組 (off-screen, self-checking) ----
+// B1 the toolbar comes back when the pointer enters or nears the top (not on
+// every move over the picture); B2 the clickable toast (hook 19, click on the
+// UI thread, held while hovered); B3 / C3 window shots of the 凍結 badge with
+// the toolbar up and of the pen mode frame + badge.  Input is posted (test
+// hook 12: no leave tracking); the real pointer never moves.
+int runView0834(pm::VideoWindow& win, const std::wstring& dir) {
+    int failures = 0;
+    auto expect = [&](bool ok, const char* what, const std::string& detail = {}) {
+        if (!ok) ++failures;
+        std::printf("[view0834] %s %s%s%s\n", ok ? "PASS" : "FAIL", what, detail.empty() ? "" : ": ", detail.c_str());
+        std::fflush(stdout);
+    };
+    CreateDirectoryW(dir.c_str(), nullptr);
+    HWND h = win.hwnd();
+    const UINT testMsg = RegisterWindowMessageW(L"PhoneMirror.Video.Test");
+    auto sleep = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); };
+    auto hook = [&](WPARAM w, LPARAM l) { return SendMessageW(h, testMsg, w, l); };
+    auto move = [&](LPARAM lp) { PostMessageW(h, WM_MOUSEMOVE, 0, lp); };
+    auto shot = [&](const wchar_t* name) {
+        if (!win.saveWindowShot(dir + L"\\" + name + L".png")) std::printf("[view0834] shot %ls failed\n", name);
+    };
+    hook(12, 1);  // posted mouse only
+    constexpr int PW = 720, PH = 1280, PS = PW * 4;
+    const auto pattern = makePattern(PW, PH, PS);
+    std::vector<pm::VideoWindow::ToolbarItem> items = {
+        {1, 0xE722, L"截圖"}, {2, 0xE7C8, L"錄影", false, false, false, true}, {3, 0xE71E, L"放大鏡", false, false, true},
+        {4, 0xE769, L"凍結", false, false, true}, {6, 0xE711, L"中斷連線", false, true, true}};
+    runOnUi([&] { win.setLiveToolbar(items, [](int) {}); });
+    win.submitBgraFrame(pattern.data(), PW, PH, PS, static_cast<uint64_t>(utcNs()));
+    sleep(1500);
+    RECT rc{};
+    GetClientRect(h, &rc);
+    const LPARAM mid = MAKELPARAM(rc.right / 2, rc.bottom * 3 / 5), top = MAKELPARAM(rc.right / 2, rc.bottom / 12),
+                 bottom = MAKELPARAM(rc.right / 3, rc.bottom * 9 / 10);
+    auto up = [&] { return hook(11, 0) != -1; };
+    // B1
+    move(mid);
+    sleep(500);
+    expect(up(), "toolbar shown when the pointer comes into the window (middle)");
+    sleep(3300);
+    expect(!up(), "toolbar hidden ~2 s after the last move");
+    shot(L"view_b1_hidden_grip");
+    for (int i = 0; i < 6; ++i) {
+        move(mid + i);
+        sleep(120);
+    }
+    sleep(300);
+    expect(!up(), "moves over the middle of the picture leave it hidden");
+    move(top);
+    sleep(500);
+    expect(up(), "a move near the top brings it back");
+    shot(L"view_b1_near_top");
+    sleep(3300);
+    expect(!up(), "hidden again after the move near the top");
+    PostMessageW(h, WM_MOUSELEAVE, 0, 0);
+    sleep(200);
+    move(bottom);
+    sleep(500);
+    expect(up(), "coming into the window again (at the bottom) shows it");
+    sleep(3300);
+    // B2
+    win.showToast(L"一般提示", 3000);
+    sleep(500);
+    expect(hook(19, 0) == -1, "a plain toast is not clickable");
+    std::atomic<int> clicks{0}, offUi{0};
+    auto onClick = [&] {
+        clicks++;
+        if (GetCurrentThreadId() != g_uiThread) offUi++;
+    };
+    win.showToast(L"截圖已存到「圖片\\截圖」資料夾", 8000, L"查看", onClick);
+    sleep(500);
+    const LPARAM tc = hook(19, 0);
+    expect(tc != -1, "the clickable toast reports where it is");
+    move(tc);
+    sleep(300);
+    shot(L"view_b2_toast_hover");
+    PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, tc);
+    PostMessageW(h, WM_LBUTTONUP, 0, tc);
+    sleep(400);
+    expect(clicks == 1 && offUi == 0, "clicking it runs its action once, on the UI thread",
+           std::to_string(clicks.load()) + " click(s)");
+    PostMessageW(h, WM_LBUTTONDOWN, MK_LBUTTON, tc);
+    PostMessageW(h, WM_LBUTTONUP, 0, mid);
+    sleep(300);
+    expect(clicks == 1, "pressed on it and released elsewhere: no click");
+    win.showToast(L"截圖已存到「圖片\\截圖」資料夾", 2500, L"查看", onClick);
+    sleep(400);
+    const LPARAM tc2 = hook(19, 0);
+    move(tc2);
+    sleep(4500);
+    expect(hook(19, 0) != -1, "it stays while the pointer is on it (past its 2.5 s)");
+    move(mid);
+    sleep(3800);
+    expect(hook(19, 0) == -1, "and goes once the pointer has left it");
+    win.showToast(L"截圖已存到「圖片\\截圖」資料夾", 8000, L"查看", onClick);
+    sleep(300);
+    win.showToast(L"一般提示", 3000);
+    sleep(400);
+    expect(hook(19, 0) == -1, "the next plain toast replaces it (not clickable)");
+    sleep(3500);
+    // B3: frozen (the translation's words) with the toolbar up over it.
+    win.setFrozen(true);
+    win.setFrozenBadge(L"翻譯中 · 畫面已暫停", 0xE8C1);
+    sleep(600);
+    shot(L"view_b3_frozen");
+    move(top);
+    sleep(700);
+    shot(L"view_b3_frozen_toolbar");
+    sleep(3300);
+    win.setFrozenBadge(L"", 0);
+    win.setFrozen(false);
+    // C3: pen mode.
+    runOnUi([&] { win.setInkMode(true, L"畫筆模式 · 按 Esc 或 Ctrl+E 結束"); });
+    sleep(600);
+    shot(L"view_c3_pen");
+    runOnUi([&] { win.setInkMode(false, L""); });
+    sleep(300);
+    win.onReset();
+    sleep(500);
+    std::printf("[view0834] %d failure(s)\n", failures);
+    return failures;
 }
 
 template <class At>
@@ -1747,6 +1876,7 @@ int wmain(int argc, wchar_t** argv) {
     const wchar_t* tapDump = nullptr;
     const wchar_t* tourDir = nullptr;
     const wchar_t* magDir = nullptr;
+    const wchar_t* view0834Dir = nullptr;  // 0.8.3.4 畫面組
     const wchar_t* freezeDir = nullptr;
     const wchar_t* pngPath = L"";
     int tapSlowMs = 0;
@@ -1773,6 +1903,7 @@ int wmain(int argc, wchar_t** argv) {
         else if (!wcscmp(argv[i], L"--anim-bench")) animBench = offscreen = true;
         else if (!wcscmp(argv[i], L"--anim-shots") && hasValue) shotsDir = argv[++i], offscreen = true;
         else if (!wcscmp(argv[i], L"--magnifier") && hasValue) magDir = argv[++i], tap = true;
+        else if (!wcscmp(argv[i], L"--view0834") && hasValue) view0834Dir = argv[++i], offscreen = true;
         else if (!wcscmp(argv[i], L"--png") && hasValue) pngPath = argv[++i];
         else if (!wcscmp(argv[i], L"--freeze-stream") && hasValue) freezeDir = argv[++i], tap = true, offscreen = true;
         else if (!wcscmp(argv[i], L"--bgra-bench") && hasValue) swscanf_s(argv[++i], L"%d,%d", &benchW, &benchH);
@@ -1865,7 +1996,7 @@ int wmain(int argc, wchar_t** argv) {
                 codec == pm::VideoCodec::H265 ? "HEVC" : "H.264", fps, demo ? ", UI demo" : "");
 
     pm::VideoWindow win;
-    const bool tall = demo || demo2 || android || tourDir || magDir || animBench || shotsDir;
+    const bool tall = demo || demo2 || android || tourDir || magDir || animBench || shotsDir || view0834Dir;
     if (tourDir || magDir) SetEnvironmentVariableW(L"PM_VIDEO_OFFSCREEN", L"1");
     if (!win.create(L"PhoneMirror - pm_video_test", tall ? 540 : width, tall ? 960 : height)) return 1;
     TapCapture cap;
@@ -2049,6 +2180,8 @@ int wmain(int argc, wchar_t** argv) {
             exitCode = runAndroid(win, at, cap);
         } else if (magDir) {
             exitCode = runMagnifier(win, at, cap, magDir, pngPath);
+        } else if (view0834Dir) {
+            exitCode = runView0834(win, view0834Dir);
         } else if (freezeDir) {
             exitCode = runFreezeStream(win, at, [&] { feedStream(main, -1, 1, 7.0); }, cap, freezeDir);
             win.onReset();

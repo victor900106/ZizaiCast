@@ -662,6 +662,15 @@ struct Host::Impl {
     std::atomic<bool> lockOutside{false}, lockLan{false};  // 0.8.3: the app locks the PC when a session ends (the page says so)
     // 僅觀看 for this session (0.8.3.2: a 僅觀看 guest always, whatever the PC's switch says)
     bool vo(const std::shared_ptr<Session>& s) const { return (viewOnly && !(s && s->unlocked)) || (s && s->guestViewOnly); }
+    // 0.8.3.4: may this session change 電腦喇叭靜音 (手機播聲音時電腦靜音, a setting kept on the PC)? Not in
+    // 僅觀看 (the PC's switch), and never a 臨時帳號 (僅觀看 or 可操作: it is the owner's setting).
+    bool mutePcOk(const std::shared_ptr<Session>& s) const { return s && !vo(s) && !s->guest(); }
+    static const char* mutePcWhy(const std::shared_ptr<Session>& s) { return s && s->guest() ? "guest" : "viewOnly"; }
+    // every {"t":"mode"} carries who may change it now (僅觀看 can be switched on the PC mid-session)
+    json modeMsg(const std::shared_ptr<Session>& s) const {
+        return json{{"t", "mode"}, {"viewOnly", vo(s)}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};
+    }
+    void applyMutePc(bool on);  // Host::setMutePc (and the phone's switch without onMutePcRequest)
     std::mutex offerMu;  // 0.8.3: one session set-up at a time (two at once left an orphan that could still control)
     // ---- 外網連結 (0.8.1) ----
     mutable std::mutex tunMu;
@@ -1045,7 +1054,7 @@ void Host::setViewOnly(bool on) {
     if (on && s) s->clipWatch = false;  // 0.8.3: no clipboard in 僅觀看
     if (on && d.input) d.input->releaseAll();
     logf("host: view-only %s", on ? "ON (input dropped)" : "off");
-    if (s) d.sendDc(s, json{{"t", "mode"}, {"viewOnly", d.vo(s)}});
+    if (s) d.sendDc(s, d.modeMsg(s));
 }
 
 // ---- HTTP ----------------------------------------------------------------
@@ -1348,7 +1357,8 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
            {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed && !s->guest()},
            {"lockAfter", s->viaTunnel ? bool(lockOutside) : bool(lockLan)},
            {"upload", !opt.uploadDir.empty() && s->filesOk()}, {"uploadMax", opt.uploadMaxBytes},
-           {"guest", s->guestName}, {"files", s->filesOk()}};
+           {"guest", s->guestName}, {"files", s->filesOk()},
+           {"mutePc", opt.mutePc}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};  // 0.8.3.4: the phone's 電腦喇叭靜音 switch
     return {200, "application/json", j.dump()};
 }
 
@@ -1502,7 +1512,7 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
             if (auto sp = ws.lock()) {
                 sp->dcOpen = true;
                 logf("webrtc[%s]: DataChannel open", sp->id.substr(0, 6).c_str());
-                sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
+                sendDc(sp, modeMsg(sp));
             }
         });
         s->dc->onClosed([this, ws] {
@@ -1928,7 +1938,7 @@ void Host::Impl::unlockRequest(const std::shared_ptr<Session>& s, const std::str
                 sp->unlocked = true;
                 if (input) input->releaseAll();
                 logf("host: 僅觀看 lifted for this session by %s (%s) with the password (fixed link)", sp->label.c_str(), sp->peer.c_str());
-                sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
+                sendDc(sp, modeMsg(sp));
                 if (opt.onUnlocked) opt.onUnlocked(sp->toPeer());
             }
             if (still)
@@ -2043,7 +2053,7 @@ HttpServer::Response Host::Impl::websocket(const HttpServer::Request& r, const s
         const int64_t t0 = nowUs();
         logf("tunnel[%s]: WebSocket open from %s (%.0f ms after the offer request)", sp->id.substr(0, 6).c_str(), conn.peer.c_str(),
              (t0 - sp->startUs) / 1000.0);
-        sendDc(sp, json{{"t", "mode"}, {"viewOnly", vo(sp)}});
+        sendDc(sp, modeMsg(sp));
         conn.run([this, sp](const std::string& m) { onDcMessage(sp, m); });
         {
             std::lock_guard<std::mutex> lk(link->m);
@@ -2511,24 +2521,34 @@ std::string Host::tunnelLinkPath() const {
 
 // 0.8.2: options that take effect at once (0.8.1 restarted the host after
 // the session: the port could not be bound again and moved, owner's log 23:11:34).
-void Host::setMutePc(bool on) {
-    std::lock_guard<std::mutex> lk(d_->amu);
-    d_->opt.mutePc = on;
-    auto s = d_->current();
-    const bool playing = s && s->wantAudio;
-    if (d_->audio.running()) d_->audio.setMute(on && playing);
-    logf("host: 手機播聲音時電腦靜音 %s%s", on ? "on" : "off", on && !playing ? " (from when the phone turns its sound on)" : "");
+void Host::setMutePc(bool on) { d_->applyMutePc(on); }
+void Host::Impl::applyMutePc(bool on) {
+    std::shared_ptr<Session> s;
+    {
+        std::lock_guard<std::mutex> lk(amu);
+        opt.mutePc = on;
+        s = current();
+        const bool playing = s && s->wantAudio;
+        if (audio.running()) audio.setMute(on && playing);
+        logf("host: 手機播聲音時電腦靜音 %s%s", on ? "on" : "off", on && !playing ? " (from when the phone turns its sound on)" : "");
+    }
+    // 0.8.3.4: the phone's 電腦喇叭靜音 switch follows (also when it was changed on the PC)
+    if (s) {
+        json m = modeMsg(s);
+        m["mutePc"] = on;
+        sendDc(s, m);
+    }
 }
 void Host::setAudioOffered(bool on) {
     d_->opt.audio = on;
     if (!on) {
         if (auto s = d_->current()) {
             s->wantAudio = false;
-            d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", d_->vo(s)}, {"audio", false}});
+            { json m = d_->modeMsg(s); m["audio"] = false; d_->sendDc(s, m); }
         }
         d_->stopAudioNow("電腦聲音傳到手機 turned off");
     } else if (auto s = d_->current()) {
-        d_->sendDc(s, json{{"t", "mode"}, {"viewOnly", d_->vo(s)}, {"audio", true}});
+        { json m = d_->modeMsg(s); m["audio"] = true; d_->sendDc(s, m); }
     }
     logf("host: PC sound offered to the phone: %s", on ? "yes" : "no");
 }
@@ -2637,6 +2657,20 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         const bool on = j.value("on", false);
         logf("page %s: sound %s", s->peer.c_str(), on ? "on" : "off");
         setAudio(s, on);
+        return;
+    }
+    if (t == "mutepc") {  // 0.8.3.4: the phone's 電腦喇叭靜音 switch = the PC's 手機播聲音時電腦靜音
+        const bool on = j.value("on", false);
+        if (!mutePcOk(s)) {
+            logf("page %s: 電腦喇叭靜音 %s REFUSED (%s)", s->peer.c_str(), on ? "on" : "off",
+                 s->guest() ? "a 臨時帳號" : "僅觀看");
+            sendDc(s, json{{"t", "mutepc"}, {"ok", false}, {"on", bool(opt.mutePc)}, {"why", mutePcWhy(s)}});
+            return;
+        }
+        logf("page %s: 電腦喇叭靜音 %s (from the phone)", s->peer.c_str(), on ? "on" : "off");
+        if (opt.onMutePcRequest) opt.onMutePcRequest(on, s->label);
+        else applyMutePc(on);
+        sendDc(s, json{{"t", "mutepc"}, {"ok", true}, {"on", on}});
         return;
     }
     if (t == "stamp") {

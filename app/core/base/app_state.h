@@ -108,6 +108,7 @@ struct App {
     long long androidWatchCount = -1;  // frames + audio packets at the last progress
     long long androidWatchAt = 0;      // when they last moved (nowMs)
     UINT pairTimeoutMs = 45 * 1000;    // QR shown, no phone yet: say what to check
+    int pairStage = 0;                 // 0.8.3.4: 0 waiting, 1 hint shown (then twice as long), 2 gave up (重新產生 QR)
     std::string toolbarKey;            // last live toolbar handed to the window
     pm::ui::PairPanel pairPanel;
     pm::ui::AboutPanel aboutPanel;

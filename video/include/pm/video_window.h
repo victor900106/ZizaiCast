@@ -123,6 +123,14 @@ public:
     // (holdMs: fully visible that long instead, for longer hints).
     void showToast(const std::wstring& text);
     void showToast(const std::wstring& text, int holdMs);
+    // 0.8.3.4: a toast that can be clicked: `link` (e.g. 「查看」) is drawn at
+    // its end, the whole toast is a button while it is shown (hand cursor, a
+    // wash on hover; the click never reaches the phone) and onClick runs on the
+    // UI thread.  The next toast (any kind) replaces it.
+    void showToast(const std::wstring& text, int holdMs, const std::wstring& link, std::function<void()> onClick);
+    // 0.8.3.4: the 畫面已凍結 badge's words and icon (Segoe glyph) while the
+    // picture is frozen, e.g. a translation's own; empty text = the default.
+    void setFrozenBadge(const std::wstring& text, wchar_t glyph);
     // Screenshot feedback: a short white veil over the picture (not the
     // window; nothing with Windows 「顯示動畫」 off).  Thread-safe.
     void flash();
@@ -487,6 +495,7 @@ public:
         int kind = 0;
         bool on = false;
         std::wstring sub;
+        int style = 0;  // 0.8.3.4: 1 a filled pill (the page's main action)
     };
     void setIdleActions(std::vector<IdleAction> actions);
     // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards side by
@@ -500,6 +509,9 @@ public:
         std::vector<uint8_t> qr;  // 0.8.2: a QR code at the card's right (BGRA, 1 px per module + quiet zone)
         int qrSize = 0;
         std::wstring big;         // 0.8.3.2: a big line under the title (an address; it may break after / . : -)
+        // 0.8.3.4: 1 the page's main block (the title a small label over a much bigger address, the note
+        // (a passcode) big too); 2 compact (no how-to line).
+        int style = 0;
     };
     void setIdleCards(std::vector<IdleCard> cards);
     // Shorthand: a single link (e.g. 「怎麼連線？」); empty label hides it.

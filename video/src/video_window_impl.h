@@ -48,6 +48,14 @@ struct VideoWindow::Impl {
     bool toolInsideReq = false;
     std::vector<RECT> toolRects;
     RECT toolPill{};
+    // 0.8.3.4 view (vw_view0834.cpp): the pointer over the window (the
+    // toolbar's grip), the clickable toast, the 凍結 badge's words.
+    RECT lastToolPill{};  // the pill as last shown (where the toolbar comes back), empty after a resize
+    int pointerInReq = -1, toastHotReq = -1;
+    std::optional<std::wstring> toastLinkReq;
+    std::function<void()> toastFn;  // the clickable toast's action (UI thread)
+    RECT toastRect{};               // published by the worker (client pixels)
+    std::optional<std::pair<std::wstring, wchar_t>> frozenBadgeReq;
     std::vector<IdleOption> options;
     std::function<void(int, bool)> onToggle;
     bool optionsChanged = false;
@@ -207,6 +215,9 @@ struct VideoWindow::Impl {
     int toolWheelAcc = 0;          // wheel delta not yet a whole notch (touchpads)
     double lastToolPokeUi = -1e9;
     bool synthMouse = false;       // test hook: no TrackMouseEvent (posted moves)
+    bool pointerInUi = false;      // 0.8.3.4: the pointer is over the window (since the last leave)
+    bool toastHotUi = false;       // 0.8.3.4: on the clickable toast
+    bool pressedToast = false;     // 0.8.3.4: left press on it
     // Remote control
     HCURSOR touchCursor = nullptr;
     int buttonsDown = 0;           // bit per button forwarded as Down (capture held)
@@ -463,7 +474,7 @@ struct VideoWindow::Impl {
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
                toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
                onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0 ||
-               inkBadgeReq || dropHintReq;
+               inkBadgeReq || dropHintReq || pointerInReq >= 0 || toastHotReq >= 0 || frozenBadgeReq;
     }
 
     // Takes everything queued plus control flags; returns false on stop.
@@ -593,6 +604,17 @@ struct VideoWindow::Impl {
     void toolActivity();
 
     void toolLeave();
+
+    // 0.8.3.4 (vw_view0834.cpp). B1: the toolbar comes back when the pointer
+    // enters the window or is near the toolbar (its band at the top), not on
+    // every move over the picture; the pointer's presence drives the grip.
+    bool nearToolbar(POINT pt);
+    void setPointerIn(bool in);
+    // B2: the clickable toast under pt (client px), its hover, press, click.
+    bool onToast(POINT pt);
+    void setToastHot(bool hot);
+    bool toastPress(LPARAM lp);
+    bool toastRelease(LPARAM lp);
 
     void clickTool(int i);
 

@@ -5,11 +5,14 @@
 //   976 lp=1  the drop hint for the files in PM_DROP_TEST ("a|b|c"), lp=0 hides it
 //   977       drops the PM_DROP_TEST files (the drop target's own path)
 //   978       logs the ink state (mode, strokes)
+//   990 lp=0  0.8.3.4 F3: a made-up "no paired phone found" report (lp=1: "reconnect after a drop failed") as AndState
+//   991       0.8.3.4 B6: presses 重新產生 QR in the open pairing window (logs whether it was offered)
 
 #include "core/app/core_app.h"
 #include "core/base/app_state.h"
 #include "core/base/base.h"
 #include "connect/android_control.h"
+#include "connect/connect.h"
 #include "menus/menus.h"
 #include "share/drop.h"
 #include "view/ink.h"
@@ -57,6 +60,15 @@ bool devCommand083(WPARAM wp, LPARAM lp) {
     if (wp == 978) {
         g.log->write("info", std::string("dev ink: mode ") + (inkOn() ? "on" : "off") + ", " +
                                  std::to_string(g.window->inkCount()) + " stroke(s)");
+        return true;
+    }
+    if (wp == 990) {
+        const std::wstring detail = lp ? tr(S::ModAndReconnectFail, pm::i18n::Lang::ZhTW) : tr(S::ModAndNoneFound, pm::i18n::Lang::ZhTW);
+        onAndroidEvent(AndState, std::wstring(lp ? L"5" : L"0") + detail);  // State::Error = 5, Idle = 0
+        return true;
+    }
+    if (wp == 991) {
+        g.log->write("info", std::string("dev pair: retry ") + (g.pairPanel.devPressRetry() ? "pressed" : "not offered"));
         return true;
     }
     return false;

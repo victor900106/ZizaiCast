@@ -26,6 +26,15 @@ constexpr wchar_t kPanelClass[] = L"PhoneMirrorRemotePanel";
 constexpr wchar_t kBannerClass[] = L"PhoneMirrorRemoteBanner";
 constexpr float kW = 440, kH = 600, kPad = 26;  // 0.8.2: wider for a fourth tab (固定網址)
 constexpr float kTabY = 62, kTabH = 32;
+// 0.8.3.4 (audit D3): the tabs left to right, by how often they are used and in the order of the main
+// page's cards: 同一個 Wi-Fi (no set-up), 固定網址 (the owner's own way out), Tailscale, 臨時網址 (for a
+// friend, now and then). Slot -> tab number (tab_ / showTab keep their numbers: 0 Wi-Fi, 1 Tailscale, 2 臨時, 3 固定).
+constexpr int kTabOrder[4] = {0, 3, 1, 2};
+constexpr int slotOf(int tab) {
+    for (int i = 0; i < 4; ++i)
+        if (kTabOrder[i] == tab) return i;
+    return 0;
+}
 constexpr float kScanY = 106;
 constexpr float kQrCard = 216, kQrY = 152;
 constexpr float kUrlY = 378, kCopyY = 398, kLinkH = 22;
@@ -310,10 +319,11 @@ RemotePanel::Hit RemotePanel::hitTest(POINT pt) const {
     auto in = [&](D2D1_RECT_F r) { return x >= r.left && x < r.right && y >= r.top && y < r.bottom; };
     if (in(rc(kW - 52, 12, 36, 36))) return HitClose;
     const float tw = (kW - 2 * kPad) / 4;
-    if (in(rc(kPad, kTabY, tw, kTabH))) return HitTabLan;
-    if (in(rc(kPad + tw, kTabY, tw, kTabH))) return HitTabTs;
-    if (in(rc(kPad + 2 * tw, kTabY, tw, kTabH))) return HitTabTun;
-    if (in(rc(kPad + 3 * tw, kTabY, tw, kTabH))) return HitTabFix;
+    for (int i = 0; i < 4; ++i)
+        if (in(rc(kPad + i * tw, kTabY, tw, kTabH))) {
+            const int tab = kTabOrder[i];
+            return tab == 3 ? HitTabFix : tab == 2 ? HitTabTun : tab ? HitTabTs : HitTabLan;
+        }
     if (tab_ == 3) {
         const float cardX = (kW - kQrCard) / 2;
         if ((fixState_ == 0 || fixState_ == 3) && in(rc(cardX + 12, kQrY + kQrCard - 54, kQrCard - 24, 40))) return HitFixStart;
@@ -470,13 +480,14 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
         rt->DrawLine({cx - d, cy - d}, {cx + d, cy + d}, b, 1.6f);
         rt->DrawLine({cx - d, cy + d}, {cx + d, cy - d}, b, 1.6f);
     }
-    // Tabs: 同一個 Wi-Fi | Tailscale | 免安裝外網 | 固定網址 (0.8.2)
+    // Tabs: 同一個 Wi-Fi | 固定網址 | Tailscale | 臨時網址 (0.8.2; this order 0.8.3.4, kTabOrder)
     {
         const float tw = (kW - 2 * kPad) / 4;
         stroke(rc(kPad + 0.5f, kTabY + 0.5f, kW - 2 * kPad - 1, kTabH - 1), withA(t.fg, 0.25f), 9);
         static const S kTabLabels[4] = {S::RemoteTabLan, S::RemoteTabTsShort, S::RemoteTabTunnel, S::RemoteTabFixed};
-        for (int i = 0; i < 4; ++i) {
-            const D2D1_RECT_F r = rc(kPad + i * tw, kTabY, tw, kTabH);
+        for (int slot = 0; slot < 4; ++slot) {
+            const int i = kTabOrder[slot];
+            const D2D1_RECT_F r = rc(kPad + slot * tw, kTabY, tw, kTabH);
             const Hit id = i == 3 ? HitTabFix : i == 2 ? HitTabTun : i ? HitTabTs : HitTabLan;
             if (tab_ == i) fill(rc(r.left + 2, r.top + 2, tw - 4, kTabH - 4), t.accent, 7);
             else if (const float h = hl(id); h > 0.003f) fill(rc(r.left + 2, r.top + 2, tw - 4, kTabH - 4), withA(t.accent, 0.18f * h), 7);
@@ -700,8 +711,8 @@ LRESULT RemotePanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_KEYDOWN:
         if (wp == VK_ESCAPE) click(HitClose);
-        else if (wp == VK_RIGHT || wp == VK_TAB) showTab((tab_ + 1) % 4);
-        else if (wp == VK_LEFT) showTab((tab_ + 3) % 4);
+        else if (wp == VK_RIGHT || wp == VK_TAB) showTab(kTabOrder[(slotOf(tab_) + 1) % 4]);
+        else if (wp == VK_LEFT) showTab(kTabOrder[(slotOf(tab_) + 3) % 4]);
         return 0;
     case WM_CLOSE: click(HitClose); return 0;
     case WM_DESTROY:

@@ -24,7 +24,7 @@
     <li><a href="#sound">聲音大小</a></li>
     <li><a href="#faq">常見問題排除</a></li>
   </ol>
-  <div class="side-foot">滑鼠移到投影畫面上，上方會出現工具列；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線；<kbd>F1</kbd> 看全部快速鍵。</div>
+  <div class="side-foot">滑鼠移到投影畫面上方，工具列就會出現（收起時最上面有一條粉紅色細線）；<kbd>Ctrl</kbd><kbd>D</kbd> 中斷連線；<kbd>F1</kbd> 看全部快速鍵。</div>
 </nav>
 
 <main id="top">
@@ -86,8 +86,8 @@
   <li>點<span class="ui">螢幕鏡像</span>（兩個重疊方框的圖示）。</li>
   <li>在清單裡點<span class="ui">自在投影</span>。</li>
 </ol>
-<div class="ok"><b>看到這個就成功</b>幾秒內電腦出現手機畫面，下方提示「已連線：手機名稱……滑鼠移到上方有工具列」。</div>
-{{img:toolbar|滑鼠移到畫面上，上方出現工具列：截圖、錄影、畫筆、傳到手機、音量、放大、翻譯……最右邊紅色是中斷連線|640}}
+<div class="ok"><b>看到這個就成功</b>幾秒內電腦出現手機畫面，下方提示「已連線：手機名稱……滑鼠移到上方有工具列」。第一次連上時工具列會說明「常用功能都在這條工具列：截圖、錄影、翻譯、放大。滑鼠移到畫面上方就會出現，停在上面就不會收起。」工具列收起時，畫面最上面有一條粉紅色細線，告訴你它在那裡。</div>
+{{img:toolbar|滑鼠移到畫面上方就出現工具列（停在上面不會收起）：截圖、錄影、畫筆、傳到手機、音量、放大、翻譯……最右邊紅色是中斷連線|640}}
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>清單裡沒有「自在投影」：看<a href="#faq-notfound">找不到自在投影</a>。</li>
   <li>有畫面沒聲音：按 iPhone 側邊的音量鍵調大，看<a href="#sound">聲音大小</a>。</li>
@@ -151,7 +151,8 @@
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>一直「等待手機掃描…」：手機和電腦不在同一個 Wi-Fi（訪客網路不行）。也可以按<span class="ui">用配對碼</span>，在手機點「使用配對碼配對裝置」，把手機上的 IP 位址:連接埠和 6 位數字輸入電腦。</li>
   <li>配對失敗：視窗會換一個新的 QR 碼，手機重新點「使用 QR 圖碼配對裝置」再掃一次。</li>
-  <li>重開機後沒有自動連上：很多手機重開機會自動關掉無線偵錯，回開發人員選項再打開就好，<strong>不用重新配對</strong>。</li>
+  <li>一陣子沒人掃：QR 碼變暗、寫著<span class="ui">已逾時</span>，下面寫「等太久，已停止。確認在同一個 Wi-Fi、手機已開「無線偵錯」……」。按<span class="ui">重新產生 QR</span>拿一個新的 QR 碼，再掃一次。</li>
+  <li>重開機後沒有自動連上：Android 重開機會把無線偵錯關掉，自在投影會提示一次「找不到之前配對過的手機。如果手機剛重開機，要到「開發人員選項」重新開啟「無線偵錯」，再試一次」。回開發人員選項把無線偵錯再打開就好，<strong>不用重新配對</strong>。</li>
 </ul></div>
 
 <h3 id="adb-usb">沒有 Wi-Fi？用 USB 線</h3>
@@ -186,16 +187,16 @@
 <h2><span class="num">4</span>錄影和截圖</h2>
 <p class="goal"><b>你要做什麼</b>把手機畫面拍一張圖，或錄成影片（有聲音的 MP4）。手機畫面出現以後才能用。</p>
 <ol class="steps">
-  <li>滑鼠移到手機畫面上，上方出現工具列。</li>
+  <li>滑鼠移到手機畫面上方，出現工具列。</li>
   <li>截圖：點<span class="ui">截圖</span>（或按 <kbd>Ctrl</kbd><kbd>S</kbd>）。</li>
   <li>錄影：點<span class="ui">錄影</span>（或 <kbd>Ctrl</kbd><kbd>R</kbd>），左上角出現紅點和秒數；要停止再點一次。</li>
   <li>找檔案：右鍵選單 → <span class="ui">開啟截圖資料夾</span>／<span class="ui">開啟錄影資料夾</span>。</li>
 </ol>
 <div class="pair-img">
-{{img:snapshot|截圖：下方提示「截圖已儲存」|260}}
+{{img:snapshot|截圖：下方提示「截圖已存到「圖片\截圖」資料夾」，後面有「查看」|260}}
 {{img:recording|錄影中：左上角紅點和秒數|260}}
 </div>
-<div class="ok"><b>看到這個就成功</b>截圖後提示「截圖已儲存」；錄影停止後提示「錄影已儲存：檔名」。下方會出現一排小按鈕<span class="ui">開啟資料夾</span>·<span class="ui">傳到手機</span>。</div>
+<div class="ok"><b>看到這個就成功</b>截圖後提示「截圖已存到「圖片\截圖」資料夾」，點後面的<span class="ui">查看</span>就打開這張圖（提示停 8 秒，滑鼠停在上面不會消失）；錄影停止後提示「錄影已儲存：檔名」。下方會出現一排小按鈕<span class="ui">開啟資料夾</span>·<span class="ui">傳到手機</span>。</div>
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>按鈕是灰色、寫「手機連上後可用」：先讓手機畫面出現。</li>
   <li>不能錄影：硬碟剩不到 300 MB 時不能錄，清一點空間。</li>
@@ -208,14 +209,14 @@
 <h2><span class="num">5</span>畫筆</h2>
 <p class="goal"><b>你要做什麼</b>在投影的畫面上畫線、畫箭頭、畫螢光筆，講解給旁邊的人看。筆跡只在電腦上，不會畫到手機裡。</p>
 <ol class="steps">
-  <li>滑鼠移到畫面上，點工具列的<span class="ui">畫筆</span>（或 <kbd>Ctrl</kbd><kbd>E</kbd>）。</li>
+  <li>滑鼠移到畫面上方，點工具列的<span class="ui">畫筆</span>（或 <kbd>Ctrl</kbd><kbd>E</kbd>）。</li>
   <li>按住滑鼠左鍵拖曳就能畫。工具列會換成<span class="ui">工具</span>（筆 → 螢光筆 → 箭頭）、<span class="ui">顏色</span>、<span class="ui">粗細</span>、<span class="ui">復原</span>、<span class="ui">清除</span>。</li>
-  <li>畫完按 <kbd>Esc</kbd> 結束畫筆，筆跡會留著；<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> 全部清除。</li>
+  <li>畫完按 <kbd>Esc</kbd>（或再按一次 <kbd>Ctrl</kbd><kbd>E</kbd>）結束畫筆，筆跡會留著；<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> 全部清除。</li>
 </ol>
 {{img:ink|畫筆模式：紅色的筆和黃色的筆，下方提示「筆 · 黃 · 中」|280}}
-<div class="ok"><b>看到這個就成功</b>提示「畫筆模式：在畫面上拖曳就能畫（Esc 結束）」，左下角有「畫筆模式 · Esc 結束」。截圖和錄影預設會包含筆跡（右鍵選單 → <span class="ui">畫筆</span>可以關掉）。</div>
+<div class="ok"><b>看到這個就成功</b>提示「畫筆模式：在畫面上拖曳就能畫（Esc 結束）」，畫面四周有一圈粉紅色框，左下角有「畫筆模式 · 按 Esc 或 Ctrl+E 結束」。截圖和錄影預設會包含筆跡（右鍵選單 → <span class="ui">畫筆</span>可以關掉）。</div>
 <div class="ng"><b>不成功怎麼辦</b><ul>
-  <li>Android 操控時一畫就點到手機：畫筆模式下滑鼠暫停操控手機；要點手機先按 <kbd>Esc</kbd>。</li>
+  <li>Android 操控時一畫就點到手機：畫筆模式下滑鼠暫停操控手機；要點手機先按 <kbd>Esc</kbd> 或 <kbd>Ctrl</kbd><kbd>E</kbd>。</li>
   <li>畫錯了：<kbd>Ctrl</kbd><kbd>Z</kbd> 復原上一筆。</li>
 </ul></div>
 </section>
@@ -258,8 +259,8 @@
   <li>第一次會問要不要下載翻譯模型（約 50 MB，只要一次），按<span class="ui">下載</span>。</li>
   <li>看完再按一次<span class="ui">翻譯</span>（或 <kbd>Ctrl</kbd><kbd>L</kbd>）關掉。</li>
 </ol>
-{{img:translate|翻好的中文直接蓋在原文上；翻譯時畫面暫時停住，左上角寫「畫面已凍結」|280}}
-<div class="ok"><b>看到這個就成功</b>原文的位置出現中文。翻譯的時候畫面會暫停（左上角「畫面已凍結」），這是正常的，關掉翻譯就恢復。</div>
+{{img:translate|翻好的中文直接蓋在原文上；翻譯時畫面暫停，右上角寫「翻譯中 · 畫面已暫停」|280}}
+<div class="ok"><b>看到這個就成功</b>原文的位置出現中文。翻譯的時候畫面會暫停（右上角「翻譯中 · 畫面已暫停」；工具列出現時它移到工具列下面），這是正常的，關掉翻譯就恢復。</div>
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>「畫面上的文字已經是繁體中文」：畫面上本來就是中文，不用翻。</li>
   <li>日文、韓文認不出來：Windows 要加裝那個語言的「光學字元辨識」，看<a href="#faq-translate">這裡</a>。</li>
@@ -286,9 +287,10 @@
 </table></div>
 
 <h3 id="remote-open">打開遠端控制</h3>
-<p>主畫面上方切到<span class="ui">遠端控制</span>分頁，打開最上面的開關。每次啟動自在投影，遠端控制都是關的（除非勾了<span class="ui">開機自動開啟固定網址</span>）。連著時，電腦螢幕上方一直有「正在被遠端控制」的提示列，按<span class="ui">中斷</span>或 <kbd>Ctrl</kbd><kbd>D</kbd> 隨時斷開。</p>
-{{img:remote-off|遠端控制分頁（還沒設密碼、開關關著）：最上面是「允許遠端控制」區塊，下面是在家和 Tailscale|420}}
-{{img:remote-allow|固定網址開好以後的「允許遠端控制」區塊：本機網址、QR 碼、新增臨時帳號（示範用的假網址）|420}}
+<p>主畫面上方切到<span class="ui">遠端控制</span>分頁，打開最上面的開關。每次啟動自在投影，遠端控制都是關的（除非在<span class="ui">進階設定</span>勾了<span class="ui">開機自動開啟固定網址</span>）。連著時，電腦螢幕上方一直有「正在被遠端控制」的提示列，按<span class="ui">中斷</span>或 <kbd>Ctrl</kbd><kbd>D</kbd> 隨時斷開。</p>
+{{img:remote-off|遠端控制分頁（還沒設密碼、開關關著）：最上面是「允許遠端控制」區塊，下面是在家和 Tailscale 各一行|420}}
+{{img:remote-allow|固定網址開好以後：最上面是「本機網址（在外面也能連）」，大字網址、QR 碼、複製網址、新增臨時帳號（示範用的假網址）|420}}
+<p>固定網址開好以後，最上面的區塊是<span class="ui">本機網址（在外面也能連）</span>：小字標題下面是大字網址，旁邊是 QR 碼，按鈕是<span class="ui">複製網址</span>和<span class="ui">新增臨時帳號</span>。臨時帳號在下面自己一張卡片；在家和 Tailscale 各一行。不常用的都在<span class="ui">進階設定</span>：<span class="ui">變更固定網址的密碼…</span>、<span class="ui">固定網址（在外面也能連）</span>（取消勾選就關閉固定網址）、<span class="ui">開機自動開啟固定網址</span>，還有<span class="ui">聲音</span>（<span class="ui">電腦聲音傳到手機</span>、<span class="ui">手機播聲音時電腦靜音</span>、<span class="ui">聲音來源</span>）。</p>
 
 <h3 id="remote-home">情境一：在家（同一個 Wi-Fi）</h3>
 <p class="goal"><b>你要做什麼</b>躺在沙發上，用手機操作書房的電腦。</p>
@@ -342,9 +344,9 @@
 <ol class="steps">
   <li><span class="ui">遠端控制</span>分頁最上面的<span class="ui">允許遠端控制</span>區塊按<span class="ui">設定密碼（取得固定網址和臨時帳號）</span>，輸入兩次，至少 8 個字（越長越好，別的地方沒用過的）。按<span class="ui">儲存並開啟</span>。</li>
   <li><strong>第一次要等一兩分鐘</strong>：區塊寫「正在準備網址，約 1–2 分鐘」，Tailscale 正在申請 HTTPS 憑證，這段時間手機打不開。自在投影會自己測試，通了才顯示「固定網址已開啟」。</li>
-  <li>區塊出現 <code>https://你的電腦名稱.….ts.net:8443/</code> 和 QR 碼。用手機掃，或按<span class="ui">複製網址</span>傳給自己。</li>
+  <li>區塊變成<span class="ui">本機網址（在外面也能連）</span>，出現大字的 <code>https://你的電腦名稱.….ts.net:8443/</code> 和 QR 碼。用手機掃，或按<span class="ui">複製網址</span>傳給自己。</li>
   <li>手機打開網址，只有一個<strong>密碼</strong>欄：輸入你設的密碼。登入一次，這支手機 30 天內不用再輸入。把網頁<a href="#remote-pwa">加入主畫面</a>，以後點圖示就能連。</li>
-  <li>想讓電腦開機後就能從外面連：勾區塊下面的<span class="ui">開機自動開啟固定網址</span>。</li>
+  <li>想讓電腦開機後就能從外面連：<span class="ui">進階設定</span> → 勾<span class="ui">開機自動開啟固定網址</span>。</li>
 </ol>
 {{img:remote-preparing|第一次開：「正在準備網址，約 1–2 分鐘」（還沒有 QR 碼）|420}}
 <div class="pair-img">
@@ -357,7 +359,7 @@
   <li>區塊寫「Tailscale 還沒登入」或「沒有回應」：打開電腦上的 Tailscale，登入，再按<span class="ui">再試一次</span>。</li>
   <li>區塊一直寫「正在準備網址」：再等一下；5 分鐘還不行會改成「網址等了 5 分鐘還連不上」，按<span class="ui">再試一次</span>，或先用<span class="ui">先用臨時網址（每次會變）</span>。</li>
   <li>已經顯示「固定網址已開啟」，手機還是打不開：看<a href="#faq-funnel">這裡</a>。</li>
-  <li>密碼錯 5 次會鎖 15 分鐘，等時間到再試。密碼忘了：只能在電腦上按<span class="ui">變更密碼</span>重設。</li>
+  <li>密碼錯 5 次會鎖 15 分鐘，等時間到再試。密碼忘了：只能在電腦上用<span class="ui">進階設定</span> → <span class="ui">變更固定網址的密碼…</span>重設。</li>
 </ul></div>
 <p class="src">Tailscale 步驟出處（2026-10 查閱）：<a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a>（Funnel：需要 MagicDNS、HTTPS、funnel 屬性；執行 tailscale funnel 會引導你同意開啟；只能用 443、8443、10000 埠）、<a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a>（指令 <code>--bg</code>、<code>--https</code>、<code>off</code>）、<a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a>（在 DNS 頁 Enable HTTPS、Let's Encrypt 憑證、名稱會公開）。</p>
 
@@ -375,11 +377,11 @@
 <p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>每次朋友連進來，都要有人在電腦前按「允許」</strong>（不能「記住」）。</p>
 <h4 id="remote-guest">方法 A：臨時帳號（建議，要先開好固定網址）</h4>
 <ol class="steps">
-  <li>電腦：<span class="ui">遠端控制</span>分頁最上面的<span class="ui">允許遠端控制</span>區塊 → <span class="ui">新增臨時帳號</span>。</li>
+  <li>電腦：<span class="ui">遠端控制</span>分頁最上面的<span class="ui">本機網址（在外面也能連）</span>區塊 → <span class="ui">新增臨時帳號</span>。</li>
   <li><span class="ui">帳號</span>已經幫你取好（例如 guest-4821，可以改）。選<span class="ui">有效時間</span>：用一次、1 小時、24 小時或 7 天；<span class="ui">權限</span>：可操作或僅觀看；要讓朋友傳檔案就勾<span class="ui">允許傳檔（手機和電腦互傳）</span>。按<span class="ui">建立</span>。</li>
   <li>按<span class="ui">複製全部</span>，貼給朋友。網址後面已經帶上帳號（<code>#u=guest-4821</code>）；<strong>密碼只顯示這一次</strong>，忘了就按<span class="ui">重設密碼</span>。</li>
   <li>朋友打開網址，帳號已經填好，<strong>只要輸入密碼</strong>。你的電腦跳出「有手機想要操控這台電腦」，確認是朋友才按<span class="ui">允許</span>。</li>
-  <li>到期或「用一次」用完，帳號會自動刪除；也可以在列表按<span class="ui">刪除</span>，正在連的會立刻中斷。最多 10 個。</li>
+  <li>到期或「用一次」用完，帳號會自動刪除；也可以在下面的臨時帳號卡片按<span class="ui">刪除</span>，正在連的會立刻中斷。最多 10 個。</li>
 </ol>
 <div class="pair-img">
 {{img:guest-new|新增臨時帳號（有效時間、權限、傳檔）|300}}
@@ -388,7 +390,7 @@
 {{img:phone-login-guest|朋友打開網址：帳號已填好，只要輸入密碼|260}}
 <h4 id="remote-nolink">方法 B：臨時網址（不用開固定網址）</h4>
 <ol class="steps">
-  <li>電腦：沒有固定網址時，<span class="ui">允許遠端控制</span>區塊按<span class="ui">產生臨時網址</span>；有固定網址時，<span class="ui">進階設定</span> → <span class="ui">臨時網址（手機不用裝 App，用行動網路也能連）</span>。約 10～20 秒後出現 QR 碼和 6 位數<span class="ui">通行碼</span>（小視窗的<span class="ui">臨時網址</span>分頁也有）。</li>
+  <li>電腦：沒有固定網址時，<span class="ui">允許遠端控制</span>區塊按<span class="ui">產生臨時網址</span>；有固定網址時，<span class="ui">進階設定</span> → <span class="ui">臨時網址（手機不用裝 App，用行動網路也能連）</span>。約 10～20 秒後出現 QR 碼和 6 位數<span class="ui">通行碼</span>（小視窗的<span class="ui">臨時網址</span>分頁也有；小視窗的分頁依序是<span class="ui">同一個 Wi-Fi</span>、<span class="ui">固定網址</span>、<span class="ui">Tailscale</span>、<span class="ui">臨時網址</span>，和主畫面一樣）。</li>
   <li>按<span class="ui">複製網址</span>把網址傳給朋友，通行碼另外告訴他。<strong>網址只能用一次</strong>，10 分鐘內有效。</li>
   <li>朋友打開網址、輸入通行碼，你的電腦跳出「有手機想要操控這台電腦」，<strong>你要在電腦前按「允許」</strong>。</li>
   <li>用完按<span class="ui">停止臨時網址</span>，或直接把遠端控制關掉。</li>
@@ -417,7 +419,7 @@
   <li>連著時電腦上方一直有「● 正在被遠端控制」，<kbd>Ctrl</kbd><kbd>D</kbd> 在任何程式裡都能中斷。</li>
   <li>手機 30 分鐘沒碰會自動中斷（<span class="ui">進階設定</span>可以改）。</li>
   <li><span class="ui">進階設定</span> → <span class="ui">遠端斷線後自動鎖定電腦</span>：斷線後鎖住電腦。預設<strong>關</strong>（從外網和在家都不鎖），需要就自己打開。</li>
-  <li>不再需要從外面連：取消勾選<span class="ui">開機自動開啟固定網址</span>，按<span class="ui">關閉固定網址</span>。</li>
+  <li>不再需要從外面連：<span class="ui">進階設定</span>裡取消勾選<span class="ui">開機自動開啟固定網址</span>和<span class="ui">固定網址（在外面也能連）</span>（取消勾選就關閉固定網址）。</li>
 </ul>
 <h3 id="remote-limits">做不到的事</h3>
 <ul>
@@ -442,14 +444,14 @@
 <h3 id="remote-audio">遠端控制（電腦的聲音到手機）</h3>
 <ol class="steps">
   <li>手機頁一開始是靜音的（iPhone 規定），點<span class="ui">點一下開聲音</span>，或右下角寫著<span class="ui">開聲音</span>的喇叭。</li>
-  <li>電腦會自動把聲音調到適當大小，<span class="ui">手機音量</span>預設 100% 通常就夠。還是太小：手機頁右下角<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉，最高 400%，不會爆音。</li>
+  <li>電腦會自動把聲音調到適當大小，<span class="ui">手機音量</span>預設 100% 通常就夠。還是太小：手機頁右下角<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉（0–400%）。100% 是電腦送來的原本大小，超過 100% 是「響度加強」：越往右越大聲，小聲的地方拉得更多，不會破音。</li>
   <li>手機本身的音量鍵也要調大，iPhone 側邊的靜音開關要關掉。</li>
-  <li>電腦：<span class="ui">遠端控制</span>分頁的<span class="ui">電腦聲音傳到手機</span>要勾著。不想讓電腦也出聲，勾<span class="ui">手機播聲音時電腦靜音</span>。</li>
+  <li>電腦：<span class="ui">遠端控制</span>分頁 → <span class="ui">進階設定</span> → <span class="ui">聲音</span>裡的<span class="ui">電腦聲音傳到手機</span>要勾著。不想讓電腦也出聲，勾同一處的<span class="ui">手機播聲音時電腦靜音</span>，或在手機頁<span class="ui">設定</span>打開<span class="ui">電腦喇叭靜音</span>（同一個設定，電腦會記住；臨時帳號和「僅觀看」不能改）。</li>
 </ol>
-{{img:phone-settings|手機頁的設定：操作方式（下面有說明）、手機音量（預設 100%，最高 400%）|300}}
+{{img:phone-settings|手機頁的設定：操作方式（下面有說明）、手機音量（預設 100%，超過 100% 是響度加強，最高 400%）、電腦喇叭靜音|300}}
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>頁面寫「電腦目前沒有在播放聲音」：電腦真的沒在放聲音。</li>
-  <li>電腦按了 Windows 靜音：取消 Windows 靜音；想讓電腦安靜用「手機播聲音時電腦靜音」。</li>
+  <li>電腦按了 Windows 靜音：取消 Windows 靜音；想讓電腦安靜用「手機播聲音時電腦靜音」（手機頁的「電腦喇叭靜音」）。</li>
   <li>更多看<a href="#remote-faq-nosound">遠端沒聲音</a>、<a href="#faq-audio">投影沒聲音</a>。</li>
 </ul></div>
 </section>
@@ -495,12 +497,12 @@
   <li>是 No 或 Google Pixel：改用 <a href="#adb">Android 操控</a>。</li>
 </ul></div></details>
 <details id="faq-adb"><summary>Android 操控斷線、下次沒自動連上</summary><div><ul>
-  <li>手機重開機或換 Wi-Fi 後無線偵錯常被關掉，回開發人員選項打開就好，不用重新配對。</li>
+  <li>Android 重開機會把無線偵錯關掉（換 Wi-Fi 也常會），自在投影會提示一次「找不到之前配對過的手機……」：回開發人員選項打開無線偵錯就好，不用重新配對。</li>
   <li>手機省電模式可能在螢幕關掉後斷 Wi-Fi，連線時打開<span class="ui">連線期間不休眠</span>。</li>
   <li>用 <kbd>Ctrl</kbd><kbd>D</kbd> 中斷過的手機不會自己連回來：用「連接 Android（掃 QR）」再連一次，或重開自在投影。</li>
   <li>還是不行：手機「無線偵錯 → 已配對的裝置」刪掉這台電腦，重新配對。</li>
 </ul></div></details>
-<details id="faq-disconnect"><summary>找不到「中斷連線」</summary><div><p>滑鼠移到畫面上，工具列最右邊紅色按鈕；或 <kbd>Ctrl</kbd><kbd>D</kbd>；或右下角圖示按右鍵 → 中斷連線。Android 畫面上右鍵是「返回」，要選單請按 <kbd>Shift</kbd>＋右鍵。</p></div></details>
+<details id="faq-disconnect"><summary>找不到「中斷連線」</summary><div><p>滑鼠移到畫面上方，工具列最右邊紅色按鈕；或 <kbd>Ctrl</kbd><kbd>D</kbd>；或右下角圖示按右鍵 → 中斷連線。Android 畫面上右鍵是「返回」，要選單請按 <kbd>Shift</kbd>＋右鍵。</p></div></details>
 <details id="faq-translate"><summary>翻譯沒反應，或日文、韓文翻不出來</summary><div><ul>
   <li>第一次要下載翻譯模型，問你時按<span class="ui">下載</span>（約 50 MB；日文、韓文翻成中文約 100 MB）。</li>
   <li>日文、韓文認不出來：按提示的<span class="ui">開啟語言設定</span>，或 Windows 設定 → 時間與語言 → 語言與地區 → 新增語言 → 選日文（韓文）→ 只勾「光學字元辨識」→ 安裝。</li>
@@ -511,7 +513,7 @@
   <li>也可以到 Tailscale 管理頁（login.tailscale.com/admin）的 <span class="ui">DNS</span> 頁：打開 MagicDNS，在 HTTPS Certificates 按 <span class="ui">Enable HTTPS</span>；再到 Access controls 加上 funnel 權限。命令列的方法比較簡單。</li>
   <li>電腦上的 Tailscale 要開著、登入。</li>
 </ul></div></details>
-<details id="faq-funnel-wait"><summary>固定網址剛開好，手機打開是 ERR_CONNECTION_CLOSED</summary><div><p>第一次開固定網址時，Tailscale 要先申請 HTTPS 憑證，這段時間會連不上。自在投影會自己測試：區塊寫「正在準備網址，約 1–2 分鐘」時請等；通了才會顯示「固定網址已開啟」。已經顯示開啟了手機還打不開，可能是手機那邊的 DNS 還沒查到新網址（Tailscale 說最久可能要 10 分鐘），等一下再重新整理。還是不行，在電腦按<span class="ui">關閉固定網址</span>再<span class="ui">開啟固定網址</span>。</p></div></details>
+<details id="faq-funnel-wait"><summary>固定網址剛開好，手機打開是 ERR_CONNECTION_CLOSED</summary><div><p>第一次開固定網址時，Tailscale 要先申請 HTTPS 憑證，這段時間會連不上。自在投影會自己測試：區塊寫「正在準備網址，約 1–2 分鐘」時請等；通了才會顯示「固定網址已開啟」。已經顯示開啟了手機還打不開，可能是手機那邊的 DNS 還沒查到新網址（Tailscale 說最久可能要 10 分鐘），等一下再重新整理。還是不行，在電腦的<span class="ui">進階設定</span>取消勾選<span class="ui">固定網址（在外面也能連）</span>，再勾回來。</p></div></details>
 <details id="remote-faq-noconnect"><summary>手機連不上電腦</summary><div><ul>
   <li><strong>在家掃 QR 打不開：</strong>手機不在同一個 Wi-Fi（訪客網路、行動數據都不行），或分享器開了 AP 隔離。</li>
   <li><strong>固定網址打不開：</strong>電腦要開機、登入、Tailscale 開著；第一次看上一題。</li>
@@ -519,11 +521,11 @@
   <li><strong>「這個網址已失效」：</strong>重新掃一次電腦上的 QR 碼（主畫面圖示也要重加）。</li>
 </ul></div></details>
 <details id="remote-faq-nosound"><summary>遠端沒聲音、太小聲</summary><div><ul>
-  <li>點<span class="ui">點一下開聲音</span>（或寫著<span class="ui">開聲音</span>的喇叭）；還太小，手機頁<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉（預設 100%，最高 400%）。</li>
+  <li>點<span class="ui">點一下開聲音</span>（或寫著<span class="ui">開聲音</span>的喇叭）；還太小，手機頁<span class="ui">設定</span> → <span class="ui">手機音量</span>往右拉（預設 100%，超過 100% 是響度加強，最高 400%）。</li>
   <li>iPhone 靜音開關、手機音量。</li>
-  <li>電腦不要按 Windows 靜音；電腦上<span class="ui">電腦聲音傳到手機</span>要勾著。</li>
+  <li>電腦不要按 Windows 靜音；電腦上<span class="ui">進階設定</span> → <span class="ui">聲音</span> → <span class="ui">電腦聲音傳到手機</span>要勾著。</li>
 </ul></div></details>
-<details id="remote-faq-forgot"><summary>固定網址的密碼忘了</summary><div><p>只能在<strong>電腦上</strong>重設：遠端控制分頁 → <span class="ui">允許遠端控制</span>區塊 → <span class="ui">變更密碼</span>。手機要用新密碼重新登入。</p></div></details>
+<details id="remote-faq-forgot"><summary>固定網址的密碼忘了</summary><div><p>只能在<strong>電腦上</strong>重設：遠端控制分頁 → <span class="ui">進階設定</span> → <span class="ui">變更固定網址的密碼…</span>。手機要用新密碼重新登入。</p></div></details>
 <details><summary>電腦被鎖住了</summary><div><p>遠端斷線後電腦會自動鎖定（如果有開；預設關）。用你的 Windows 密碼或 PIN 解鎖。不想要的話：<span class="ui">進階設定</span> → <span class="ui">遠端斷線後自動鎖定電腦</span>取消。</p></div></details>
 <details><summary>關掉視窗後程式還在嗎？</summary><div><p>在，它在右下角背景待命。要完全結束：右下角圖示按右鍵 → <span class="ui">結束</span>。</p></div></details>
 

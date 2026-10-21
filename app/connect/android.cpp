@@ -216,31 +216,49 @@ void startQrPairing() {
     }
 }
 
+// --test-no-network: a made-up (unscannable) QR look-alike, n x n BGRA pixels.
+int dummyPairQr(std::vector<uint8_t>& px) {
+    constexpr int n = 33;
+    px.assign(n * n * 4, 255);
+    unsigned r = 12345;
+    for (int y = 0; y < n; ++y)
+        for (int x = 0; x < n; ++x) {
+            r = r * 1103515245u + 12345u;
+            const bool finder = (x < 7 || x >= n - 7) && y < 7 || x < 7 && y >= n - 7;
+            const int fx = x < 7 ? x : x - (n - 7), fy = y < 7 ? y : y - (n - 7);
+            const bool dark = finder ? (fx == 0 || fx == 6 || fy == 0 || fy == 6 || (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4))
+                                     : ((r >> 16) & 1) != 0;
+            if (dark) std::fill_n(px.begin() + (y * n + x) * 4, 3, uint8_t{0});
+        }
+    return n;
+}
+
 void openPairPanel() {
     if (g.testNoNetwork && !g.pairPanel.isOpen()) {
         // --dev --test-no-network: the panel alone (screenshots in every language,
         // DevCommand 902) with a dummy code; adb is never started.
         pm::ui::PairPanel::Callbacks cb;
-        cb.onClose = []() {};
+        cb.onClose = []() { KillTimer(g.hwnd, kPairTimer); };
         cb.onPairCode = [](const std::wstring&, const std::wstring&) { g.pairPanel.setStatus(tr(S::PairPairing)); };
         cb.onQrMode = []() {};
+        cb.onRetry = []() {
+            g.pairStage = 0;
+            g.log->write("info", "test-no-network: pairing retry (a new dummy code)");
+            std::vector<uint8_t> px;
+            const int n = dummyPairQr(px);
+            g.pairPanel.setQr(px, n);
+            g.pairPanel.setStatus(tr(S::PairWaiting));
+            SetTimer(g.hwnd, kPairTimer, g.pairTimeoutMs, nullptr);
+        };
         cb.onHelp = []() { openTutorial(L"adb"); };
         cb.onHelpDevOpt = []() { openTutorial(L"adb-devopt"); };  // 0.8.3.3
         if (!g.pairPanel.open(g.hwnd, std::move(cb))) return;
-        constexpr int n = 33;
-        std::vector<uint8_t> px(n * n * 4, 255);
-        unsigned r = 12345;
-        for (int y = 0; y < n; ++y)
-            for (int x = 0; x < n; ++x) {
-                r = r * 1103515245u + 12345u;
-                const bool finder = (x < 7 || x >= n - 7) && y < 7 || x < 7 && y >= n - 7;
-                const int fx = x < 7 ? x : x - (n - 7), fy = y < 7 ? y : y - (n - 7);
-                const bool dark = finder ? (fx == 0 || fx == 6 || fy == 0 || fy == 6 || (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4))
-                                         : ((r >> 16) & 1) != 0;
-                if (dark) std::fill_n(px.begin() + (y * n + x) * 4, 3, uint8_t{0});
-            }
+        std::vector<uint8_t> px;
+        const int n = dummyPairQr(px);
         g.pairPanel.setQr(px, n);
         g.pairPanel.setStatus(tr(S::PairWaiting));
+        g.pairStage = 0;
+        SetTimer(g.hwnd, kPairTimer, g.pairTimeoutMs, nullptr);  // the same waiting clock as the real one (B6)
         g.log->write("info", "test-no-network: pairing panel with a dummy code (no adb)");
         return;
     }
@@ -266,6 +284,10 @@ void openPairPanel() {
         else g.pairPanel.setStatus(tr(S::PairBadFormat), true);
     };
     cb.onQrMode = []() { startQrPairing(); };
+    cb.onRetry = []() {  // 0.8.3.4 (B6): the wait ended; a new code, listening again
+        g.log->write("info", "pairing: retry");
+        startQrPairing();
+    };
     cb.onHelp = []() { openTutorial(L"adb"); };
     cb.onHelpDevOpt = []() { openTutorial(L"adb-devopt"); };  // 0.8.3.3
     if (!g.pairPanel.open(g.hwnd, std::move(cb))) {
@@ -276,6 +298,22 @@ void openPairPanel() {
     startQrPairing();
 }
 
+// 0.8.3.4 (audit F3): Android switches 無線偵錯 off when the phone restarts, so a phone paired before is simply
+// not there any more. When the search for paired phones (or the reconnect after a drop) finds nothing, say that
+// once -- in plain words, with where to turn it back on. Again only after a phone has connected since.
+bool g_rebootHintShown = false;
+void androidRebootHint(pm::AndroidSource::State s, const std::wstring& detail) {
+    using St = pm::AndroidSource::State;
+    if (g_rebootHintShown || g.settings.androidPaired != 1 || g.pairPanel.isOpen() || g.androidUserStopped) return;
+    const bool none = s == St::Idle && androidDetailIs(detail, S::ModAndNoneFound);
+    const bool dropped = s == St::Error && androidDetailIs(detail, S::ModAndReconnectFail);
+    if (!none && !dropped) return;
+    if (none && g_active.load() != SrcNone) return;  // another phone is on screen: not now
+    g_rebootHintShown = true;
+    g.log->write("info", "android: paired phone not found: reboot hint shown");
+    g.window->showToast(tr(S::AndroidRebootHint), 9000);
+}
+
 void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
     using S = pm::AndroidSource::State;
     switch (kind) {
@@ -284,6 +322,7 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
         const std::wstring detail = text.size() > 1 ? text.substr(1) : L"";
         g.log->write("info", "android state " + std::to_string(static_cast<int>(s)) +
                                  (detail.empty() ? "" : ": " + toUtf8(detail)));
+        androidRebootHint(s, detail);
         androidUsbState(s, detail);  // 0.8.3 用 USB 線連線: its progress / result as toasts
         // Start-up failed (or ended) before the first picture: the window
         // showed 連線中 for this phone and owned the source, so nothing else
@@ -320,6 +359,7 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
         case S::WaitingForPairing:  // steps are on the panel; a failure text stays until the phone answers
             if (!g.pairPanel.statusIsError()) g.pairPanel.setStatus(tr(I18n::PairWaiting));
             // Listening for the phone from now on: no answer by then -> say what to check.
+            g.pairStage = 0;
             if (!g.pairPanel.codeMode()) SetTimer(g.hwnd, kPairTimer, g.pairTimeoutMs, nullptr);
             break;
         case S::Pairing:
@@ -343,7 +383,10 @@ void onAndroidEvent(SourceEvent kind, const std::wstring& text) {
         }
         break;
     }
-    case AndConnected: onAndroidConnected(text, false); break;
+    case AndConnected:
+        g_rebootHintShown = false;
+        onAndroidConnected(text, false);
+        break;
     case AndTestConnected: onAndroidConnected(text, true); break;
     case AndDisconnected:
         g.log->write("info", "android disconnected");

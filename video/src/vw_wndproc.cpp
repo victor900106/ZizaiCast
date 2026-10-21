@@ -50,6 +50,13 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         if (!r || r->right <= r->left) return -1;
         return MAKELRESULT((r->left + r->right) / 2, (r->top + r->bottom) / 2);
     }
+    if (msg == kTestMsg && kTestMsg && wp == 19) {
+        // Test hook (0.8.3.4): centre of the clickable toast in client px,
+        // -1 if none is shown.
+        std::lock_guard lk(m);
+        if (!toastFn || toastRect.right <= toastRect.left) return -1;
+        return MAKELRESULT((toastRect.left + toastRect.right) / 2, (toastRect.top + toastRect.bottom) / 2);
+    }
     if (msg == kTestMsg && kTestMsg && wp == 18) {
         // Test hook: centre of idle check box row lp in client px, -1 if not shown.
         std::lock_guard lk(m);
@@ -92,6 +99,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             pendW = LOWORD(lp);
             pendH = HIWORD(lp);
             resizePending = true;
+            lastToolPill = {};  // 0.8.3.4: it moves; until shown again the top fifth counts as near it
         }
         wake();
         return 0;
@@ -128,12 +136,25 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             slideTool(GET_X_LPARAM(lp), false);
             return 0;
         }
-        // Live toolbar: shown by any movement; on it, nothing goes to the phone.
-        toolActivity();
+        // Live toolbar: shown when the pointer comes into the window or near the
+        // toolbar (0.8.3.4; before: by any movement, so it kept covering the top
+        // of the phone while it was used); on it, nothing goes to the phone.
         const POINT mpt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        const bool entering = !pointerInUi;
+        setPointerIn(true);
+        if (entering || nearToolbar(mpt)) toolActivity();
         const bool onTool = !buttonsDown && inToolPill(mpt);
         setToolHot(onTool ? hitTool(mpt) : -1, onTool);
         if (onTool) hoverPending = false;
+        // 0.8.3.4: the clickable toast (over everything): its own, like the toolbar.
+        const bool onTst = !onTool && !buttonsDown && onToast(mpt);
+        setToastHot(onTst);
+        if (onTst) {
+            hoverPending = false;
+            setHover(-1);
+            setLinkHot(-1);
+            return 0;
+        }
         // Translation list / markers: theirs, nothing goes to the phone.
         ovOnUi = onTool || buttonsDown ? kOvNone : ovHit(mpt);
         ovSetHot(ovOnUi >= 0 ? ovOnUi : -1);
@@ -168,6 +189,9 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         ovOnUi = kOvNone;
         setToolHot(-1, false);
         toolLeave();
+        setPointerIn(false);  // 0.8.3.4
+        setToastHot(false);
+        pressedToast = false;
         setHover(-1);
         setLinkHot(-1);
         setMascotHot(false);
@@ -178,7 +202,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
             SetCursor(LoadCursorW(nullptr, selecting ? IDC_CROSS : IDC_SIZEALL));
             return TRUE;
         }
-        if (LOWORD(lp) == HTCLIENT && (hoverUi >= 0 || mascotHotUi || linkHotUi >= 0 || toolHotUi >= 0)) {
+        if (LOWORD(lp) == HTCLIENT && (hoverUi >= 0 || mascotHotUi || linkHotUi >= 0 || toolHotUi >= 0 || toastHotUi)) {
             SetCursor(LoadCursorW(nullptr, IDC_HAND));
             return TRUE;
         }
@@ -203,6 +227,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDOWN:
         if (selectMouse(msg, lp)) return 0;
         if (toolPress(lp)) return 0;
+        if (toastPress(lp)) return 0;  // 0.8.3.4: the clickable toast
         if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
         if (inkPress(lp)) return 0;  // 簡報畫筆: a stroke (Ctrl+drag still pans)
         if (panPress(lp)) return 0;
@@ -216,6 +241,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_LBUTTONUP: {
         if (selectMouse(msg, lp)) return 0;
+        if (toastRelease(lp)) return 0;  // 0.8.3.4: pressed on the clickable toast
         if (inking) {  // 簡報畫筆: the stroke is done
             inkMove(lp);
             inkEnd(true);
@@ -254,6 +280,7 @@ LRESULT VideoWindow::Impl::wndProc(UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDBLCLK:
         if (selectMouse(msg, lp)) return 0;
         if (toolPress(lp)) return 0;  // second click of a fast double click on the toolbar
+        if (toastPress(lp)) return 0;  // 0.8.3.4: ... or on the clickable toast (not fullscreen)
         if (!buttonsDown && (ovPress = ovHit({GET_X_LPARAM(lp), GET_Y_LPARAM(lp)})) != kOvNone) return 0;
         if (inkPress(lp)) return 0;   // 簡報畫筆: a quick second stroke, not fullscreen
         if (panPress(lp)) return 0;   // magnified: a fast second drag, not fullscreen

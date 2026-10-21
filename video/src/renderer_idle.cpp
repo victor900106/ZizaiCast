@@ -216,7 +216,9 @@ Renderer::IdlePlan Renderer::planIdleCards(const Layout& L0, bool full) {
     // 0.8.2: cards with QR codes / several buttons (遠端控制) keep a readable size:
     // 投投 makes room instead (idleNoMascot_).
     const float cardMin = std::max(L.hint * (richIdle() ? 0.86f : 0.62f), 12.f * 0.78f);
-    const float swH = drawSwitch(0, L, textMax, false, false);  // 0.8.2: the big switch in place of the title
+    // 0.8.2: the big switch in place of the title. 0.8.3.4: on the 遠端控制 page (stacked cards), a status bar as wide as them.
+    const float swW = richIdle() ? std::floor(std::min(rw - margin, L.hint * 30)) : 0.f;
+    const float swH = drawSwitch(0, L, textMax, false, false, swW);
     struct Step {
         int mode;
         bool opts;
@@ -226,7 +228,9 @@ Renderer::IdlePlan Renderer::planIdleCards(const Layout& L0, bool full) {
     constexpr int kN = static_cast<int>(sizeof kSteps / sizeof kSteps[0]);
     for (int k = 0; k < kN; ++k) {
         const Step& st = kSteps[k];
-        if (st.opts && !optsOk) continue;
+        // 0.8.3.4: a page without check boxes (遠端控制 since its sound options moved) starts at step 0 too
+        // (skipping it made every such page look cramped: 投投 was dropped from a page that had room).
+        if (st.opts && !optsOk && !options_.empty()) continue;
         IdlePlan q;
         q.level = k;
         q.mode = st.mode;
@@ -317,7 +321,13 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L0, float opacity, doubl
         plan = planIdleCards(L0, full);
         titleSize = plan.titleSize;
     }
-    const float swH = cardsOn ? drawSwitch(0, L, textMax, false, false) : 0.f;  // 0.8.2: in place of the title
+    // 0.8.2: in place of the title. 0.8.3.4: a status bar lined up with the (stacked) cards.
+    float swW = 0, swX = 0;
+    if (cardsOn && richIdle()) {
+        swW = std::floor(std::min(rw - margin, (plan.cardSize > 0 ? plan.cardSize : L.hint) * 30));
+        swX = std::round(L.text.left + margin / 2 + (rw - margin - swW) / 2);
+    }
+    const float swH = cardsOn ? drawSwitch(0, L, textMax, false, false, swW, swX) : 0.f;
     auto l1 = (cardsOn && !plan.title) || swH > 0 ? nullptr : layout(keepAll(t1), titleSize, textMax, DWRITE_FONT_WEIGHT_NORMAL);
     // Device name: one line, trimmed with an ellipsis if it is very long.
     auto l2 = t2.empty()  ? nullptr
@@ -378,6 +388,8 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L0, float opacity, doubl
     const float cardsH = cardsOn ? plan.cardsH : 0.f, gapCards = cardsOn ? plan.gapCards : 0.f;
     if (cardsOn) block += gapCards + cardsH;
     float y = std::round(L.text.top + std::max(margin * 0.75f, (rh - block) * (L.landscape ? 0.5f : 0.55f)));
+    // 0.8.3.4: the 遠端控制 page starts right under the tabs (centred, a tall window left a hole above it).
+    if (swW > 0) y = std::round(L.text.top + std::min(y - L.text.top, L.hint * 0.3f));
     const float x = L.text.left + margin;
     if (opacity * sceneOpacity_ >= 0.5f) textBlock_ = {x, y - L.hint * 0.5f, L.text.right - margin, y + block + L.hint * 0.5f};
     if (busy) {
@@ -385,7 +397,7 @@ void Renderer::drawTextBlock(Scene scene, const Layout& L0, float opacity, doubl
         y += spin + gapSpin;
     }
     if (swH > 0) {
-        drawSwitch(y, L, textMax, true, full);
+        drawSwitch(y, L, textMax, true, full, swW, swX);
         y += swH;
     }
     if (l1) {
@@ -592,7 +604,7 @@ float Renderer::drawTabs(const Layout& L, bool draw, bool clickable) {
 // 0.8.2: the big on / off switch (Action kind 2) in place of the title: a track
 // with its knob, the label (bold) and its status line (Action::sub) beside it.
 // Returns its height; draws it centred at y when draw.
-float Renderer::drawSwitch(float y, const Layout& L, float maxW, bool draw, bool clickable) {
+float Renderer::drawSwitch(float y, const Layout& L, float maxW, bool draw, bool clickable, float rowW, float rowX) {
     int i = -1;
     for (size_t k = 0; k < actions_.size(); ++k)
         if (actions_[k].kind == 2 && !actions_[k].label.empty()) {
@@ -602,28 +614,39 @@ float Renderer::drawSwitch(float y, const Layout& L, float maxW, bool draw, bool
     if (i < 0) return 0;
     const Action& a = actions_[i];
     const float size = L.hint;
+    const bool bar = rowW > 0;  // 0.8.3.4: as wide as the cards, its text from the left (one look: on or off)
     const float trackW = std::round(size * 3.1f), trackH = std::round(size * 1.75f), gap = std::round(size * 0.8f);
-    const float textMaxW = std::max(maxW - trackW - gap - size, 60.f);
+    const float padY = std::round(size * (bar ? 0.6f : 0.45f)), padX = std::round(size * (bar ? 0.8f : 0.7f));
+    const float dotR = bar && a.on ? std::round(size * 0.24f) : 0.f, dotGap = dotR > 0 ? std::round(size * 0.4f) : 0.f;
+    const float textMaxW = bar ? std::max(rowW - 2 * padX - trackW - gap, 60.f) : std::max(maxW - trackW - gap - size, 60.f);
     auto t = layout(keepAll(a.label), std::round(size * 1.3f * 4) / 4, textMaxW, DWRITE_FONT_WEIGHT_BOLD, true);
-    auto sub = a.sub.empty() ? nullptr : layout(keepAll(a.sub), std::round(size * 0.92f * 4) / 4, textMaxW, DWRITE_FONT_WEIGHT_NORMAL, true);
+    auto sub = a.sub.empty() ? nullptr
+                             : layout(keepAll(a.sub), std::round(size * 0.92f * 4) / 4, std::max(textMaxW - 2 * dotR - dotGap, 40.f),
+                                      a.on && bar ? DWRITE_FONT_WEIGHT_SEMI_BOLD : DWRITE_FONT_WEIGHT_NORMAL, true);
     for (auto* l : {t.Get(), sub.Get()})
         if (l) l->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-    const float tW = std::max(t ? textW(t.Get()) : 0.f, sub ? textW(sub.Get()) : 0.f);
+    const float tW = std::max(t ? textW(t.Get()) : 0.f, sub ? textW(sub.Get()) + 2 * dotR + dotGap : 0.f);
     const float tH = (t ? textH(t.Get()) : 0.f) + (sub ? size * 0.15f + textH(sub.Get()) : 0.f);
-    const float padY = std::round(size * 0.45f), padX = std::round(size * 0.7f);
     const float h = std::round(std::max(trackH, tH) + 2 * padY);
     if (!draw) return h;
     const double now = clockMs();
     const float s = dpi_ / 96.f;
-    const float w = std::round(trackW + gap + tW + 2 * padX);
-    const float x0 = std::round(L.text.left + ((L.text.right - L.text.left) - w) / 2);
+    const float w = bar ? std::round(rowW) : std::round(trackW + gap + tW + 2 * padX);
+    const float x0 = bar ? std::round(rowX) : std::round(L.text.left + ((L.text.right - L.text.left) - w) / 2);
     const D2D1_RECT_F row{x0, y, x0 + w, y + h};
     const float hl = uiLevel(uiHot_, UiAction, i, now), fl = uiLevel(uiFocus_, UiAction, i, now);
     const float pl = reduced_ ? 0.f : uiLevel(uiPress_, UiAction, i, now);
     D2D1_MATRIX_3X2_F base;
     d2dTarget_->GetTransform(&base);
     if (pl > 0.003f) d2dTarget_->SetTransform(scaledAbout(base, 1 - 0.03f * pl, {(row.left + row.right) / 2, (row.top + row.bottom) / 2}));
-    d2dTarget_->FillRoundedRectangle({row, size * 0.9f, size * 0.9f}, brush(pal_.card, 0.45f + 0.2f * hl));
+    if (bar) {  // a card of its own: an accent edge while on, a grey one while off
+        const float rad = std::round(size * 0.75f);
+        d2dTarget_->FillRoundedRectangle({row, rad, rad}, brush(a.on ? mixc(pal_.card, pal_.accent, 0.10f) : pal_.card, 0.62f + 0.2f * hl));
+        d2dTarget_->DrawRoundedRectangle({inflate(row, -0.75f), rad - 0.75f, rad - 0.75f},
+                                         a.on ? brush(pal_.accent, 0.75f) : brush(pal_.fg, 0.16f + 0.2f * hl), 1.5f);
+    } else {
+        d2dTarget_->FillRoundedRectangle({row, size * 0.9f, size * 0.9f}, brush(pal_.card, 0.45f + 0.2f * hl));
+    }
     const float tx = x0 + padX, ty = std::round(y + (h - trackH) / 2);
     const D2D1_RECT_F track{tx, ty, tx + trackW, ty + trackH};
     if (a.on) d2dTarget_->FillRoundedRectangle({track, trackH / 2, trackH / 2}, brush(pal_.accent));
@@ -640,9 +663,21 @@ float Renderer::drawSwitch(float y, const Layout& L, float maxW, bool draw, bool
         d2dTarget_->DrawTextLayout({lx, ly}, t.Get(), brush(pal_.fg));
         ly += textH(t.Get()) + size * 0.15f;
     }
-    if (sub) d2dTarget_->DrawTextLayout({lx, ly}, sub.Get(), brush(a.on ? pal_.accent : pal_.dim));
+    if (sub) {
+        if (dotR > 0) {  // 0.8.3.4: a lit dot before 已開啟 (on the first line's middle)
+            UINT32 n = 0;
+            sub->GetLineMetrics(nullptr, 0, &n);  // (all lines: a buffer too small fills nothing)
+            std::vector<DWRITE_LINE_METRICS> lm(std::max<UINT32>(n, 1));
+            const bool got = n > 0 && SUCCEEDED(sub->GetLineMetrics(lm.data(), n, &n));
+            const float cy = ly + (got ? lm[0].height : textH(sub.Get())) / 2;
+            d2dTarget_->FillEllipse({{lx + dotR, cy}, dotR, dotR}, brush(pal_.accent));
+        }
+        d2dTarget_->DrawTextLayout({lx + (dotR > 0 ? 2 * dotR + dotGap : 0.f), ly}, sub.Get(),
+                                   brush(a.on ? pal_.accent : pal_.dim));
+    }
     d2dTarget_->SetTransform(base);
-    if (fl > 0.003f) d2dTarget_->DrawRoundedRectangle({inflate(row, 3), size * 0.9f + 3, size * 0.9f + 3}, brush(pal_.fg, 0.9f * fl), 2.f);
+    const float fr = bar ? std::round(size * 0.75f) : size * 0.9f;
+    if (fl > 0.003f) d2dTarget_->DrawRoundedRectangle({inflate(row, 3), fr + 3, fr + 3}, brush(pal_.fg, 0.9f * fl), 2.f);
     if (clickable) {
         if (actionRects_.size() < actions_.size()) actionRects_.resize(actions_.size());
         actionRects_[i] = {static_cast<LONG>(std::floor(row.left * s)), static_cast<LONG>(std::floor(row.top * s)),
@@ -691,6 +726,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         float w = 0, padX = 0;
         int row = 0;
         float x = 0;  // 0.8.3.2: from the row's start
+        float th = 0;  // 0.8.3.4: a link wrapped onto two lines: its text height
     };
     struct Lay {
         ComPtr<IDWriteTextLayout> t, b, n, k, g;  // g: 0.8.3.2 the big line (an address)
@@ -701,6 +737,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         std::vector<Item> its;   // several (0.8.2)
         int rows = 0;
         float qr = 0;            // QR side (DIPs), 0: none
+        float heroTop = 0;       // 0.8.3.4 (main block with a QR code): label + address across the card, the rest under it
     };
     std::vector<Lay> cs(nc);
     auto lead = [](IDWriteTextLayout* l) {
@@ -746,7 +783,8 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
     for (int i = 0; i < nc; ++i) {
         Lay& c = cs[i];
         const Card& cd = cards_[i];
-        c.qr = cd.qrSize > 0 ? std::round(std::min(size * 7.2f, inner * 0.42f)) : 0.f;
+        // 0.8.3.4: the main block's QR code a little smaller (the address is its big thing; less empty card beside the buttons)
+        c.qr = cd.qrSize > 0 ? std::round(std::min(size * (cd.style == 1 ? 6.2f : 7.2f), inner * (cd.style == 1 ? 0.36f : 0.42f))) : 0.f;
         const float colW = c.qr > 0 ? inner - c.qr - pad : inner;  // the text column
         const bool single = items[i].size() == 1 && actions_[items[i][0]].kind == 0 && c.qr == 0;
         if (single) {
@@ -775,6 +813,18 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
                     it.padX = std::round(btnH * (a.primary ? 0.62f : 0.42f));
                     it.l = layout(keepAll(a.label), btnSize, std::max(colW - 2 * it.padX, 20.f), DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
                     if (it.l && !a.primary) it.l->SetUnderline(TRUE, {0, ~0u});
+                    // 0.8.3.4: a link longer than the column wraps instead of ending in 「…」 (「Set a password (fixed
+                    // address + temporary acc…」).
+                    const float lw = std::max(colW - 2 * it.padX, 20.f);
+                    if (it.l && !a.primary && a.style == 0 &&
+                        textW(layout(keepAll(a.label), btnSize, 4096.f, DWRITE_FONT_WEIGHT_SEMI_BOLD, false).Get()) > lw + 0.5f) {
+                        if ((it.l = layout(keepAll(a.label), btnSize, lw, DWRITE_FONT_WEIGHT_SEMI_BOLD, true))) {
+                            lead(it.l.Get());
+                            it.l->SetUnderline(TRUE, {0, ~0u});
+                            balance(it.l.Get(), lw);
+                            it.th = textH(it.l.Get());
+                        }
+                    }
                     if (it.l) it.w = std::round(std::min(textW(it.l.Get()), colW - 2 * it.padX) + 2 * it.padX);
                 }
                 if (it.l) c.its.push_back(std::move(it));
@@ -783,7 +833,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             // own: its text, then its links (kind 5) at the right; the row is as tall as the text.
             float x = 0;
             int rowNo = -1;
-            bool listRow = false;
+            bool listRow = false, mainRow = false;
             auto newRow = [&] { c.rowH.push_back(btnH), ++rowNo, x = 0; };
             for (size_t k = 0; k < c.its.size(); ++k) {
                 Item& it = c.its[k];
@@ -808,41 +858,62 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
                     it.x = x + itemGap, x = it.x + it.w, it.row = rowNo;
                     continue;
                 }
-                if (rowNo < 0 || listRow || (x > 0 && x + itemGap + it.w > colW + 0.5f)) newRow();
+                // 0.8.3.4: the row with the main (filled) button keeps the buttons; links and check boxes go under it
+                const Action& ia = actions_[it.index];
+                const bool minor = ia.kind == 3 || (ia.kind == 0 && !ia.primary);
+                if (rowNo < 0 || listRow || (x > 0 && x + itemGap + it.w > colW + 0.5f) || (minor && mainRow)) newRow(), mainRow = false;
+                if (ia.style == 1) mainRow = true;
                 listRow = false;
                 it.x = x + (x > 0 ? itemGap : 0), x = it.x + it.w, it.row = rowNo;
+                if (it.th > 0) c.rowH[rowNo] = std::max(c.rowH[rowNo], std::ceil(it.th + size * 0.5f));
             }
             c.rows = rowNo + 1;
         }
         // Button beside the text (stacked cards) while the text keeps ~9 characters a line.
         c.side = !row && c.k && inner - c.bw - pad >= size * 9;
         c.tw = c.side ? inner - c.bw - pad : colW;
-        c.t = layout(keepAll(cd.title), titleSize, c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD);
-        lead(c.t.Get());
-        if (!cd.big.empty()) {  // 0.8.3.2: a big line (an address)
+        const bool hero = cd.style == 1;  // 0.8.3.4 (design B): a small label over a big address, like 本機識別碼
+        // rel-0834: the main block's label and address beside the QR code (its top at the card's top), the buttons
+        // right under the address: no empty card between them, and the address keeps a gap to the code. Only
+        // when the address does not fit there (at least 0.8 x on two lines) does it run across the card with
+        // the QR code under it (then the rest starts right under the address, not centred against the code).
+        bool across = false;
+        auto bigLine = [&](float headW, bool fallback) {  // false: does not fit headW (and no fallback wanted)
             // 0.8.3.3: never broken inside the host name (「…example.ts.」 / 「net:8443/」): on one line, a little
             // smaller if need be; else the host name and 「:8443/」 (or the path) on two lines; else smaller still.
-            const float big = q(size * 1.22f);
-            std::vector<std::pair<std::wstring, float>> tries{{cd.big, size * 1.0f}};
+            // rel-0834: a little short of the column (a big address no longer touches the card's / code's edge).
+            const float fitW = hero ? headW - std::round(size * 0.5f) : headW;
+            const float big = q(size * (hero ? 1.75f : 1.22f));
+            std::vector<std::pair<std::wstring, float>> tries{{cd.big, size * (hero ? 1.1f : 0.86f)}};  // 0.8.3.4: one line down to 0.86 (was 1.0)
             const size_t hs = cd.big.find(L"://");
             const size_t he = hs == std::wstring::npos ? std::wstring::npos : cd.big.find_first_of(L":/", hs + 3);
-            if (he != std::wstring::npos && he + 1 < cd.big.size()) tries.push_back({cd.big.substr(0, he) + L"\n" + cd.big.substr(he), size * 0.62f});
+            if (he != std::wstring::npos && he + 1 < cd.big.size()) tries.push_back({cd.big.substr(0, he) + L"\n" + cd.big.substr(he), size * (hero ? 0.8f : 0.62f)});
             for (size_t k = 0; k < tries.size(); ++k) {
                 const auto probe = layout(tries[k].first, big, 4096.f, DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
                 const float w = std::max(1.f, textW(probe.Get()));
-                const float fs = std::min(big, std::floor(big * (c.tw - 1) / w * 4) / 4);
-                if (fs >= tries[k].second || k + 1 == tries.size()) {
-                    lead((c.g = layout(tries[k].first, std::max(fs, size * 0.62f), c.tw, DWRITE_FONT_WEIGHT_SEMI_BOLD, false)).Get());
-                    break;
+                const float fs = std::min(big, std::floor(big * (fitW - 1) / w * 4) / 4);
+                if (fs >= tries[k].second || (k + 1 == tries.size() && fallback)) {
+                    lead((c.g = layout(tries[k].first, std::max(fs, size * 0.62f), headW, DWRITE_FONT_WEIGHT_SEMI_BOLD, false)).Get());
+                    return true;
                 }
             }
+            return false;
+        };
+        if (!cd.big.empty()) {  // 0.8.3.2: a big line (an address)
+            if (!hero || c.qr <= 0) bigLine(c.tw, true);
+            else if (!bigLine(c.tw, false)) across = true, bigLine(inner, true);
         }
-        if (!cd.body.empty() && mode == 0) {
+        const float headW = across ? inner : c.tw;
+        c.t = layout(keepAll(cd.title), hero ? q(size * 0.86f) : titleSize, headW, hero ? DWRITE_FONT_WEIGHT_NORMAL : DWRITE_FONT_WEIGHT_SEMI_BOLD);
+        lead(c.t.Get());
+        if (!cd.body.empty() && mode == 0 && cd.style != 2) {  // (2 compact: the title says it)
             lead((c.b = layout(keepAll(cd.body), bodySize, c.tw)).Get());
             balance(c.b.Get(), c.tw);
         }
         if (!cd.note.empty() && (mode < 2 || c.qr > 0)) {  // (a QR card's note is its address: kept)
-            lead((c.n = layout(keepAll(cd.note), noteSize, c.tw)).Get());
+            // 0.8.3.4: beside a QR code with an address the note is what to type (通行碼): bigger, semibold
+            const bool key = cd.qrSize > 0 && !cd.big.empty();
+            lead((c.n = layout(keepAll(cd.note), key ? q(size * (hero ? 1.3f : 0.92f)) : noteSize, c.tw, key ? DWRITE_FONT_WEIGHT_SEMI_BOLD : DWRITE_FONT_WEIGHT_NORMAL)).Get());
             balance(c.n.Get(), c.tw);
         }
         float th = textH(c.t.Get());
@@ -854,6 +925,11 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             for (float rh : c.rowH) th += rh;
         }
         c.h = std::round(2 * pad + (c.side ? std::max(th, btnH) : std::max(th + (c.k ? size * 0.6f + btnH : 0.f), c.qr)));
+        if (across) {
+            const float head = textH(c.t.Get()) + (c.g ? size * 0.18f + textH(c.g.Get()) : 0.f);
+            c.heroTop = head + std::round(size * 0.6f);
+            c.h = std::round(2 * pad + c.heroTop + std::max(th - head, c.qr));
+        }
         gridH[i / cols] = std::max(gridH[i / cols], c.h);
         total += c.h + (i ? gap : 0.f);
     }
@@ -888,7 +964,10 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         l->SetMaxWidth(std::ceil(std::min(tw, w)) + 2.f);
         const D2D1_POINT_2F at{std::round((br.left + br.right) / 2 - std::min(tw, w) / 2) - 1.f, std::round(br.top + (btnH - th) / 2)};
         const D2D1_ROUNDED_RECT pill{br, btnH / 2, btnH / 2};
-        if (primary) {
+        if (actions_[idx].style == 1) {  // 0.8.3.4: the page's main action, filled
+            d2dTarget_->FillRoundedRectangle(pill, brush(mixc(pal_.accent, pal_.fg, 0.18f * hl)));
+            d2dTarget_->DrawTextLayout(at, l, brush(pal_.ink));
+        } else if (primary) {
             const D2D1_ROUNDED_RECT edge{inflate(br, -0.75f), btnH / 2 - 0.75f, btnH / 2 - 0.75f};
             d2dTarget_->FillRoundedRectangle(pill, brush(pal_.accent, 0.10f + 0.90f * hl));
             d2dTarget_->DrawRoundedRectangle(edge, brush(pal_.accent, 0.85f + 0.15f * hl), 1.5f);
@@ -907,9 +986,15 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
         const float h = row ? gridH[i / cols] : c.h;
         const D2D1_RECT_F r{cx, cy, cx + cardW, cy + h};
         const float fade = cd.muted ? 0.55f : 1.f;
-        d2dTarget_->FillRoundedRectangle({r, rad, rad}, brush(pal_.card, cd.muted ? 0.38f : 0.62f));
-        d2dTarget_->DrawRoundedRectangle({inflate(r, -0.5f), rad - 0.5f, rad - 0.5f},
-                                         brush(cd.muted ? pal_.fg : pal_.accent, cd.muted ? 0.12f : 0.40f), 1.f);
+        const bool hero = cd.style == 1;
+        if (hero) {  // 0.8.3.4: the page's main block, a warmer tile with a stronger edge
+            d2dTarget_->FillRoundedRectangle({r, rad, rad}, brush(mixc(pal_.card, pal_.accent, 0.08f), 0.72f));
+            d2dTarget_->DrawRoundedRectangle({inflate(r, -0.75f), rad - 0.75f, rad - 0.75f}, brush(pal_.accent, 0.65f), 1.5f);
+        } else {
+            d2dTarget_->FillRoundedRectangle({r, rad, rad}, brush(pal_.card, cd.muted ? 0.38f : 0.62f));
+            d2dTarget_->DrawRoundedRectangle({inflate(r, -0.5f), rad - 0.5f, rad - 0.5f},
+                                             brush(cd.muted ? pal_.fg : pal_.accent, cd.muted ? 0.12f : 0.40f), 1.f);
+        }
         const float tx = r.left + pad;
         float ty = r.top + pad;
         if (c.side) {  // text centred against the button
@@ -919,7 +1004,7 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             ty = std::round(r.top + (h - th) / 2);
         }
         if (c.t) {
-            d2dTarget_->DrawTextLayout({tx, ty}, c.t.Get(), brush(pal_.fg, fade));
+            d2dTarget_->DrawTextLayout({tx, ty}, c.t.Get(), hero ? brush(pal_.dim) : brush(pal_.fg, fade));
             ty += textH(c.t.Get());
         }
         if (c.g) {
@@ -927,19 +1012,26 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             d2dTarget_->DrawTextLayout({tx, ty}, c.g.Get(), brush(pal_.accent, fade));
             ty += textH(c.g.Get());
         }
-        if (c.b) {
+        auto body = [&] {
+            if (!c.b) return;
             ty += size * 0.22f;
             d2dTarget_->DrawTextLayout({tx, ty}, c.b.Get(), brush(pal_.dim, fade));
             ty += textH(c.b.Get());
-        }
-        if (c.n) {
+        };
+        if (!hero) body();
+        // (an address across the card: the rest starts at the QR code's top, right under the address; rel-0834:
+        // no longer centred against the code, that left a hole between the address and the buttons)
+        if (c.heroTop > 0) ty = r.top + pad + c.heroTop - size * 0.12f;
+        if (c.n) {  // (main block: the passcode right under the address, then the how-to)
             ty += size * 0.12f;
-            d2dTarget_->DrawTextLayout({tx, ty}, c.n.Get(), brush(cd.qrSize > 0 ? pal_.fg : pal_.dim, cd.qrSize > 0 ? 0.85f : 0.75f));
+            d2dTarget_->DrawTextLayout({tx, ty}, c.n.Get(), brush(cd.qrSize > 0 ? pal_.fg : pal_.dim, hero ? 1.f : cd.qrSize > 0 ? 0.85f : 0.75f));
             ty += textH(c.n.Get());
         }
+        if (hero) body();
         if (c.qr > 0 && cd.qr.size() >= static_cast<size_t>(cd.qrSize) * cd.qrSize * 4) {
             // White tile with the code at a whole number of pixels per module.
-            const float qx = r.right - pad - c.qr, qy = std::round(r.top + std::max(pad, (h - c.qr) / 2));
+            // 0.8.3.4: at the top, beside the address (a tall card no longer leaves it floating mid-list)
+            const float qx = r.right - pad - c.qr, qy = std::round(r.top + pad + c.heroTop);
             d2dTarget_->FillRoundedRectangle({{qx, qy, qx + c.qr, qy + c.qr}, size * 0.5f, size * 0.5f}, brush({1, 1, 1, 1}));
             ComPtr<ID2D1Bitmap> bmp;
             const D2D1_BITMAP_PROPERTIES bp = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE), 96, 96);
@@ -959,7 +1051,9 @@ float Renderer::drawCards(float x0, float top, float maxW, float size, bool draw
             for (size_t k = 0; k < rowTop.size(); ++k) rowTop[k] = k ? rowTop[k - 1] + c.rowH[k - 1] + itemRowGap : ty + size * 0.6f;
             for (size_t k = 0; k < c.its.size(); ++k) {
                 const Action& a = actions_[c.its[k].index];
-                if ((k == 0 || c.its[k - 1].row != c.its[k].row) && a.kind == 0 && !a.primary) shift[c.its[k].row] = c.its[k].padX;
+                // 0.8.3.4: a check box too (its box lines up with the text above)
+                if ((k == 0 || c.its[k - 1].row != c.its[k].row) && ((a.kind == 0 && !a.primary && a.style == 0) || a.kind == 3))
+                    shift[c.its[k].row] = c.its[k].padX;
             }
             for (const auto& it : c.its) {
                 const float rh = c.rowH[it.row], ix = tx - shift[it.row] + it.x, iy = std::round(rowTop[it.row] + (rh - btnH) / 2);

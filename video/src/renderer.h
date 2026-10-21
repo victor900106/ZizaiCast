@@ -106,6 +106,7 @@ public:
         int kind = 0;
         bool on = false;
         std::wstring sub;
+        int style = 0;  // 0.8.3.4: 1 a filled pill (the page's main action)
     };
     void setHints(std::vector<std::wstring> lines) { hints_ = std::move(lines); }
     // 0.7.8: the idle screen as 「請選你的手機」 + up to three cards (title,
@@ -118,6 +119,7 @@ public:
         std::vector<uint8_t> qr;  // 0.8.2: BGRA QR code (1 px per module + quiet zone) at the card's right
         int qrSize = 0;
         std::wstring big;         // 0.8.3.2: a big line under the title (an address)
+        int style = 0;            // 0.8.3.4: 1 the page's main block, 2 compact (VideoWindow::IdleCard)
     };
     void setCards(std::vector<Card> cards) { cards_ = std::move(cards); }
     void setActions(std::vector<Action> actions) { actions_ = std::move(actions); }
@@ -182,6 +184,25 @@ public:
     // (empty when hidden or mostly faded out).  Updated by render().
     const std::vector<RECT>& toolbarRects() const { return toolRects_; }
     const RECT& toolbarPill() const { return toolPill_; }
+    // ---- 0.8.3.4 view (renderer_view0834.cpp) ----
+    // B1: the pointer is over the window: a small grip shows where the hidden
+    // toolbar comes back (it appears when the pointer enters or nears the top).
+    void setPointerIn(bool in) { pointerIn_ = in; }
+    // B2: the current toast can be clicked (link = the action's word drawn at
+    // its end, empty: a plain toast); hot = under the cursor.
+    void setToastLink(std::wstring link) {
+        toastLink_ = std::move(link);
+        toastHot_ = false;
+    }
+    void setToastHot(bool hot) { toastHot_ = hot; }
+    // Client pixels of the clickable toast while it is (mostly) shown, else empty.
+    const RECT& toastRect() const { return toastRect_; }
+    // B3: what the 畫面已凍結 badge says / shows (empty: the default 凍結 badge);
+    // the translation's freeze gets its own words and icon.
+    void setFrozenBadge(std::wstring text, wchar_t glyph) {
+        frozenText_ = std::move(text);
+        frozenGlyph_ = glyph;
+    }
     // User activity: restarts the idle screen's ambient animation.
     void poke() { ambientUntil_ = clockMs() + ambientMs(); }
     // Windows 「顯示動畫」 off (SPI_GETCLIENTAREAANIMATION): no ambient motion
@@ -664,7 +685,8 @@ private:
             if (a.kind == 2 || a.kind == 3) return true;
         return false;
     }
-    float drawSwitch(float y, const Layout& L, float maxW, bool draw, bool clickable);
+    // 0.8.3.4: rowW > 0: a status bar rowW wide from rowX (the cards' width, lined up with them).
+    float drawSwitch(float y, const Layout& L, float maxW, bool draw, bool clickable, float rowW = 0, float rowX = 0);
     void drawCheck(float bx, float by, float box, bool on, float hl);
     bool optionsFit(float size, float regionW);  // every check box label whole (drawOptions trims)
     // A title's size: shrunk up to 25 % so it stays on one line within maxW.
@@ -697,6 +719,21 @@ private:
     void startReveal(double now);
     void drawRevealNote(const D2D1_RECT_F& pill, float a, double now);
     D2D1_RECT_F recBadge_{};   // last REC badge (DIPs), empty if none
+    // 0.8.3.4 view (renderer_view0834.cpp)
+    bool pointerIn_ = false;
+    std::wstring toastLink_;
+    bool toastHot_ = false;
+    RECT toastRect_{};
+    std::wstring frozenText_;
+    wchar_t frozenGlyph_ = 0;
+    D2D1_RECT_F frozenDip_{};     // this frame's 凍結 badge as drawn (DIPs; the grip keeps clear of it)
+    D2D1_RECT_F pillDip_{};       // the toolbar pill as last drawn (DIPs; kept while hidden)
+    float toolbarTop(const D2D1_RECT_F& area, const FrameGeom* frame) const;
+    void drawToolbarGrip(const D2D1_RECT_F& area, const FrameGeom* frame, float toolbarA);
+    std::wstring frozenLabel() const;
+    wchar_t frozenIcon() const { return frozenGlyph_ ? frozenGlyph_ : wchar_t(0xE769); }  // Pause
+    // The 凍結 badge's drawn place: below the toolbar while that is up over it.
+    D2D1_RECT_F frozenBadgeShown(const D2D1_RECT_F& at, double now) const;
     D2D1_RECT_F textBlock_{};  // last idle / connecting text block (DIPs): the hearts fade there
     std::wstring iconFamily_;  // Segoe Fluent Icons / Segoe MDL2 Assets ("-": none)
     ComPtr<IDWriteTextFormat> iconFmt_;

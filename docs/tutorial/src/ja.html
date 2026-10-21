@@ -24,7 +24,7 @@
     <li><a href="#sound">音量</a></li>
     <li><a href="#faq">困ったとき</a></li>
   </ol>
-  <div class="side-foot">スマホの画面の上でマウスを動かすとツールバーが出ます。<kbd>Ctrl</kbd><kbd>D</kbd> で接続を解除、<kbd>F1</kbd> でショートカット一覧。</div>
+  <div class="side-foot">スマホの画面の上のほうへマウスを動かすとツールバーが出ます（隠れている間は上端にピンクの細い線）。<kbd>Ctrl</kbd><kbd>D</kbd> で接続を解除、<kbd>F1</kbd> でショートカット一覧。</div>
 </nav>
 
 <main id="top">
@@ -86,8 +86,8 @@
   <li><span class="ui">画面ミラーリング</span>（四角が 2 つ重なったアイコン）をタップ。</li>
   <li>一覧の<span class="ui">Zizai Cast</span>をタップ。</li>
 </ol>
-<div class="ok"><b>うまくいったときの表示</b>数秒で PC にスマホの画面が出て、「接続しました：スマホの名前…上部にツールバーがあります」と表示されます。</div>
-{{img:toolbar|画面の上でマウスを動かすとツールバー：スクショ、録画、ペン、スマホに送る、音量、拡大、翻訳…右端の赤いボタンは接続解除|640}}
+<div class="ok"><b>うまくいったときの表示</b>数秒で PC にスマホの画面が出て、「接続しました：スマホの名前…上部にツールバーがあります」と表示されます。初めて接続したときは、ツールバーに「よく使う機能はこのツールバーにあります（スクショ・録画・翻訳・拡大）。マウスを画面の上のほうへ動かすと表示され、ポインターを乗せている間は消えません。」と出ます。ツールバーが隠れている間は、画面の上端にピンクの細い線が出て場所を示します。</div>
+{{img:toolbar|画面の上のほうへマウスを動かすとツールバー（乗せている間は消えません）：スクショ、録画、ペン、スマホに送る、音量、拡大、翻訳…右端の赤いボタンは接続解除|640}}
 <div class="ng"><b>うまくいかないとき</b><ul>
   <li>一覧に「Zizai Cast」がない：<a href="#faq-notfound">Zizai Cast が見つからない</a>。</li>
   <li>映るけれど音が出ない：iPhone の音量ボタンで上げる。<a href="#sound">音量</a>も参照。</li>
@@ -151,7 +151,8 @@
 <div class="ng"><b>うまくいかないとき</b><ul>
   <li>「スマホのスキャンを待っています…」のまま：スマホと PC が同じ Wi-Fi にない（ゲスト ネットワーク不可）。<span class="ui">ペア設定コードを使う</span>を押し、スマホで「ペア設定コードによるデバイスのペア設定」を開いて、IP アドレス:ポートと 6 桁のコードを PC に入力する方法もあります。</li>
   <li>ペア設定に失敗：新しい QR コードが出るので、スマホでもう一度「QR コードによるデバイスのペア設定」をタップして読み取ります。</li>
-  <li>再起動後に自動でつながらない：再起動でワイヤレス デバッグがオフになる機種が多いです。開発者向けオプションでオンに戻せば、<strong>ペア設定のやり直しは不要</strong>です。</li>
+  <li>しばらく誰も読み取らない：QR コードが暗くなって<span class="ui">時間切れ</span>と出て、「待機を停止しました。Wi-Fi と「ワイヤレス デバッグ」を確認し…」と表示されます。<span class="ui">QR を作り直す</span>を押して、新しいコードを読み取ります。</li>
+  <li>再起動後に自動でつながらない：Android はスマホを再起動するとワイヤレス デバッグをオフにします。Zizai Cast は一度だけ「以前ペア設定したスマホが見つかりません。スマホを再起動した直後なら、「開発者向けオプション」で「ワイヤレス デバッグ」をもう一度オンにして、やり直してください」と表示します。開発者向けオプションでオンに戻せば、<strong>ペア設定のやり直しは不要</strong>です。</li>
 </ul></div>
 
 <h3 id="adb-usb">Wi-Fi がない？ USB ケーブルで</h3>
@@ -186,16 +187,16 @@
 <h2><span class="num">4</span>録画とスクリーンショット</h2>
 <p class="goal"><b>やりたいこと</b>スマホの画面を画像に撮る、または動画（音付き MP4）に録画する。スマホの画面が出ているときに使えます。</p>
 <ol class="steps">
-  <li>スマホの画面の上でマウスを動かすと、上にツールバーが出ます。</li>
+  <li>スマホの画面の上のほうへマウスを動かすと、ツールバーが出ます。</li>
   <li>スクリーンショット：<span class="ui">スクショ</span>（または <kbd>Ctrl</kbd><kbd>S</kbd>）。</li>
   <li>録画：<span class="ui">録画</span>（または <kbd>Ctrl</kbd><kbd>R</kbd>）。左上に赤い点と秒数が出ます。止めるにはもう一度押します。</li>
   <li>ファイルの場所：右クリック メニュー → <span class="ui">スクリーンショットのフォルダーを開く</span>／<span class="ui">録画のフォルダーを開く</span>。</li>
 </ol>
 <div class="pair-img">
-{{img:snapshot|スクリーンショット：下に「スクリーンショットを保存しました」|260}}
+{{img:snapshot|スクリーンショット：下に「スクリーンショットを「ピクチャ\截圖」に保存しました」と「表示」|260}}
 {{img:recording|録画中：左上に赤い点と秒数|260}}
 </div>
-<div class="ok"><b>うまくいったときの表示</b>撮ると「スクリーンショットを保存しました」、録画を止めると「録画を保存しました：ファイル名」。下に小さなボタン<span class="ui">フォルダーを開く</span>・<span class="ui">スマホに送る</span>が出ます。</div>
+<div class="ok"><b>うまくいったときの表示</b>撮ると「スクリーンショットを「ピクチャ\截圖」に保存しました」。最後の<span class="ui">表示</span>を押すとその画像が開きます（表示は 8 秒、ポインターを乗せている間は消えません）。録画を止めると「録画を保存しました：ファイル名」。下に小さなボタン<span class="ui">フォルダーを開く</span>・<span class="ui">スマホに送る</span>が出ます。</div>
 <div class="ng"><b>うまくいかないとき</b><ul>
   <li>ボタンが灰色で「スマホ接続後に使えます」：先にスマホの画面を映します。</li>
   <li>録画できない：ディスクの空きが 300 MB 未満です。</li>
@@ -208,14 +209,14 @@
 <h2><span class="num">5</span>ペン</h2>
 <p class="goal"><b>やりたいこと</b>映っている画面に線、矢印、マーカーを書いて説明する。書き込みは PC の上だけで、スマホには書かれません。</p>
 <ol class="steps">
-  <li>画面の上でマウスを動かし、ツールバーの<span class="ui">ペン</span>（または <kbd>Ctrl</kbd><kbd>E</kbd>）。</li>
+  <li>画面の上のほうへマウスを動かし、ツールバーの<span class="ui">ペン</span>（または <kbd>Ctrl</kbd><kbd>E</kbd>）。</li>
   <li>左ボタンを押したままドラッグして書きます。ツールバーが道具（ペン → マーカー → 矢印）、<span class="ui">色</span>、<span class="ui">太さ</span>、取り消し、消去に変わります。</li>
-  <li><kbd>Esc</kbd> でペンを終了（書き込みは残ります）。<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> ですべて消去。</li>
+  <li><kbd>Esc</kbd>（またはもう一度 <kbd>Ctrl</kbd><kbd>E</kbd>）でペンを終了（書き込みは残ります）。<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> ですべて消去。</li>
 </ol>
 {{img:ink|ペンモード：赤いペンと黄色いペン。下に今のペンが表示されます|280}}
-<div class="ok"><b>うまくいったときの表示</b>「ペンモード：画面をドラッグして書き込み（Esc で終了）」、左下に小さく「ペンモード · Esc で終了」。スクリーンショットと録画には既定で書き込みが入ります（右クリック メニュー → <span class="ui">ペン</span>で変更）。</div>
+<div class="ok"><b>うまくいったときの表示</b>「ペンモード：画面をドラッグして書き込み（Esc で終了）」、画面の周りにピンクの枠が出て、左下に小さく「ペンモード · Esc か Ctrl+E で終了」。スクリーンショットと録画には既定で書き込みが入ります（右クリック メニュー → <span class="ui">ペン</span>で変更）。</div>
 <div class="ng"><b>うまくいかないとき</b><ul>
-  <li>Android 操作中に書くとスマホがタップされる：ペンモードの間はマウスでのスマホ操作が止まります。スマホを操作する前に <kbd>Esc</kbd>。</li>
+  <li>Android 操作中に書くとスマホがタップされる：ペンモードの間はマウスでのスマホ操作が止まります。スマホを操作する前に <kbd>Esc</kbd> か <kbd>Ctrl</kbd><kbd>E</kbd>。</li>
   <li>書き間違えた：<kbd>Ctrl</kbd><kbd>Z</kbd> で最後の線を取り消し。</li>
 </ul></div>
 </section>
@@ -258,8 +259,8 @@
   <li>初回は翻訳モデル（約 50 MB、1 回だけ）のダウンロードを聞かれるので<span class="ui">ダウンロード</span>。</li>
   <li>もう一度<span class="ui">翻訳</span>（または <kbd>Ctrl</kbd><kbd>L</kbd>）で閉じます。</li>
 </ol>
-{{img:translate|訳文が元の文字の上に重なります。翻訳中は画面が止まり、上に「画面を静止中」|280}}
-<div class="ok"><b>うまくいったときの表示</b>元の文字の位置に訳文が出ます。翻訳中は画面が一時停止（上に「画面を静止中」）しますが正常です。翻訳を閉じると戻ります。</div>
+{{img:translate|訳文が元の文字の上に重なります。翻訳中は画面が一時停止し、右上に「翻訳中 · 画面を一時停止」|280}}
+<div class="ok"><b>うまくいったときの表示</b>元の文字の位置に訳文が出ます。翻訳中は画面が一時停止（右上に「翻訳中 · 画面を一時停止」。ツールバーが出ている間はその下に移ります）しますが正常です。翻訳を閉じると戻ります。</div>
 <div class="ng"><b>うまくいかないとき</b><ul>
   <li>すでに日本語だと表示される：訳すものがありません。</li>
   <li>日本語・韓国語が読み取れない：Windows にその言語の「光学式文字認識」が必要です。<a href="#faq-translate">こちら</a>。</li>
@@ -286,9 +287,10 @@
 </table></div>
 
 <h3 id="remote-open">リモート操作をオンにする</h3>
-<p>メイン ウィンドウ上の<span class="ui">リモート操作</span>タブに切り替え、一番上のスイッチをオンにします。Zizai Cast を起動するたびにリモート操作はオフです（<span class="ui">PC の起動時に固定アドレスを自動でオン</span>にチェックしている場合を除く）。接続中は PC の画面上部に「リモート操作中」のバーが出続け、<span class="ui">切断</span>か <kbd>Ctrl</kbd><kbd>D</kbd> でいつでも終了できます。</p>
-{{img:remote-off|リモート操作タブ（パスワード未設定、オフ）：一番上が「リモート操作を許可」ブロック、その下に家で・Tailscale|420}}
-{{img:remote-allow|固定アドレスがオンになった「リモート操作を許可」ブロック：このパソコンのアドレス、QR コード、一時アカウントを追加（見本のアドレス）|420}}
+<p>メイン ウィンドウ上の<span class="ui">リモート操作</span>タブに切り替え、一番上のスイッチをオンにします。Zizai Cast を起動するたびにリモート操作はオフです（<span class="ui">詳細設定</span>で<span class="ui">PC の起動時に固定アドレスを自動でオン</span>にチェックしている場合を除く）。接続中は PC の画面上部に「リモート操作中」のバーが出続け、<span class="ui">切断</span>か <kbd>Ctrl</kbd><kbd>D</kbd> でいつでも終了できます。</p>
+{{img:remote-off|リモート操作タブ（パスワード未設定、オフ）：一番上が「リモート操作を許可」ブロック、その下に家で・Tailscale（各 1 行）|420}}
+{{img:remote-allow|固定アドレスがオンになった後：一番上に「このパソコンのアドレス（外出先からも接続可）」、大きなアドレス、QR コード、アドレスをコピー、一時アカウントを追加（見本のアドレス）|420}}
+<p>固定アドレスがオンになると、一番上のブロックは<span class="ui">このパソコンのアドレス（外出先からも接続可）</span>になります：小さな見出しの下に大きくアドレス、横に QR コード、ボタンは<span class="ui">アドレスをコピー</span>と<span class="ui">一時アカウントを追加</span>。一時アカウントはその下の専用のカードに、家でと Tailscale は 1 行ずつ並びます。あまり使わないものは<span class="ui">詳細設定</span>にあります：<span class="ui">固定アドレスのパスワードを変更…</span>、<span class="ui">固定アドレス（外出先からも接続可）</span>（チェックを外すと固定アドレスがオフ）、<span class="ui">PC の起動時に固定アドレスを自動でオン</span>、そして<span class="ui">音声</span>（<span class="ui">PC の音をスマホへ送る</span>、<span class="ui">スマホで音を再生中は PC をミュート</span>、<span class="ui">音の取得元</span>）。</p>
 
 <h3 id="remote-home">状況 1：家で（同じ Wi-Fi）</h3>
 <p class="goal"><b>やりたいこと</b>ソファーから、書斎の PC をスマホで操作する。</p>
@@ -342,9 +344,9 @@
 <ol class="steps">
   <li><span class="ui">リモート操作</span>タブ最上部の<span class="ui">リモート操作を許可</span>ブロックで<span class="ui">パスワードを設定（固定アドレスと一時アカウント）</span>。2 回入力、8 文字以上（長いほど安全、ほかで使っていないもの）。<span class="ui">保存してオン</span>。</li>
   <li><strong>初回は 1～2 分待つ</strong>：ブロックに「アドレスを準備しています（約 1〜2 分…）」と出ている間は、Tailscale が HTTPS 証明書を取得中でスマホからは開けません。Zizai Cast が自分で確認し、つながってから「固定アドレスをオンにしました」と表示します。</li>
-  <li>ブロックに <code>https://PC の名前.….ts.net:8443/</code> と QR コードが出ます。スマホで読み取るか、<span class="ui">アドレスをコピー</span>して自分に送ります。</li>
+  <li>ブロックが<span class="ui">このパソコンのアドレス（外出先からも接続可）</span>になり、<code>https://PC の名前.….ts.net:8443/</code> が大きく、QR コードと一緒に出ます。スマホで読み取るか、<span class="ui">アドレスをコピー</span>して自分に送ります。</li>
   <li>スマホでアドレスを開くと<strong>パスワード</strong>の欄だけがあります。自分のパスワードを入力。一度ログインすると、このスマホでは 30 日間入力不要です。<a href="#remote-pwa">ホーム画面に追加</a>すればワンタップで開けます。</li>
-  <li>PC の起動直後から外でつなぎたいなら、ブロックの<span class="ui">PC の起動時に固定アドレスを自動でオン</span>にチェック。</li>
+  <li>PC の起動直後から外でつなぎたいなら、<span class="ui">詳細設定</span> → <span class="ui">PC の起動時に固定アドレスを自動でオン</span>にチェック。</li>
 </ol>
 {{img:remote-preparing|初回：「アドレスを準備しています（約 1〜2 分）」（QR コードはまだ出ません）|420}}
 <div class="pair-img">
@@ -357,7 +359,7 @@
   <li>「Tailscale にログインしていません」や「応答がありません」：PC の Tailscale を起動してログインし、<span class="ui">再試行</span>。</li>
   <li>「アドレスを準備しています」のまま：もう少し待ちます。5 分たっても接続できないと表示が変わるので、<span class="ui">再試行</span>か<span class="ui">とりあえず一時アドレス（毎回変わる）</span>。</li>
   <li>「固定アドレスをオンにしました」と出たのにスマホで開けない：<a href="#faq-funnel">こちら</a>。</li>
-  <li>パスワードを 5 回間違えると 15 分ロック。忘れたら PC の<span class="ui">パスワード変更</span>でしか再設定できません。</li>
+  <li>パスワードを 5 回間違えると 15 分ロック。忘れたら PC の<span class="ui">詳細設定</span> → <span class="ui">固定アドレスのパスワードを変更…</span>でしか再設定できません。</li>
 </ul></div>
 <p class="src">Tailscale の手順の出典（2026 年 10 月確認）：<a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a>（Funnel：MagicDNS・HTTPS・funnel 属性が必要、tailscale funnel の実行で有効化に案内される、使えるポートは 443・8443・10000）、<a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a>（コマンド、<code>--bg</code>、<code>--https</code>、<code>off</code>）、<a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a>（DNS ページで Enable HTTPS、Let's Encrypt 証明書、名前が公開される）。</p>
 
@@ -375,11 +377,11 @@
 <p class="goal"><b>やりたいこと</b>離れた場所の友だちに、しばらく PC を見たり操作したりしてもらい（困りごとを手伝ってもらう）、終わったら使えなくする。自分の固定アドレスのパスワードは人に教えないでください。どちらの方法も、<strong>友だちが接続するたびに PC の前で「許可」を押す人が必要</strong>です（記憶はできません）。</p>
 <h4 id="remote-guest">方法 A：一時アカウント（おすすめ、固定アドレスをオンにしておく）</h4>
 <ol class="steps">
-  <li>PC：<span class="ui">リモート操作</span>タブ最上部の<span class="ui">リモート操作を許可</span>ブロック → <span class="ui">一時アカウントを追加</span>。</li>
+  <li>PC：<span class="ui">リモート操作</span>タブ最上部の<span class="ui">このパソコンのアドレス（外出先からも接続可）</span>ブロック → <span class="ui">一時アカウントを追加</span>。</li>
   <li><span class="ui">アカウント</span>名は自動で入っています（例：guest-4821、変更可）。<span class="ui">有効期間</span>：1 回だけ／1 時間／24 時間／7 日、<span class="ui">権限</span>：操作できる／表示のみ、ファイルを送らせたいなら<span class="ui">ファイル転送を許可（双方向）</span>。<span class="ui">作成</span>を押します。</li>
   <li><span class="ui">すべてコピー</span>して友だちに貼り付けます。アドレスにはアカウントが入っています（<code>#u=guest-4821</code>）。<strong>パスワードは今だけ表示</strong>されます（忘れたら<span class="ui">パスワード再設定</span>）。</li>
   <li>友だちがアドレスを開くとアカウントは入力済みで、<strong>パスワードを入れるだけ</strong>。PC に「スマホがこの PC を操作しようとしています」が出たら、友だちだと確かめて<span class="ui">許可</span>。</li>
-  <li>期限が来るか「1 回だけ」を使い終わると自動で削除。一覧の<span class="ui">削除</span>でも消せます（接続中ならすぐ切断）。最大 10 個。</li>
+  <li>期限が来るか「1 回だけ」を使い終わると自動で削除。下の一時アカウントのカードの<span class="ui">削除</span>でも消せます（接続中ならすぐ切断）。最大 10 個。</li>
 </ol>
 <div class="pair-img">
 {{img:guest-new|一時アカウントを追加（有効期間、権限、ファイル転送）|300}}
@@ -388,7 +390,7 @@
 {{img:phone-login-guest|友だちがアドレスを開いたところ：アカウントは入力済み、パスワードだけ|260}}
 <h4 id="remote-nolink">方法 B：一時アドレス（固定アドレスなしで使える）</h4>
 <ol class="steps">
-  <li>PC：固定アドレスがないときは<span class="ui">リモート操作を許可</span>ブロックの<span class="ui">一時アドレスを作る</span>。固定アドレスがあるときは<span class="ui">詳細設定</span> → <span class="ui">一時アドレス（スマホにアプリ不要、モバイル通信からも接続）</span>。10～20 秒で QR コードと 6 桁の<span class="ui">パスコード</span>が出ます（小さなウィンドウの<span class="ui">一時アドレス</span>タブにも）。</li>
+  <li>PC：固定アドレスがないときは<span class="ui">リモート操作を許可</span>ブロックの<span class="ui">一時アドレスを作る</span>。固定アドレスがあるときは<span class="ui">詳細設定</span> → <span class="ui">一時アドレス（スマホにアプリ不要、モバイル通信からも接続）</span>。10～20 秒で QR コードと 6 桁の<span class="ui">パスコード</span>が出ます（小さなウィンドウの<span class="ui">一時アドレス</span>タブにも。小さなウィンドウのタブは<span class="ui">同じ Wi-Fi</span>、<span class="ui">固定アドレス</span>、<span class="ui">Tailscale</span>、<span class="ui">一時アドレス</span>の順で、メイン画面と同じです）。</li>
   <li><span class="ui">アドレスをコピー</span>して友だちに送り、パスコードは別に伝えます。<strong>アドレスは 1 回だけ</strong>、10 分以内に使えます。</li>
   <li>友だちが開いてパスコードを入れると、PC に「スマホがこの PC を操作しようとしています」が出ます。<strong>あなたが PC の前で「許可」</strong>を押します。</li>
   <li>終わったら<span class="ui">一時アドレスを停止</span>、またはリモート操作をオフにします。</li>
@@ -417,7 +419,7 @@
   <li>接続中は PC の画面上部に「● リモート操作中」が出続け、<kbd>Ctrl</kbd><kbd>D</kbd> はどのアプリからでも切断できます。</li>
   <li>スマホを 30 分触らないと自動で切断（<span class="ui">詳細設定</span>で変更）。</li>
   <li><span class="ui">詳細設定</span> → <span class="ui">リモート切断後に PC をロック</span>：接続が終わったら PC をロック。既定は<strong>オフ</strong>（外からも家からも）、必要なら自分でオンに。</li>
-  <li>外から使う必要がなくなったら<span class="ui">PC の起動時に固定アドレスを自動でオン</span>のチェックを外し、ブロックで<span class="ui">オフにする</span>。</li>
+  <li>外から使う必要がなくなったら、<span class="ui">詳細設定</span>で<span class="ui">PC の起動時に固定アドレスを自動でオン</span>と<span class="ui">固定アドレス（外出先からも接続可）</span>のチェックを外します（外すと固定アドレスがオフ）。</li>
 </ul>
 <h3 id="remote-limits">できないこと</h3>
 <ul>
@@ -442,14 +444,14 @@
 <h3 id="remote-audio">リモート操作（PC の音をスマホで）</h3>
 <ol class="steps">
   <li>スマホのページは最初は無音です（iPhone の決まり）。<span class="ui">タップで音を出す</span>か、右下の<span class="ui">音を出す</span>と書かれたスピーカーをタップ。</li>
-  <li>パソコンが音量を自動で整えるので、<span class="ui">スマホの音量</span>は既定の 100% でたいてい十分です。まだ小さいときは右下の<span class="ui">設定</span> → <span class="ui">スマホの音量</span>を右へ（最大 400%、音割れ防止つき）。</li>
+  <li>パソコンが音量を自動で整えるので、<span class="ui">スマホの音量</span>は既定の 100% でたいてい十分です。まだ小さいときは右下の<span class="ui">設定</span> → <span class="ui">スマホの音量</span>を右へ（0〜400%）。100% はパソコンから届いたままの大きさ。100% を超えると「音量ブースト」：右へいくほど大きく、小さい音ほど持ち上げ、音割れしません。</li>
   <li>スマホ本体の音量も上げ、iPhone のサイレント スイッチはオフに。</li>
-  <li>PC：リモート操作タブの<span class="ui">PC の音をスマホへ送る</span>にチェック。PC からは音を出したくないなら<span class="ui">スマホで音を再生中は PC をミュート</span>。</li>
+  <li>PC：<span class="ui">リモート操作</span>タブ → <span class="ui">詳細設定</span> → <span class="ui">音声</span>の<span class="ui">PC の音をスマホへ送る</span>にチェック。PC からは音を出したくないなら、同じ場所の<span class="ui">スマホで音を再生中は PC をミュート</span>か、スマホのページの<span class="ui">設定</span>で<span class="ui">パソコンのスピーカーをミュート</span>をオン（同じ設定で、PC に保存されます。一時アカウントと「表示のみ」では変えられません）。</li>
 </ol>
-{{img:phone-settings|スマホのページの設定：操作方法（説明つき）、スマホの音量（既定 100%、最大 400%）|300}}
+{{img:phone-settings|スマホのページの設定：操作方法（説明つき）、スマホの音量（既定 100%、100% を超えると音量ブースト、最大 400%）、パソコンのスピーカーをミュート|300}}
 <div class="ng"><b>うまくいかないとき</b><ul>
   <li>「パソコンは今、音を再生していません」：PC で本当に音が出ていません。</li>
-  <li>PC の Windows がミュート：ミュートを解除。PC を静かにしたいなら「スマホで音を再生中は PC をミュート」。</li>
+  <li>PC の Windows がミュート：ミュートを解除。PC を静かにしたいなら「スマホで音を再生中は PC をミュート」（スマホのページでは「パソコンのスピーカーをミュート」）。</li>
   <li>詳しくは<a href="#remote-faq-nosound">リモートで音が出ない</a>、<a href="#faq-audio">ミラーリングで音が出ない</a>。</li>
 </ul></div>
 </section>
@@ -495,12 +497,12 @@
   <li>No、または Google Pixel：<a href="#adb">Android を操作</a>を使います。</li>
 </ul></div></details>
 <details id="faq-adb"><summary>Android 操作が切れる・次回自動でつながらない</summary><div><ul>
-  <li>再起動や Wi-Fi の切り替えでワイヤレス デバッグがオフになることが多いです。開発者向けオプションでオンに戻せば、ペア設定のやり直しは不要。</li>
+  <li>Android はスマホを再起動するとワイヤレス デバッグをオフにします（Wi-Fi の切り替えでもよく起きます）。Zizai Cast が一度だけ「以前ペア設定したスマホが見つかりません…」と表示します。開発者向けオプションでオンに戻せば、ペア設定のやり直しは不要。</li>
   <li>省電力で画面オフ時に Wi-Fi が切れることがあります。<span class="ui">接続中はスリープしない</span>をオンに。</li>
   <li><kbd>Ctrl</kbd><kbd>D</kbd> で切断したスマホは自動で戻りません。「Android を接続（QR をスキャン）」か、Zizai Cast を開き直す。</li>
   <li>それでもだめなら、スマホの「ワイヤレス デバッグ → ペア設定済みのデバイス」からこの PC を削除してペア設定し直す。</li>
 </ul></div></details>
-<details id="faq-disconnect"><summary>「接続を解除」はどこ？</summary><div><p>画面の上でマウスを動かすと出るツールバーの右端の赤いボタン。<kbd>Ctrl</kbd><kbd>D</kbd>、または右下のアイコンを右クリック → 接続を解除。Android の画面では右クリック＝「戻る」なので、メニューは <kbd>Shift</kbd>＋右クリック。</p></div></details>
+<details id="faq-disconnect"><summary>「接続を解除」はどこ？</summary><div><p>画面の上のほうへマウスを動かすと出るツールバーの右端の赤いボタン。<kbd>Ctrl</kbd><kbd>D</kbd>、または右下のアイコンを右クリック → 接続を解除。Android の画面では右クリック＝「戻る」なので、メニューは <kbd>Shift</kbd>＋右クリック。</p></div></details>
 <details id="faq-translate"><summary>翻訳が反応しない、日本語・韓国語が訳せない</summary><div><ul>
   <li>初回はモデルのダウンロードが必要。聞かれたら<span class="ui">ダウンロード</span>（約 50 MB）。</li>
   <li>日本語・韓国語が読み取れない：表示の<span class="ui">言語の設定を開く</span>、または Windows の設定 → 時刻と言語 → 言語と地域 → 言語を追加 → 日本語（韓国語）→「光学式文字認識」だけにチェック → インストール。</li>
@@ -511,7 +513,7 @@
   <li>または Tailscale の管理画面（login.tailscale.com/admin）の <span class="ui">DNS</span> ページで MagicDNS をオンにし、HTTPS Certificates の <span class="ui">Enable HTTPS</span>、さらに Access controls で funnel の権限を追加。コマンドのほうが簡単です。</li>
   <li>PC の Tailscale が起動していてログインしていること。</li>
 </ul></div></details>
-<details id="faq-funnel-wait"><summary>固定アドレスをオンにした直後、スマホで ERR_CONNECTION_CLOSED</summary><div><p>初回は Tailscale が HTTPS 証明書を取得するまで開けません。Zizai Cast が自分で確認します：ブロックに「アドレスを準備しています（約 1〜2 分）」と出ている間は待ってください。つながると「固定アドレスをオンにしました」と出ます。そう出たのに開けないときは、スマホ側の DNS がまだ新しい名前を知らない可能性があります（最大 10 分と Tailscale は書いています）。少し待って再読み込み。それでもだめならブロックで<span class="ui">オフにする</span>→<span class="ui">オンにする</span>。</p></div></details>
+<details id="faq-funnel-wait"><summary>固定アドレスをオンにした直後、スマホで ERR_CONNECTION_CLOSED</summary><div><p>初回は Tailscale が HTTPS 証明書を取得するまで開けません。Zizai Cast が自分で確認します：ブロックに「アドレスを準備しています（約 1〜2 分）」と出ている間は待ってください。つながると「固定アドレスをオンにしました」と出ます。そう出たのに開けないときは、スマホ側の DNS がまだ新しい名前を知らない可能性があります（最大 10 分と Tailscale は書いています）。少し待って再読み込み。それでもだめなら PC の<span class="ui">詳細設定</span>で<span class="ui">固定アドレス（外出先からも接続可）</span>のチェックを外して、もう一度チェック。</p></div></details>
 <details id="remote-faq-noconnect"><summary>スマホから PC につながらない</summary><div><ul>
   <li><strong>家で QR が開かない：</strong>スマホが同じ Wi-Fi にない（ゲストやモバイル通信は不可）、またはルーターの AP 分離。</li>
   <li><strong>固定アドレスが開かない：</strong>PC が起動・サインイン済みで Tailscale が動いていること。初回は前の質問を参照。</li>
@@ -519,11 +521,11 @@
   <li><strong>「このアドレスは無効になりました」：</strong>PC の QR コードを読み取り直す（ホーム画面のアイコンも追加し直す）。</li>
 </ul></div></details>
 <details id="remote-faq-nosound"><summary>リモートで音が出ない・小さい</summary><div><ul>
-  <li><span class="ui">タップで音を出す</span>（または<span class="ui">音を出す</span>と書かれたスピーカー）をタップ。まだ小さければスマホのページの<span class="ui">設定</span> → <span class="ui">スマホの音量</span>を右へ（既定 100%、最大 400%）。</li>
+  <li><span class="ui">タップで音を出す</span>（または<span class="ui">音を出す</span>と書かれたスピーカー）をタップ。まだ小さければスマホのページの<span class="ui">設定</span> → <span class="ui">スマホの音量</span>を右へ（既定 100%、100% を超えると音量ブースト、最大 400%）。</li>
   <li>iPhone のサイレント スイッチとスマホの音量。</li>
-  <li>PC で Windows をミュートしない。<span class="ui">PC の音をスマホへ送る</span>にチェック。</li>
+  <li>PC で Windows をミュートしない。<span class="ui">詳細設定</span> → <span class="ui">音声</span> → <span class="ui">PC の音をスマホへ送る</span>にチェック。</li>
 </ul></div></details>
-<details id="remote-faq-forgot"><summary>固定アドレスのパスワードを忘れた</summary><div><p>再設定は <strong>PC でだけ</strong>できます：リモート操作タブ → <span class="ui">リモート操作を許可</span>ブロック → <span class="ui">パスワード変更</span>。スマホは新しいパスワードでログインし直します。</p></div></details>
+<details id="remote-faq-forgot"><summary>固定アドレスのパスワードを忘れた</summary><div><p>再設定は <strong>PC でだけ</strong>できます：リモート操作タブ → <span class="ui">詳細設定</span> → <span class="ui">固定アドレスのパスワードを変更…</span>。スマホは新しいパスワードでログインし直します。</p></div></details>
 <details><summary>PC がロックされた</summary><div><p>オンにしている場合（既定はオフ）、リモート接続が終わると PC がロックされます。Windows のパスワードか PIN で解除。不要なら<span class="ui">詳細設定</span> → <span class="ui">リモート切断後に PC をロック</span>のチェックを外します。</p></div></details>
 <details><summary>ウィンドウを閉じても動いている？</summary><div><p>はい、右下でバックグラウンド待機しています。完全に終えるには、アイコンを右クリック → <span class="ui">終了</span>。</p></div></details>
 

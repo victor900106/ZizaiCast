@@ -74,7 +74,7 @@ Renderer::Badges Renderer::badgeRects(const D2D1_RECT_F& pic, float radius) {
     }
     if (frozenOn_ && frozen_.valid()) {
         const float size = std::clamp(std::min(pw, ph) / 22.f, 13.f, 24.f);
-        if (auto l = layout(tr(S::FrozenBadge), size, std::max(40.f, pw * 0.6f), DWRITE_FONT_WEIGHT_BOLD, false)) {
+        if (auto l = layout(frozenLabel(), size, std::max(40.f, pw * 0.6f), DWRITE_FONT_WEIGHT_BOLD, false)) {
             const float tw = textW(l.Get()), th = textH(l.Get());
             const float icon = size, padX = size * 0.6f, padY = size * 0.3f, gap = size * 0.35f;
             const float w = padX + icon + gap + tw + padX, h = th + 2 * padY;
@@ -143,20 +143,23 @@ void Renderer::drawMagnifierUi(const D2D1_RECT_F& pic, float radius, double now)
             d2dTarget_->DrawTextLayout({x0 + padX - 1.f, y0 + padY}, l.Get(), brush(D2D1::ColorF(1, 1, 1), a));
         }
     }
-    // Frozen badge (top right): pause glyph + "畫面已凍結".
+    // Frozen badge (top right): pause glyph + "畫面已凍結" (0.8.3.4: the
+    // translation's freeze: its own glyph and words; below the toolbar while
+    // that is up over it).
     if (frozenOn_ && frozen_.valid()) {
         const float size = std::clamp(std::min(pw, ph) / 22.f, 13.f, 24.f);
-        if (auto l = layout(tr(S::FrozenBadge), size, std::max(40.f, pw * 0.6f), DWRITE_FONT_WEIGHT_BOLD, false)) {
+        if (auto l = layout(frozenLabel(), size, std::max(40.f, pw * 0.6f), DWRITE_FONT_WEIGHT_BOLD, false)) {
             const float tw = textW(l.Get());
             const float icon = size, padX = size * 0.6f, padY = size * 0.3f, gap = size * 0.35f;
-            const D2D1_RECT_F fr = badgeRects(pic, radius).frozen;
+            const D2D1_RECT_F fr = frozenBadgeShown(badgeRects(pic, radius).frozen, now);
+            frozenDip_ = fr;
             const float w = fr.right - fr.left, h = fr.bottom - fr.top;
             const float x1 = fr.right, y0 = fr.top;
             const D2D1_ROUNDED_RECT pill{{x1 - w, y0, x1, y0 + h}, h / 2, h / 2};
             d2dTarget_->FillRoundedRectangle(pill, brush(pal_.card, 0.92f));
             d2dTarget_->DrawRoundedRectangle(pill, brush(pal_.accent, 0.9f), 2.f);
             if (auto ic = iconFormat(icon)) {
-                const wchar_t g[2] = {0xE769, 0};  // Pause
+                const wchar_t g[2] = {frozenIcon(), 0};  // Pause (翻譯: Characters)
                 d2dTarget_->DrawText(g, 1, ic.Get(), {x1 - w + padX, y0, x1 - w + padX + icon, y0 + h},
                                      brush(pal_.accent));
             }

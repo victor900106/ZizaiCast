@@ -15,6 +15,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import net from 'node:net';
 import tls from 'node:tls';
+import {headlessShell, watchAltTab} from '../remote/tools/quiet_browser.mjs';
 
 const [exe, outRoot, which, ...rest] = process.argv.slice(2);
 if (!exe || !outRoot || !/^(before|after)$/.test(which || '')) {
@@ -142,11 +143,14 @@ async function run(lang, tag, {seed = '', env = {}, args = [], steps}) {
   return readLog;
 }
 
-// Minimal headless Chrome over CDP (own profile, debugging port on 127.0.0.1).
+// Minimal headless browser over CDP (own profile, debugging port on 127.0.0.1). rel-0834: chrome-headless-shell
+// (remote/tools/quiet_browser.mjs: no window at all, no Alt+Tab / taskbar entry, never the focus; `chrome
+// --headless=new` showed blank windows in Alt+Tab), watched by alttab_watch.ps1: its count is logged, must be 0.
 async function browser({width = 412, height = 860, dpr = 2} = {}) {
   const port = 9300 + Math.floor(Math.random() * 400);
-  const proc = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--mute-audio', `--user-data-dir=${WORK}/_chrome_cdp`,
-    `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', 'about:blank'], {stdio: 'ignore'});
+  const proc = spawn(headlessShell(), ['--disable-gpu', '--hide-scrollbars', '--no-first-run', '--mute-audio', `--user-data-dir=${WORK}/_chrome_cdp`,
+    `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', 'about:blank'], {stdio: 'ignore', windowsHide: true});
+  const watch = watchAltTab([proc.pid], path.join(WORK, `_alttab_${proc.pid}.txt`));
   let tabs;
   for (let i = 0; i < 60; i++) { try { tabs = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); if (tabs.length) break; } catch {} await sleep(250); }
   const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl);
@@ -161,7 +165,13 @@ async function browser({width = 412, height = 860, dpr = 2} = {}) {
     go: async (url, wait = 3000) => { await send('Page.navigate', {url}); await sleep(wait); },
     eval: async expr => { const r = await send('Runtime.evaluate', {expression: expr, awaitPromise: true, returnByValue: true}); return r.result && r.result.result && r.result.result.value; },
     shot: async out => { const r = await send('Page.captureScreenshot', {format: 'png'}); fs.writeFileSync(out, Buffer.from(r.result.data, 'base64')); },
-    close: async () => { try { await send('Browser.close'); } catch {} await sleep(500); try { execFileSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], {stdio: 'ignore'}); } catch {} },
+    close: async () => {
+      try { await send('Browser.close'); } catch {}
+      await sleep(500);
+      try { execFileSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], {stdio: 'ignore'}); } catch {}
+      const w = await watch.stop();
+      say(`browser ${proc.pid}: Alt+Tab watcher ${w.samples} samples, max ${w.max}${w.seen.length ? ' ' + w.seen.join(' | ') : ''}`);
+    },
   };
 }
 const BL = {'zh-TW': 'zh-TW', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR'};

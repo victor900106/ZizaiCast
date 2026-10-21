@@ -105,6 +105,9 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     std::optional<std::vector<video::Renderer::Action>> actions;
     std::optional<std::vector<std::wstring>> hints;
     std::optional<std::wstring> inkBadge;
+    int pointerIn = -1, toastHot = -1;                                // 0.8.3.4 view
+    std::optional<std::wstring> toastLink;
+    std::optional<std::pair<std::wstring, wchar_t>> frozenBadge;
     std::optional<std::pair<std::wstring, std::wstring>> dropHint;
     std::optional<std::vector<video::Renderer::Card>> cards;
     int linkHover = -2;
@@ -178,6 +181,10 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
         tapCh = std::exchange(tapChanged, false);
         hints = std::exchange(hintsReq, std::nullopt);
         inkBadge = std::exchange(inkBadgeReq, std::nullopt);  // 0.8.3 簡報畫筆
+        pointerIn = std::exchange(pointerInReq, -1);           // 0.8.3.4 view
+        toastHot = std::exchange(toastHotReq, -1);
+        toastLink = std::exchange(toastLinkReq, std::nullopt);
+        frozenBadge = std::exchange(frozenBadgeReq, std::nullopt);
         dropHint = std::exchange(dropHintReq, std::nullopt);  // 0.8.3 拖檔到視窗
         cards = std::exchange(cardsReq, std::nullopt);
         actions = std::exchange(actionsReq, std::nullopt);
@@ -351,6 +358,19 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     if (hoverCh) ren.setHover(hov);
     if (pin) ren.setPin(*pin);
     if (toast) ren.showToast(*toast, toastHold);
+    if (toastLink) ren.setToastLink(std::move(*toastLink));  // 0.8.3.4: after the toast it belongs to
+    if (toastHot >= 0) {
+        ren.setToastHot(toastHot == 1);
+        paint = true;
+    }
+    if (pointerIn >= 0) {
+        ren.setPointerIn(pointerIn == 1);
+        paint = true;
+    }
+    if (frozenBadge) {
+        ren.setFrozenBadge(std::move(frozenBadge->first), frozenBadge->second);
+        paint = true;
+    }
     if (tools) {
         ren.setToolbar(std::move(*tools));
         paint = true;
@@ -459,6 +479,8 @@ void VideoWindow::Impl::publishOptionRects() {
     linkRects = ren.actionRects();
     toolRects = ren.toolbarRects();
     toolPill = ren.toolbarPill();
+    if (toolPill.right > toolPill.left) lastToolPill = toolPill;  // 0.8.3.4: where the toolbar comes back
+    toastRect = ren.toastRect();
     picRect = ren.pictureRect();
     picRot = ren.rotation();
     picMirror = ren.mirrored();

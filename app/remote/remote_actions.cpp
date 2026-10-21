@@ -17,6 +17,7 @@
 #include "connect/connect.h"
 
 #include "help/help.h"
+#include "view/view.h"
 #include "menus/menus.h"
 #include "share/share.h"
 
@@ -624,6 +625,10 @@ bool startHost() {
         if (GetEnvironmentVariableW(L"PM_REMOTE_DRYRUN", v, 8) > 0 && v[0] == L'1') o.inject = false;
         if (GetEnvironmentVariableW(L"PM_REMOTE_TESTCLIP", v, 8) > 0 && v[0] == L'1') o.testClipboard = true;
         if (GetEnvironmentVariableW(L"PM_REMOTE_NOTS", v, 8) > 0 && v[0] == L'1') o.tailscale = false;  // as if no Tailscale
+        // 0.8.3.4: PM_REMOTE_SYNTHAUDIO=<music|quiet|...> = a silent synthetic sound source: no playback device
+        // is captured, and 手機播聲音時電腦靜音 never mutes a real speaker
+        wchar_t sa[16] = {};
+        if (const DWORD n = GetEnvironmentVariableW(L"PM_REMOTE_SYNTHAUDIO", sa, 16); n > 0 && n < 16) o.audioSynthetic = toUtf8(sa);
         // 0.8.3.1: PM_REMOTE_LOOPBACK=1 = the LAN side on 127.0.0.3 only (a test build path gets no firewall prompt)
         if (GetEnvironmentVariableW(L"PM_REMOTE_LOOPBACK", v, 8) > 0 && v[0] == L'1') o.loopbackTest = true, o.tailscale = false;
         // 0.8.3 files: PM_REMOTE_TESTFILES="a;b" = the "copied files" (with PM_REMOTE_TESTCLIP); uploads go
@@ -705,6 +710,12 @@ bool startHost() {
         if (!PostMessageW(h, WM_PM_REMOTE, RemGuestLogin, reinterpret_cast<LPARAM>(m))) delete m;
     };
     o.onUnlocked = [post](const pm::remote::Peer& p) { post(RemUnlocked, p, ""); };
+    // 0.8.3.4: the phone's 電腦喇叭靜音 switch (the host already refused 僅觀看 and every 臨時帳號)
+    o.onMutePcRequest = [post](bool on, const std::string& label) {
+        pm::remote::Peer p;
+        p.label = label;
+        post(RemMutePc, p, on ? "1" : "0");
+    };
     o.onUploaded = [post](const pm::remote::Peer& p, const std::string& name, uint64_t) { post(RemUploaded, p, name); };
     // The kept port (the phone's Home Screen icon has it); the next free one if it is taken.
     for (int i = 0; i < 10; ++i) {
@@ -1297,6 +1308,8 @@ void openRemotePanel(int tab) {
 #endif
 }
 
+void setMutePcFrom(bool on, const std::string& who);  // (below) 0.8.3.4
+
 void onRemoteEvent(WPARAM kind, LPARAM lp) {
     std::unique_ptr<RemoteMsg> m(reinterpret_cast<RemoteMsg*>(lp));
     RemoteState& r = R();
@@ -1452,6 +1465,9 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUnlockedToast, {w(m->label)}));
         setPanelStatus();
         break;
+    case RemMutePc:  // 0.8.3.4: 電腦喇叭靜音 from the phone = 手機播聲音時電腦靜音 (kept like the menu item)
+        setMutePcFrom(m->why == "1", "the phone (" + m->label + ")");
+        break;
     case RemUploaded:  // 0.8.3: a file from the phone is in Downloads\自在投影遠端
         g.log->write("info", "remote: file from the phone saved: " + m->why);
         g.window->showToast(pm::i18n::fmt(S::RemoteUploadedToast, {w(m->why)}), 5000);
@@ -1584,6 +1600,21 @@ bool onRemoteHotkey(WPARAM id) {
 std::vector<MenuItem> remoteAdvancedItems();
 void runMenu(const std::vector<MenuItem>& items, POINT pt, bool keyboard, bool tray);  // core/app/commands.cpp
 
+// 手機播聲音時電腦靜音 (remote_mute_pc), from the PC's menu or (0.8.3.4) the phone's 電腦喇叭靜音 switch: kept in
+// settings.ini; the speakers are muted only while a phone plays the sound and come back when it stops or
+// the session ends (pm::remote::LoopbackAudio), whoever changed it.
+void setMutePcFrom(bool on, const std::string& who) {
+    const bool changed = g.settings.remoteMutePc != on;
+    g.settings.remoteMutePc = on;
+    if (changed) saveSettings();
+#ifdef PM_APP_REMOTE
+    if (R().on) R().host.setMutePc(on);  // 0.8.2: at once (0.8.1 did nothing until the session ended); the phone is told
+#endif
+    g.log->write("info", std::string("remote: 手機播聲音時電腦靜音 ") + (on ? "on" : "off") + " (from " + who + (changed ? ")" : ", unchanged)"));
+    g.window->showToast(tr(on ? S::RemoteMutePcOnToast : S::RemoteMutePcOffToast), 2500);
+    refreshIdleOptions();
+}
+
 void remoteCommand(UINT cmd) {
     struct After {  // 0.8.2: the 遠端控制 page and the title show every change
         ~After() {
@@ -1636,10 +1667,7 @@ void remoteCommand(UINT cmd) {
         if (R().on) R().host.setAudioOffered(g.settings.remoteAudio);  // 0.8.2: at once (0.8.1 waited for the session to end)
         break;
     case CmdRemoteMutePc:
-        g.settings.remoteMutePc = !g.settings.remoteMutePc;
-        saveSettings();
-        if (R().on) R().host.setMutePc(g.settings.remoteMutePc);  // 0.8.2: at once (0.8.1 did nothing until the session ended)
-        g.window->showToast(tr(g.settings.remoteMutePc ? S::RemoteMutePcOnToast : S::RemoteMutePcOffToast), 2500);
+        setMutePcFrom(!g.settings.remoteMutePc, "the PC");
         break;
     case CmdRemoteIdle15:
     case CmdRemoteIdle30:
@@ -1875,11 +1903,28 @@ std::vector<MenuItem> remoteAdvancedItems() {
     RemoteState& r = R();
     std::vector<MenuItem> v;
     MenuItem src = remoteItem();  // its 聲音來源 ▸ / 自動中斷 ▸ rows are reused
+    // 0.8.3.4 聲音 ▸ 電腦聲音傳到手機 ✓, 手機播聲音時電腦靜音 ✓ (off the page) and 聲音來源 (its choices inline)
+    std::vector<MenuItem> sound;
+    for (auto& m : src.sub)
+        if (m.id == CmdRemoteAudio || m.id == CmdRemoteMutePc) sound.push_back(m);
+    size_t at = std::wstring::npos;  // where 聲音來源 ▸ was
     for (auto& m : src.sub) {
+        if (m.kind == MenuItem::Kind::Submenu && m.text == tr(S::MenuRemoteAudioSrc)) {
+            at = v.size();
+            sound.push_back(MenuItem::separator());
+            sound.push_back(MenuItem::caption(m.text));
+            for (auto& d : m.sub) sound.push_back(d);
+            continue;
+        }
         const bool keep = m.id == CmdRemoteViewOnly || m.id == CmdRemoteFixedApproval || m.id == CmdRemoteTunnel ||
-                          m.id == CmdRemotePassword || (m.kind == MenuItem::Kind::Submenu);
+                          m.id == CmdRemotePassword || m.id == CmdRemotePersistent || (m.kind == MenuItem::Kind::Submenu);
+        if (m.id == CmdRemotePersistent && !g.settings.remotePwHash.empty())  // 0.8.3.4 (design B): off the page, here
+            v.push_back(checkItem(CmdRemoteFixedToggle, tr(S::MenuRemoteFixedOn), kIcoRemote, r.fixState == 1 || r.fixState == 2));
         if (keep) v.push_back(m);
     }
+    v.insert(v.begin() + static_cast<std::ptrdiff_t>(std::min(at, v.size())),
+             valueSubmenu(tr(S::MenuRemoteSound), kIcoCast, std::move(sound),
+                          g.settings.remoteAudio ? std::wstring(tr(S::RemoteOnShort)) : std::wstring()));
     // 已記住的手機 ▸ each phone (click = forget it), 全部忘記
     std::vector<MenuItem> phones;
     const std::vector<Remembered> list = rememberedList();
@@ -1926,6 +1971,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
         a.kind = kind, a.on = on;
         actions.push_back(std::move(a));
     };
+    auto strong = [&]() { actions.back().style = 1; };  // 0.8.3.4: the block's main action, filled
     // The big switch: 遠端控制 開 / 關 and where it stands.
     {
         IA sw{tr(S::RemoteSwLabel), false, cmd(CmdRemoteToggle), -1};
@@ -1960,6 +2006,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
     auto lanCard = [&]() {
         const int i = static_cast<int>(cards.size());
         IC c{tr(S::RemoteCardLanTitle), tr(S::RemoteCardLanBody), L"", false};
+        c.style = 2;  // 0.8.3.4 (design B): a compact row
         const bool show = r.on && r.pageQr == 1 && !lan.empty();
         if (show) qrOf(lan, c), c.note = w(lan);
         cards.push_back(std::move(c));
@@ -1978,6 +2025,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
 #endif
         auto tunnelRows = [&]() {  // the temporary address: ready / getting it / failed / one click
             if (!tunLink.empty()) {
+                c.title = tr(S::RemoteTempAddrLabel), c.style = 1;  // 0.8.3.4 (design B)
                 c.big = w(tunLink);
                 c.note = pm::i18n::fmt(S::RemoteTunnelCode, {w(tunCode)});
                 qrOf(tunLink, c);
@@ -1988,12 +2036,13 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
             return 0;
         };
         if (hasPw && r.fixState == 2) {
-            c.body = tr(S::RemoteAllowAddr);
+            // 0.8.3.4 (design B, like ToDesk's 本機識別碼): 「本機網址」 as a small label over the address, big
+            c.title = tr(S::RemoteAllowAddr), c.style = 1;
             c.big = w(r.fixUrl);
             if (!r.fixInfo.empty()) c.note = r.fixInfo;
             qrOf(r.fixUrl, c);
             cards.push_back(std::move(c));
-            act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i);
+            act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i), strong();
             if (guestRows().size() < kMaxGuests) act(tr(S::RemoteGuestAdd), true, CmdRemoteGuestNew, i);
         } else if (hasPw && r.fixState == 1 && r.fixPreparing && !r.fixUrl.empty()) {
             // 0.8.3.3: the address is known but does not answer yet (the HTTPS certificate): no QR
@@ -2008,8 +2057,9 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
                      : r.fixState == 3 ? pm::i18n::fmt(S::RemoteFixedFailed, {r.fixErr})
                                        : std::wstring(tr(S::RemoteAllowFixedOff));
             const int t = tunnelRows();
+            if (t == 2 && r.fixState != 3) c.body = tr(S::RemoteTempReadyBody);  // 0.8.3.4: what to do now, not how to make one
             cards.push_back(std::move(c));
-            if (r.fixState == 0) act(tr(S::RemoteFixedOpen), true, CmdRemoteFixedToggle, i);
+            if (r.fixState == 0) act(tr(S::RemoteFixedOpen), true, CmdRemoteFixedToggle, i), strong();
             if (r.fixState == 3 && !r.fixSetupUrl.empty()) {  // 0.8.3.2: once on the web page, then again
                 act(tr(S::RemoteFixedOpenSetup), true, CmdRemoteFixedSetup, i);
                 act(tr(S::RemoteFixedRetryDone), true, CmdRemoteFixedToggle, i);
@@ -2022,31 +2072,33 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
         } else {
             c.body = tr(S::RemoteAllowTempBody);
             const int t = tunnelRows();
+            if (t == 2) c.body = tr(S::RemoteTempReadyBody);  // 0.8.3.4
             cards.push_back(std::move(c));
-            if (t == 2) act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i), act(tr(S::RemoteTunnelStop), false, CmdRemoteTunnel, i);
-            else if (t == 0) act(tr(S::RemoteTempShare), true, CmdRemoteTempShare, i);
+            if (t == 2) act(tr(S::RemoteFixedCopy), true, CmdRemoteAddrCopy, i), strong(), act(tr(S::RemoteTunnelStop), false, CmdRemoteTunnel, i);
+            else if (t == 0) act(tr(S::RemoteTempShare), true, CmdRemoteTempShare, i), strong();
             act(tr(S::RemoteAllowSetPw), false, CmdRemotePassword, i);
             return;
         }
-        // The accounts (also while the fixed address is off: they can still be deleted).
+        // 0.8.3.4 (design B): 變更密碼, 關閉固定網址 and 開機自動開啟固定網址 are in 進階設定 (kept out of sight).
+        // The accounts (also while the fixed address is off: they can still be deleted). 0.8.3.4: a card of
+        // their own under the address (the whole width: one line each; the QR code no longer beside a list).
         const std::vector<GuestRow>& gs = guestRows();
         if (!gs.empty()) {
-            act(pm::i18n::fmt(S::RemoteGuestsHead, {std::to_wstring(gs.size())}), false, 0, i, 4);
+            const int j = static_cast<int>(cards.size());
+            cards.push_back(IC{pm::i18n::fmt(S::RemoteGuestsHead, {std::to_wstring(gs.size())}),
+                               r.fixState == 2 ? std::wstring(tr(S::RemoteAllowFoot)) : std::wstring(), L"", false});
             for (size_t k = 0; k < gs.size() && k < kMaxGuests; ++k) {
-                act(guestRowText(gs[k]), false, 0, i, 4);
-                act(tr(S::RemoteGuestReset), false, CmdRemoteGuestReset0 + static_cast<UINT>(k), i, 5);
-                act(tr(S::RemoteGuestDelete), false, CmdRemoteGuestDel0 + static_cast<UINT>(k), i, 5);
+                act(guestRowText(gs[k]), false, 0, j, 4);
+                act(tr(S::RemoteGuestReset), false, CmdRemoteGuestReset0 + static_cast<UINT>(k), j, 5);
+                act(tr(S::RemoteGuestDelete), false, CmdRemoteGuestDel0 + static_cast<UINT>(k), j, 5);
             }
         }
-        if (r.fixState == 2) act(tr(S::RemoteAllowFoot), false, 0, i, 4);
-        act(tr(S::RemoteFixedChangePw), false, CmdRemotePassword, i);
-        if (r.fixState == 1 || r.fixState == 2) act(tr(S::RemoteFixedClose), false, CmdRemoteFixedToggle, i);
-        act(tr(S::RemoteCardPersistent), false, CmdRemotePersistent, i, 3, g.settings.remotePersistent);
     };
     // 在外面：Tailscale
     auto tsCard = [&]() {
         const int i = static_cast<int>(cards.size());
         IC c{tr(S::RemoteCardTsTitle), tr(S::RemoteCardTsBody), noTs ? std::wstring(tr(S::RemoteNoTsShort)) : std::wstring(), false};
+        c.style = 2;  // 0.8.3.4 (design B): a compact row
         const bool show = r.on && r.pageQr == 2 && !ts.empty();
         if (show) qrOf(ts, c), c.note = w(ts);
         cards.push_back(std::move(c));
@@ -2298,6 +2350,12 @@ void remoteDevFixed(int how) {
         fs::create_directories(d, ec);
         const bool ok = pm::ui::renderMenuPng(remoteAdvancedItems(), (d / L"remote_advanced.png").wstring());
         g.log->write("info", std::string("dev remote advanced shot: ") + (ok ? "ok" : "-"));
+        // 0.8.3.4: and its 聲音 ▸ as remote_advanced_sound.png
+        bool snd = false;
+        for (const auto& m : remoteAdvancedItems())
+            if (m.kind == MenuItem::Kind::Submenu && m.text == tr(S::MenuRemoteSound))
+                snd = pm::ui::renderMenuPng(m.sub, (d / L"remote_advanced_sound.png").wstring());
+        g.log->write("info", std::string("dev remote advanced sound shot: ") + (snd ? "ok" : "-"));
         return;
     } else if (how == 9) {
         r.news.close(1);
@@ -2338,6 +2396,13 @@ void remoteDevLog(int how) {
     for (char& c : text)
         if (c == '\n') c = '|';
     g.log->write("info", "dev remote connection log: " + text);
+}
+
+// 0.8.3.4 --dev DevCommand 988: a phone's 電腦喇叭靜音 switch, posted like the host's onMutePcRequest.
+void remoteDevMutePc(int on) {
+    auto* m = new RemoteMsg{R().gen, "", "", "", "--dev phone", on ? "1" : "0"};
+    g.log->write("info", std::string("dev remote: 電腦喇叭靜音 ") + (on ? "on" : "off") + " as if from the phone");
+    if (!PostMessageW(g.hwnd, WM_PM_REMOTE, RemMutePc, reinterpret_cast<LPARAM>(m))) delete m;
 }
 
 // 0.8.3.2 --dev hooks for the 臨時帳號 tests and screenshots (see remote.h). Never a password in the log.

@@ -24,6 +24,7 @@ public:
         std::function<void()> onQrMode;  // 改用 QR (back from the code form)
         std::function<void()> onHelp;    // (0.8.3.2) the guide's Android section
         std::function<void()> onHelpDevOpt;  // 0.8.3.3: 看圖文教學 in the 開發人員選項 steps (#adb-devopt)
+        std::function<void()> onRetry;       // 0.8.3.4: 重新產生 QR after the wait ended (setTimedOut)
     };
 
     // Shows the panel centred over `owner` (QR mode, "preparing" until
@@ -42,6 +43,11 @@ public:
     void setStatus(const std::wstring& text, bool error = false);
     bool statusIsError() const { return statusError_ && !status_.empty(); }
     bool codeMode() const { return codeMode_; }  // 配對碼 form shown (else the QR)
+    // 0.8.3.4 (B6): the wait for the phone has ended: the QR is dimmed with 「已逾時」 and the right button is
+    // 「重新產生 QR」 (onRetry) in place of 取消. Off again with a new QR (setQr) or false.
+    void setTimedOut(bool on);
+    bool timedOut() const { return timedOut_; }
+    bool devPressRetry();  // --dev test hook: 「重新產生 QR」 as clicked (false if not offered)
     // Switches to the code form (also what 「用配對碼」 does).
     void showCodeForm();
     // 0.8.3.3: 「① 還沒開過開發人員選項？看步驟」: the steps (連點版本號碼 7 下; Samsung / 小米 / Pixel)
@@ -86,6 +92,7 @@ private:
     UINT dpi_ = 96;
     bool codeMode_ = false;
     bool devOpt_ = false;  // 0.8.3.3: the 開發人員選項 steps are shown
+    bool timedOut_ = false;  // 0.8.3.4: the QR waited too long (setTimedOut)
     std::vector<uint8_t> qr_;
     int qrSize_ = 0;
     std::wstring status_;

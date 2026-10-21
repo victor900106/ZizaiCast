@@ -5,7 +5,7 @@
 //   AGC (leveller)  the material's loudness (mean square of the frames above -55 dBFS RMS,
 //                   followed up with a 0.8 s time constant, 0.1 s if 12 dB louder; down with
 //                   3 s, 1.2 s if 10 dB quieter: another, quieter video) is brought towards
-//                   -17 dBFS RMS: at most +30 dB, at least -6 dB; the gain moves at most
+//                   -14 dBFS RMS (0.8.3.4; 0.8.3.2: -17, about streaming loudness): at most +30 dB, at least -6 dB; the gain moves at most
 //                   +20 dB/s up and -60 dB/s down.
 //   steady signals  louder material lowers the gain at once (always safe); what would raise
 //                   it is judged 0.5 s late, with the 0.5 s before and after the frame known:
@@ -36,7 +36,7 @@ namespace pm::remote {
 class LevelChain {
 public:
     // Constants (dB unless said otherwise).
-    static constexpr float kTargetDb = -17.f, kMaxGainDb = 30.f, kMinGainDb = -6.f;
+    static constexpr float kTargetDb = -14.f, kMaxGainDb = 30.f, kMinGainDb = -6.f;
     static constexpr float kBiasDb = 1.7f;  // the follower sits this much above the mean power (fast up, slow down)
     static constexpr float kGateDb = -55.f, kExpRelDb = -30.f;
     static constexpr float kSteadyDb = 3.f;

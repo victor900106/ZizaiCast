@@ -18,7 +18,8 @@ enum RemoteEvent : WPARAM {
     RemLoginRevoked, RemUnlocked, RemUploaded,  // 0.8.3
     RemFixedWait,  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
     RemGuestLogin,  // 0.8.3.2: a 臨時帳號 login try
-    RemFixedProbe   // 0.8.3.3: the fixed address's TLS check ("1:<ms>:<detail>" ok, "0:..." not yet, "2:..." gave up)
+    RemFixedProbe,  // 0.8.3.3: the fixed address's TLS check ("1:<ms>:<detail>" ok, "0:..." not yet, "2:..." gave up)
+    RemMutePc       // 0.8.3.4: the phone's 電腦喇叭靜音 switch ("1" / "0"; the host checked the session may)
 };
 
 bool remoteAvailable();
@@ -61,5 +62,8 @@ void remoteDevLog(int how);       // --dev DevCommand 965 (0.8.3): 1 = the 連�
 // a monitor at DPI lp & 0xFFFF with its client lp >> 16 px high (0: the same DIPs; WM_DPICHANGED);
 // 986 the accounts into the log (names, kinds; never a password).
 void remoteDevGuest(int which, LPARAM lp);
+// --dev DevCommand 988 (0.8.3.4): as if a phone's 電腦喇叭靜音 switch arrived (lp 1 on, 0 off), through the same
+// message the host's onMutePcRequest posts (who may: tested against the host in remote/tools/mutepc_test.mjs).
+void remoteDevMutePc(int on);
 
 }  // namespace pm_app

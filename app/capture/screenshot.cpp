@@ -5,6 +5,7 @@
 #include "core/base/base.h"
 #include "share/share.h"
 #include "capture/capture.h"
+#include "view/view.h"
 
 namespace pm_app {
 
@@ -31,7 +32,7 @@ void takeSnapshot() {
         g.log->write("info", std::string("snapshot ") + (g.settings.deviceFrame ? "(framed) " : "") +
                                  toUtf8(file.wstring()));
         g.window->flash();  // shutter: a short veil over the picture
-        g.window->showToast(tr(S::ShotSaved));
+        showShotToast0834(file);  // 0.8.3.4: click it to open the picture
         g.lastShot = file;
         offerShare(file);
     } else {

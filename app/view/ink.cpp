@@ -72,7 +72,7 @@ void setInkMode(bool on, bool toast) {
         return;
     }
     if (on == inkOn()) return;
-    g.window->setInkMode(on, on ? std::wstring(tr(S::InkBadge)) : std::wstring());
+    g.window->setInkMode(on, on ? std::wstring(tr(S::InkBadge0834))  /* 0.8.3.4: Esc or Ctrl+E */ : std::wstring());
     g.log->write("info", std::string("ink: mode ") + (on ? "on" : "off") + " (" + std::to_string(g.window->inkCount()) +
                              " stroke(s)" + (on && androidLive() ? ", Android pointer input paused" : "") + ")");
     if (toast) {

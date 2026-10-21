@@ -132,7 +132,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             if (!g.settings.toolbarHintShown) {  // 0.7.8: the very first phone: the toolbar shows itself once
                 g.settings.toolbarHintShown = true;
                 saveSettings();
-                g.window->revealToolbar(7000, tr(S::ToolbarIntro));
+                g.window->revealToolbar(7000, tr(S::ToolbarIntro0834));  // 0.8.3.4: it comes back near the top
             }
             if (g.liveSource == SrcAndroid && androidLive()) {
                 g.androidWatchCount = -1;
@@ -298,10 +298,21 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         }
         if (wp == kPairTimer) {
             KillTimer(h, kPairTimer);
+            // --test-no-network: the dummy panel has no adb (state never WaitingForPairing) but runs the same clock.
             if (g.pairPanel.isOpen() && !g.pairPanel.codeMode() &&
-                g.android->state() == pm::AndroidSource::State::WaitingForPairing) {
-                g.log->write("info", "pairing: no phone after " + std::to_string(g.pairTimeoutMs / 1000) + " s");
-                g.pairPanel.setStatus(tr(S::PairNoAnswer), true);
+                (g.testNoNetwork || g.android->state() == pm::AndroidSource::State::WaitingForPairing)) {
+                if (g.pairStage == 0) {  // first the hint (the QR still works) ...
+                    g.pairStage = 1;
+                    g.log->write("info", "pairing: no phone after " + std::to_string(g.pairTimeoutMs / 1000) + " s");
+                    g.pairPanel.setStatus(tr(S::PairNoAnswer), true);
+                    SetTimer(h, kPairTimer, g.pairTimeoutMs * 2, nullptr);
+                } else if (g.pairStage == 1) {  // ... then the wait ends: no endless spinning (0.8.3.4, audit B6)
+                    g.pairStage = 2;
+                    g.log->write("info", "pairing: gave up after " + std::to_string(g.pairTimeoutMs * 3 / 1000) + " s, retry offered");
+                    if (!g.testNoNetwork) g.android->cancelPairing();
+                    g.pairPanel.setTimedOut(true);
+                    g.pairPanel.setStatus(tr(S::PairTimedOut), true);
+                }
             }
             return 0;
         }
@@ -383,6 +394,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         }
         if (msg == g.devCmdMsg && g.devCmdMsg) {  // --dev test scripts: run a menu command
             if (devCommand083(wp, lp)) {}  // 0.8.3 feat-ux: 975..978
+            else if (devCommand0834View(wp, lp)) {}  // 0.8.3.4 view: 8342..8343
             else if (wp == 900 || wp == 901) devMenuShots(static_cast<int>(lp) - 1, wp == 901);  // menu PNGs (lp = hot row + 1)
             else if (wp == 960) remoteDevShots();  // 遠端操控: remote_panel(_ts).png, remote_banner.png, remote_ask.png
             else if (wp == 961) remoteDevAnswer(static_cast<int>(lp));  // its 允許 / 拒絕 (1 allow, 2 deny, 3 allow + remember)
@@ -390,6 +402,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             else if (wp == 963) remoteDevFixed(static_cast<int>(lp));   // 0.8.2: 常駐外網 password / shots (see remote.h)
             else if (wp == 965) remoteDevLog(static_cast<int>(lp));     // 0.8.3: 連線紀錄 into the log
             else if (wp >= 981 && wp <= 986) remoteDevGuest(static_cast<int>(wp), lp);  // 0.8.3.2 臨時帳號 / DPI (see remote.h)
+            else if (wp == 988) remoteDevMutePc(static_cast<int>(lp));  // 0.8.3.4: 電腦喇叭靜音 as if from the phone
             else if (wp == 987) {  // 0.8.3.3: the pairing window's 開發人員選項 steps (lp 1 shown, 0 back to the QR code)
                 g.pairPanel.showDevOpt(lp != 0);
                 g.log->write("info", std::string("dev pair: 開發人員選項 steps ") + (g.pairPanel.devOptShown() ? "shown" : "hidden"));

@@ -242,6 +242,10 @@ struct Options {
     // guest login try (the name as typed, cut to 40 characters; never the password).
     std::vector<GuestAccount> guests;
     std::function<void(const std::string& ip, const std::string& user, bool ok, int fails, bool locked)> onGuestLogin;
+    // 0.8.3.4: the phone's 電腦喇叭靜音 switch ({"t":"mutepc","on":b}). Only a session that may control
+    // the PC may change it (not 僅觀看, never a 臨時帳號: refused here, never reaches this). The
+    // callback stores it like the PC's own menu item and calls setMutePc(); unset: setMutePc() at once.
+    std::function<void(bool on, const std::string& label)> onMutePcRequest;
     // 0.8.3: 中斷 on the PC ends that phone's fixed-link login (its token id; expiry in epoch
     // seconds): keep it (settings) and hand it back here, so a restart does not let it in again.
     std::vector<std::string> revokedLogins;  // "<token id>:<expiry>"

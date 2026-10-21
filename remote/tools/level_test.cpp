@@ -209,14 +209,14 @@ int main(int argc, char** argv) {
                 for (size_t i = 0; i < r.gainDb.size(); ++i) std::fprintf(csv, "%s,%s,%.1f,%.2f\n", s.name.c_str(), k ? "after" : "before", (i + 1) * 0.1, r.gainDb[i]);
         }
         std::printf("%-17s   %s\n", "", s.what.c_str());
-        // Targets (after): ordinary material lands at -16..-18 dBFS RMS (settled), no clipping anywhere,
+        // Targets (after): ordinary material lands at -13..-15 dBFS RMS (settled; 0.8.3.4, was -16..-18), no clipping anywhere,
         // the noise floor alone is not raised (> 1 dB), very loud material is not boosted.
         auto check = [&](bool ok, const char* what) {
             if (!ok) ++fails, std::printf("  FAIL %s: %s\n", s.name.c_str(), what);
         };
         check(a.clip == 0 && a.decClip == 0, "no sample at 1.0 (before or after Opus)");
         if (s.name == "quiet-music" || s.name == "quiet-speech" || s.name == "owner-raw" || s.name == "normal-music" || s.name == "loud-music")
-            check(a.outRmsSettled >= -18.5 && a.outRmsSettled <= -15.5, "settled RMS within -16..-18 dBFS (+-0.5)");
+            check(a.outRmsSettled >= -15.5 && a.outRmsSettled <= -12.5, "settled RMS within -13..-15 dBFS (+-0.5)");
         if (s.name == "pause" || s.name == "hdmi-noise") check(a.quietOut <= a.quietIn + 1.0, "the noise floor is not raised");
         if (s.name == "very-quiet-music") check(a.gainDb.back() >= 29.5, "the full +30 dB for peak 0.01 material");
         const float maxGain = *std::max_element(a.gainDb.begin(), a.gainDb.end());

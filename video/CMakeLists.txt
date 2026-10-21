@@ -56,6 +56,7 @@ add_library(pm_video STATIC
   src/renderer_magnifier.cpp
   src/renderer_tap.cpp
   src/renderer_ink.cpp
+  src/renderer_view0834.cpp
   src/ink_layer.h
   src/ink_layer.cpp
   src/text_overlay_util.h
@@ -78,6 +79,7 @@ add_library(pm_video STATIC
   src/vw_monitor.cpp
   src/vw_idle_ui.cpp
   src/vw_toolbar.cpp
+  src/vw_view0834.cpp
   src/vw_input.cpp
   src/vw_magnifier.cpp
   src/vw_overlay_select.cpp

@@ -152,6 +152,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 @keyframes pulse{50%{transform:scale(1.04)}}
 #rowSens input{flex:1 1 100%}
 #rowVol input{flex:1 1 100%}
+#rowMutePc.off label{opacity:.55}
 #volV{font-variant-numeric:tabular-nums;opacity:.8;min-width:3.5em;text-align:right}
 /* phone sideways: tighter rows so the settings fit without scrolling */
 @media (max-height:500px){.sheet{padding-top:8px}.sheet h3{margin-bottom:2px}.row{padding:4px 0}.sub{display:none}.btnrow{padding-top:6px}.btn{padding:7px 12px}
@@ -180,7 +181,8 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div class="sheet" id="set">
   <h3><span id="setT"></span><button id="setClose"></button></h3>
   <div class="row"><span class="lbl"><span id="lMode"></span><span class="sub" id="lModeSub"></span></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
-  <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="400" step="10"></div>
+  <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="400" step="5"></div>
+  <div class="row" id="rowMutePc"><label for="swMutePc"><span id="lMutePc"></span><span class="sub" id="lMutePcSub"></span></label><input type="checkbox" class="sw" id="swMutePc"></div>
   <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
   <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
   <div class="row"><label for="swAuto"><span id="lAuto"></span><span class="sub" id="lAutoSub"></span></label><input type="checkbox" class="sw" id="swAuto"></div>
@@ -353,7 +355,8 @@ const T = {
   soundTapAgain: ['再點一次「開啟聲音」', 'Tap “Turn on sound” once more', 'もう一度「音を出す」をタップしてください', '“소리 켜기”를 한 번 더 누르세요'],
   pcSilent: ['電腦目前沒有在播放聲音', 'The PC isn’t playing any sound right now', 'パソコンは今、音を再生していません', 'PC에서 지금 재생 중인 소리가 없습니다'],
   vol: ['手機音量', 'Phone volume', 'スマホの音量', '휴대폰 음량'],
-  volSub: ['電腦已自動調好音量；想更大聲再往右拉（最高 400%，不會爆音）', 'The PC already sets a good level; slide right for more (up to 400%, no clipping)', 'パソコンが音量を自動で整えます。もっと大きくするなら右へ（最大 400%、音割れ防止つき）', 'PC가 음량을 자동으로 맞춥니다. 더 크게 하려면 오른쪽으로(최대 400%, 찢어짐 방지)'],
+  volSub: ['100% 是電腦送來的原本大小；超過 100% 是「響度加強」：越往右越大聲，小聲的地方拉得更多，自動防破音（最高 400%）。', '100% is the PC’s own level; above 100% is “loudness boost”: louder the further right, quiet parts raised the most, never clipping (up to 400%).', '100% はパソコンから届いたままの大きさ。100% を超えると「音量ブースト」：右へいくほど大きく、小さい音ほど持ち上げ、音割れしません（最大 400%）。', '100%는 PC에서 보낸 원래 크기입니다. 100%를 넘으면 “음량 강화”: 오른쪽일수록 크게, 작은 소리일수록 더 키우며 찢어지지 않습니다(최대 400%).'],
+  volBoost: ['{0}%（加強）', '{0}% (boost)', '{0}%（ブースト）', '{0}% (강화)'],
   muted: ['已靜音（電腦聲音不再傳到手機）', 'Muted (the PC’s sound no longer comes to the phone)', 'ミュートしました（パソコンの音は送られません）', '음소거됨(PC 소리를 더 이상 보내지 않음)'],
   noSound: ['聲音沒開：電腦端關閉了「聲音傳到手機」', 'No sound: “Send sound to phone” is off on the PC', '音なし：パソコンで「音をスマホへ」がオフです', '소리 없음: PC에서 “휴대폰으로 소리 보내기”가 꺼져 있음'],
   viewOnly: ['僅觀看', 'View only', '表示のみ', '보기 전용'],
@@ -375,6 +378,12 @@ const T = {
   fullscreen: ['全螢幕', 'Full screen', '全画面', '전체 화면'],
   lock: ['鎖定畫面縮放', 'Lock zoom', 'ズームを固定', '확대/축소 잠금'],
   lockSub: ['雙指只捲動，畫面不會被誤觸放大或移動', 'Two fingers only scroll; the picture can’t be zoomed or moved by accident', '2 本指はスクロールだけ。誤って拡大・移動しません', '두 손가락은 스크롤만, 실수로 확대·이동되지 않음'],
+  mutePc: ['電腦喇叭靜音', 'Mute the PC’s speakers', 'パソコンのスピーカーをミュート', 'PC 스피커 음소거'],
+  mutePcSub: ['手機播聲音時，電腦那邊不出聲（手機關聲音或斷線就恢復）。這是電腦的設定，會一直記住。', 'While this phone plays the sound, the PC stays quiet (back when the phone stops or disconnects). A setting kept on the PC.', 'スマホで音を出している間、パソコンは鳴りません（音を止めるか切断すると戻ります）。パソコン側の設定として保存されます。', '휴대폰에서 소리를 내는 동안 PC는 조용합니다(소리를 끄거나 연결이 끊기면 돌아옴). PC에 저장되는 설정입니다.'],
+  mutePcNo: ['「僅觀看」時不能改電腦的設定', 'The PC’s settings can’t be changed in “View only”', '「表示のみ」の間はパソコンの設定を変えられません', '“보기 전용”에서는 PC 설정을 바꿀 수 없습니다'],
+  mutePcNoGuest: ['臨時帳號不能改電腦的設定，只有電腦主人可以', 'A temporary account can’t change the PC’s settings; only the PC’s owner can', '一時アカウントではパソコンの設定を変えられません（持ち主だけが変更できます）', '임시 계정으로는 PC 설정을 바꿀 수 없습니다(PC 주인만 가능)'],
+  mutePcOn: ['手機播聲音時，電腦喇叭會靜音', 'The PC’s speakers are muted while the phone plays the sound', 'スマホで再生中はパソコンのスピーカーをミュートします', '휴대폰에서 재생하는 동안 PC 스피커를 음소거합니다'],
+  mutePcOff: ['電腦喇叭不再靜音', 'The PC’s speakers are no longer muted', 'パソコンのスピーカーのミュートをやめました', 'PC 스피커 음소거를 해제했습니다'],
   zoomFit: ['適合螢幕', 'Fit to screen', '画面に合わせる', '화면에 맞추기'],
   zoom11: ['放大到原始大小（1:1）', 'Actual size (1:1)', '実際のサイズ（1:1）', '실제 크기(1:1)'],
   locked: ['畫面縮放已鎖定', 'Zoom is locked', 'ズームは固定されています', '확대/축소가 잠겨 있습니다'],
@@ -492,6 +501,8 @@ const prefs = {
   // 0.8.2's 150 % default ("聲音有點小") does not stack on top of it.
   // 0.8.3.2: a new key again: 0.8.3's AGC stayed at x1 on quiet material, so people pushed this to
   // 300 %; with the AGC working (-17 dBFS RMS) that 300 % would be ~10 dB too loud. 0-400 %.
+  // 0.8.3.4: the volume slider's position (0-400 %; see pmVolume), from 0.8.3.2's percent the first time
+  vol: (() => { const v = store.get('vol0834', null); return v === null ? 100 : Math.max(0, Math.min(400, +v || 0)); })(),
   gain: Math.max(0, Math.min(400, +store.get('gain0832', 100) || 0)),
   lock: store.get('lock', false),
   auto: store.get('auto', true),
@@ -858,23 +869,102 @@ $('passIn').addEventListener('input', () => { if (!FIXED && $('passIn').value.re
 $('passIn').addEventListener('keydown', e => { if (e.key === 'Enter') submitPass(); });
 $('userIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('passIn').focus(); });
 
-// ---- phone volume (0.8.2): Web Audio, gain 0-400 % (0.8.3.2; default 100 %) then a
-// limiter (no clipping); analysers before / after for the level report. Measured on the owner's
-// iPhone Chrome (WebKit) at 300 %: rmsOut / rmsIn = 3.3-3.5 (x3 and the compressor's make-up gain) ----
-const snd = {ctx: null, in: null, gain: null, lim: null, anIn: null, anOut: null, src: null, srcStream: null, elementFallback: false, silentSec: 0};
+// ---- phone volume (0.8.2; 0.8.3.4 rebuilt). The owner's log (0.8.3.3, iPhone Chrome = WebKit, 400 %):
+// the PC already sends -16..-19 dBFS RMS (AGC), rmsIn -21 dBFS, rmsOut -9 dBFS: the digital level was
+// near full scale and 100-400 % only drove the limiter (flatter, not louder: +1.6 dB on loud parts from
+// 100 to 400 %). Now the slider is in two parts (window.pmVolume, also used offline by
+// remote/tools/volume_test.mjs, which measures every number below):
+//   0-100 %   the volume as heard: linear in dB (-40 dB .. 0 dB; 0 = silent), so 50 % sounds like half
+//             the way; at 100 % the PC's level goes through untouched (only the safety curve at the end);
+//   100-400 % 響度加強: the signal is raised (up to +15 dB at 400 %, more of it in the later steps) into a
+//             fast limiter at -1 dBFS and a soft (oversampled) knee: measured at 400 % vs 100 %, music
+//             +6 dB RMS, quiet speech +15 dB, loud speech +2 dB (already at full scale: only its peaks
+//             are rounded off), every 50 % step audibly louder, no sample above 0.96 (0.8.3.3's chain
+//             reached 1.28 = clipped on the phone: 破音), THD+N of a full-scale sine under 2 %.
+// iPhone: the page's AudioSession is 'playback' (Safari / iOS 16.4+, navigator.audioSession), set in the
+// tap that turns the sound on: media playback (loudspeaker, full volume range, not the silent switch),
+// never 'play-and-record' (this page never calls getUserMedia; the WebRTC audio is receive-only).
+const pmVolume = window.pmVolume = {
+  MAX: 400,
+  // the 響度加強 tuning (volume_test.mjs checks the result)
+  P: {preDb: 15, curve: 1.6, limThr: -1, limAtt: 0.001, limRel: 0.04, clipKnee: 0.72},
+  // a soft knee: untouched up to k, then tanh towards 0.98 (never 1.0)
+  softCurve(k) {
+    const K = 4096, curve = new Float32Array(K);
+    for (let i = 0; i < K; i++) {
+      const x = i / (K - 1) * 2 - 1, a = Math.abs(x);
+      curve[i] = Math.sign(x) * (a <= k ? a : k + (0.98 - k) * Math.tanh((a - k) / (0.98 - k)));
+    }
+    return curve;
+  },
+  // slider position (0-400 %) -> {gain (linear, the 0-100 % part), boost (0..1, the 100-400 % part)}
+  map(pos) {
+    pos = Math.max(0, Math.min(this.MAX, +pos || 0));
+    const v = Math.min(pos, 100), b = Math.max(0, pos - 100) / (this.MAX - 100);
+    return {gain: v <= 0 ? 0 : Math.pow(10, (-40 * (1 - v / 100)) / 20), boost: b};
+  },
+  // 0.8.3.2's percent (0-400, a plain gain, stored as gain0832) -> a position: below 100 % the same
+  // loudness on the new curve; above it half way (0.8.3.3's 400 % was hardly louder than 200 %)
+  fromOld(pct) {
+    pct = +pct;
+    if (!(pct > 0)) return pct === 0 ? 0 : 100;
+    if (pct <= 100) return Math.max(1, Math.round(100 * (1 + 20 * Math.log10(pct / 100) / 40)));
+    return Math.min(this.MAX, Math.round((100 + (pct - 100) / 2) / 5) * 5);
+  },
+  // the graph on any (Offline)AudioContext: input -> output (returns {in, out, set(pos)})
+  build(ctx) {
+    const g = n => { const x = ctx.createGain(); x.gain.value = n; return x; };
+    const P = pmVolume.P;
+    // dry (0-100 %: nothing but the volume) or wet (響度加強); never both at once (the limiter's
+    // look-ahead delay would comb against the dry signal)
+    // Chrome / WebKit's DynamicsCompressor adds its own make-up gain (0.6 x what it takes off at 0 dBFS);
+    // taken back here so that just right of 100 % is as loud as 100 % and the steps stay even
+    const makeupDb = 0.6 * -P.limThr * (1 - 1 / 20);
+    const input = g(1), vol = g(1), dry = g(1), pre = g(1), wet = g(0), trim = g(Math.pow(10, -makeupDb / 20)), out = g(1);
+    input.connect(vol);
+    vol.connect(dry); dry.connect(out);
+    vol.connect(pre);
+    // raised, then held under full scale by a fast limiter: quiet passages get the whole gain, loud ones
+    // only what the headroom allows (the dynamics get smaller: 響度加強)
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = P.limThr; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = P.limAtt; lim.release.value = P.limRel;
+    // what the limiter lets through (its attack) is rounded off softly (oversampled), not cut
+    const clip = ctx.createWaveShaper();
+    clip.curve = pmVolume.softCurve(P.clipKnee); clip.oversample = '4x';
+    pre.connect(lim); lim.connect(trim); trim.connect(clip); clip.connect(wet); wet.connect(out);
+    // last safety (both paths): untouched up to 0.85, then a soft knee that never reaches 1.0
+    const sh = ctx.createWaveShaper();
+    sh.curve = pmVolume.softCurve(0.85);
+    out.connect(sh);
+    const set = (pos, at) => {
+      const m = pmVolume.map(pos), t0 = at === undefined ? ctx.currentTime : at;
+      vol.gain.setTargetAtTime(m.gain, t0, 0.03);
+      dry.gain.setTargetAtTime(m.boost > 0 ? 0 : 1, t0, 0.02);
+      wet.gain.setTargetAtTime(m.boost > 0 ? 1 : 0, t0, 0.02);
+      // the more the limiter already works, the less a dB of gain is heard: the later steps get more
+      pre.gain.setTargetAtTime(Math.pow(10, P.preDb * Math.pow(m.boost, P.curve) / 20), t0, 0.03);
+    };
+    return {in: input, out: sh, set};
+  },
+};
+const snd = {ctx: null, in: null, chain: null, anIn: null, anOut: null, src: null, srcStream: null, elementFallback: false, silentSec: 0};
+// The AudioSession type, every time the sound is turned on (in the tap itself).
+function setAudioSession() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch {}
+  return navigator.audioSession ? String(navigator.audioSession.type) : 'n/a';
+}
 function soundCtx() {
   if (!snd.ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}  // iPhone: not muted by the silent switch
+    setAudioSession();  // before the context exists
     try { snd.ctx = new AC({latencyHint: 'interactive', sampleRate: 48000}); } catch { snd.ctx = new AC(); }
     snd.in = snd.ctx.createGain();
     snd.anIn = snd.ctx.createAnalyser(); snd.anIn.fftSize = 2048;
-    snd.gain = snd.ctx.createGain(); snd.gain.gain.value = prefs.gain / 100;
-    snd.lim = snd.ctx.createDynamicsCompressor();
-    snd.lim.threshold.value = -2; snd.lim.knee.value = 0; snd.lim.ratio.value = 20; snd.lim.attack.value = 0.002; snd.lim.release.value = 0.12;
+    snd.chain = pmVolume.build(snd.ctx);
+    snd.chain.set(prefs.vol);
     snd.anOut = snd.ctx.createAnalyser(); snd.anOut.fftSize = 2048;
-    snd.in.connect(snd.anIn); snd.in.connect(snd.gain); snd.gain.connect(snd.lim); snd.lim.connect(snd.anOut); snd.anOut.connect(snd.ctx.destination);
+    snd.in.connect(snd.anIn); snd.in.connect(snd.chain.in); snd.chain.out.connect(snd.anOut); snd.anOut.connect(snd.ctx.destination);
   }
   if (snd.ctx.state !== 'running') snd.ctx.resume().catch(() => {});
   return snd.ctx;
@@ -1058,6 +1148,8 @@ async function connect(reason) {
   S.upload = o.upload !== false; S.uploadMax = o.uploadMax || 2147483648;  // 0.8.3 files
   $('lockNote').style.display = o.lockAfter ? '' : 'none';  // 0.8.3: the PC locks itself when this ends
   S.audioOffered = o.audio !== false;
+  S.mutePc = !!o.mutePc; S.mutePcOk = o.mutePcOk !== false; S.mutePcWhy = o.mutePcWhy || '';  // 0.8.3.4: 電腦喇叭靜音 (the PC's setting, and may this phone change it)
+  syncMutePc();
   prefs.mon = o.monitor || 0;
   applyViewOnly();
   buildMonitorSeg();
@@ -1225,6 +1317,7 @@ function setSound(on, quiet) {
 }
 function soundTap() {
   if (S.audioOffered === false) { toast(t('noSound')); return; }
+  S.aSession = setAudioSession();  // 0.8.3.4: in the tap (WebKit applies it to the audio that starts now)
   if (TUN) startTunnelAudio();  // an AudioContext may only start from a tap
   if (S.sound) { v.muted = true; setSound(false); toast(t('muted'), 2500); return; }
   // 0.8.2: the sound goes through Web Audio (gain + limiter); the element stays muted.
@@ -1302,7 +1395,16 @@ function onDc(e) {
       if (!m.audio && S.sound) { v.muted = true; setSound(false, true); toast(t('noSound')); }
       else setSound(S.sound, true);
     }
+    if (typeof m.mutePc === 'boolean') S.mutePc = m.mutePc;  // 0.8.3.4: changed on the PC (or by this phone)
+    if (typeof m.mutePcOk === 'boolean') S.mutePcOk = m.mutePcOk;
+    if (typeof m.mutePcWhy === 'string') S.mutePcWhy = m.mutePcWhy;
     if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
+    syncMutePc();
+  } else if (m.t === 'mutepc') {  // 0.8.3.4: the PC's answer to 電腦喇叭靜音
+    S.mutePc = !!m.on;
+    if (!m.ok) { S.mutePcOk = false; if (m.why) S.mutePcWhy = m.why; }
+    syncMutePc();
+    toast(m.ok ? t(m.on ? 'mutePcOn' : 'mutePcOff') : t(mutePcNoKey()), 3000);
   } else if (m.t === 'bye') {
     S.bye = m.why || 'kicked';
     clearTimeout(retryTimer);
@@ -1313,6 +1415,18 @@ function onDc(e) {
   }
 }
 setInterval(() => send({t: 'ping', id: ++pingId, c: performance.now()}), 500);
+// 0.8.3.4: 電腦喇叭靜音 = the PC's 手機播聲音時電腦靜音 (kept on the PC). Not in 僅觀看, never a 臨時帳號
+// (the PC decides and refuses those too: mutePcOk / mutePcWhy). The phone's own 開聲音 / 靜音 button is
+// separate: it is whether this phone listens.
+const mutePcNoKey = () => S.mutePcWhy === 'guest' ? 'mutePcNoGuest' : 'mutePcNo';
+function syncMutePc() {
+  const sw = $('swMutePc'), can = S.mutePcOk !== false && !S.viewOnly;
+  sw.checked = !!S.mutePc;
+  sw.disabled = !can;
+  $('rowMutePc').style.display = S.audioOffered === false ? 'none' : '';
+  $('rowMutePc').classList.toggle('off', !can);
+  $('lMutePcSub').textContent = t(can ? 'mutePcSub' : mutePcNoKey());
+}
 function applyViewOnly(announce) {
   const b = $('badge');
   b.textContent = t('viewOnly');
@@ -1432,7 +1546,12 @@ setInterval(() => {
   send({t: 'report', ua: navigator.userAgent, state: S.state, rtt: S.rtt, rttMin: S.rttMin, fps: S.fps, lat_n: a.length, lat_p50: pct(.5),
         lat_p95: pct(.95), e2e_ms: isFinite(S.e2e) ? Math.round(S.e2e) : null, e2e_p95: isFinite(S.e2eP95) ? Math.round(S.e2eP95) : null, dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
         sent: S.sent, playErr: S.playErr, ttff_ms: S.ttff || null, aud: S.aud, muted: v.muted,
-        rmsIn: S.rmsIn, rmsOut: S.rmsOut, gain: prefs.gain, gainPath: snd.elementFallback ? 'element' : snd.srcStream || tun.media ? 'webaudio' : '', mode: prefs.mode, sens: prefs.sens,
+        rmsIn: S.rmsIn, rmsOut: S.rmsOut, vol: prefs.vol, gain: Math.round(pmVolume.map(prefs.vol).gain * 1000) / 1000, boost: pmVolume.map(prefs.vol).boost,
+        gainPath: snd.elementFallback ? 'element' : snd.srcStream || tun.media ? 'webaudio' : '', mode: prefs.mode, sens: prefs.sens,
+        // 0.8.3.4: how the phone plays it (iPhone: playback = loudspeaker / media volume; play-and-record = call mode)
+        aSession: navigator.audioSession ? String(navigator.audioSession.type) : 'n/a', aSessionSet: S.aSession || '',
+        actx: snd.ctx ? {state: snd.ctx.state, rate: snd.ctx.sampleRate, base: snd.ctx.baseLatency, outLat: snd.ctx.outputLatency} : null,
+        outRoute: S.outRoute || 'unknown', gum: !!S.gumCalled,
         q: prefs.q, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
         vw: innerWidth, vh: innerHeight});
   S.lat = [];
@@ -1778,6 +1897,13 @@ $('setT').textContent = t('settings');
 $('setClose').textContent = t('close');
 $('setClose').onclick = closeSheets;
 $('lMode').textContent = t('mode');
+$('lMutePc').textContent = t('mutePc');
+$('swMutePc').onchange = () => {
+  const sw = $('swMutePc');
+  if (sw.disabled || S.viewOnly || S.mutePcOk === false) { sw.checked = !!S.mutePc; toast(t(mutePcNoKey()), 3000); return; }
+  send({t: 'mutepc', on: sw.checked});  // the PC answers ({"t":"mutepc"}) and keeps it
+};
+syncMutePc();
 $('lModeSub').textContent = t('modeSub');  // 0.8.3.3: what 直接點 and 觸控板 do
 $('lSens').textContent = t('sens');
 $('lSensSub').textContent = t('sensSub');
@@ -1794,12 +1920,22 @@ $('lAutoSub').textContent = t('autoSub');
 $('lHudSub').textContent = t('hudSub');
 $('lVol').textContent = t('vol');
 $('lVolSub').textContent = t('volSub');
-const showVol = () => { $('vol').value = prefs.gain; $('volV').textContent = prefs.gain + '%'; };
+// 0.8.3.4: 0-100 % volume (as heard: in dB), then 響度加強 up to 400 % (see pmVolume)
+if (store.get('vol0834', null) === null) { prefs.vol = pmVolume.fromOld(prefs.gain); store.set('vol0834', prefs.vol); }
+const showVol = () => { $('vol').value = prefs.vol; $('volV').textContent = prefs.vol <= 100 ? prefs.vol + '%' : tf('volBoost', prefs.vol); };
 showVol();
 $('vol').oninput = () => {
-  prefs.gain = Math.max(0, Math.min(400, +$('vol').value | 0)); store.set('gain0832', prefs.gain); showVol();
-  if (snd.gain) snd.gain.gain.setTargetAtTime(prefs.gain / 100, snd.ctx.currentTime, 0.03);
+  prefs.vol = Math.max(0, Math.min(400, +$('vol').value | 0)); store.set('vol0834', prefs.vol); showVol();
+  if (snd.chain) snd.chain.set(prefs.vol);
 };
+// 0.8.3.4: the page never asks for the microphone (that would put an iPhone in call mode); if anything
+// ever does, the report says so (gum: true).
+try { const md = navigator.mediaDevices, orig = md && md.getUserMedia && md.getUserMedia.bind(md);
+  if (orig) md.getUserMedia = c => { S.gumCalled = true; diag('getusermedia-called', {}); return orig(c); }; } catch {}
+// What the page can tell about the output: iOS does not name it (no permission prompt is ever made for
+// this); other browsers list their outputs only with a label after a permission. Logged as is.
+(async () => { try { const d = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === 'audiooutput');
+  S.outRoute = d.length ? d.map(x => x.label || x.deviceId.slice(0, 6) || '?').join(' | ').slice(0, 120) : 'not listed'; } catch { S.outRoute = 'unavailable'; } })();
 $('bHelp').textContent = t('gestures');
 $('bBye').textContent = t('disconnect');
 $('app').textContent = PM.app;

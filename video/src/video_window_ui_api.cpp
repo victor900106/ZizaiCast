@@ -22,7 +22,7 @@ void VideoWindow::setIdleActions(std::vector<IdleAction> actions) {
     std::vector<video::Renderer::Action> ra;
     std::vector<std::function<void()>> fns;
     for (auto& a : actions) {
-        ra.push_back({a.label, a.primary, a.card, a.kind, a.on, a.sub});
+        ra.push_back({a.label, a.primary, a.card, a.kind, a.on, a.sub, a.style});
         fns.push_back(std::move(a.onClick));
     }
     {
@@ -42,7 +42,7 @@ void VideoWindow::setIdleHelpLink(const std::wstring& label, std::function<void(
 
 void VideoWindow::setIdleCards(std::vector<IdleCard> cards) {
     std::vector<video::Renderer::Card> rc;
-    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted, std::move(c.qr), c.qrSize, std::move(c.big)});
+    for (auto& c : cards) rc.push_back({std::move(c.title), std::move(c.body), std::move(c.note), c.muted, std::move(c.qr), c.qrSize, std::move(c.big), c.style});
     if (rc.size() > 4) rc.resize(4);  // 0.8.2: + 遠端操控
     {
         std::lock_guard lk(impl_->m);
@@ -103,12 +103,25 @@ void VideoWindow::flash() {
     impl_->wake();
 }
 
-void VideoWindow::showToast(const std::wstring& text, int holdMs) {
+void VideoWindow::showToast(const std::wstring& text, int holdMs) { showToast(text, holdMs, L"", nullptr); }
+
+void VideoWindow::showToast(const std::wstring& text, int holdMs, const std::wstring& link, std::function<void()> onClick) {
     {
         std::lock_guard lk(impl_->m);
         impl_->toastReq = text;
         impl_->toastHoldReq = holdMs;
+        impl_->toastLinkReq = onClick ? link : std::wstring();  // 0.8.3.4: clickable (or plain again)
+        impl_->toastFn = onClick ? std::move(onClick) : std::function<void()>();
+        impl_->toastRect = {};
         impl_->dirty = true;
+    }
+    impl_->wake();
+}
+
+void VideoWindow::setFrozenBadge(const std::wstring& text, wchar_t glyph) {
+    {
+        std::lock_guard lk(impl_->m);
+        impl_->frozenBadgeReq = std::make_pair(text, glyph);
     }
     impl_->wake();
 }

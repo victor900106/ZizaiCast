@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.3.3)
+set(PM_APP_VERSION 0.8.3.4)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -78,7 +78,7 @@ add_library(pm_app_connect STATIC connect/connect.h connect/connect_internal.h c
   connect/airplay_events.cpp connect/sources.cpp connect/idle_hints.cpp connect/miracast.cpp connect/android.cpp
   connect/session.cpp connect/android_control.h connect/android_control.cpp)
 add_library(pm_app_view STATIC view/view.h view/window_fit.cpp view/options.cpp view/picture.cpp view/close_flow.cpp
-  view/language.cpp view/ink.h view/ink.cpp)
+  view/language.cpp view/ink.h view/ink.cpp view/view0834.cpp)
 add_library(pm_app_update STATIC update/update.h update/update_check.cpp update/update_install.cpp
   update/local_updates.cpp update/updater.cpp update/updater.h)
 add_library(pm_app_menus STATIC menus/menus.h menus/menu_items.cpp menus/menu_view_translate.cpp menus/menu_roots.cpp

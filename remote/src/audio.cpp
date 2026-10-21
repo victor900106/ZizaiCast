@@ -374,6 +374,13 @@ void LoopbackAudio::loop() {
     };
     auto applyMute = [&] {
         const bool want = muteWanted_.load();
+        {  // 0.8.3.4 tests: with a synthetic source no playback device is ever muted (or unmuted)
+            std::lock_guard<std::mutex> lk(mu_);
+            if (!synthetic_.empty()) {
+                logf("audio: TEST: PC speakers %s wanted (synthetic source: no device touched)", want ? "muted" : "not muted");
+                return;
+            }
+        }
         if (!want) {
             if (!muted.empty()) unmuteAll("the phone's sound is off, or the option is off");
             muteOn = false;

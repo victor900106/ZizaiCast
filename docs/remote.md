@@ -16,12 +16,12 @@ PWA files for the phone page: `remote/web/manifest.webmanifest`, `apple-touch-ic
 | `remote/src/host.cpp` | HTTP routes, approval flow, one WebRTC session (H.264 video + Opus audio track + input DataChannel), capture/encode loop, housekeeping |
 | `remote/src/capture.*` `encoder.*` | DXGI Desktop Duplication -> D3D11 video processor NV12 -> Media Foundation H.264 (zero-copy to NVENC when possible) |
 | `remote/src/audio.*` | WASAPI loopback -> libopus 20 ms frames. 0.8.1: every active playback device captured, the one that plays is sent (or the Windows default / a chosen one); IMMNotificationClient for device changes |
-| `remote/src/tunnel.*` | 0.8.1 免安裝外網: cloudflared quick tunnel child process (job object), its public address |
+| `remote/src/tunnel.*` | 臨時網址 (0.8.1, then called 免安裝外網): cloudflared quick tunnel child process (job object), its public address |
 | `remote/src/input.*` | DataChannel messages -> SendInput (keys / combos released atomically, buttons released on disconnect) |
 | `remote/src/http_server.*` | tiny HTTP/1.1 server bound to the LAN address, the Tailscale address and 127.0.0.1 (the tunnel's origin); WebSocket (RFC 6455) for the tunnel |
 | `remote/web/` | the phone page (`index.html`), trackpad gestures (`trackpad.js`, MoonlightWeb, GPL-3.0+), phone keyboard (`vkbd.js`, noVNC, MPL-2.0), `icon.png` |
 | `app/remote/remote_actions.cpp` | the app side: menu, settings, approval dialog, banner, Ctrl+D hotkey, remembered phones |
-| `app/remote_panel.*` | QR window (同一個 Wi-Fi / Tailscale / 免安裝外網 tabs) and the topmost 「正在被遠端操控」 bar |
+| `app/remote_panel.*` | QR window (tabs 同一個 Wi-Fi / 固定網址 / Tailscale / 臨時網址, the main page's order since 0.8.3.4: `kTabOrder`) and the topmost 「正在被遠端操控」 bar |
 | `remote/tools/` | `pm_remote_spike` (stand-alone host), `edge_test.mjs` (page e2e), `app_remote_test.mjs` (app e2e), `measure.mjs` (before/after numbers) |
 
 Dependencies (vcpkg, classic mode): `libdatachannel[core,srtp]` (+ libjuice, libsrtp,
@@ -92,10 +92,10 @@ shown than sent; it comes back after 10 s / 30 s good.
   with 允許 / connecting); RTCPeerConnection built while the session request is out; the host warms
   up WebRTC at start; scripts inlined; ICE wait 250 ms + trickle (POST candidate). Phase marks go to
   the PC log (`page-diag first-frame`). Measure: `remote/tools/ttff_test.mjs`.
-- **Sound.** `remote_audio_source` = auto | default | device id; menu 遠端操控 ▸ 聲音來源. Sound
+- **Sound.** `remote_audio_source` = auto | default | device id; menu 遠端操控 ▸ 聲音來源 (the page: 進階設定 ▸ 聲音 ▸ 聲音來源 since 0.8.3.4). Sound
   off keeps the capture 15 s (no reopen churn). The page shows 「電腦目前沒有在播放聲音」 after
   6 s below 0.001. Test: `remote/tools/audio_test.mjs` (pm_remote_spike `--tone`, `--list-audio`).
-- **免安裝外網 (no-app link).** cloudflared quick tunnel -> https://<random>.trycloudflare.com ->
+- **臨時網址 (temporary address; 0.8.1 免安裝外網).** cloudflared quick tunnel -> https://<random>.trycloudflare.com ->
   127.0.0.1:<port>. Routes there: `/t/<one-time>` (10 min, once) -> 303 `/c/<32 random>/`; the page
   needs the 6-digit 通行碼 (POST pass; 5 wrong kill that path, 10 wrong from one CF-Connecting-IP
   block it 15 min), then 允許. LAN token routes never work on 127.0.0.1. The session first tries
@@ -128,7 +128,7 @@ GPU). Re-run: `node sec083_test.mjs <spike.exe> <out> [--before]`.
 | A4 | first picture (ttff) | spike page 631-720 ms; app, phone again 195-211 ms, PC first frame 148-163 ms after the offer request | spike 625-628 ms; app 140-189 ms, 100-141 ms (the capture opens on the page load, in parallel); first phone 75 s after the last one (capture + encoder released, reopened in 27 ms on the page load): ttff 186 ms vs 185 ms before (capture kept open), PC first frame 137 vs 140 ms |
 | A5 | 外網密碼登入：解除僅觀看 | `unlock` ignored, input dropped (0 clicks) | badge 「僅觀看 · 解除僅觀看」 -> password again (same per-address limits as the login): wrong -> `left 4`, right -> 僅觀看 off for this session only, the click goes through (1); 僅觀看 on the PC locks it again; PC toast |
 | A6 | 音量 AGC + 補償 | quiet material (synthetic, -30 dBFS) sent at peak 0.032; the phone's volume default 150 % | AGC: peak 0.128 (x4 = +12 dB) towards -18 dBFS RMS, loud material unchanged (0.52 -> 0.52), noise floor not followed (adapts above -34 dBFS only); phone volume default 100 %. Compensation of a software-volume device by its master-volume dB (up to +18 dB): see "not verified" |
-| A7 | 閒置關掉擷取 + NVENC (`idle_footprint.mjs`, 常駐外網 on, no phone, 60 s) | 134 threads, 265.7 MB private, 135.3 MB GPU dedicated, 4 log lines / min | 105 threads, 111.4 MB, 40.0 MB, 0 log lines (CPU 1.0 vs 1.6 % of a core: the app's own start-up noise, the remote part sleeps) |
+| A7 | 閒置關掉擷取 + NVENC (`idle_footprint.mjs`, 固定網址 on, no phone, 60 s) | 134 threads, 265.7 MB private, 135.3 MB GPU dedicated, 4 log lines / min | 105 threads, 111.4 MB, 40.0 MB, 0 log lines (CPU 1.0 vs 1.6 % of a core: the app's own start-up noise, the remote part sleeps) |
 | A7 | ... 60 s after the last phone | 149 threads, 287.2 MB, 145.9 MB GPU, 0.67 % | 121 threads, 137.0 MB, 53.6 MB GPU, 0.65 % (released 30 s after the last session; libdatachannel's threads stay) |
 
 ### B. Health check (each with its reproduction in `sec083_test.mjs` / `app083_test.mjs`)
@@ -171,7 +171,7 @@ GPU). Re-run: `node sec083_test.mjs <spike.exe> <out> [--before]`.
 - Volume compensation on real devices (it needs sound playing): the loopback level vs the
   master volume of a software-volume device is assumed from the WASAPI behaviour noted in
   0.8.3 step 0 (`--list-audio`); A6's AGC numbers are from the silent synthetic source.
-- cloudflared (免安裝外網, the fixed link's fallback) was never run: CF-Connecting-IP trust and
+- cloudflared (臨時網址, the fixed link's fallback) was never run: CF-Connecting-IP trust and
   the tunnel WebSocket were tested through the fixed link's own origin (same code paths).
 - A real phone over Wi-Fi / mobile data: every number above is PC-local (RTT < 1 ms).
 - LockWorkStation itself, the tray balloons (no tray icon in `--test-offscreen`) and the
@@ -216,7 +216,7 @@ because the password was typed on that page load (a tap). The decoder was never 
 - 「連線中…」 never spins for ever: 12 s -> 「電腦一直沒有回應」 / 「畫面的連線一直接不起來」 with
   重試 and 看排除方法 (`page-diag stuck-connecting`); the saved-login check gives up after 10 s.
 
-### 常駐外網 after a reboot
+### 固定網址 after a reboot
 
 `TailscaleFunnel::startPatiently`: BackendState NoState / Starting (or the CLI not reaching
 tailscaled yet) = wait and try again after 2, 4, 8, 16, 32, 60, 60, 60, 58 s (300 s); the card
@@ -310,7 +310,16 @@ CmdRemoteLockLan / CmdRemoteLog to `remoteCommand()`.
 
 The 遠端控制 page starts with 允許遠端控制 (in place of 固定網址＋密碼): 本機網址 (the fixed address,
 large) with its QR code and 複製網址; 新增臨時帳號; the accounts; 在家 and Tailscale below as before.
-Without the fixed address: 產生臨時網址 (the one-time cloudflared address and its 通行碼, as 免安裝外網).
+Without the fixed address: 產生臨時網址 (the one-time cloudflared address and its 通行碼).
+
+0.8.3.4 (design B): with the fixed address on, the top block is 「本機網址（在外面也能連）」 (`RemoteAllowAddr`): a
+small label over the big address, 複製網址 (filled) and 新增臨時帳號, the QR code beside; the accounts are a card of
+their own under it; 在家 and Tailscale are compact rows. Off the page, in 進階設定 (`remoteAdvancedItems()`):
+變更固定網址的密碼…, 固定網址（在外面也能連） (check item, only with a password: unticking it turns the fixed
+address off), 開機自動開啟固定網址, and 聲音 ▸ (電腦聲音傳到手機, 手機播聲音時電腦靜音, 聲音來源). The panel's
+固定網址 tab still has 關閉固定網址 / 變更密碼. Phone page 設定: 電腦喇叭靜音 (`mutePc`) = the PC's
+手機播聲音時電腦靜音 (kept on the PC; refused in 僅觀看 and for a 臨時帳號: `mutePcOk` / `mutePcWhy`);
+手機音量 0–400 % (100 % = the PC's level, above = 響度加強).
 
 - 新增臨時帳號: name (guest-NNNN suggested, editable; letters, digits, - _ .), 有效時間 用一次 (within
   24 h) / 1 h / 24 h / 7 days, 可操作 / 僅觀看, 允許傳檔 (off). The password: 6 characters from
@@ -327,7 +336,7 @@ Without the fixed address: 產生臨時網址 (the one-time cloudflared address 
   failure answers 401 alike (an unknown name costs a dummy PBKDF2) and counts in the per-address
   limits (5 wrong = 15 minutes). 連線紀錄: `[guest-4821] iPhone · Safari`.
 
-### 常駐外網 on a new tailnet froze the app (a friend's PC, 0.8.3.1)
+### 固定網址 (then 常駐外網) on a new tailnet froze the app (a friend's PC, 0.8.3.1)
 
 A new tailnet has Funnel (and HTTPS certificates) off: `tailscale funnel --bg` prints "Funnel is not
 enabled on your tailnet. To enable, visit: https://login.tailscale.com/f/funnel?node=..." and waits
@@ -394,7 +403,7 @@ is said to be on only once it answers:
 
 ### One name each: 固定網址 and 臨時網址 (audit D4)
 
-「常駐外網」 is gone: the check box / menu item is 「開機自動開啟固定網址」, the toasts 「固定網址已開啟／已關閉」,
+「常駐外網」 is gone: the check box / menu item is 「開機自動開啟固定網址」 (since 0.8.3.4 in 進階設定, not on the page), the toasts 「固定網址已開啟／已關閉」,
 the password window 「設定固定網址的密碼」. 「免安裝外網」: the panel's tab and the menu item are 「臨時網址」.
 Same in English (fixed address / temporary address; the tab: Temporary), 日本語 (固定アドレス／一時アドレス),
 한국어 (고정 주소／임시 주소), and on the phone page (通行碼 page, 解除僅觀看).

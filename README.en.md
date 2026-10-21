@@ -9,7 +9,7 @@
 **Put your phone on a Windows PC, or the other way round: control the PC from your phone.**<br>
 No app on the iPhone, mouse and keyboard control for Android; remote control needs only a phone browser. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.3-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.3" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.4-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.4" height="40"></a>
 
 <a href="#mirror"><img src="https://img.shields.io/badge/Phone%20mirroring-phone%20%E2%86%92%20PC-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Phone mirroring: phone to PC" height="36"></a>&nbsp;<a href="#remote"><img src="https://img.shields.io/badge/Remote%20control-PC%20%E2%86%90%20phone-8FE3C4?style=for-the-badge&labelColor=2B2224" alt="Remote control: PC from your phone" height="36"></a>
 
@@ -90,13 +90,13 @@ The other way round: a phone's browser (Safari on iPhone, Chrome on Android) sho
 
 ## What's new
 
-| v0.8.3.3 | |
+| v0.8.3.4 | |
 |---|---|
-| **Fixed address** | The first time, the PC checks the address itself before it says it is on (about 1–2 minutes), instead of too early. |
-| **Lending to a friend** | The address from *Copy all* already carries the account, so your friend only types the password; errors are told apart (expired, used, deleted). |
-| **Two names** | Only *fixed address* and *temporary address*; a temporary address needs *Allow* on the PC every time. |
-| **Phone page** | A word under each icon at the bottom right, *Sound on* while muted; larger sign-in page with *Show password*. |
-| **Android pairing** | The pairing window shows how to turn on *Developer options* (Samsung, Xiaomi, Pixel). |
+| **Phone volume** | Above 100% is loudness boost: louder further right, quiet parts raised the most, no clipping; the phone page can mute the PC’s speakers. |
+| **Remote control page** | This PC’s address is the main block with one-click *Copy address*; password, start-up and the two sound options moved to *More settings*. |
+| **Mirroring window** | The toolbar appears when the mouse goes to the top; the screenshot message has *View*; pen mode has a pink frame; translating shows “Translating · picture paused” top right. |
+| **Android** | If a paired phone isn’t found after a restart, it tells you to turn Wireless debugging back on; a pairing that waits too long offers *New QR code*. |
+| **Small window tabs** | The remote-control small window’s tabs in order of use: Same Wi-Fi, Fixed address, Tailscale, Temporary. |
 
 Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases).
 

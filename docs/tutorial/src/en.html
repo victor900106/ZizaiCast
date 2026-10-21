@@ -24,7 +24,7 @@
     <li><a href="#sound">Sound volume</a></li>
     <li><a href="#faq">Troubleshooting</a></li>
   </ol>
-  <div class="side-foot">Move the mouse over the phone picture for the toolbar; <kbd>Ctrl</kbd><kbd>D</kbd> disconnects; <kbd>F1</kbd> lists every shortcut.</div>
+  <div class="side-foot">Move the mouse to the top of the phone picture for the toolbar (while it’s hidden, a thin pink line at the top shows where it is); <kbd>Ctrl</kbd><kbd>D</kbd> disconnects; <kbd>F1</kbd> lists every shortcut.</div>
 </nav>
 
 <main id="top">
@@ -86,8 +86,8 @@
   <li>Tap <span class="ui">Screen Mirroring</span> (two overlapping rectangles).</li>
   <li>Tap <span class="ui">Zizai Cast</span> in the list.</li>
 </ol>
-<div class="ok"><b>Success looks like this</b>Within a few seconds the phone’s screen appears on the PC with “Connected: phone name … Toolbar at the top”.</div>
-{{img:toolbar|Move the mouse over the picture and the toolbar appears: screenshot, record, pen, send to phone, volume, zoom, translate… the red button at the right disconnects|640}}
+<div class="ok"><b>Success looks like this</b>Within a few seconds the phone’s screen appears on the PC with “Connected: phone name … Toolbar at the top”. On the first connection the toolbar explains: “Your tools live in this bar: screenshot, record, translate, zoom. Move the mouse to the top of the picture to bring it back; it stays while the pointer is on it.” While the toolbar is hidden, a thin pink line at the top of the picture shows where it is.</div>
+{{img:toolbar|Move the mouse to the top of the picture and the toolbar appears (it stays while the pointer is on it): screenshot, record, pen, send to phone, volume, zoom, translate… the red button at the right disconnects|640}}
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>“Zizai Cast” isn’t in the list: see <a href="#faq-notfound">Can’t find Zizai Cast</a>.</li>
   <li>Picture but no sound: turn up the iPhone’s volume buttons; see <a href="#sound">Sound volume</a>.</li>
@@ -151,7 +151,8 @@
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>Stuck on “Waiting for the phone to scan…”: phone and PC aren’t on the same Wi-Fi (guest networks don’t work). You can also click <span class="ui">Use pairing code</span>, tap “Pair device with pairing code” on the phone and type the phone’s IP address:port and 6-digit code into the PC.</li>
   <li>Pairing failed: the window shows a new QR code; tap “Pair device with QR code” on the phone again and rescan.</li>
-  <li>It doesn’t reconnect after a restart: many phones turn Wireless debugging off when they restart. Turn it back on in Developer options; <strong>no need to pair again</strong>.</li>
+  <li>Nobody scanned for a while: the QR code dims with <span class="ui">Timed out</span> and the window says “Stopped waiting. Check the same Wi-Fi and that Wireless debugging is on…”. Click <span class="ui">New QR code</span> to get a new code and scan again.</li>
+  <li>It doesn’t reconnect after a restart: Android turns Wireless debugging off when the phone restarts, and Zizai Cast says once “Can’t find the phone you paired before. If it was just restarted, open Developer options and turn “Wireless debugging” back on, then try again”. Turn it back on in Developer options; <strong>no need to pair again</strong>.</li>
 </ul></div>
 
 <h3 id="adb-usb">No Wi-Fi? Use a USB cable</h3>
@@ -186,16 +187,16 @@
 <h2><span class="num">4</span>Recording and screenshots</h2>
 <p class="goal"><b>What you want to do</b>Take a picture of the phone screen, or record it as a video (MP4 with sound). Works once the phone’s picture is shown.</p>
 <ol class="steps">
-  <li>Move the mouse over the phone picture; the toolbar appears at the top.</li>
+  <li>Move the mouse to the top of the phone picture; the toolbar appears.</li>
   <li>Screenshot: click <span class="ui">Shot</span> (or <kbd>Ctrl</kbd><kbd>S</kbd>).</li>
   <li>Recording: click <span class="ui">Rec</span> (or <kbd>Ctrl</kbd><kbd>R</kbd>); a red dot and the seconds appear at the top left. Click again to stop.</li>
   <li>Find the files: right-click menu → <span class="ui">Open screenshots folder</span> / <span class="ui">Open recordings folder</span>.</li>
 </ol>
 <div class="pair-img">
-{{img:snapshot|Screenshot: “Screenshot saved” at the bottom|260}}
+{{img:snapshot|Screenshot: “Screenshot saved in Pictures\截圖” at the bottom, with “View”|260}}
 {{img:recording|Recording: red dot and seconds at the top left|260}}
 </div>
-<div class="ok"><b>Success looks like this</b>“Screenshot saved” after a screenshot; “Recording saved: file name” when a recording stops. A small row of buttons <span class="ui">Open folder</span> · <span class="ui">Send to phone</span> appears at the bottom.</div>
+<div class="ok"><b>Success looks like this</b>“Screenshot saved in Pictures\截圖” after a screenshot; click <span class="ui">View</span> at its end to open the picture (the message stays 8 seconds, and as long as the pointer is on it); “Recording saved: file name” when a recording stops. A small row of buttons <span class="ui">Open folder</span> · <span class="ui">Send to phone</span> appears at the bottom.</div>
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>The buttons are grey with “Once a phone is connected”: get the phone’s picture on screen first.</li>
   <li>Recording refused: there is less than 300 MB free on the disk.</li>
@@ -208,14 +209,14 @@
 <h2><span class="num">5</span>Pen</h2>
 <p class="goal"><b>What you want to do</b>Draw lines, arrows or highlights on the mirrored picture to explain something. The drawing stays on the PC; nothing is drawn on the phone.</p>
 <ol class="steps">
-  <li>Move the mouse over the picture and click <span class="ui">Pen</span> on the toolbar (or <kbd>Ctrl</kbd><kbd>E</kbd>).</li>
+  <li>Move the mouse to the top of the picture and click <span class="ui">Pen</span> on the toolbar (or <kbd>Ctrl</kbd><kbd>E</kbd>).</li>
   <li>Hold the left button and drag to draw. The toolbar now has <span class="ui">Tool</span> (pen → highlighter → arrow), <span class="ui">Color</span>, <span class="ui">Thickness</span>, <span class="ui">Undo</span> and <span class="ui">Clear</span>.</li>
-  <li>Press <kbd>Esc</kbd> to stop drawing; the drawing stays. <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> clears everything.</li>
+  <li>Press <kbd>Esc</kbd> (or <kbd>Ctrl</kbd><kbd>E</kbd> again) to stop drawing; the drawing stays. <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd> clears everything.</li>
 </ol>
 {{img:ink|Pen mode: a red pen and a yellow pen; the hint at the bottom shows the current pen|280}}
-<div class="ok"><b>Success looks like this</b>“Pen mode: drag on the screen to draw (Esc to stop)”, and a small “Pen mode · Esc to stop” label at the bottom left. Screenshots and recordings include the drawing by default (right-click menu → <span class="ui">Pen</span> to change that).</div>
+<div class="ok"><b>Success looks like this</b>“Pen mode: drag on the screen to draw (Esc to stop)”, a pink frame round the picture, and a small “Pen mode · Esc or Ctrl+E to stop” label at the bottom left. Screenshots and recordings include the drawing by default (right-click menu → <span class="ui">Pen</span> to change that).</div>
 <div class="ng"><b>If it doesn’t work</b><ul>
-  <li>With Android control, drawing taps the phone: in pen mode the mouse stops controlling the phone; press <kbd>Esc</kbd> before using the phone again.</li>
+  <li>With Android control, drawing taps the phone: in pen mode the mouse stops controlling the phone; press <kbd>Esc</kbd> or <kbd>Ctrl</kbd><kbd>E</kbd> before using the phone again.</li>
   <li>Wrong stroke: <kbd>Ctrl</kbd><kbd>Z</kbd> undoes the last one.</li>
 </ul></div>
 </section>
@@ -258,8 +259,8 @@
   <li>The first time, it asks to download a translation model (about 50 MB, once): click <span class="ui">Download</span>.</li>
   <li>Click <span class="ui">Translate</span> again (or <kbd>Ctrl</kbd><kbd>L</kbd>) to close it.</li>
 </ol>
-{{img:translate|The translation sits on top of the original; while translating the picture pauses and “Picture frozen” shows at the top|280}}
-<div class="ok"><b>Success looks like this</b>The translated text appears where the original was. While translating, the picture pauses (“Picture frozen” at the top): that’s normal and ends when you close the translation.</div>
+{{img:translate|The translation sits on top of the original; while translating the picture pauses and “Translating · picture paused” shows at the top right|280}}
+<div class="ok"><b>Success looks like this</b>The translated text appears where the original was. While translating, the picture pauses (“Translating · picture paused” at the top right; it moves below the toolbar while the toolbar is up): that’s normal and ends when you close the translation.</div>
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>It says the text is already in your language: nothing to translate.</li>
   <li>Japanese or Korean isn’t recognised: Windows needs that language’s “Optical character recognition”; see <a href="#faq-translate">here</a>.</li>
@@ -286,9 +287,10 @@
 </table></div>
 
 <h3 id="remote-open">Turn on remote control</h3>
-<p>Switch to the <span class="ui">Remote control</span> tab at the top of the main window and turn on the switch at the top. Remote control is off every time Zizai Cast starts (unless <span class="ui">Turn the fixed address on when the PC starts</span> is ticked). While a phone is connected, a “Remote control in progress” bar stays at the top of the PC’s screen; <span class="ui">End</span> or <kbd>Ctrl</kbd><kbd>D</kbd> ends it any time.</p>
-{{img:remote-off|The Remote control tab (no password yet, switched off): the “Allow remote control” block at the top, then At home and Tailscale|420}}
-{{img:remote-allow|“Allow remote control” once the fixed address is on: this PC’s address, its QR code, Add a temporary account (a made-up address)|420}}
+<p>Switch to the <span class="ui">Remote control</span> tab at the top of the main window and turn on the switch at the top. Remote control is off every time Zizai Cast starts (unless <span class="ui">Turn the fixed address on when the PC starts</span> is ticked in <span class="ui">More settings</span>). While a phone is connected, a “Remote control in progress” bar stays at the top of the PC’s screen; <span class="ui">End</span> or <kbd>Ctrl</kbd><kbd>D</kbd> ends it any time.</p>
+{{img:remote-off|The Remote control tab (no password yet, switched off): the “Allow remote control” block at the top, then At home and Tailscale, one row each|420}}
+{{img:remote-allow|Once the fixed address is on: “This PC’s address (works from anywhere)” at the top, the address in big type, its QR code, Copy address, Add a temporary account (a made-up address)|420}}
+<p>Once the fixed address is on, the top block is <span class="ui">This PC’s address (works from anywhere)</span>: a small label over the address in big type, the QR code beside it, and the buttons <span class="ui">Copy address</span> and <span class="ui">Add a temporary account</span>. Temporary accounts have their own card under it; At home and Tailscale are one row each. Things you rarely need are in <span class="ui">More settings</span>: <span class="ui">Change the fixed address password…</span>, <span class="ui">Fixed address (works from anywhere)</span> (untick it to turn the fixed address off), <span class="ui">Turn the fixed address on when the PC starts</span>, and <span class="ui">Sound</span> (<span class="ui">Send the PC's sound to the phone</span>, <span class="ui">Mute the PC while the phone plays sound</span>, <span class="ui">Sound from</span>).</p>
 
 <h3 id="remote-home">Situation 1: at home (same Wi-Fi)</h3>
 <p class="goal"><b>What you want to do</b>Sit on the sofa and use the PC in the study from your phone.</p>
@@ -342,9 +344,9 @@
 <ol class="steps">
   <li>In the <span class="ui">Allow remote control</span> block at the top of the <span class="ui">Remote control</span> tab, click <span class="ui">Set a password (fixed address + temporary accounts)</span>; type it twice, at least 8 characters (longer is better, not used anywhere else). Click <span class="ui">Save and turn on</span>.</li>
   <li><strong>The first time, wait a minute or two</strong>: the block says “Preparing the address, about 1–2 minutes” while Tailscale gets the HTTPS certificate; until then the phone can’t open the page. Zizai Cast checks it by itself and says “The fixed address is on” only when it works.</li>
-  <li>The block shows <code>https://your-pc-name.….ts.net:8443/</code> and a QR code. Scan it with the phone, or click <span class="ui">Copy address</span> and send it to yourself.</li>
+  <li>The block becomes <span class="ui">This PC’s address (works from anywhere)</span> with <code>https://your-pc-name.….ts.net:8443/</code> in big type and a QR code. Scan it with the phone, or click <span class="ui">Copy address</span> and send it to yourself.</li>
   <li>Open the address on the phone: there is only a <strong>password</strong> field; enter yours. After one sign-in the phone won’t ask again for 30 days. <a href="#remote-pwa">Add it to the home screen</a> to open it with one tap.</li>
-  <li>To be reachable as soon as the PC starts, tick <span class="ui">Turn the fixed address on when the PC starts</span> in the block.</li>
+  <li>To be reachable as soon as the PC starts: <span class="ui">More settings</span> → tick <span class="ui">Turn the fixed address on when the PC starts</span>.</li>
 </ol>
 {{img:remote-preparing|The first time: “Preparing the address, about 1–2 minutes” (no QR code yet)|420}}
 <div class="pair-img">
@@ -357,7 +359,7 @@
   <li>“Tailscale isn’t signed in” or “didn’t answer”: open Tailscale on the PC, sign in, click <span class="ui">Try again</span>.</li>
   <li>The block keeps saying “Preparing the address”: give it a little longer; after 5 minutes it says the address still didn’t answer: click <span class="ui">Try again</span>, or <span class="ui">Use a temporary address for now (it changes)</span>.</li>
   <li>It says “The fixed address is on” but the phone still can’t open it: see <a href="#faq-funnel">here</a>.</li>
-  <li>5 wrong passwords lock it for 15 minutes; wait and try again. Forgot it: only the PC can reset it with <span class="ui">Change password</span>.</li>
+  <li>5 wrong passwords lock it for 15 minutes; wait and try again. Forgot it: only the PC can reset it, with <span class="ui">More settings</span> → <span class="ui">Change the fixed address password…</span>.</li>
 </ul></div>
 <p class="src">Tailscale steps checked against (Oct 2026): <a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a> (Funnel: needs MagicDNS, HTTPS and the funnel attribute; running tailscale funnel walks you through enabling it; ports 443, 8443, 10000 only), <a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a> (the command, <code>--bg</code>, <code>--https</code>, <code>off</code>), <a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a> (Enable HTTPS on the DNS page, Let’s Encrypt certificates, names are public).</p>
 
@@ -375,11 +377,11 @@
 <p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>every time your friend connects, someone at the PC clicks “Allow”</strong> (it can’t be remembered).</p>
 <h4 id="remote-guest">Way A: a temporary account (recommended; the fixed address must be on)</h4>
 <ol class="steps">
-  <li>PC: the <span class="ui">Allow remote control</span> block at the top of the <span class="ui">Remote control</span> tab → <span class="ui">Add a temporary account</span>.</li>
+  <li>PC: the <span class="ui">This PC’s address (works from anywhere)</span> block at the top of the <span class="ui">Remote control</span> tab → <span class="ui">Add a temporary account</span>.</li>
   <li>The <span class="ui">Account</span> name is filled in for you (for example guest-4821; you can change it). Pick <span class="ui">Valid for</span>: One use, 1 hour, 24 hours or 7 days; <span class="ui">Allowed to</span>: Control or View only; tick <span class="ui">Allow file transfer (both ways)</span> if they should send files. Click <span class="ui">Create</span>.</li>
   <li>Click <span class="ui">Copy all</span> and paste it to your friend. The address already carries the account (<code>#u=guest-4821</code>); <strong>the password is shown only now</strong> (lost it? <span class="ui">Reset password</span>).</li>
   <li>Your friend opens the address: the account is filled in, <strong>they only type the password</strong>. Your PC asks “A phone wants to control this PC”; click <span class="ui">Allow</span> once you’re sure it’s your friend.</li>
-  <li>When it expires or its one use is over, the account is deleted by itself; or click <span class="ui">Delete</span> in the list (a connected phone is cut off at once). At most 10.</li>
+  <li>When it expires or its one use is over, the account is deleted by itself; or click <span class="ui">Delete</span> in the temporary accounts card below (a connected phone is cut off at once). At most 10.</li>
 </ol>
 <div class="pair-img">
 {{img:guest-new|Add a temporary account (valid for, allowed to, file transfer)|300}}
@@ -388,7 +390,7 @@
 {{img:phone-login-guest|Your friend opens the address: the account is filled in, only the password to type|260}}
 <h4 id="remote-nolink">Way B: a temporary address (no fixed address needed)</h4>
 <ol class="steps">
-  <li>PC: without a fixed address, click <span class="ui">Create a temporary address</span> in the <span class="ui">Allow remote control</span> block; with one, <span class="ui">More settings</span> → <span class="ui">Temporary address (no app on the phone; works on mobile data)</span>. After 10–20 seconds a QR code and a 6-digit <span class="ui">Passcode</span> appear (also on the <span class="ui">Temporary</span> tab of the small window).</li>
+  <li>PC: without a fixed address, click <span class="ui">Create a temporary address</span> in the <span class="ui">Allow remote control</span> block; with one, <span class="ui">More settings</span> → <span class="ui">Temporary address (no app on the phone; works on mobile data)</span>. After 10–20 seconds a QR code and a 6-digit <span class="ui">Passcode</span> appear (also on the <span class="ui">Temporary</span> tab of the small window, whose tabs are <span class="ui">Same Wi-Fi</span>, <span class="ui">Fixed address</span>, <span class="ui">Tailscale</span>, <span class="ui">Temporary</span>, in the same order as the main page).</li>
   <li>Click <span class="ui">Copy address</span> and send the address to your friend; tell them the passcode separately. <strong>The address works once</strong>, within 10 minutes.</li>
   <li>Your friend opens it and enters the passcode; your PC asks “A phone wants to control this PC” and <strong>you click “Allow” at the PC</strong>.</li>
   <li>When you’re done, click <span class="ui">Stop the temporary address</span>, or just turn remote control off.</li>
@@ -417,7 +419,7 @@
   <li>While connected, “● Remote control in progress” stays at the top of the PC’s screen; <kbd>Ctrl</kbd><kbd>D</kbd> ends it from any program.</li>
   <li>After 30 minutes without a touch the phone is disconnected (change it in <span class="ui">More settings</span>).</li>
   <li><span class="ui">More settings</span> → <span class="ui">Lock the PC after remote control ends</span>: locks the PC when a session ends. <strong>Off</strong> by default (from outside and at home); turn it on if you want it.</li>
-  <li>No longer need outside access: untick <span class="ui">Turn the fixed address on when the PC starts</span> and click <span class="ui">Turn off</span> in the block.</li>
+  <li>No longer need outside access: in <span class="ui">More settings</span>, untick <span class="ui">Turn the fixed address on when the PC starts</span> and <span class="ui">Fixed address (works from anywhere)</span> (unticking it turns the fixed address off).</li>
 </ul>
 <h3 id="remote-limits">What it can’t do</h3>
 <ul>
@@ -442,14 +444,14 @@
 <h3 id="remote-audio">Remote control (the PC’s sound on the phone)</h3>
 <ol class="steps">
   <li>The phone page starts silent (an iPhone rule): tap <span class="ui">Tap for sound</span>, or the speaker labelled <span class="ui">Sound on</span> at the bottom right.</li>
-  <li>The PC sets a good level by itself, so <span class="ui">Phone volume</span> at its default 100% is usually enough. Still too quiet: <span class="ui">Settings</span> at the bottom right → <span class="ui">Phone volume</span>, slide right, up to 400% without distortion.</li>
+  <li>The PC sets a good level by itself, so <span class="ui">Phone volume</span> at its default 100% is usually enough. Still too quiet: <span class="ui">Settings</span> at the bottom right → <span class="ui">Phone volume</span>, slide right (0–400%). 100% is the PC’s own level; above 100% is “loudness boost”: louder the further right, quiet parts raised the most, never clipping.</li>
   <li>Turn up the phone’s own volume too, and switch off the iPhone’s silent switch.</li>
-  <li>PC: <span class="ui">Send the PC's sound to the phone</span> on the Remote control tab must be ticked. To keep the PC quiet, tick <span class="ui">Mute the PC while the phone plays sound</span>.</li>
+  <li>PC: <span class="ui">Remote control</span> tab → <span class="ui">More settings</span> → <span class="ui">Sound</span>: <span class="ui">Send the PC's sound to the phone</span> must be ticked. To keep the PC quiet, tick <span class="ui">Mute the PC while the phone plays sound</span> there, or turn on <span class="ui">Mute the PC’s speakers</span> in the phone page’s <span class="ui">Settings</span> (the same setting, kept on the PC; temporary accounts and “View only” can’t change it).</li>
 </ol>
-{{img:phone-settings|Phone page settings: Control (with what it means), Phone volume (100% by default, up to 400%)|300}}
+{{img:phone-settings|Phone page settings: Control (with what it means), Phone volume (100% by default; above 100% is loudness boost, up to 400%), Mute the PC’s speakers|300}}
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>“The PC isn’t playing any sound right now”: the PC really is silent.</li>
-  <li>Windows is muted on the PC: unmute it; to keep the PC quiet use “Mute the PC while the phone plays sound”.</li>
+  <li>Windows is muted on the PC: unmute it; to keep the PC quiet use “Mute the PC while the phone plays sound” (“Mute the PC’s speakers” on the phone page).</li>
   <li>More: <a href="#remote-faq-nosound">no sound in remote control</a>, <a href="#faq-audio">no sound while mirroring</a>.</li>
 </ul></div>
 </section>
@@ -495,12 +497,12 @@
   <li>No, or a Google Pixel: use <a href="#adb">Android control</a>.</li>
 </ul></div></details>
 <details id="faq-adb"><summary>Android control drops or doesn’t reconnect next time</summary><div><ul>
-  <li>After a restart or a Wi-Fi change the phone often turns Wireless debugging off: turn it back on in Developer options, no new pairing needed.</li>
+  <li>Android turns Wireless debugging off when the phone restarts (often after a Wi-Fi change too), and Zizai Cast says once “Can’t find the phone you paired before…”: turn it back on in Developer options, no new pairing needed.</li>
   <li>Battery saving may cut Wi-Fi when the screen is off: turn on <span class="ui">Keep the phone awake while connected</span>.</li>
   <li>A phone you disconnected with <kbd>Ctrl</kbd><kbd>D</kbd> doesn’t come back by itself: use “Connect Android (scan QR)” or reopen Zizai Cast.</li>
   <li>Still no luck: remove this PC under “Wireless debugging → Paired devices” on the phone and pair again.</li>
 </ul></div></details>
-<details id="faq-disconnect"><summary>Where is “Disconnect”?</summary><div><p>Move the mouse over the picture: the red button at the right end of the toolbar. Or <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the icon at the bottom right → Disconnect. On an Android picture right-click is “Back”; for the menu use <kbd>Shift</kbd> + right-click.</p></div></details>
+<details id="faq-disconnect"><summary>Where is “Disconnect”?</summary><div><p>Move the mouse to the top of the picture: the red button at the right end of the toolbar. Or <kbd>Ctrl</kbd><kbd>D</kbd>, or right-click the icon at the bottom right → Disconnect. On an Android picture right-click is “Back”; for the menu use <kbd>Shift</kbd> + right-click.</p></div></details>
 <details id="faq-translate"><summary>Translate does nothing, or Japanese / Korean isn’t translated</summary><div><ul>
   <li>The first time a model is downloaded: click <span class="ui">Download</span> when asked (about 50 MB; Japanese or Korean into Chinese about 100 MB).</li>
   <li>Japanese or Korean not recognised: click <span class="ui">Open language settings</span> in the hint, or Windows Settings → Time &amp; language → Language &amp; region → Add a language → Japanese (Korean) → tick only “Optical character recognition” → Install.</li>
@@ -511,7 +513,7 @@
   <li>Or in the Tailscale admin console (login.tailscale.com/admin), <span class="ui">DNS</span> page: turn on MagicDNS and click <span class="ui">Enable HTTPS</span> under HTTPS Certificates, then add the funnel permission in Access controls. The command is easier.</li>
   <li>Tailscale must be running and signed in on the PC.</li>
 </ul></div></details>
-<details id="faq-funnel-wait"><summary>The fixed address is new and the phone shows ERR_CONNECTION_CLOSED</summary><div><p>The first time, Tailscale has to get an HTTPS certificate; until then the page can’t open. Zizai Cast checks it by itself: while the block says “Preparing the address, about 1–2 minutes”, wait; it says “The fixed address is on” only once it works. If it says so and the phone still can’t open it, the phone’s DNS may not know the new name yet (Tailscale says up to 10 minutes): wait and reload. Still not: click <span class="ui">Turn off</span> and <span class="ui">Turn on</span> in the block.</p></div></details>
+<details id="faq-funnel-wait"><summary>The fixed address is new and the phone shows ERR_CONNECTION_CLOSED</summary><div><p>The first time, Tailscale has to get an HTTPS certificate; until then the page can’t open. Zizai Cast checks it by itself: while the block says “Preparing the address, about 1–2 minutes”, wait; it says “The fixed address is on” only once it works. If it says so and the phone still can’t open it, the phone’s DNS may not know the new name yet (Tailscale says up to 10 minutes): wait and reload. Still not: on the PC, untick <span class="ui">Fixed address (works from anywhere)</span> in <span class="ui">More settings</span> and tick it again.</p></div></details>
 <details id="remote-faq-noconnect"><summary>The phone can’t reach the PC</summary><div><ul>
   <li><strong>The QR code at home doesn’t open:</strong> the phone isn’t on the same Wi-Fi (guest networks and mobile data don’t work), or the router has AP isolation on.</li>
   <li><strong>The fixed address doesn’t open:</strong> the PC must be on, signed in, with Tailscale running; the first time, see the question above.</li>
@@ -519,11 +521,11 @@
   <li><strong>“This address is no longer valid”:</strong> scan the QR code on the PC again (and re-add the home screen icon).</li>
 </ul></div></details>
 <details id="remote-faq-nosound"><summary>No sound or too quiet in remote control</summary><div><ul>
-  <li>Tap <span class="ui">Tap for sound</span> (or the speaker labelled <span class="ui">Sound on</span>); still quiet: phone page <span class="ui">Settings</span> → <span class="ui">Phone volume</span>, slide right (100% by default, up to 400%).</li>
+  <li>Tap <span class="ui">Tap for sound</span> (or the speaker labelled <span class="ui">Sound on</span>); still quiet: phone page <span class="ui">Settings</span> → <span class="ui">Phone volume</span>, slide right (100% by default; above 100% is loudness boost, up to 400%).</li>
   <li>The iPhone’s silent switch and the phone’s volume.</li>
-  <li>Don’t mute Windows on the PC; <span class="ui">Send the PC's sound to the phone</span> must be ticked.</li>
+  <li>Don’t mute Windows on the PC; <span class="ui">More settings</span> → <span class="ui">Sound</span> → <span class="ui">Send the PC's sound to the phone</span> must be ticked.</li>
 </ul></div></details>
-<details id="remote-faq-forgot"><summary>I forgot the fixed address password</summary><div><p>Only <strong>the PC</strong> can reset it: Remote control tab → <span class="ui">Allow remote control</span> block → <span class="ui">Change password</span>. Phones then sign in with the new one.</p></div></details>
+<details id="remote-faq-forgot"><summary>I forgot the fixed address password</summary><div><p>Only <strong>the PC</strong> can reset it: Remote control tab → <span class="ui">More settings</span> → <span class="ui">Change the fixed address password…</span>. Phones then sign in with the new one.</p></div></details>
 <details><summary>My PC got locked</summary><div><p>If it’s turned on (it’s off by default), the PC locks when a remote session ends. Unlock it with your Windows password or PIN. Don’t want it: <span class="ui">More settings</span> → untick <span class="ui">Lock the PC after remote control ends</span>.</p></div></details>
 <details><summary>Is it still running after I close the window?</summary><div><p>Yes, it waits in the background at the bottom right. To quit completely: right-click the icon → <span class="ui">Quit</span>.</p></div></details>
 

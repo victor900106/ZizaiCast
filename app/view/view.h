@@ -47,4 +47,11 @@ void onCloseRequest();
 // ---- view/language.cpp
 void setLanguage(int pref);
 
+// ---- view/view0834.cpp (0.8.3.4 畫面組)
+void refreshFrozenBadge0834();               // B3: 凍結 / 翻譯 badge words (refreshToolbar calls it)
+void devFakeTranslateFreeze0834(bool on);    // --dev: as if a translation froze the picture
+void openCapture0834(const fs::path& file);  // B2: open a capture (its folder if gone)
+void showShotToast0834(const fs::path& file);  // B2: 截圖已存… + 「查看」 (click: open it)
+bool devCommand0834View(WPARAM wp, LPARAM lp);  // --dev DevCommand 8342..8343 (true = handled)
+
 }  // namespace pm_app

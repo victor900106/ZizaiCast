@@ -286,6 +286,7 @@ static bool toModuleGrid(const std::vector<uint8_t>& in, int size, std::vector<u
 
 void PairPanel::setQr(const std::vector<uint8_t>& bgra, int size) {
     const bool had = qrSize_ > 0;
+    timedOut_ = false;  // a new code
     if (size <= 0 || bgra.size() < static_cast<size_t>(size) * size * 4) {
         qr_.clear();
         qrSize_ = 0;
@@ -301,6 +302,18 @@ void PairPanel::setQr(const std::vector<uint8_t>& bgra, int size) {
         SetTimer(hwnd_, kQrRevealTimer, 16, nullptr);
     }
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
+void PairPanel::setTimedOut(bool on) {
+    if (on == timedOut_) return;
+    timedOut_ = on;
+    if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
+bool PairPanel::devPressRetry() {
+    if (!hwnd_ || !timedOut_ || codeMode_ || devOpt_) return false;
+    click(HitPrimary);
+    return true;
 }
 
 void PairPanel::setStatus(const std::wstring& text, bool error) {
@@ -444,8 +457,9 @@ void PairPanel::click(Hit h) {
             setMode(!codeMode_);
         }
         break;
-    case HitPrimary:  // QR mode / steps: 取消 · code mode: 配對
-        if (codeMode_ && !devOpt_) submitCode();
+    case HitPrimary:  // QR mode / steps: 取消 (0.8.3.4: 重新產生 QR once the wait ended) · code mode: 配對
+        if (timedOut_ && !codeMode_ && !devOpt_ && cb_.onRetry) cb_.onRetry();
+        else if (codeMode_ && !devOpt_) submitCode();
         else click(HitClose);
         break;
     case HitLink:  // 0.8.3.3: 「① 還沒開過開發人員選項？看步驟」 / in the steps: 看圖文教學
@@ -591,8 +605,10 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
                                                         D2D1::IdentityMatrix(), animOutCubic(t)),
                                   layer.Get());
             }
-            rt->DrawBitmap(qrBitmap, qr, 1, interp);
+            rt->DrawBitmap(qrBitmap, qr, timedOut_ ? 0.1f : 1.0f, interp);
             if (mask && layer) rt->PopLayer();
+            if (timedOut_)  // 0.8.3.4: a code nobody scanned in time is not shown as if it still worked
+                text(tr(S::PairTimedOutCard), f.button.Get(), rc(cardX, kQrY, kQrCard, kQrCard), D2D1_COLOR_F{0.35f, 0.18f, 0.20f, 1});
         } else {
             text(tr(S::PairPreparingQr), f.note.Get(), rc(cardX, kQrY, kQrCard, kQrCard),
                  D2D1_COLOR_F{0.35f, 0.30f, 0.31f, 1});
@@ -658,11 +674,11 @@ void PairPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitmap
         const D2D1_RECT_F r = rc(kPad + bw + 12, kBtnY, bw, kBtnH);
         const float ph = hl(HitPrimary);
         pressAt(HitPrimary, r);
-        if (codeMode_ && !devOpt_) {
+        if ((codeMode_ || timedOut_) && !devOpt_) {
             D2D1_COLOR_F c = t.accent;
             c = mix(c, t.light ? D2D1_COLOR_F{0, 0, 0, 1} : D2D1_COLOR_F{1, 1, 1, 1}, 0.15f * ph);
             fill(r, c, 9);
-            text(tr(S::PairButton), f.button.Get(), r, t.onAccent);
+            text(tr(codeMode_ ? S::PairButton : S::PairRetry), f.button.Get(), r, t.onAccent);
         } else {
             fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.07f + 0.07f * ph}, 9);
             stroke(rc(r.left + 0.5f, kBtnY + 0.5f, bw - 1, kBtnH - 1), D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.2f}, 9);
@@ -749,6 +765,7 @@ LRESULT PairPanel::handle(UINT msg, WPARAM wp, LPARAM lp) {
     case WM_KEYDOWN:
         if (wp == VK_ESCAPE) click(HitClose);
         else if (wp == VK_RETURN && codeMode_ && !devOpt_) submitCode();
+        else if (wp == VK_RETURN && timedOut_ && !devOpt_) click(HitPrimary);
         return 0;
     case WM_APP + 40:  // key from an edit box (editProc)
         if (wp == VK_ESCAPE) click(HitClose);

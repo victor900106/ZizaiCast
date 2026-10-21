@@ -4,6 +4,7 @@
 #include "core/base/app_state.h"
 #include "core/base/base.h"
 #include "view/ink.h"
+#include "view/view.h"
 
 namespace pm_app {
 
@@ -13,6 +14,7 @@ namespace pm_app {
 // after every message that may change it (appProc), only when it changed.
 void refreshToolbar() {
     refreshPausedTitle();  // 翻譯 / 凍結 changed the frozen state
+    refreshFrozenBadge0834();  // 0.8.3.4: the translation's freeze has its own badge
     using TI = pm::VideoWindow::ToolbarItem;
     std::vector<TI> v;
     const int src = liveSourceNow();

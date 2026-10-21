@@ -147,6 +147,7 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
     toolRects_.clear();
     toolPill_ = {};
     const float a = toolbarAlpha(now);
+    drawToolbarGrip(area, frame, a);  // 0.8.3.4: while hidden (or fading) and the pointer is over the window
     if (a <= 0.003f || toolItems_.empty()) return;
     const float s = dpi_ / 96.f;
     const float W = width_ / s;
@@ -236,11 +237,7 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
     const float capH = labelled ? std::round(capSize * 1.3f - btn * 0.10f) : 0.f;  // the caption overlaps the icon's margin
     const float pillW = pillW0 + labelExtra, pillH = btn + 2 * pad + capH;
     // Top centre of the picture; below the Dynamic Island when framed (portrait).
-    float top = area.top + 10;
-    if (frame) {
-        const float pw = std::min(frame->screen.right - frame->screen.left, frame->screen.bottom - frame->screen.top);
-        top = frame->landscape ? area.top + std::max(10.f, frame->radius * 0.30f / s) : area.top + pw * 0.122f / s + 8;
-    }
+    float top = toolbarTop(area, frame);
     float x0 = std::round((area.left + area.right) / 2 - pillW / 2);
     x0 = std::clamp(x0, 4.f, std::max(4.f, W - pillW - 4));
     // Never on top of the REC badge: go below it.
@@ -248,6 +245,7 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
         top = recBadge_.bottom + 6;
     const float y0 = std::round(top - (reduced_ ? 0 : (1 - a) * 6));  // slides down a little while fading in
     const D2D1_RECT_F pill{x0, y0, x0 + pillW, y0 + pillH};
+    pillDip_ = pill;  // 0.8.3.4: the 凍結 badge goes below it while it is up
     const float r = pillH / 2;
     // Soft shadow, card, hairline accent border.
     d2dTarget_->FillRoundedRectangle({{pill.left - 1, pill.top + 1, pill.right + 1, pill.bottom + 3}, r + 1, r + 1},
@@ -304,7 +302,9 @@ void Renderer::drawToolbar(const D2D1_RECT_F& area, const FrameGeom* frame, doub
         // instead of the disc.  Icons stay on one row at the top of the pill.
         const D2D1_RECT_F ib{x + labW[i] / 2, pill.top + pad, x + labW[i] / 2 + btn, pill.top + pad + btn};  // icon square
         const bool lab = labs[i] != nullptr;
-        const D2D1_RECT_F b = lab ? D2D1_RECT_F{x, ib.top, x + btn + labW[i], ib.bottom + capH} : ib;
+        // (0.8.3.4: the tile reaches a little into the pill's bottom padding --
+        // a toggled tile's border cut through the caption's lower edge, e.g. 확대.)
+        const D2D1_RECT_F b = lab ? D2D1_RECT_F{x, ib.top, x + btn + labW[i], ib.bottom + capH + pad * 0.6f} : ib;
         const D2D1_ELLIPSE disc{{(ib.left + ib.right) / 2, (ib.top + ib.bottom) / 2}, btn / 2, btn / 2};
         const float cr = btn * 0.32f;
         const D2D1_ROUNDED_RECT cap{b, cr, cr};

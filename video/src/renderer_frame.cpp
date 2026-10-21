@@ -141,6 +141,10 @@ void Renderer::drawPin(double now) {
 
 void Renderer::drawToast(double now) {
     if (toast_.empty()) return;
+    // 0.8.3.4: a clickable toast stays while the pointer is on it (and comes
+    // back if it was fading).
+    if (toastHot_ && !toastLink_.empty() && now - toastAt_ < toastHold_ + ms(kToastOutMs))
+        toastHold_ = std::max(toastHold_, now - toastAt_ + 1200);
     const double e = now - toastAt_;
     // In: 220 ms outCubic, rising 8 px and growing from 98 %; out: 260 ms
     // smoothstep fade in place (reduced motion: 120 ms fades only).
@@ -158,7 +162,27 @@ void Renderer::drawToast(double now) {
     const float W = width_ / s, H = height_ / s;
     const float size = std::clamp(std::min(H / 24, W / 15) * 0.56f, 12.f, 24.f);
     const float padX = size * 1.2f, padY = size * 0.65f;
-    const float maxW = W - 32 - 2 * padX;
+    // 0.8.3.4 (B2): a clickable toast ends in its action word (「查看 ›」) after a
+    // thin divider; the text wraps in what is left.
+    ComPtr<IDWriteTextLayout> link;
+    float linkW = 0, linkGap = 0;
+    if (!toastLink_.empty() && (link = layout(toastLink_ + L" ›", size, 400.f, DWRITE_FONT_WEIGHT_SEMI_BOLD, false))) {
+        linkW = std::ceil(textW(link.Get()));
+        linkGap = size * 1.3f;  // divider in the middle of it
+        // Text that fits on one line alone but not with the word: just a big
+        // 「›」 (else e.g. the Japanese 截圖 path broke over two lines).
+        if (auto one = layout(toast_, size, 100000.f, DWRITE_FONT_WEIGHT_NORMAL, false)) {
+            const float fw = textW(one.Get()), room = W - 32 - 2 * padX;
+            if (fw > room - linkW - linkGap)
+                if (auto chev = layout(L"›", size * 1.45f, 100.f, DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
+                    chev && fw <= room - std::ceil(textW(chev.Get())) - size * 1.1f) {
+                    link = chev;
+                    linkW = std::ceil(textW(chev.Get()));
+                    linkGap = size * 1.1f;
+                }
+        }
+    }
+    const float maxW = std::max(60.f, W - 32 - 2 * padX - linkW - linkGap);
     auto l = layout(pm::i18n::keepWords(toast_), size, maxW, DWRITE_FONT_WEIGHT_NORMAL, false);
     if (!l) return;
     // (Measured untrimmed: the trimmed layout never reports more than maxW.)
@@ -198,7 +222,7 @@ void Renderer::drawToast(double now) {
             if (auto w = layout(pm::i18n::keepWords(t), size, maxW, DWRITE_FONT_WEIGHT_NORMAL, true)) l = w;
     }
     const float tw = std::min(textW(l.Get()), maxW), th = textH(l.Get());
-    const float pillW = tw + 2 * padX, pillH = th + 2 * padY;
+    const float pillW = tw + 2 * padX + linkW + linkGap, pillH = th + 2 * padY;
     const float x0 = std::round((W - pillW) / 2);
     float y0 = std::round(H - std::max(20.f, H * 0.05f) - pillH + rise);
     // Above the translation list when that panel fills the bottom (0.7.2:
@@ -212,9 +236,23 @@ void Renderer::drawToast(double now) {
     d2dTarget_->GetTransform(&base);
     if (scale < 1) d2dTarget_->SetTransform(scaledAbout(base, scale, {x0 + pillW / 2, y0 + pillH / 2}));
     d2dTarget_->FillRoundedRectangle(pill, brush(pal_.card, 0.96f * a));
-    d2dTarget_->DrawRoundedRectangle(pill, brush(pal_.accent, 0.35f * a), 1.25f);
+    if (link && toastHot_) d2dTarget_->FillRoundedRectangle(pill, brush(pal_.accent, 0.24f * a));  // hovered: a wash
+    d2dTarget_->DrawRoundedRectangle(pill, brush(pal_.accent, (link ? (toastHot_ ? 0.95f : 0.7f) : 0.35f) * a),
+                                     link ? 1.5f : 1.25f);
     l->SetMaxWidth(std::ceil(tw) + 2.f);  // slack: exactly-measured width triggers the ellipsis
     d2dTarget_->DrawTextLayout({x0 + padX - 1.f, y0 + padY}, l.Get(), brush(pal_.fg, a));
+    if (link) {
+        const float dx = std::round(x0 + padX + tw + linkGap / 2) + 0.5f;
+        d2dTarget_->DrawLine({dx, y0 + pillH * 0.25f}, {dx, y0 + pillH * 0.75f}, brush(pal_.fg, 0.25f * a), 1.f);
+        link->SetMaxWidth(linkW + 2.f);
+        const float lh = textH(link.Get());
+        d2dTarget_->DrawTextLayout({x0 + padX + tw + linkGap - 1.f, std::round(y0 + (pillH - lh) / 2)}, link.Get(),
+                                   brush(pal_.accent, a));
+        // Clickable while mostly shown (client pixels; published with the toolbar's rects).
+        if (a > 0.5f)
+            toastRect_ = {static_cast<LONG>(std::floor(x0 * s)), static_cast<LONG>(std::floor(y0 * s)),
+                          static_cast<LONG>(std::ceil((x0 + pillW) * s)), static_cast<LONG>(std::ceil((y0 + pillH) * s))};
+    }
     d2dTarget_->SetTransform(base);
 }
 
@@ -313,9 +351,12 @@ bool Renderer::render() {
     }
     const bool inkUp = video && ((ink_ && !ink_->empty()) || !inkBadge_.empty());
     const bool need2D = (!video && !blank) || fadingIn || fadingOut || overlays || framed || dim > 0.003f || flashing ||
-                        recording_ || toolA > 0.003f || magUi || !busy_.empty() || inkUp || !dropTitle_.empty();
+                        recording_ || toolA > 0.003f || magUi || !busy_.empty() || inkUp || !dropTitle_.empty() ||
+                        (pointerIn_ && toolbarAvailable());  // 0.8.3.4: the toolbar's grip
     toolRects_.clear();
     toolPill_ = {};
+    toastRect_ = {};
+    frozenDip_ = {};
     recBadge_ = {};
     bool clickable = false;
     if (need2D && ensureD2D()) {
@@ -379,7 +420,7 @@ bool Renderer::render() {
         if (video && vp.Width > 0 && !inkBadge_.empty() && !fadingIn && !fadingOut)
             drawInkBadge({vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s, (vp.TopLeftY + vp.Height) / s},
                          framed ? fg.radius / s : 0.f);
-        if (toolA > 0.003f && scene_ == Scene::Live) {
+        if ((toolA > 0.003f || (pointerIn_ && toolbarAvailable())) && scene_ == Scene::Live) {  // (0.8.3.4: or its grip)
             // Over the picture; without one (paused, re-created device) over the window.
             if (video && vp.Width > 0)
                 drawToolbar({vp.TopLeftX / s, vp.TopLeftY / s, (vp.TopLeftX + vp.Width) / s, (vp.TopLeftY + vp.Height) / s},

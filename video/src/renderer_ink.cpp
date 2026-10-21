@@ -84,33 +84,51 @@ void Renderer::drawInk(const D2D1_RECT_F& pic) {
     if (SUCCEEDED(inkCache_->GetBitmap(&bmp))) d2dTarget_->DrawBitmap(bmp.Get(), pic);
 }
 
-// 「畫筆模式 · Esc 結束」: a small pill at the bottom left of the picture.
+// 「畫筆模式 · Esc 結束」: a pill at the bottom left of the picture.
+// 0.8.3.4 (C3): clearer -- an accent frame round the picture while the mode
+// is on (the mouse draws instead of tapping the phone), and a bigger badge
+// whose pencil sits in an accent disc, the words saying how to leave.
 void Renderer::drawInkBadge(const D2D1_RECT_F& pic, float radius) {
     if (inkBadge_.empty() || !d2dTarget_) return;
     const float pw = pic.right - pic.left;
-    const float size = std::clamp(std::min(pw, pic.bottom - pic.top) * 0.03f, 11.5f, 14.f);
-    const float m = std::max(10.f, radius * 0.35f);
-    auto text = layout(inkBadge_, size, std::max(40.f, pw - 2 * m - size * 3), DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
+    // The frame: inside the picture (a device frame's rounded screen too).
+    {
+        const float fw = 4.f, in = fw / 2 + 1.f, rr = std::max(0.f, radius - in);
+        const D2D1_RECT_F fr{pic.left + in, pic.top + in, pic.right - in, pic.bottom - in};
+        d2dTarget_->DrawRoundedRectangle({fr, rr, rr}, brush(D2D1::ColorF(0, 0, 0), 0.35f), fw + 2.f);
+        d2dTarget_->DrawRoundedRectangle({fr, rr, rr}, brush(pal_.accent), fw);
+    }
+    const float size = std::clamp(std::min(pw, pic.bottom - pic.top) * 0.032f, 12.5f, 15.f);
+    const float m = std::max(12.f, radius * 0.35f);
+    const float padX = size * 0.5f, padY = size * 0.45f, icon = size * 1.6f, gap = size * 0.5f;
+    // (Zoomed: not under the overview at the bottom right.)
+    float right = pic.right - m;
+    if (view_.zoom > 1.001f && miniRect_.right > miniRect_.left) right = std::min(right, miniRect_.left / (dpi_ / 96.f) - 8);
+    auto text = layout(inkBadge_, size, std::max(40.f, right - pic.left - m - padX * 2.6f - icon - gap), DWRITE_FONT_WEIGHT_SEMI_BOLD, true);
     if (!text) return;
     const float tw = textW(text.Get()), th = textH(text.Get());
     text->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);  // (layout() centres in its maximum width)
     text->SetMaxWidth(std::ceil(tw) + 2.f);
-    const float padX = size * 0.75f, padY = size * 0.4f, icon = size * 1.25f;
-    const float h = th + 2 * padY, w = padX + icon + size * 0.4f + tw + padX;
+    const float h = std::max(th + 2 * padY, icon + 2 * padX * 0.6f), w = padX * 0.6f + icon + gap + tw + padX * 2;
     // Bottom left (the toolbar and the REC badge are at the top), above the
     // magnifier's zoom badge while zoomed.
     float x = std::round(pic.left + m), y = std::round(pic.bottom - m - h);
     const Badges b = badgeRects(pic, radius);
     if (b.zoom.right > b.zoom.left) y = std::round(b.zoom.top - 8 - h);
-    const D2D1_ROUNDED_RECT r{{x, y, x + w, y + h}, h / 2, h / 2};
-    d2dTarget_->FillRoundedRectangle({{x, y + 1, x + w, y + h + 2}, h / 2, h / 2}, brush(D2D1::ColorF(0, 0, 0), 0.22f));
-    d2dTarget_->FillRoundedRectangle(r, brush(pal_.card, 0.94f));
-    d2dTarget_->DrawRoundedRectangle(r, brush(pal_.accent, 0.55f), 1.f);
-    if (auto f = iconFormat(icon * 0.86f)) {
+    const float rr = std::min(h / 2, size * 1.3f);
+    const D2D1_ROUNDED_RECT r{{x, y, x + w, y + h}, rr, rr};
+    d2dTarget_->FillRoundedRectangle({{x, y + 1, x + w, y + h + 3}, rr, rr}, brush(D2D1::ColorF(0, 0, 0), 0.28f));
+    d2dTarget_->FillRoundedRectangle(r, brush(pal_.card, 0.96f));
+    d2dTarget_->DrawRoundedRectangle({{x + 0.75f, y + 0.75f, x + w - 0.75f, y + h - 0.75f}, rr - 0.75f, rr - 0.75f},
+                                     brush(pal_.accent, 0.95f), 1.5f);
+    const D2D1_POINT_2F dc{x + padX * 0.6f + icon / 2, y + h / 2};
+    d2dTarget_->FillEllipse({dc, icon / 2, icon / 2}, brush(pal_.accent));
+    if (auto f = iconFormat(icon * 0.55f)) {
         const wchar_t g[2] = {0xE70F, 0};  // Edit (pencil)
-        d2dTarget_->DrawText(g, 1, f.Get(), {x + padX, y, x + padX + icon, y + h}, brush(pal_.accent));
+        d2dTarget_->DrawText(g, 1, f.Get(), {dc.x - icon / 2, dc.y - icon / 2, dc.x + icon / 2, dc.y + icon / 2},
+                             brush(pal_.card));
     }
-    d2dTarget_->DrawTextLayout({x + padX + icon + size * 0.4f, y + padY}, text.Get(), brush(pal_.fg));
+    d2dTarget_->DrawTextLayout({x + padX * 0.6f + icon + gap, std::round(y + (h - th) / 2)}, text.Get(), brush(pal_.fg));
 }
 
 // 拖檔到視窗 (0.8.3): a veil, a dashed accent frame inside the window and a

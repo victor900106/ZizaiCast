@@ -16,10 +16,8 @@ namespace pm_app {
 // ---- options (tray menu, context menu and idle screen stay in sync) -------
 void refreshIdleOptions() {
     std::vector<pm::VideoWindow::IdleOption> opts;
-    if (remoteAvailable() && g.settings.idleTab == 1) {  // 0.8.2 遠端控制 page: its sound options
-        opts.push_back({OptRemoteAudio, tr(S::MenuRemoteAudio), g.settings.remoteAudio});
-        if (g.settings.remoteAudio) opts.push_back({OptRemoteMutePc, tr(S::MenuRemoteMutePc), g.settings.remoteMutePc});
-    } else {
+    // 0.8.3.4: the 遠端控制 page has none (its sound options are in 進階設定 ▸ 聲音).
+    if (!(remoteAvailable() && g.settings.idleTab == 1)) {
         opts.push_back({OptAutostart, tr(S::OptAutostartIdle), g.autostart});  // 0.8.3.3: says what it does (audit A2)
         opts.push_back({OptPin, tr(S::OptPin), g.settings.requirePin});
     }

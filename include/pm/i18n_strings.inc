@@ -1165,3 +1165,33 @@ PM_STR(RemoteFixedOpenSetup, L"開啟設定頁", L"Open the setup page")
 PM_STR(RemoteFixedRetryDone, L"我開好了，再試一次", L"Done, try again")
 PM_STR(RemoteAskBodyGuest, L"這支手機用你建立的臨時帳號登入。確認是你把帳號給的那個人，才按「允許」；畫面上方會一直顯示提示，隨時按 Ctrl+D 中斷。", L"This phone logged in with a temporary account you made. Click “Allow” only if it is the person you gave it to; a bar stays at the top, and Ctrl+D ends it any time.")
 PM_STR(RemoteAskBodyTemp, L"這支手機用臨時網址和通行碼連進來。確認是你把網址給的那個人，才按「允許」；畫面上方會一直顯示提示，隨時按 Ctrl+D 中斷。", L"This phone came in with the temporary address and passcode. Click “Allow” only if it is the person you gave them to; a bar stays at the top, and Ctrl+D ends it any time.")
+// ---- 0.8.3.4 remote ----
+// The two captions below are unused since rel-0834: 進階設定 ▸ 聲音 is the panel group's submenu (MenuRemoteSound).
+PM_STR(MenuRemoteSoundCaption, L"聲音", L"Sound")
+PM_STR(MenuRemoteOtherCaption, L"其他", L"Other")
+// ---- end 0.8.3.4 remote ----
+// ---- 0.8.3.4 view ----
+// B1: the toolbar comes back near the top (not on every move over the picture)
+PM_STR(ToolbarIntro0834, L"常用功能都在這條工具列：截圖、錄影、翻譯、放大。滑鼠移到畫面上方就會出現，停在上面就不會收起。", L"Your tools live in this bar: screenshot, record, translate, zoom. Move the mouse to the top of the picture to bring it back; it stays while the pointer is on it.")
+// B2: the screenshot toast can be clicked (opens the picture)
+PM_STR(ShotOpen0834, L"查看", L"View")
+// B3: the translation's freeze has its own badge (not the 凍結 one)
+PM_STR(FrozenBadgeTr0834, L"翻譯中 · 畫面已暫停", L"Translating · picture paused")
+// C3: the pen mode badge says how to leave
+PM_STR(InkBadge0834, L"畫筆模式 · 按 Esc 或 Ctrl+E 結束", L"Pen mode · Esc or Ctrl+E to stop")
+// ---- end 0.8.3.4 view ----
+// ---- 0.8.3.4 share ----
+// B6 (rel-0834: a line break where a phrase ends, never inside 「無線偵錯」): the pairing QR waited too long (PairNoAnswer came first; this ends the wait: the QR is dimmed, 取消 becomes 重新產生 QR)
+PM_STR(PairTimedOutCard, L"已逾時", L"Timed out")
+PM_STR(PairRetry, L"重新產生 QR", L"New QR code")
+PM_STR(PairTimedOut, L"等太久，已停止。確認在同一個 Wi‑Fi、\n手機已開「無線偵錯」，再按「重新產生 QR」", L"Stopped waiting. Check the same Wi‑Fi and that Wireless debugging is on, then click “New QR code”")
+// F3: a phone paired before is not found (Android turns wireless debugging off when the phone restarts); shown once per run
+PM_STR(AndroidRebootHint, L"找不到之前配對過的手機。如果手機剛重開機，要到「開發人員選項」重新開啟「無線偵錯」，再試一次", L"Can’t find the phone you paired before. If it was just restarted, open Developer options and turn “Wireless debugging” back on, then try again")
+// ---- end 0.8.3.4 share ----
+
+// ---- 0.8.3.4 panel ----
+PM_STR(MenuRemoteSound, L"聲音", L"Sound")
+PM_STR(RemoteTempReadyBody, L"把網址和通行碼給對方（只能用一次）；對方連上時你要在電腦按允許。", L"Give them the address and the passcode (one use only); you click Allow on the PC when they connect.")
+PM_STR(RemoteTempAddrLabel, L"臨時網址（只能用一次）", L"Temporary address (one use only)")
+PM_STR(MenuRemoteFixedOn, L"固定網址（在外面也能連）", L"Fixed address (works from anywhere)")
+// ---- end 0.8.3.4 panel ----

@@ -35,7 +35,8 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
      (Samsung: About phone → Software information → Build number; Xiaomi: All specs → MIUI version)
   2. Developer options → turn on "Wireless debugging" → tap it → "Pair device with QR code".
   3. PC: right-click the window → "Connect a phone" → "Connect Android (scan QR)" (or click "Show QR" on the "Android: control from the PC" card on the waiting screen), and scan the QR code on screen with the phone.
-  4. After that it connects automatically whenever wireless debugging is on (it often turns off after a restart; just turn it on again).
+  4. After that it connects automatically whenever wireless debugging is on. Android turns it off when the phone restarts; Zizai Cast tells you once: turn it on again, no new pairing.
+     A pairing that waits too long stops (the QR code dims, "Timed out"): click "New QR code" and scan again.
   Control: left-click = tap, drag = swipe, wheel = scroll, right-click = Back, middle-click = Home, keyboard = typing.
   Right-click is "Back" by default, so to open the menu on an Android screen use "More" in the toolbar at the top, or Shift + right-click (always opens the menu).
   Prefer right-click to open the menu? Settings → "Right-click action": change "Back (default)" to "Open menu"; then use the toolbar's Back button to go back.
@@ -45,10 +46,10 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   Security: turn "Wireless debugging" off when you're not using it, and never turn it on on public Wi-Fi.
 
 5. Features and shortcuts (right-click the picture for every feature)
-  Disconnect (any phone): Ctrl+D, or move the mouse over the picture → the red button at the right end of the toolbar,
+  Disconnect (any phone): Ctrl+D, or move the mouse to the top of the picture → the red button at the right end of the toolbar,
     or right-click the tray icon → "Disconnect (phone name)". An Android phone disconnected from the PC won't reconnect
     automatically until you pair it again with the QR code or restart Zizai Cast.
-  Toolbar: appears when the mouse moves over the picture while mirroring (stays while the pointer is on it; hides after 2 seconds without movement on the picture):
+  Toolbar: appears when the mouse moves to the top of the picture (or enters the window) while mirroring, and stays while the pointer is on it; a thin pink line at the top shows where it is while hidden:
     (Android: Back, Home, Recent apps) Screenshot, Record (red while recording), Translate, Zoom (these four show text labels),
     Rotate, Full screen, More (full menu), Disconnect. A hint appears the first time you connect.
   Keyboard shortcuts: F1 (or Help → Keyboard shortcuts) lists them all.
@@ -109,7 +110,8 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
     4. The first time, wait a minute or two: the block says "Preparing the address, about 1-2 minutes" (Tailscale is getting the HTTPS
        certificate; the phone can't open it yet). Zizai Cast checks it by itself and says "The fixed address is on" once it works.
     5. Open the fixed address on the phone and enter just your password. To be reachable as soon as the PC starts,
-       tick "Turn the fixed address on when the PC starts".
+       tick "Turn the fixed address on when the PC starts" in "More settings"
+       (changing the password and turning the fixed address off are there too).
     6. Add the page to the Home Screen (the icon is called "Zizai Remote"):
        iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "⋮" -> "Add to Home screen".
     5 wrong passwords in a row lock sign-in for 15 minutes. With HTTPS on, the PC's name appears in public certificate logs: rename it first if it is your real name.
@@ -131,7 +133,8 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   Sound:
     - The phone page starts silent: tap "Tap for sound", or the speaker labelled "Sound on" at the bottom right.
     - The PC sets a good level by itself; "Phone volume" at its default 100% is usually enough. Too quiet: slide it right, up to 400%, no clipping.
-    - On the PC, "Send the PC's sound to the phone" must be ticked; "Mute the PC while the phone plays sound" keeps the PC's speakers silent.
+    - On the PC, "More settings" → "Sound" → "Send the PC's sound to the phone" must be ticked; "Mute the PC while the phone plays sound"
+      (the phone page's "Mute the PC's speakers") keeps the PC's speakers silent. Phone volume above 100% is loudness boost (up to 400%, no clipping).
     - Don't use Windows mute (taskbar speaker, keyboard mute key): the phone may go silent too.
 
   Safety:

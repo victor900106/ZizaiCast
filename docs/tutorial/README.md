@@ -84,3 +84,13 @@ enable card, the phone page in headless Chrome), then `python docs/tutorial/src/
 phone-login, phone-login-guest, phone-bar, phone-settings, pair, pair-steps, idle, snapshot -> `_shots/tut/web`).
 Texts follow the string tables: 固定網址 / 臨時網址 only, 手機音量 100 % (up to 400 %), 遠端斷線後自動鎖定電腦 off
 by default, 臨時帳號 options (用一次 / 1 小時 / 24 小時 / 7 天, 可操作 / 僅觀看, 允許傳檔).
+
+## 0.8.3.4
+
+Retaken for 0.8.3.4 (rel-0834), same made-up data: `node docs/tutorial/src/shots/s9_tut.mjs <lang> bc`
+(toolbar, recording, pen mode with its pink frame, picker, share, translate with 翻譯中 · 畫面已暫停 at the top
+right), `node tools/shots_0833.mjs <自在投影.exe> <repo>/_shots after --only ABDEFHP` (the remote page in the
+0.8.3.4 layout, guest panels, pairing, the screenshot message with 查看; its phone pages now in
+chrome-headless-shell), `node remote/tools/phone_shots_0834.mjs <dir>` (the settings sheet with 電腦喇叭靜音 /
+響度加強, copied to `_shots/after/<lang>_P2-settings-0834.png`), then `prep.py`, `prep_0833.py` and
+`prep_0834.py zh-TW en ja ko` in that order (prep_0834: the 0.8.3.4 remote page starts right under the tabs).

@@ -24,7 +24,7 @@
     <li><a href="#sound">소리 크기</a></li>
     <li><a href="#faq">문제 해결</a></li>
   </ol>
-  <div class="side-foot">휴대폰 화면 위에서 마우스를 움직이면 도구 모음이 나타납니다. <kbd>Ctrl</kbd><kbd>D</kbd>로 연결 끊기, <kbd>F1</kbd>로 단축키 목록.</div>
+  <div class="side-foot">휴대폰 화면 위쪽으로 마우스를 가져가면 도구 모음이 나타납니다(숨어 있을 때는 맨 위에 분홍색 가는 선). <kbd>Ctrl</kbd><kbd>D</kbd>로 연결 끊기, <kbd>F1</kbd>로 단축키 목록.</div>
 </nav>
 
 <main id="top">
@@ -86,8 +86,8 @@
   <li><span class="ui">화면 미러링</span>(사각형 두 개가 겹친 아이콘) 누르기.</li>
   <li>목록에서 <span class="ui">Zizai Cast</span> 누르기.</li>
 </ol>
-<div class="ok"><b>성공하면 이렇게 보입니다</b>몇 초 안에 PC에 휴대폰 화면이 나오고 “연결됨: 휴대폰 이름… 위쪽에 도구 모음이 있습니다”가 표시됩니다.</div>
-{{img:toolbar|화면 위에서 마우스를 움직이면 도구 모음: 캡처, 녹화, 펜, 휴대폰으로 보내기, 음량, 확대, 번역… 오른쪽 끝 빨간 버튼은 연결 끊기|640}}
+<div class="ok"><b>성공하면 이렇게 보입니다</b>몇 초 안에 PC에 휴대폰 화면이 나오고 “연결됨: 휴대폰 이름… 위쪽에 도구 모음이 있습니다”가 표시됩니다. 처음 연결하면 도구 모음에 “자주 쓰는 기능은 이 도구 모음에 있어요(캡처·녹화·번역·확대). 마우스를 화면 위쪽으로 가져가면 나타나고, 포인터를 올려 두는 동안에는 사라지지 않아요.”가 나옵니다. 도구 모음이 숨어 있을 때는 화면 맨 위의 분홍색 가는 선이 위치를 알려 줍니다.</div>
+{{img:toolbar|화면 위쪽으로 마우스를 가져가면 도구 모음(올려 두는 동안 사라지지 않음): 캡처, 녹화, 펜, 휴대폰으로 보내기, 음량, 확대, 번역… 오른쪽 끝 빨간 버튼은 연결 끊기|640}}
 <div class="ng"><b>안 될 때</b><ul>
   <li>목록에 “Zizai Cast”가 없음: <a href="#faq-notfound">Zizai Cast가 안 보여요</a>.</li>
   <li>화면은 나오는데 소리가 없음: iPhone 음량 버튼으로 올리기. <a href="#sound">소리 크기</a> 참고.</li>
@@ -151,7 +151,8 @@
 <div class="ng"><b>안 될 때</b><ul>
   <li>“휴대폰에서 스캔하기를 기다리는 중…”에서 멈춤: 휴대폰과 PC가 같은 Wi-Fi가 아닙니다(게스트 네트워크 불가). <span class="ui">페어링 코드 사용</span>을 누르고 휴대폰에서 “페어링 코드로 기기 페어링”을 열어 IP 주소:포트와 6자리 코드를 PC에 입력하는 방법도 있습니다.</li>
   <li>페어링 실패: 창에 새 QR 코드가 나오니 휴대폰에서 “QR 코드로 기기 페어링”을 다시 눌러 스캔합니다.</li>
-  <li>재부팅 후 자동으로 연결되지 않음: 많은 휴대폰이 재부팅하면 무선 디버깅을 끕니다. 개발자 옵션에서 다시 켜면 되고 <strong>다시 페어링할 필요는 없습니다</strong>.</li>
+  <li>한동안 아무도 스캔하지 않음: QR 코드가 어두워지고 <span class="ui">시간 초과</span>가 나오며 “대기를 멈췄습니다. Wi-Fi와 “무선 디버깅”을 확인하고…”라고 표시됩니다. <span class="ui">QR 코드 다시 만들기</span>를 눌러 새 코드를 스캔하세요.</li>
+  <li>재부팅 후 자동으로 연결되지 않음: Android는 휴대폰을 다시 시작하면 무선 디버깅을 끕니다. Zizai Cast가 한 번 “이전에 페어링한 휴대폰을 찾지 못했습니다. 휴대폰을 방금 다시 시작했다면 “개발자 옵션”에서 “무선 디버깅”을 다시 켠 뒤 시도하세요”라고 알려 줍니다. 개발자 옵션에서 다시 켜면 되고 <strong>다시 페어링할 필요는 없습니다</strong>.</li>
 </ul></div>
 
 <h3 id="adb-usb">Wi-Fi가 없나요? USB 케이블로</h3>
@@ -186,16 +187,16 @@
 <h2><span class="num">4</span>녹화와 스크린샷</h2>
 <p class="goal"><b>하고 싶은 일</b>휴대폰 화면을 사진으로 찍거나 동영상(소리 포함 MP4)으로 녹화합니다. 휴대폰 화면이 나온 뒤에 쓸 수 있습니다.</p>
 <ol class="steps">
-  <li>휴대폰 화면 위에서 마우스를 움직이면 위쪽에 도구 모음이 나옵니다.</li>
+  <li>휴대폰 화면 위쪽으로 마우스를 가져가면 도구 모음이 나옵니다.</li>
   <li>스크린샷: <span class="ui">캡처</span>(또는 <kbd>Ctrl</kbd><kbd>S</kbd>).</li>
   <li>녹화: <span class="ui">녹화</span>(또는 <kbd>Ctrl</kbd><kbd>R</kbd>). 왼쪽 위에 빨간 점과 초가 나옵니다. 멈추려면 한 번 더 누릅니다.</li>
   <li>파일 찾기: 오른쪽 클릭 메뉴 → <span class="ui">스크린샷 폴더 열기</span> / <span class="ui">녹화 폴더 열기</span>.</li>
 </ol>
 <div class="pair-img">
-{{img:snapshot|스크린샷: 아래에 “스크린샷 저장됨”|260}}
+{{img:snapshot|스크린샷: 아래에 “스크린샷을 ‘사진\截圖’에 저장했습니다”와 “보기”|260}}
 {{img:recording|녹화 중: 왼쪽 위에 빨간 점과 초|260}}
 </div>
-<div class="ok"><b>성공하면 이렇게 보입니다</b>찍으면 “스크린샷 저장됨”, 녹화를 멈추면 “녹화 저장됨: 파일 이름”. 아래에 작은 버튼 <span class="ui">폴더 열기</span> · <span class="ui">휴대폰으로 보내기</span>가 나옵니다.</div>
+<div class="ok"><b>성공하면 이렇게 보입니다</b>찍으면 “스크린샷을 ‘사진\截圖’에 저장했습니다”. 끝의 <span class="ui">보기</span>를 누르면 그 사진이 열립니다(8초 동안 표시되며, 포인터를 올려 두는 동안에는 사라지지 않음). 녹화를 멈추면 “녹화 저장됨: 파일 이름”. 아래에 작은 버튼 <span class="ui">폴더 열기</span> · <span class="ui">휴대폰으로 보내기</span>가 나옵니다.</div>
 <div class="ng"><b>안 될 때</b><ul>
   <li>버튼이 회색이고 “휴대폰 연결 후 사용 가능”: 먼저 휴대폰 화면을 띄우세요.</li>
   <li>녹화가 안 됨: 디스크 여유 공간이 300 MB 미만입니다.</li>
@@ -208,14 +209,14 @@
 <h2><span class="num">5</span>펜</h2>
 <p class="goal"><b>하고 싶은 일</b>띄운 화면에 선, 화살표, 형광펜을 그려 설명합니다. 그림은 PC에만 있고 휴대폰에는 그려지지 않습니다.</p>
 <ol class="steps">
-  <li>화면 위에서 마우스를 움직이고 도구 모음의 <span class="ui">펜</span>(또는 <kbd>Ctrl</kbd><kbd>E</kbd>).</li>
+  <li>화면 위쪽으로 마우스를 가져가고 도구 모음의 <span class="ui">펜</span>(또는 <kbd>Ctrl</kbd><kbd>E</kbd>).</li>
   <li>왼쪽 버튼을 누른 채 드래그해 그립니다. 도구 모음이 도구(펜 → 형광펜 → 화살표), <span class="ui">색</span>, <span class="ui">굵기</span>, 실행 취소, 지우기로 바뀝니다.</li>
-  <li><kbd>Esc</kbd>로 펜 끝내기(그림은 남습니다). <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd>로 모두 지우기.</li>
+  <li><kbd>Esc</kbd>(또는 <kbd>Ctrl</kbd><kbd>E</kbd>를 한 번 더)로 펜 끝내기(그림은 남습니다). <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd>로 모두 지우기.</li>
 </ol>
 {{img:ink|펜 모드: 빨간 펜과 노란 펜. 아래에 지금 펜이 표시됩니다|280}}
-<div class="ok"><b>성공하면 이렇게 보입니다</b>“펜 모드: 화면을 드래그해 그리세요(Esc로 끝내기)”, 왼쪽 아래에 작게 “펜 모드 · Esc로 끝내기”. 스크린샷과 녹화에는 기본으로 그림이 들어갑니다(오른쪽 클릭 메뉴 → <span class="ui">펜</span>에서 변경).</div>
+<div class="ok"><b>성공하면 이렇게 보입니다</b>“펜 모드: 화면을 드래그해 그리세요(Esc로 끝내기)”, 화면 둘레에 분홍색 테두리가 생기고 왼쪽 아래에 작게 “펜 모드 · Esc 또는 Ctrl+E로 끝내기”. 스크린샷과 녹화에는 기본으로 그림이 들어갑니다(오른쪽 클릭 메뉴 → <span class="ui">펜</span>에서 변경).</div>
 <div class="ng"><b>안 될 때</b><ul>
-  <li>Android 조작 중 그리면 휴대폰이 눌림: 펜 모드에서는 마우스로 휴대폰 조작이 멈춥니다. 휴대폰을 조작하기 전에 <kbd>Esc</kbd>.</li>
+  <li>Android 조작 중 그리면 휴대폰이 눌림: 펜 모드에서는 마우스로 휴대폰 조작이 멈춥니다. 휴대폰을 조작하기 전에 <kbd>Esc</kbd> 또는 <kbd>Ctrl</kbd><kbd>E</kbd>.</li>
   <li>잘못 그림: <kbd>Ctrl</kbd><kbd>Z</kbd>로 마지막 획 실행 취소.</li>
 </ul></div>
 </section>
@@ -258,8 +259,8 @@
   <li>처음에는 번역 모델(약 50 MB, 한 번만) 다운로드를 묻습니다. <span class="ui">다운로드</span>.</li>
   <li>다시 <span class="ui">번역</span>(또는 <kbd>Ctrl</kbd><kbd>L</kbd>)을 누르면 닫힙니다.</li>
 </ol>
-{{img:translate|번역문이 원문 위에 겹쳐집니다. 번역하는 동안 화면이 멈추고 위쪽에 “화면 정지됨”|280}}
-<div class="ok"><b>성공하면 이렇게 보입니다</b>원문 자리에 번역문이 나옵니다. 번역 중에는 화면이 잠시 멈추지만(위쪽 “화면 정지됨”) 정상입니다. 번역을 닫으면 돌아옵니다.</div>
+{{img:translate|번역문이 원문 위에 겹쳐집니다. 번역하는 동안 화면이 일시 정지되고 오른쪽 위에 “번역 중 · 화면 일시 정지”|280}}
+<div class="ok"><b>성공하면 이렇게 보입니다</b>원문 자리에 번역문이 나옵니다. 번역 중에는 화면이 잠시 멈추지만(오른쪽 위 “번역 중 · 화면 일시 정지”, 도구 모음이 나와 있으면 그 아래로 이동) 정상입니다. 번역을 닫으면 돌아옵니다.</div>
 <div class="ng"><b>안 될 때</b><ul>
   <li>“텍스트가 이미 한국어입니다”: 번역할 것이 없습니다.</li>
   <li>일본어·한국어를 못 읽음: Windows에 그 언어의 “광학 문자 인식”이 필요합니다. <a href="#faq-translate">여기</a>.</li>
@@ -286,9 +287,10 @@
 </table></div>
 
 <h3 id="remote-open">원격 제어 켜기</h3>
-<p>메인 창 위쪽의 <span class="ui">원격 제어</span> 탭으로 바꾸고 맨 위 스위치를 켭니다. Zizai Cast를 시작할 때마다 원격 제어는 꺼져 있습니다(<span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>를 선택한 경우 제외). 연결 중에는 PC 화면 위쪽에 “원격 제어 중” 막대가 계속 표시되며 <span class="ui">끊기</span>나 <kbd>Ctrl</kbd><kbd>D</kbd>로 언제든 끝낼 수 있습니다.</p>
-{{img:remote-off|원격 제어 탭(비밀번호 없음, 꺼짐): 맨 위 “원격 제어 허용” 영역, 아래에 집에서와 Tailscale|420}}
-{{img:remote-allow|고정 주소가 켜진 “원격 제어 허용” 영역: 이 PC의 주소, QR 코드, 임시 계정 추가(예시용 가짜 주소)|420}}
+<p>메인 창 위쪽의 <span class="ui">원격 제어</span> 탭으로 바꾸고 맨 위 스위치를 켭니다. Zizai Cast를 시작할 때마다 원격 제어는 꺼져 있습니다(<span class="ui">고급 설정</span>에서 <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>를 선택한 경우 제외). 연결 중에는 PC 화면 위쪽에 “원격 제어 중” 막대가 계속 표시되며 <span class="ui">끊기</span>나 <kbd>Ctrl</kbd><kbd>D</kbd>로 언제든 끝낼 수 있습니다.</p>
+{{img:remote-off|원격 제어 탭(비밀번호 없음, 꺼짐): 맨 위 “원격 제어 허용” 영역, 아래에 집에서와 Tailscale(각 한 줄)|420}}
+{{img:remote-allow|고정 주소가 켜진 뒤: 맨 위에 “이 PC의 주소(밖에서도 접속 가능)”, 큰 글씨 주소, QR 코드, 주소 복사, 임시 계정 추가(예시용 가짜 주소)|420}}
+<p>고정 주소가 켜지면 맨 위 영역은 <span class="ui">이 PC의 주소(밖에서도 접속 가능)</span>가 됩니다. 작은 제목 아래에 큰 글씨로 주소, 옆에 QR 코드, 버튼은 <span class="ui">주소 복사</span>와 <span class="ui">임시 계정 추가</span>입니다. 임시 계정은 그 아래 별도 카드에, 집에서와 Tailscale은 한 줄씩 있습니다. 자주 쓰지 않는 것은 <span class="ui">고급 설정</span>에 있습니다: <span class="ui">고정 주소 비밀번호 변경…</span>, <span class="ui">고정 주소(밖에서도 접속 가능)</span>(선택을 해제하면 고정 주소가 꺼짐), <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>, 그리고 <span class="ui">소리</span>(<span class="ui">PC 소리를 휴대폰으로 보내기</span>, <span class="ui">휴대폰에서 소리 재생 중 PC 음소거</span>, <span class="ui">소리 가져올 장치</span>).</p>
 
 <h3 id="remote-home">상황 1: 집에서(같은 Wi-Fi)</h3>
 <p class="goal"><b>하고 싶은 일</b>소파에 앉아 서재의 PC를 휴대폰으로 조작합니다.</p>
@@ -342,9 +344,9 @@
 <ol class="steps">
   <li><span class="ui">원격 제어</span> 탭 맨 위 <span class="ui">원격 제어 허용</span> 영역에서 <span class="ui">비밀번호 설정(고정 주소와 임시 계정)</span>. 두 번 입력, 8자 이상(길수록 좋고 다른 곳에 쓰지 않는 것). <span class="ui">저장하고 켜기</span>.</li>
   <li><strong>처음에는 1~2분 기다리기</strong>: 영역에 “주소를 준비하고 있습니다(약 1~2분…)”가 나오는 동안 Tailscale이 HTTPS 인증서를 받고 있어 휴대폰에서 열리지 않습니다. Zizai Cast가 직접 확인하고, 연결되면 “고정 주소를 켰습니다”를 보여 줍니다.</li>
-  <li>영역에 <code>https://PC이름.….ts.net:8443/</code>와 QR 코드가 나옵니다. 휴대폰으로 스캔하거나 <span class="ui">주소 복사</span>로 나에게 보냅니다.</li>
+  <li>영역이 <span class="ui">이 PC의 주소(밖에서도 접속 가능)</span>로 바뀌고 <code>https://PC이름.….ts.net:8443/</code>가 큰 글씨로 QR 코드와 함께 나옵니다. 휴대폰으로 스캔하거나 <span class="ui">주소 복사</span>로 나에게 보냅니다.</li>
   <li>휴대폰에서 주소를 열면 <strong>비밀번호</strong> 칸만 있습니다. 내 비밀번호를 입력. 한 번 로그인하면 이 휴대폰은 30일 동안 묻지 않습니다. <a href="#remote-pwa">홈 화면에 추가</a>하면 한 번에 열 수 있습니다.</li>
-  <li>PC를 켜자마자 밖에서 쓰려면 영역의 <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>를 선택.</li>
+  <li>PC를 켜자마자 밖에서 쓰려면 <span class="ui">고급 설정</span> → <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>를 선택.</li>
 </ol>
 {{img:remote-preparing|처음: “주소를 준비하고 있습니다(약 1~2분)”(QR 코드는 아직 없음)|420}}
 <div class="pair-img">
@@ -357,7 +359,7 @@
   <li>“Tailscale에 로그인되어 있지 않습니다”나 “응답이 없습니다”: PC에서 Tailscale을 열고 로그인한 뒤 <span class="ui">다시 시도</span>.</li>
   <li>계속 “주소를 준비하고 있습니다”: 조금 더 기다리세요. 5분이 지나도 연결되지 않으면 안내가 바뀝니다. <span class="ui">다시 시도</span>나 <span class="ui">우선 임시 주소 사용(매번 바뀜)</span>.</li>
   <li>“고정 주소를 켰습니다”가 나왔는데 휴대폰에서 안 열림: <a href="#faq-funnel">여기</a>.</li>
-  <li>비밀번호를 5번 틀리면 15분 잠금. 잊었다면 PC의 <span class="ui">비밀번호 변경</span>으로만 다시 정할 수 있습니다.</li>
+  <li>비밀번호를 5번 틀리면 15분 잠금. 잊었다면 PC의 <span class="ui">고급 설정</span> → <span class="ui">고정 주소 비밀번호 변경…</span>으로만 다시 정할 수 있습니다.</li>
 </ul></div>
 <p class="src">Tailscale 단계 출처(2026년 10월 확인): <a href="https://tailscale.com/kb/1223/funnel">tailscale.com/kb/1223</a>(Funnel: MagicDNS, HTTPS, funnel 속성 필요, tailscale funnel 실행 시 활성화 안내, 포트는 443·8443·10000만), <a href="https://tailscale.com/kb/1311/tailscale-funnel">/kb/1311</a>(명령, <code>--bg</code>, <code>--https</code>, <code>off</code>), <a href="https://tailscale.com/docs/how-to/set-up-https-certificates">/docs/how-to/set-up-https-certificates</a>(DNS 페이지의 Enable HTTPS, Let's Encrypt 인증서, 이름 공개).</p>
 
@@ -375,11 +377,11 @@
 <p class="goal"><b>하고 싶은 일</b>멀리 있는 친구가 잠시 내 PC를 보거나 조작하게 하고(문제를 도와 달라고), 끝나면 못 쓰게 합니다. 내 고정 주소 비밀번호는 남에게 알려 주지 마세요. 두 방법 모두 <strong>친구가 연결할 때마다 PC 앞에서 누군가 “허용”을 눌러야</strong> 합니다(기억할 수 없음).</p>
 <h4 id="remote-guest">방법 A: 임시 계정(추천, 고정 주소를 먼저 켜 두기)</h4>
 <ol class="steps">
-  <li>PC: <span class="ui">원격 제어</span> 탭 맨 위의 <span class="ui">원격 제어 허용</span> 영역 → <span class="ui">임시 계정 추가</span>.</li>
+  <li>PC: <span class="ui">원격 제어</span> 탭 맨 위의 <span class="ui">이 PC의 주소(밖에서도 접속 가능)</span> 영역 → <span class="ui">임시 계정 추가</span>.</li>
   <li><span class="ui">계정</span> 이름은 자동으로 들어가 있습니다(예: guest-4821, 바꿀 수 있음). <span class="ui">유효 기간</span>: 한 번만/1시간/24시간/7일, <span class="ui">권한</span>: 조작 가능/보기만, 파일을 주고받게 하려면 <span class="ui">파일 전송 허용(양방향)</span>. <span class="ui">만들기</span>를 누릅니다.</li>
   <li><span class="ui">모두 복사</span>해서 친구에게 붙여 넣습니다. 주소에 계정이 들어 있습니다(<code>#u=guest-4821</code>). <strong>비밀번호는 지금만 표시</strong>됩니다(잊으면 <span class="ui">비밀번호 재설정</span>).</li>
   <li>친구가 주소를 열면 계정은 이미 입력되어 있어 <strong>비밀번호만 넣으면</strong> 됩니다. PC에 “휴대폰이 이 PC를 조작하려고 합니다”가 나오면 친구가 맞는지 확인하고 <span class="ui">허용</span>.</li>
-  <li>기간이 끝나거나 “한 번만”을 다 쓰면 자동으로 삭제됩니다. 목록의 <span class="ui">삭제</span>로도 지울 수 있습니다(연결 중이면 바로 끊김). 최대 10개.</li>
+  <li>기간이 끝나거나 “한 번만”을 다 쓰면 자동으로 삭제됩니다. 아래 임시 계정 카드의 <span class="ui">삭제</span>로도 지울 수 있습니다(연결 중이면 바로 끊김). 최대 10개.</li>
 </ol>
 <div class="pair-img">
 {{img:guest-new|임시 계정 추가(유효 기간, 권한, 파일 전송)|300}}
@@ -388,7 +390,7 @@
 {{img:phone-login-guest|친구가 주소를 연 화면: 계정은 입력됨, 비밀번호만|260}}
 <h4 id="remote-nolink">방법 B: 임시 주소(고정 주소 없이)</h4>
 <ol class="steps">
-  <li>PC: 고정 주소가 없으면 <span class="ui">원격 제어 허용</span> 영역의 <span class="ui">임시 주소 만들기</span>, 고정 주소가 있으면 <span class="ui">고급 설정</span> → <span class="ui">임시 주소(휴대폰에 앱 없이, 모바일 데이터로도 연결)</span>. 10~20초 뒤 QR 코드와 6자리 <span class="ui">통행 코드</span>가 나옵니다(작은 창의 <span class="ui">임시 주소</span> 탭에도).</li>
+  <li>PC: 고정 주소가 없으면 <span class="ui">원격 제어 허용</span> 영역의 <span class="ui">임시 주소 만들기</span>, 고정 주소가 있으면 <span class="ui">고급 설정</span> → <span class="ui">임시 주소(휴대폰에 앱 없이, 모바일 데이터로도 연결)</span>. 10~20초 뒤 QR 코드와 6자리 <span class="ui">통행 코드</span>가 나옵니다(작은 창의 <span class="ui">임시 주소</span> 탭에도. 작은 창의 탭은 <span class="ui">같은 Wi-Fi</span>, <span class="ui">고정 주소</span>, <span class="ui">Tailscale</span>, <span class="ui">임시 주소</span> 순서로 메인 화면과 같습니다).</li>
   <li><span class="ui">주소 복사</span>로 친구에게 주소를 보내고 통행 코드는 따로 알려 줍니다. <strong>주소는 한 번만</strong>, 10분 안에 쓸 수 있습니다.</li>
   <li>친구가 열고 통행 코드를 넣으면 PC에 “휴대폰이 이 PC를 조작하려고 합니다”가 나옵니다. <strong>내가 PC 앞에서 “허용”</strong>을 누릅니다.</li>
   <li>끝나면 <span class="ui">임시 주소 중지</span>, 또는 원격 제어를 끕니다.</li>
@@ -417,7 +419,7 @@
   <li>연결 중에는 PC 화면 위쪽에 “● 원격 제어 중”이 계속 보이고, <kbd>Ctrl</kbd><kbd>D</kbd>는 어떤 프로그램에서든 연결을 끊습니다.</li>
   <li>휴대폰을 30분 동안 만지지 않으면 자동으로 끊깁니다(<span class="ui">고급 설정</span>에서 변경).</li>
   <li><span class="ui">고급 설정</span> → <span class="ui">원격 연결이 끊기면 PC 잠그기</span>: 연결이 끝나면 PC를 잠급니다. 기본값은 <strong>꺼짐</strong>(밖에서도 집에서도), 필요하면 직접 켜세요.</li>
-  <li>더 이상 밖에서 쓸 일이 없으면 <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>를 해제하고 영역에서 <span class="ui">끄기</span>.</li>
+  <li>더 이상 밖에서 쓸 일이 없으면 <span class="ui">고급 설정</span>에서 <span class="ui">PC를 켜면 고정 주소 자동으로 켜기</span>와 <span class="ui">고정 주소(밖에서도 접속 가능)</span>를 해제(해제하면 고정 주소가 꺼짐).</li>
 </ul>
 <h3 id="remote-limits">할 수 없는 것</h3>
 <ul>
@@ -442,14 +444,14 @@
 <h3 id="remote-audio">원격 제어(PC 소리를 휴대폰에서)</h3>
 <ol class="steps">
   <li>휴대폰 페이지는 처음에 소리가 꺼져 있습니다(iPhone 규칙). <span class="ui">탭하면 소리가 나요</span>나 오른쪽 아래 <span class="ui">소리 켜기</span>라고 적힌 스피커를 누르세요.</li>
-  <li>PC가 음량을 자동으로 맞추므로 <span class="ui">휴대폰 음량</span>은 기본 100%로 보통 충분합니다. 그래도 작으면 오른쪽 아래 <span class="ui">설정</span> → <span class="ui">휴대폰 음량</span>을 오른쪽으로(최대 400%, 찢어짐 방지).</li>
+  <li>PC가 음량을 자동으로 맞추므로 <span class="ui">휴대폰 음량</span>은 기본 100%로 보통 충분합니다. 그래도 작으면 오른쪽 아래 <span class="ui">설정</span> → <span class="ui">휴대폰 음량</span>을 오른쪽으로(0~400%). 100%는 PC에서 보낸 원래 크기입니다. 100%를 넘으면 “음량 강화”: 오른쪽일수록 크게, 작은 소리일수록 더 키우며 찢어지지 않습니다.</li>
   <li>휴대폰 자체 음량도 올리고, iPhone의 무음 스위치는 끄세요.</li>
-  <li>PC: 원격 제어 탭의 <span class="ui">PC 소리를 휴대폰으로 보내기</span>를 선택. PC에서는 소리를 내지 않으려면 <span class="ui">휴대폰에서 소리 재생 중 PC 음소거</span>.</li>
+  <li>PC: <span class="ui">원격 제어</span> 탭 → <span class="ui">고급 설정</span> → <span class="ui">소리</span>의 <span class="ui">PC 소리를 휴대폰으로 보내기</span>를 선택. PC에서는 소리를 내지 않으려면 같은 곳의 <span class="ui">휴대폰에서 소리 재생 중 PC 음소거</span>를 선택하거나, 휴대폰 페이지 <span class="ui">설정</span>에서 <span class="ui">PC 스피커 음소거</span>를 켜세요(같은 설정이며 PC에 저장됩니다. 임시 계정과 “보기 전용”에서는 바꿀 수 없음).</li>
 </ol>
-{{img:phone-settings|휴대폰 페이지 설정: 조작 방식(설명 포함), 휴대폰 음량(기본 100%, 최대 400%)|300}}
+{{img:phone-settings|휴대폰 페이지 설정: 조작 방식(설명 포함), 휴대폰 음량(기본 100%, 100%를 넘으면 음량 강화, 최대 400%), PC 스피커 음소거|300}}
 <div class="ng"><b>안 될 때</b><ul>
   <li>“PC에서 지금 재생 중인 소리가 없습니다”: PC에서 정말 소리가 나지 않고 있습니다.</li>
-  <li>PC의 Windows가 음소거: 음소거를 해제하세요. PC를 조용히 하려면 “휴대폰에서 소리 재생 중 PC 음소거”.</li>
+  <li>PC의 Windows가 음소거: 음소거를 해제하세요. PC를 조용히 하려면 “휴대폰에서 소리 재생 중 PC 음소거”(휴대폰 페이지에서는 “PC 스피커 음소거”).</li>
   <li>더 보기: <a href="#remote-faq-nosound">원격 제어에서 소리가 안 나요</a>, <a href="#faq-audio">미러링에서 소리가 안 나요</a>.</li>
 </ul></div>
 </section>
@@ -495,12 +497,12 @@
   <li>No이거나 Google Pixel: <a href="#adb">Android 조작</a>을 쓰세요.</li>
 </ul></div></details>
 <details id="faq-adb"><summary>Android 조작이 끊기거나 다음에 자동 연결이 안 돼요</summary><div><ul>
-  <li>재부팅이나 Wi-Fi 변경 후 무선 디버깅이 꺼지는 경우가 많습니다. 개발자 옵션에서 다시 켜면 되고 다시 페어링할 필요는 없습니다.</li>
+  <li>Android는 휴대폰을 다시 시작하면 무선 디버깅을 끕니다(Wi-Fi 변경 후에도 자주 꺼짐). Zizai Cast가 한 번 “이전에 페어링한 휴대폰을 찾지 못했습니다…”라고 알려 줍니다. 개발자 옵션에서 다시 켜면 되고 다시 페어링할 필요는 없습니다.</li>
   <li>절전 기능이 화면이 꺼지면 Wi-Fi를 끊을 수 있습니다. <span class="ui">연결된 동안 절전 모드 해제</span>를 켜세요.</li>
   <li><kbd>Ctrl</kbd><kbd>D</kbd>로 끊은 휴대폰은 저절로 돌아오지 않습니다. “Android 연결(QR 스캔)”이나 Zizai Cast를 다시 열기.</li>
   <li>그래도 안 되면 휴대폰의 “무선 디버깅 → 페어링된 기기”에서 이 PC를 지우고 다시 페어링.</li>
 </ul></div></details>
-<details id="faq-disconnect"><summary>“연결 끊기”가 어디 있나요?</summary><div><p>화면 위에서 마우스를 움직이면 나오는 도구 모음 오른쪽 끝의 빨간 버튼. <kbd>Ctrl</kbd><kbd>D</kbd>, 또는 오른쪽 아래 아이콘을 오른쪽 클릭 → 연결 끊기. Android 화면에서는 오른쪽 클릭 = “뒤로”라서 메뉴는 <kbd>Shift</kbd>+오른쪽 클릭.</p></div></details>
+<details id="faq-disconnect"><summary>“연결 끊기”가 어디 있나요?</summary><div><p>화면 위쪽으로 마우스를 가져가면 나오는 도구 모음 오른쪽 끝의 빨간 버튼. <kbd>Ctrl</kbd><kbd>D</kbd>, 또는 오른쪽 아래 아이콘을 오른쪽 클릭 → 연결 끊기. Android 화면에서는 오른쪽 클릭 = “뒤로”라서 메뉴는 <kbd>Shift</kbd>+오른쪽 클릭.</p></div></details>
 <details id="faq-translate"><summary>번역이 반응이 없거나 일본어·한국어가 번역되지 않아요</summary><div><ul>
   <li>처음에는 모델 다운로드가 필요합니다. 물으면 <span class="ui">다운로드</span>(약 50 MB).</li>
   <li>일본어·한국어를 못 읽음: 안내의 <span class="ui">언어 설정 열기</span>, 또는 Windows 설정 → 시간 및 언어 → 언어 및 지역 → 언어 추가 → 일본어(한국어) → “광학 문자 인식”만 선택 → 설치.</li>
@@ -511,7 +513,7 @@
   <li>또는 Tailscale 관리 페이지(login.tailscale.com/admin)의 <span class="ui">DNS</span> 페이지에서 MagicDNS를 켜고 HTTPS Certificates의 <span class="ui">Enable HTTPS</span>, 이어서 Access controls에 funnel 권한 추가. 명령이 더 쉽습니다.</li>
   <li>PC의 Tailscale이 실행 중이고 로그인되어 있어야 합니다.</li>
 </ul></div></details>
-<details id="faq-funnel-wait"><summary>고정 주소를 막 켰는데 휴대폰에 ERR_CONNECTION_CLOSED가 나와요</summary><div><p>처음에는 Tailscale이 HTTPS 인증서를 받는 동안 열리지 않습니다. Zizai Cast가 직접 확인합니다. 영역에 “주소를 준비하고 있습니다(약 1~2분)”가 나오는 동안은 기다리세요. 연결되면 “고정 주소를 켰습니다”가 나옵니다. 그렇게 나왔는데도 안 열리면 휴대폰 쪽 DNS가 아직 새 이름을 모를 수 있습니다(Tailscale은 최대 10분이라고 합니다). 조금 뒤 새로 고침. 그래도 안 되면 영역에서 <span class="ui">끄기</span> → <span class="ui">켜기</span>.</p></div></details>
+<details id="faq-funnel-wait"><summary>고정 주소를 막 켰는데 휴대폰에 ERR_CONNECTION_CLOSED가 나와요</summary><div><p>처음에는 Tailscale이 HTTPS 인증서를 받는 동안 열리지 않습니다. Zizai Cast가 직접 확인합니다. 영역에 “주소를 준비하고 있습니다(약 1~2분)”가 나오는 동안은 기다리세요. 연결되면 “고정 주소를 켰습니다”가 나옵니다. 그렇게 나왔는데도 안 열리면 휴대폰 쪽 DNS가 아직 새 이름을 모를 수 있습니다(Tailscale은 최대 10분이라고 합니다). 조금 뒤 새로 고침. 그래도 안 되면 PC의 <span class="ui">고급 설정</span>에서 <span class="ui">고정 주소(밖에서도 접속 가능)</span>를 해제했다가 다시 선택.</p></div></details>
 <details id="remote-faq-noconnect"><summary>휴대폰에서 PC에 연결이 안 돼요</summary><div><ul>
   <li><strong>집에서 QR이 안 열림:</strong> 휴대폰이 같은 Wi-Fi가 아님(게스트, 모바일 데이터 불가), 또는 공유기 AP 격리.</li>
   <li><strong>고정 주소가 안 열림:</strong> PC가 켜져 있고 로그인되어 있으며 Tailscale이 실행 중이어야 합니다. 처음이면 위 질문 참고.</li>
@@ -519,11 +521,11 @@
   <li><strong>“이 주소는 더 이상 유효하지 않습니다”:</strong> PC의 QR 코드를 다시 스캔(홈 화면 아이콘도 다시 추가).</li>
 </ul></div></details>
 <details id="remote-faq-nosound"><summary>원격 제어에서 소리가 안 나거나 작아요</summary><div><ul>
-  <li><span class="ui">탭하면 소리가 나요</span>(또는 <span class="ui">소리 켜기</span>라고 적힌 스피커)를 누르세요. 그래도 작으면 휴대폰 페이지 <span class="ui">설정</span> → <span class="ui">휴대폰 음량</span>을 오른쪽으로(기본 100%, 최대 400%).</li>
+  <li><span class="ui">탭하면 소리가 나요</span>(또는 <span class="ui">소리 켜기</span>라고 적힌 스피커)를 누르세요. 그래도 작으면 휴대폰 페이지 <span class="ui">설정</span> → <span class="ui">휴대폰 음량</span>을 오른쪽으로(기본 100%, 100%를 넘으면 음량 강화, 최대 400%).</li>
   <li>iPhone 무음 스위치와 휴대폰 음량.</li>
-  <li>PC에서 Windows를 음소거하지 않기. <span class="ui">PC 소리를 휴대폰으로 보내기</span> 선택.</li>
+  <li>PC에서 Windows를 음소거하지 않기. <span class="ui">고급 설정</span> → <span class="ui">소리</span> → <span class="ui">PC 소리를 휴대폰으로 보내기</span> 선택.</li>
 </ul></div></details>
-<details id="remote-faq-forgot"><summary>고정 주소 비밀번호를 잊었어요</summary><div><p><strong>PC에서만</strong> 다시 정할 수 있습니다: 원격 제어 탭 → <span class="ui">원격 제어 허용</span> 영역 → <span class="ui">비밀번호 변경</span>. 휴대폰은 새 비밀번호로 다시 로그인합니다.</p></div></details>
+<details id="remote-faq-forgot"><summary>고정 주소 비밀번호를 잊었어요</summary><div><p><strong>PC에서만</strong> 다시 정할 수 있습니다: 원격 제어 탭 → <span class="ui">고급 설정</span> → <span class="ui">고정 주소 비밀번호 변경…</span>. 휴대폰은 새 비밀번호로 다시 로그인합니다.</p></div></details>
 <details><summary>PC가 잠겼어요</summary><div><p>켜 두었다면(기본은 꺼짐) 원격 연결이 끝날 때 PC가 잠깁니다. Windows 비밀번호나 PIN으로 풀어 주세요. 원하지 않으면 <span class="ui">고급 설정</span> → <span class="ui">원격 연결이 끊기면 PC 잠그기</span>를 해제.</p></div></details>
 <details><summary>창을 닫아도 실행 중인가요?</summary><div><p>네, 오른쪽 아래에서 백그라운드로 대기합니다. 완전히 끝내려면 아이콘을 오른쪽 클릭 → <span class="ui">종료</span>.</p></div></details>
 
