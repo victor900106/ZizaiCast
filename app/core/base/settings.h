@@ -32,7 +32,6 @@ struct Settings {
     int androidPaired = -1;    // an Android phone connected over adb once (1) / never (0): only then look for it; -1 not known (before 0.7.9)
     bool tutorialShown = false;  // 使用教學 opened once at the first start
     bool toolbarHintShown = false;  // 0.7.8: the toolbar introduced itself once (first phone shown)
-    bool autoShare = false;      // 截圖／錄影後自動傳到手機 (docs/share.md)
     bool muted = false;          // 靜音 (volume_ui.h); the level itself stays in volume.txt
     // 遠端操控 (0.8.0, docs/remote.md). Off at every start (turned on by hand); these are its options.
     bool remoteViewOnly = false;  // 僅觀看: the phone sees the screen, input is dropped
@@ -41,6 +40,9 @@ struct Settings {
     int remoteIdleMinutes = 30;   // end a session after this long without a touch on the phone (0 = never)
     // 0.8.1 聲音來源: "" automatic (the device that plays), "default" the Windows default, else a device id
     std::string remoteAudioSource;
+    // 0.8.4 自訂快捷鍵 (the phone page's keyboard panel): the 主帳號's buttons, compact JSON as pm_remote's
+    // custom_keys.h writes it (the host checked it). Empty = never saved: the three examples.
+    std::string remoteKeys;
     std::string remoteToken;      // the phone link's secret part: kept so a Home Screen icon keeps working
     int remotePort = 8090;        // its port (the next free one from 8090 if taken; kept for the same reason)
     // 常駐外網 (0.8.2): remote control + the fixed link (Tailscale Funnel :8443) at every
@@ -61,13 +63,17 @@ struct Settings {
     // 0.8.3.2: both off by default (0.8.3 / 0.8.3.1: outside on). A saved value is kept as it is.
     bool remoteLockOutside = false;
     bool remoteLockLan = false;
+    // 0.8.4 電腦的檔案: the phone may browse / download below 桌面 / 文件 / 下載 / 圖片 / 影片 / 截圖 / 錄影 (on by
+    // default) and these extra folders (允許清單, UTF-8, "|"-separated; at most 8).
+    bool remotePcFiles = true;
+    std::string remotePcFilesExtra;
+    bool remotePcFilesGuest = false;  // 臨時帳號 may browse / download them too (default off; 主帳號 always may)
     std::string whatsNewSeen;          // the version whose 新功能 note was shown
     int idleTab = 0;                   // 0.8.2 main window page: 0 手機投影, 1 遠端控制 (the last one shown)
     std::string updatedTo;     // set just before an update installs: 「已更新到 vX」 at the next start
     std::string skipVersion;   // 略過這個版本: never prompted again (the menu item stays)
     int language = 0;          // 語言 / Language: 0 auto (Windows UI language), 1 zh-TW, 2 en, 3 ja, 4 ko
     std::wstring displayName;  // name shown to phones (empty: 自在投影 / Zizai Cast by language)
-    int filter = 0;            // 放大鏡 colours: 0 none 1 contrast 2 gray 3 invert 4 yellow (VideoWindow::Filter)
     int translateTo = 0;       // 翻譯 翻成: 0 auto (UI language), 1 繁體中文, 2 English, 3 日本語, 4 한국어
     int translateLayout = 0;   // 翻譯顯示方式: 0 automatic, 1 原位顯示, 2 清單顯示 (0.7.1)
     bool translateDark = false;  // 深色方框 instead of the picture's own colours (0.7.1)
@@ -99,7 +105,6 @@ struct Settings {
     bool androidStayAwake = false;  // 連線期間不休眠
 
     static constexpr const char* kThemeKeys[4] = {"sakura", "mint", "night", "milktea"};
-    static constexpr const char* kFilterKeys[5] = {"none", "contrast", "gray", "invert", "yellow"};
     static constexpr const char* kTranslateKeys[5] = {"auto", "zh-Hant", "en", "ja", "ko"};
     static constexpr const char* kLayoutKeys[3] = {"auto", "inplace", "list"};
     static constexpr const char* kCloseKeys[3] = {"ask", "tray", "quit"};
@@ -162,7 +167,6 @@ struct Settings {
         if (auto it = kv.find("android_paired"); it != kv.end()) s.androidPaired = it->second == "1" ? 1 : 0;
         s.tutorialShown = flag("tutorial_shown", false);
         s.toolbarHintShown = flag("toolbar_hint_shown", false);
-        s.autoShare = flag("auto_share", false);
         s.muted = flag("mute", false);
         s.remoteViewOnly = flag("remote_view_only", false);
         s.remoteAudio = flag("remote_audio", true);
@@ -171,6 +175,7 @@ struct Settings {
             s.remoteIdleMinutes = (std::max)(0, (std::min)(24 * 60, atoi(it->second.c_str())));
         if (auto it = kv.find("remote_audio_source"); it != kv.end() && it->second.size() < 512)
             s.remoteAudioSource = it->second == "auto" ? std::string() : it->second;
+        if (auto it = kv.find("remote_keys"); it != kv.end() && it->second.size() <= 8192) s.remoteKeys = it->second;
         if (auto it = kv.find("remote_token"); it != kv.end() && it->second.size() == 32) s.remoteToken = it->second;
         if (auto it = kv.find("remote_port"); it != kv.end()) {
             const int p = atoi(it->second.c_str());
@@ -195,6 +200,9 @@ struct Settings {
         if (auto it = kv.find("remote_revoked"); it != kv.end() && it->second.size() < 8192) s.remoteRevoked = it->second;
         s.remoteLockOutside = flag("remote_lock_outside", false);  // 0.8.3.2: default off
         s.remoteLockLan = flag("remote_lock_lan", false);
+        s.remotePcFiles = flag("remote_pc_files", true);  // 0.8.4
+        s.remotePcFilesGuest = flag("remote_pc_files_guest", false);
+        if (auto it = kv.find("remote_pc_files_extra"); it != kv.end() && it->second.size() < 8192) s.remotePcFilesExtra = it->second;
         if (s.remotePwHash.empty() || s.remoteFixedSecret.empty()) s.remotePersistent = false;  // no password: never on
         if (auto it = kv.find("whats_new_seen"); it != kv.end() && it->second.size() < 32) s.whatsNewSeen = it->second;
         if (auto it = kv.find("idle_tab"); it != kv.end()) s.idleTab = it->second == "remote" ? 1 : 0;
@@ -202,9 +210,7 @@ struct Settings {
         if (auto it = kv.find("skip_version"); it != kv.end()) s.skipVersion = it->second;
         if (auto it = kv.find("language"); it != kv.end())
             s.language = it->second == "zh-TW" ? 1 : it->second == "en" ? 2 : it->second == "ja" ? 3 : it->second == "ko" ? 4 : 0;
-        if (auto it = kv.find("filter"); it != kv.end())
-            for (int f = 0; f < 5; ++f)
-                if (it->second == kFilterKeys[f]) s.filter = f;
+        // (0.8.4: "filter=" in an older settings.ini is ignored: the magnifier colour filters were removed)
         if (auto it = kv.find("translate_to"); it != kv.end())
             for (int t = 0; t < 5; ++t)
                 if (it->second == kTranslateKeys[t]) s.translateTo = t;
@@ -292,8 +298,6 @@ struct Settings {
             << (androidPaired < 0 ? std::string() : "android_paired=" + std::to_string(androidPaired) + "\n")
             << "tutorial_shown=" << (tutorialShown ? 1 : 0) << "\n"
             << "toolbar_hint_shown=" << (toolbarHintShown ? 1 : 0) << "\n"
-            << "; send every new screenshot / recording to the phone (Android over adb: its gallery; else a live QR page)\n"
-            << "auto_share=" << (autoShare ? 1 : 0) << "\n"
             << "; 靜音: PC sound off for every phone (1/0); the level is kept in volume.txt\n"
             << "mute=" << (muted ? 1 : 0) << "\n"
             << "; 遠端操控 (remote control from a phone browser; always off at start): view only (1/0), send the PC sound (1/0),\n"
@@ -304,6 +308,8 @@ struct Settings {
             << "remote_idle_minutes=" << remoteIdleMinutes << "\n"
             << "; the PC sound for the phone from: auto (the playback device that plays), default (the Windows default), or a device id\n"
             << "remote_audio_source=" << (remoteAudioSource.empty() ? std::string("auto") : remoteAudioSource) << "\n"
+            << "; 自訂快捷鍵: the buttons the phone page's keyboard panel shows (JSON, checked by the PC; delete the line for the three examples)\n"
+            << (remoteKeys.empty() ? std::string() : "remote_keys=" + remoteKeys + "\n")
             << "; the phone link (secret token + port), kept so the phone's Home Screen icon keeps working; delete both for a new link\n"
             << (remoteToken.empty() ? std::string() : "remote_token=" + remoteToken + "\n")
             << "remote_port=" << remotePort << "\n"
@@ -324,13 +330,15 @@ struct Settings {
             << (remoteRevoked.empty() ? std::string() : "remote_revoked=" + remoteRevoked + "\n")
             << "remote_lock_outside=" << (remoteLockOutside ? 1 : 0) << "\n"
             << "remote_lock_lan=" << (remoteLockLan ? 1 : 0) << "\n"
+            << "; 0.8.4 電腦的檔案: the phone may browse / download the usual folders (1/0), and these extra ones (| between)\n"
+            << "remote_pc_files=" << (remotePcFiles ? 1 : 0) << "\n"
+            << "remote_pc_files_guest=" << (remotePcFilesGuest ? 1 : 0) << "\n"
+            << (remotePcFilesExtra.empty() ? std::string() : "remote_pc_files_extra=" + remotePcFilesExtra + "\n")
             << (whatsNewSeen.empty() ? std::string() : "whats_new_seen=" + whatsNewSeen + "\n")
             << "; main window page: cast (手機投影) or remote (遠端控制)\n"
             << "idle_tab=" << (idleTab == 1 ? "remote" : "cast") << "\n"
             << "; UI language: auto (Windows display language: zh-* -> zh-TW, ja-* -> ja, ko-* -> ko, else en), zh-TW, en, ja, ko\n"
             << "language=" << languageKey(language) << "\n"
-            << "; magnifier colours: none, contrast, gray, invert, yellow (yellow text on black)\n"
-            << "filter=" << kFilterKeys[filter % 5] << "\n"
             << "; on-screen translation target: auto (UI language), zh-Hant, en, ja, ko\n"
             << "translate_to=" << kTranslateKeys[translateTo % 5] << "\n"
             << "; translations shown: auto (in place, a numbered list when over 30 % do not fit), inplace, list\n"

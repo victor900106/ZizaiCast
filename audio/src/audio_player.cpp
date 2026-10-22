@@ -1,6 +1,7 @@
 #include <pm/audio_player.h>
 
 #include "audio_decoder.h"
+#include "open_backoff.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -133,6 +134,8 @@ struct AudioPlayer::Impl {
     std::thread thread;
     std::atomic<bool> running{false};
     std::atomic<bool> deviceChanged{false};
+    std::atomic<bool> deviceNudge{false};  // 0.8.4: a device was added / its state changed: retry a failed open now
+    OpenBackoff openBackoff;               // render thread only
     HANDLE wake = nullptr;
 
     // PM 0.8.3: the output (WASAPI stream / tap clock) is closed after
@@ -311,12 +314,18 @@ public:
         }
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override { return S_OK; }
+    // 0.8.4: only matters to a failed open (back-off wait): try again at once
+    HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override { return nudge(); }
     HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override { return S_OK; }
-    HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override { return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override { return nudge(); }
     HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override { return S_OK; }
 
 private:
+    HRESULT nudge() {
+        owner_->deviceNudge = true;
+        SetEvent(owner_->wake);
+        return S_OK;
+    }
     AudioPlayer::Impl* owner_;
     std::atomic<ULONG> ref_{1};
 };
@@ -438,14 +447,32 @@ void AudioPlayer::Impl::runWasapi() {
             hr = client->Start();
         }
         if (FAILED(hr)) {
-            logf("WASAPI open failed (hr=0x%08lx); retrying", (unsigned long)hr);
+            // 0.8.4: exponential back-off (1 s ... 60 s) instead of a retry on every wake-up (each audio packet
+            // wakes this thread: 1598 tries in 16 s on a PC whose output device had vanished, hr=0x80070490).
+            const auto bo = openBackoff.onFail((unsigned long)hr, nowNs() / 1000000);
+            if (bo.log)
+                logf("WASAPI open failed (hr=0x%08lx), %u time(s) so far; next try in %d s, sooner if the audio device "
+                     "changes",
+                     (unsigned long)hr, bo.tries, bo.delayMs / 1000);
             safeRelease(render);
             safeRelease(client);
             safeRelease(dev);
             deviceOpen = false;
-            WaitForSingleObject(wake, 500);
+            // wait out the delay; a device change / new device / new format / stop() ends it early
+            const int64_t until = nowNs() + int64_t(bo.delayMs) * 1000000;
+            deviceNudge = false;
+            while (running && !deviceChanged && !deviceNudge) {
+                const int64_t left = (until - nowNs()) / 1000000;
+                if (left <= 0) break;
+                WaitForSingleObject(wake, DWORD(left));
+                int r2, c2;
+                uint64_t gen2;
+                if (currentFormat(r2, c2, gen2) && (r2 != r || c2 != c || gen2 != gen)) break;
+            }
             continue;
         }
+        if (const unsigned failed = openBackoff.onSuccess())
+            logf("WASAPI open recovered after %u failed tries", failed);
         ++deviceReopens;
         deviceOpen = true;
         deviceBufferMs = 1000.0 * bufFrames / r;

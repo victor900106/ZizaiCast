@@ -158,7 +158,7 @@ std::string llmGuard(const std::wstring& plain, const std::wstring& best, const 
                      const std::vector<std::wstring>& keep, Lang src, Lang tgt);
 
 // Runs the checks on a step-1 (Bergamot) hypothesis and escalates while they
-// fail (pm/translator.h: clauses, local LLM, online, templates, verified
+// fail (pm/translator.h: clauses, local LLM, templates, verified
 // facts).  rq.text: what the engine saw (placeholders included); plainSrc:
 // the source the checks compare with.  true: h passes the checks.
 class Escalator {
@@ -167,18 +167,9 @@ public:
     ~Escalator();
     void setConfig(const EscalationConfig& c);
     const EscalationConfig& config() const;
-    void resetBudget();  // per picture; also reads the online mode (pm/online_translate.h activeMode)
-    // Online translation for this picture: Off, Escalate (step 4 for the
-    // pieces that failed the checks), All (every piece online first, Bergamot
-    // where it fails a check or the request).  Off when cfg.online is false.
-    enum class OnlineMode { Off, Escalate, All };
-    OnlineMode onlineMode() const;
-    // The request the escalator sends to an engine for a piece (step 3 / 4):
-    // prefetchOnline must get exactly these, or its cache misses.
+    void resetBudget();  // per picture
+    // The request the escalator sends to an engine for a piece (step 3).
     static TrRequest request(const std::wstring& text, Lang src, Lang tgt);
-    // One batch call for many pieces (online::prefetch); results cached by
-    // the online engine.  false: nothing sent / failed (out: "" each).
-    bool prefetchOnline(const std::vector<TrRequest>& in, std::vector<TrHypothesis>* out);
     // The local LLM (pm_create_local_llm_translator) on these requests now,
     // whatever the checks say; false when it is not installed / failed.
     bool llmTranslate(const std::vector<TrRequest>& in, std::vector<TrHypothesis>& out);
@@ -239,7 +230,6 @@ struct TextInfo {
     int step = 0;                    // highest escalation step used
     std::vector<std::string> flags;  // checks that failed at first
     bool row = false;                // a table row (label + value)
-    bool online = false;             // a piece came from online translation (the card / list shows 「線上」)
     std::wstring alt;                // EscalationConfig::collectAlt: the text with the LLM's translation of every engine piece
     double altMs = 0;                // its LLM time
     std::string altFlags;            // checks the LLM's pieces fail

@@ -1220,7 +1220,7 @@ int runSelfTest(bool download) {
         expect(!esc.cached(Lang::Ja, Lang::En, L"脂質", g), "keyed by target");
         expect(!esc.cached(Lang::Ja, Lang::ZhHant, L"不明", g), "doubtful result not kept");
         EscalationConfig c = esc.config();
-        c.online = !c.online;
+        c.localLlm = !c.localLlm;
         esc.setConfig(c);
         expect(esc.cacheSize() == 0, "cleared when the engines allowed change");
     }

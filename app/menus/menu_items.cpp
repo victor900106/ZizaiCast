@@ -220,15 +220,14 @@ MenuItem miracastUnavailableItem() {
 // out (no adb: only the greyed 連接 row says so).
 std::vector<MenuItem> androidItems() {
     std::vector<MenuItem> v;
+    if (g.androidOk && g.android) g.android->warmUp();  // 0.8.4: the menu is being opened: adb starts now (not at launch when never paired)
     v.push_back(MenuItem::command(CmdHowTo, tr(S::ActHowTo), kIcoHelp));
     v.push_back(MenuItem::separator());
     v.push_back(androidPairItem());
     if (g.androidOk) v.push_back(checkItem(CmdAndroidAuto, tr(S::OptAndroidAuto), kIcoConnect, g.settings.androidAuto));
     appendAndroidControlItems(v);  // 0.8.3 Android 操控
-    if (g.miracastUnsupported) {
-        v.push_back(MenuItem::separator());
-        v.push_back(miracastUnavailableItem());
-    } else if (g.miracast) {
+    // 0.8.4: a PC that cannot receive Miracast shows nothing about it (no greyed row, no explanation)
+    if (!g.miracastUnsupported && g.miracast) {
         v.push_back(MenuItem::separator());
         v.push_back(checkItem(CmdMiracast, tr(S::OptMiracast), kIcoCast, g.settings.miracast));
         if (g.settings.miracast && !g.miracastReason.empty()) appendNotes(v, moduleText(g.miracastReason), 30);
@@ -250,7 +249,7 @@ MenuItem recordItem() {
 
 // 傳到手機 ▸ (both menus; right: 「N 個未傳」): 傳送未傳的截圖／錄影 (only
 // with unsent captures), 把最後一張截圖／最後一段錄影傳到手機 (only when there
-// is one), 傳到手機…, 截圖／錄影後自動傳到手機 ✓.
+// is one), 傳到手機….
 MenuItem shareItem() {
     const size_t unsent = unsentCount();
     std::vector<MenuItem> sub;
@@ -260,8 +259,6 @@ MenuItem shareItem() {
     if (!lastShotFile().empty()) sub.push_back(MenuItem::command(CmdShareLastShot, tr(S::MenuShareLastShot), kIcoShare));
     if (!lastRecFile().empty()) sub.push_back(MenuItem::command(CmdShareLastRec, tr(S::MenuShareLastRec), kIcoShare));
     sub.push_back(MenuItem::command(CmdSharePick, tr(S::MenuSharePick), kIcoSharePick));
-    sub.push_back(MenuItem::separator());
-    sub.push_back(checkItem(CmdShareAuto, tr(S::MenuShareAuto), kIcoShare, g.settings.autoShare));
     return valueSubmenu(tr(S::ShareChip), kIcoShare, std::move(sub),
                         unsent ? fmt(S::ShareUnsentCount, {std::to_wstring(unsent)}) : std::wstring());
 }
@@ -303,7 +300,7 @@ MenuItem helpItem() {
     sub.push_back(MenuItem::command(CmdHowTo, tr(S::ActHowTo), kIcoConnect));
     sub.push_back(MenuItem::command(CmdShortcuts, tr(S::MenuShortcuts), kIcoKeyboard, L"F1"));
     sub.push_back(MenuItem::command(CmdTutorial, tr(S::MenuTutorial), kIcoHelp));
-    if (g.miracastUnsupported || (g.settings.miracast && !g.miracastReason.empty()))
+    if (!g.miracastUnsupported && g.settings.miracast && !g.miracastReason.empty())
         sub.push_back(MenuItem::command(CmdMiracastHelp, tr(S::MenuMiracastHelp), kIcoCast));
     sub.push_back(MenuItem::separator());
     sub.push_back(MenuItem::command(CmdCheckUpdate, tr(S::MenuCheckUpdate), kIcoSync));

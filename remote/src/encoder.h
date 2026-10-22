@@ -52,7 +52,12 @@ public:
     bool encodeTexture(ID3D11Texture2D* tex, int64_t captureUs, std::function<void()> onRelease);
     bool gpuInput() const { return gpu_; }
     void forceKeyFrame() { wantKey_ = true; }
-    bool setBitrate(int kbps);
+    bool setBitrate(int kbps);  // 0.8.4: the peak (VBR) and the VBV buffer follow the mean
+    int kbps() const { return opt_.kbps; }
+    // 0.8.4: does a new bitrate on the open encoder change what comes out? Measured on the NVIDIA H.264
+    // MFT: in CBR yes (within a second), in peak-constrained VBR no (accepted, ignored: 6 Mbps stayed 6
+    // Mbps after "2000 kbps", key frame or not). false: open it again with the new bitrate.
+    bool dynamicBitrate() const { return !opt_.vbr; }
 
     const std::string& name() const { return name_; }
     bool hardware() const { return hw_; }

@@ -300,13 +300,8 @@ public:
         int lines = 1;          // text lines of the original in the box (font size ~ box height / lines)
         uint32_t bg = 0, fg = 0;  // 0xRRGGBB: background / text colour around the original (if colors)
         bool colors = false;
-        bool online = false;    // translated online: a 「線上」 badge (card corner / list row)
     };
     void setTextOverlay(std::vector<TextBox> boxes);
-    // After a translation (the app, from ScreenTranslator::lastItems()): the
-    // shown boxes whose `original` is listed get the 「線上」 badge, the others
-    // lose it.  The next setTextOverlay starts without badges again.
-    void setTextOverlayOnline(std::vector<std::wstring> originals);
     // 翻譯 ▸ 顯示方式: mode 0 automatic (listed when > 30 % do not fit), 1
     // 原位顯示 (whatever fits in place, the rest listed), 2 清單顯示 (all
     // listed); dark: 深色方框 (the 0.7.0 dark cards, low vision) instead of

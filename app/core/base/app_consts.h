@@ -34,11 +34,7 @@ inline constexpr S kCloseActNames[3] = {S::CloseActAsk, S::CloseActTray, S::Clos
 // (pm_translate, docs/translate.md). Only while a phone picture is shown: the
 // menu items are greyed otherwise, the shortcuts do nothing, and when the
 // picture ends the translation closes and the zoom goes back to 1× (the colour
-// filter is a viewing preference: settings.ini filter=).
-inline constexpr pm::VideoWindow::Filter kFilters[5] = {pm::VideoWindow::Filter::None, pm::VideoWindow::Filter::Contrast,
-                                                 pm::VideoWindow::Filter::Grayscale, pm::VideoWindow::Filter::Invert,
-                                                 pm::VideoWindow::Filter::YellowOnBlack};
-inline constexpr S kFilterNames[5] = {S::FilterNone, S::FilterContrast, S::FilterGray, S::FilterInvert, S::FilterYellow};
+// filters were removed in 0.8.4).
 constexpr int kLiveSeconds = 5;  // 即時翻譯 (change-driven since 0.8: ScreenTranslator::setLive; unused)
 
 // 管理翻譯模型 by language (0.7.7): the user reads FROM a language; the pivot
@@ -73,7 +69,7 @@ constexpr wchar_t kIcoUpdate = 0xE74A;      // Up (更新到 vX.Y.Z: menus, tool
 
 constexpr wchar_t kIcoQr = 0xED14;          // QRCode (連接 Android)
 constexpr wchar_t kIcoHelp = 0xE897;        // Help (使用教學)
-constexpr wchar_t kIcoCast = 0xEC15;        // Cast (接受 Android 投放)
+constexpr wchar_t kIcoCast = 0xEC15;        // Cast (remote 電腦聲音傳到手機 menu rows)
 constexpr wchar_t kIcoConnect = 0xE703;     // Connect (自動連線 Android)
 constexpr wchar_t kIcoBack = 0xE72B;        // Back
 constexpr wchar_t kIcoHome = 0xE80F;        // Home
@@ -98,6 +94,5 @@ constexpr wchar_t kIcoLive = 0xE8EE;        // RepeatAll (連續翻譯)
 constexpr wchar_t kIcoModels = 0xE896;      // Download (管理翻譯模型)
 constexpr wchar_t kIcoDelete = 0xE74D;      // Delete
 constexpr wchar_t kIcoLocalAi = 0xE7F8;     // DeviceLaptopNoPic (本機 AI 翻譯)
-constexpr wchar_t kIcoOnline = 0xE774;      // Globe (線上翻譯)
 
 }  // namespace pm_app

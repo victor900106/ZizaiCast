@@ -3,9 +3,12 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "gpu_util.h"
 
 namespace pm::remote {
 
@@ -51,16 +54,21 @@ private:
     int cores_ = 1;
 };
 
-// Per-process GPU engine utilisation (PDH "GPU Engine(pid_N_*)"), percent
-// summed per engine type (3D, VideoEncode, VideoProcessing, Copy, ...).
+// Per-process GPU engine utilisation (PDH "GPU Engine(pid_N_*)"), percent per engine type (3D,
+// VideoEncode, VideoProcessing, Copy, ...): 0.8.3.7: from the raw values (gpu_util.h), each 0..100 %, the
+// busiest engine of a type; an engine whose value is not sound in a sample is left out (never a made-up figure).
 class GpuMeter {
 public:
     GpuMeter();
     ~GpuMeter();
-    std::string sample();  // "3D 1.2% VideoEncode 8.5% ..." since the last call
+    std::string sample();  // "3D 1.2% VideoEncode 8.5% ..." since the last call ("n/a": nothing known)
+    void last(double& d3, double& enc) const;  // the last sample's 3D / VideoEncode percent, -1 = not known
 private:
     void* query_ = nullptr;
     void* counter_ = nullptr;
+    std::map<std::wstring, GpuRaw> prev_;
+    mutable std::mutex mu_;
+    double last3d_ = -1, lastEnc_ = -1;
 };
 
 }  // namespace pm::remote

@@ -802,7 +802,6 @@ struct ScreenTranslator::Impl {
     Engine engine;  // worker thread only
     Escalator escalator{engine};  // worker thread only: checks + escalation (pm/translator.h)
     std::unique_ptr<Escalator> earlyEsc;  // the early top part's (process()): checks only
-    bool onlineAllowed = true;    // guarded by m; the user's switch is online::activeMode() (read per picture)
     std::atomic<bool> cancelDownload{false};
     bool ocrDeclined = false;  // worker thread: the OCR model download was refused (this session)
     // ---- 即時翻譯 (live mode): change-driven (worker thread only) ----
@@ -1470,7 +1469,7 @@ struct ScreenTranslator::Impl {
                 shown = std::wstring(1, kOverlayRow) + tx;
             }
             res.push_back({b.text, tx, l, b.x0, b.y0, b.x1, b.y1, isRow, inf && inf->uncertain,
-                           inf ? inf->verified : std::wstring(), inf ? inf->step : 0, inf && inf->online});
+                           inf ? inf->verified : std::wstring(), inf ? inf->step : 0});
             // A little margin around the text so the card covers it.
             const float by0 = b.cy1 > b.cy0 ? b.cy0 : b.y0, by1 = b.cy1 > b.cy0 ? b.cy1 : b.y1;
             const float lineH = (by1 - by0) / std::max(1, b.lines);
@@ -1486,7 +1485,7 @@ struct ScreenTranslator::Impl {
         // translated and shown on another thread while the rest is read (the
         // engine is idle meanwhile; joined before the worker uses it again).
         // The whole picture then goes through the usual steps and replaces it.
-        // Own escalator: checks only (no LLM / online), the picture's own one
+        // Own escalator: checks only (no LLM), the picture's own one
         // stays as without it.  Off unless PM_TR_EARLY=1: measured on the E-cores (PM_OVERLAY_FIRST_SHOT) it did not show the first cards earlier (the early thread takes CPU from the OCR of the rest), see the commit message.
         std::thread earlyThread;
         double earlyMs = 0;
@@ -1514,7 +1513,7 @@ struct ScreenTranslator::Impl {
                     if (!earlyEsc) {
                         earlyEsc = std::make_unique<Escalator>(engine);
                         EscalationConfig ec = earlyEsc->config();
-                        ec.localLlm = ec.online = false;
+                        ec.localLlm = false;
                         earlyEsc->setConfig(ec);
                     }
                     earlyEsc->resetBudget();
@@ -1724,12 +1723,6 @@ struct ScreenTranslator::Impl {
         const double tt = nowMs();
         std::vector<Item> result;
         std::vector<VideoWindow::TextBox> boxes;
-        {
-            EscalationConfig ec = escalator.config();
-            std::lock_guard lk(m);
-            ec.online = onlineAllowed;
-            escalator.setConfig(ec);
-        }
         const double tr0 = nowMs();
         escalator.resetBudget();
         if (prof) std::fprintf(stderr, "[tr] t+%.0f ms: translation starts (resetBudget %.0f ms)\n", nowMs() - t0, nowMs() - tr0);
@@ -1842,10 +1835,6 @@ Lang ScreenTranslator::target() const {
 void ScreenTranslator::setSource(Lang src) {
     std::lock_guard lk(impl_->m);
     impl_->source = src;
-}
-void ScreenTranslator::setOnlineAllowed(bool on) {
-    std::lock_guard lk(impl_->m);
-    impl_->onlineAllowed = on;
 }
 Lang ScreenTranslator::source() const {
     std::lock_guard lk(impl_->m);

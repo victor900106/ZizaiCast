@@ -244,10 +244,6 @@ public:
     void setTarget(Lang tgt);  // ZhHant, En, Ja or Ko (default: the UI language, defaultTarget())
     Lang target() const;
     void setSource(Lang src);  // Unknown (default): automatic
-    // Online translation (pm/online_translate.h): used only in the mode the
-    // user set there (activeMode(): Off unless turned on with consent and a
-    // key).  setOnlineAllowed(false) vetoes it for this translator (default true).
-    void setOnlineAllowed(bool on);
     Lang source() const;
     void translateScreen();
     void translateRegion();
@@ -297,7 +293,6 @@ public:
         bool uncertain = false;  // still failed a check after every escalation step (translated ends with 「⚠ 」 + verified)
         std::wstring verified;   // uncertain: the checked key facts (negation, numbers) in the target language
         int step = 0;            // escalation step used (pm/translator.h: 1 Bergamot … 6 verified facts)
-        bool online = false;     // (part of) it came from online translation: show 「線上」 (ARCHITECTURE.md §3.7.3)
     };
     std::vector<Item> lastItems() const;
 

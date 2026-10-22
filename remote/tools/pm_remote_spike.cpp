@@ -13,6 +13,8 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <mutex>
 #include <set>
 #include <string>
@@ -79,6 +81,9 @@ void usage() {
         "  --upload-dir DIR   files from the phone go to DIR (0.8.3; default: off)  --upload-max BYTES\n"
         "  --test-files A;B   with --test-clipboard: the files offered as copied in Explorer\n"
         "  --help-file PATH   the guide HTML served at /<token>/help\n"
+        "  --privacy-test M   0.8.4 隱私黑屏 test cover: offscreen (default) | tiny (2x2 at the top-left pixel)\n"
+        "  --privacy-real     0.8.4: a REAL full-screen cover (by hand only)   --no-privacy: not offered\n"
+        "  --pcfs-root ID=DIR 0.8.4 電腦的檔案: this folder instead of the PC's own (repeatable)   --no-pcfiles: off   --pcfs-guest: 臨時帳號 may too\n"
         "  --no-audio         no audio track\n"
         "  --test-tone        play a very quiet (-70 dBFS) 440 Hz tone so the loopback has sound\n"
         "  --tone D@S+N[:A]   play a tone on the playback device whose name contains D, from S s for N s (amplitude A, 0.05)\n"
@@ -299,10 +304,12 @@ void toneThread(Tone t, ULONGLONG t0) {
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
+    if (const int pc = pm::remote::runPrivacyMaskIfAsked(); pc >= 0) return pc;  // 0.8.4: this exe is also the 隱私黑屏 cover
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     SetConsoleOutputCP(CP_UTF8);
     pm::remote::Options o;
     o.requireApproval = false;  // the spike lets every page in unless --approval
+    o.privacyTest = "offscreen";  // 0.8.4: the spike never covers the screen unless --privacy-real
     double duration = 0, kickAfter = 0;
     int approveAfterMs = 1500;
     bool denyFirst = false, testWindow = false, tone = false;
@@ -316,7 +323,7 @@ int wmain(int argc, wchar_t** argv) {
     int funnelPort = 0;
     bool fixedTunnel = false;
     std::wstring cloudflared;
-    std::wstring logFile;
+    std::wstring logFile, keysFile;
     auto u8 = [](const wchar_t* w) {
         const int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
         std::string s(size_t(n > 0 ? n - 1 : 0), '\0');
@@ -367,6 +374,12 @@ int wmain(int argc, wchar_t** argv) {
                 p = q + 1;
             }
         }
+        else if (a == L"--privacy-test") o.privacyTest = u8(next());  // 0.8.4: offscreen (default) | tiny
+        else if (a == L"--privacy-real") o.privacyTest.clear();         // 0.8.4: a real full-screen cover (by hand only)
+        else if (a == L"--no-privacy") o.privacyAllowed = false;
+        else if (a == L"--pcfs-root") o.pcFilesTestRoots.push_back(next());  // 0.8.4: "id=dir" (replaces every default folder)
+        else if (a == L"--no-pcfiles") o.pcFiles = false;
+        else if (a == L"--pcfs-guest") o.pcFilesGuest = true;  // 0.8.4: 臨時帳號 may browse / download PC files
         else if (a == L"--help-file") o.helpFile = next();
         else if (a == L"--fixed-fps") o.adaptiveFps = false;
         else if (a == L"--no-even-pacing") o.evenPacing = false;  // 0.8.3.6 A / B: frames up to a quarter slot early (0.8.3.5)
@@ -437,6 +450,13 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--fixed-tunnel") fixedTunnel = true;
         else if (a == L"--tunnel-no-cc") o.tunnelCongestion = false;
         else if (a == L"--mute-pc") o.mutePc = true;
+        else if (a == L"--keys-file") {  // 0.8.4 自訂快捷鍵: the list is read from / saved to this file (the app keeps it in settings.ini)
+            keysFile = next();
+            std::ifstream in(keysFile);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            o.customKeys = ss.str();
+        }
         else if (a == L"--synthetic-audio") o.audioSynthetic = u8(next());  // music | loud | quiet: silent test source
         else if (a == L"--no-agc") o.audioAgc = false;               // 0.8.3 A / B
         else if (a == L"--no-volume-comp") o.audioVolumeComp = false;  // 0.8.3 A / B
@@ -459,6 +479,7 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--tail-frames") o.tailFrames = std::max(0, _wtoi(next()));
         else if (a == L"--rtp-payload") o.rtpPayload = _wtoi(next());
         else if (a == L"--scene") o.scene = u8(next());
+        else if (a == L"--test-cursor-cycle") o.testCursorCycle = true;  // 0.8.4: the stub pointer's shapes in turn
         else if (a == L"--stdin-quit") {
             // Test drivers: closing our stdin pipe = Ctrl+C.
             std::thread([] {
@@ -548,6 +569,10 @@ int wmain(int argc, wchar_t** argv) {
             host.approve(id, allow, rem);
         }).detach();
     };
+    o.onPrivacy = [](bool on, const std::string& why) { slog("event: PRIVACY %s (%s)", on ? "on" : "off", why.c_str()); };  // 0.8.4
+    o.onDownload = [](const pm::remote::Peer& p, const std::string& what, uint64_t bytes, const std::string& kind) {
+        slog("event: DOWNLOAD %s %s (%llu bytes) by %s", kind.c_str(), what.c_str(), (unsigned long long)bytes, p.label.c_str());
+    };
     o.onActive = [&](const pm::remote::Peer& p) {
         activeAt = GetTickCount64();
         slog("event: ACTIVE %s (%s) session %s%s%s policy %s admit %s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str(),
@@ -575,6 +600,10 @@ int wmain(int argc, wchar_t** argv) {
         slog("event: LOGIN %s %s (fails %d%s)", ip.c_str(), ok ? "OK" : "WRONG", fails, locked ? ", LOCKED" : "");
     };
     o.guests = guests;
+    o.onKeysChanged = [keysFile](const std::string& json, const std::string& label) {  // 0.8.4: what the app writes to settings.ini
+        slog("event: KEYS saved by %s: %s", label.c_str(), json.c_str());
+        if (!keysFile.empty()) std::ofstream(keysFile, std::ios::binary | std::ios::trunc) << json;
+    };
     o.onGuestLogin = [](const std::string& ip, const std::string& user, bool ok, int fails, bool locked) {
         slog("event: GUEST LOGIN %s user %s %s (fails %d%s)", ip.c_str(), user.c_str(), ok ? "OK" : "WRONG", fails, locked ? ", LOCKED" : "");
     };

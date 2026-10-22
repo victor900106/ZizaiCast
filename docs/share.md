@@ -12,11 +12,11 @@ If the adb push fails (phone gone, adb error) the app falls back to the QR
 path for that file and the rest of the queue (toast 「無法直接傳到 Android
 手機，改用 QR 碼」).
 
-## Several captures, 自動傳到手機 (0.7.1)
+## Several captures (0.7.1)
 
 * **This run's captures**: every screenshot / saved recording is remembered
   (`App::captures`, oldest first) with a *sent* flag — set when the file is
-  pushed or queued for adb, put on a QR page, or added to the live page.
+  pushed or queued for adb, or put on a QR page.
 * **傳到手機** (toolbar button, chip, the new first menu item 「傳到手機」 with
   「N 個未傳」 on the right) sends the captures **not sent yet**: none → the
   newest file as before; exactly one → that file at once (the old one-click
@@ -31,38 +31,15 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
   worker thread (WIC scaled decode for pictures, the shell's thumbnail —
   Media Foundation's frame — for MP4s), so opening it never waits on a
   decoder. 傳送 → the ticked files go the usual way (adb or QR).
-* **截圖／錄影後自動傳到手機** (check item in both menus under 傳到手機…;
-  settings.ini `auto_share=1`): every new capture is sent at once, the chip
-  is not shown.
-  * Android mirroring over adb: queued `pushToGallery` (one at a time on
-    AndroidSource's push thread; a capture taken while a push runs waits in
-    `pushQueue`), no 「正在傳到手機」 toast, then a short 「已傳到手機相簿」.
-    A manual send while pushing is queued too (toast 「已排入傳送（還有 N 個）」;
-    the old 「上一個檔案還在傳送中」 refusal is gone).
-  * Anything else: a **live share** (below). Turning the option on starts
-    it right away (empty page + QR panel) so the phone can open the page
-    before the first capture; each new capture is added to it (toast
-    「已傳到手機上的頁面」), the panel is not reopened. If no live share runs
-    (closed by 停止, expired, the app restarted with the option on), the next
-    capture starts a new one and shows its QR.
-  * Live QR panel: 「自動傳送中 · 已傳 N 個」 instead of the countdown, the hint
-    「頁面開著，新的截圖和錄影就會自動出現。關掉這個視窗也會繼續傳。」, the
-    newest file's name, button 「停止自動傳送」 (= the option off: page ends,
-    toast 「已關閉自動傳到手機」). × / Esc only hide the panel; 傳到手機 shows it
-    again (and adds unsent captures to the page).
-  * Turning the option off stops the live share.
 * **Never in the way of the picture**: pushes run on AndroidSource's thread,
   the server on its own threads, thumbnails on a worker; the UI thread only
   queues. (The PNG of a screenshot is still written on the UI thread as
   before; the video is rendered on the window's worker thread, so it does
-  not stutter.) Measured off-screen with 3 quick screenshots + a recording
-  while 4 slow (1.5 s) fake-adb pushes ran: the video's 5 s summaries show
-  `drop 0 skip 0`, every picture presented.
+  not stutter.)
 
 ## UX (app/share/, app/share_panel.cpp)
 
-* **Chip**: after 截圖 and after a recording is saved (unless 自動傳到手機 is
-  on), a small themed 「⇪ 傳到手機 | ×」 button (`pm::ui::ShareChip`) appears centred just above
+* **Chip**: after 截圖 and after a recording is saved, a small themed 「⇪ 傳到手機 | ×」 button (`pm::ui::ShareChip`) appears centred just above
   the video window's toast for 8 s (stays while hovered, 2.5 s after the
   cursor leaves). Click = 傳到手機 (the unsent captures, see above). The video window's toasts have no actions, so this is an
   owned no-activate popup of the app (follows the window on move / resize,
@@ -74,7 +51,7 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
   錄影 pinned as places; png / jpg / mp4 / mov; up to 50 files).
 * **Toolbar** (live picture): share button (U+E72D) after 錄影, tooltip
   「傳到手機（最後的截圖／錄影）」 = the newer of the last screenshot / recording.
-* **Android auto path**: toast 「正在傳到手機：name…」 while pushing (one file at
+* **Android path**: toast 「正在傳到手機：name…」 while pushing (one file at
   a time), then 「已傳到手機相簿：name」, or 「已傳到手機的 Pictures/ZizaiCast，
   相簿稍後就會出現」 when MediaStore did not list it yet.
 * **QR panel** (`pm::ui::SharePanel`, like the pairing panel; follows 主題 and
@@ -142,22 +119,10 @@ path for that file and the rest of the queue (toast 「無法直接傳到 Androi
   bytes). HEAD gives the length without the CRC pass. `from` past the end /
   any other query → 404. `onAccess` fires per file as it streams (the panel
   shows 「手機正在下載：name」). Log: `… GET zip from 0 200 (3 file(s), N bytes)`.
-* **Live share** (`Options::live`, 自動傳到手機): may start with no file;
-  `addFile(path)` adds one while serving (same path → same index; up to
-  `kMaxLiveFiles` 500; `addFile` works on a normal share too). Files are
-  guarded by a mutex, indices never change. `GET /<token>/list?n=K` (JSON
-  `{"live","n","files":[{i,name,video,size,sizeText,type}]}`) is held up to
-  20 s until file K+1 exists (live only; a normal share answers at once),
-  and is woken at once by `addFile`, expiry (→ 410) and `stop()`.
-* **Live expiry** — same security model, longer life: same LAN-only bind,
-  same 32-character token, but the link stays valid **while 自動傳到手機 is on
-  and the app runs**, capped at **12 hours** (`kLiveShareHours`, the
-  `ttlSeconds` of a live share). It ends earlier when the option is turned
-  off, 停止自動傳送, the app quits / updates. After the cap the page gets 410
-  「這個分享已結束」 with 「電腦上的自動傳送已經停止…」; the next capture starts a
-  new share (new token, new port, the panel shows the new QR). Rationale: the
-  phone keeps the page open for a whole session; 12 h covers a working day
-  without a forgotten token living for days.
+* **addFile**: `addFile(path)` adds a file to the running share (a drop on the
+  window; same path → same index; up to `kMaxAddedFiles` 500). Files are
+  guarded by a mutex, indices never change; the page picks the new file up at
+  its next load.
 * **Expiry**: `ttlSeconds` (600). At the deadline `onExpired` fires once;
   from then on every request with the right token gets 410 and the
   「這個分享已結束」 page (wrong token: still 404); transfers already running
@@ -221,9 +186,7 @@ per-file buttons. The 0.7.1 live test stubbed `navigator.share` on
 
 **Script (app.js, progressive — without it the page works as before):**
 
-* Keeps the ZIP button's count current; on a live page, after a tap on it,
-  new files make it 「下載新的 N 個（ZIP）」 → `zip?from=K` (K = one past the
-  newest file the tapped ZIP had); with nothing new it offers all again.
+* Keeps the ZIP button's count current.
 * **全部儲存（N）** (replaces the ZIP button) and a per-file **儲存** where the
   browser can share files (`navigator.canShare({files})`: a secure context
   only — https / localhost, never the LAN page): `navigator.share({files:[…]})` with every unsaved file →
@@ -235,14 +198,6 @@ per-file buttons. The 0.7.1 live test stubbed `navigator.share` on
   ones make it 「全部儲存（1）」 again. A failed share says 「無法開啟分享選單…」.
   When sharing works the long-press / Files-app steps are hidden (the
   button does it); otherwise everything is as before (fallback).
-* **Live**: header 「● 即時更新：電腦上新的截圖和錄影會自動出現」, the newest file
-  first, an empty-state card 「還沒有檔案。在電腦上截圖或錄影，就會自動出現在這裡。」,
-  long poll `list?n=K` → new cards are inserted at the top (briefly
-  highlighted) without a reload; 410 → 「分享已結束。這頁上已有的檔案還是可以
-  儲存。」; network errors → 「暫時連不到電腦，正在重試…」 and a back-off retry.
-  Footer: 「電腦上的「截圖／錄影後自動傳到手機」開著時，這個連結一直有效（最長 12
-  小時）…」.
-
 The User-Agent picks the instructions: iPhone / iPad / iPod → iOS only,
 Android → Android only, anything else → both under small headings. Footer:
 「連結到 HH:MM 前有效（10 分鐘），只有掃描電腦上 QR 碼的人能開啟。」
@@ -294,8 +249,7 @@ from that thread; the app posts it to the UI thread.
   selected and `document.execCommand('copy')` (the LAN page is http), with
   「已複製」 / 「無法自動複製：長按文字選取後複製」.
 * **When**: only for a share the owner opened (傳到手機 menu / toolbar /
-  picker / chip, a drop on the window, turning 自動傳到手機 on); a live page
-  that an automatic send started by itself has no card. While such a share
+  picker / chip, a drop on the window). While such a share
   runs the window is a clipboard format listener (`WM_CLIPBOARDUPDATE`, no
   polling) and keeps a copy of the text (≤ 100 000 characters); when the share
   stops (停止分享, ×, expiry, quit, a new share without it) the listener goes
@@ -327,10 +281,8 @@ file; a deleted file left out. Also checked by hand: Windows `tar.exe`
 「stop() during a 64 MB download」 check failed once in 4 runs with a 30 s
 send timeout — an old timing race in that test, not the ZIP code.) New in 0.7.1: script tags only
 `app.js` + the JSON block, CSP `script-src 'self'`, JSON has no raw `<`,
-`app.js` / `list` need the token; live share: starts empty, `list?n=0` held
-until `addFile` (answered ~0 ms after it), same path → same index, newest
-first + hidden empty card, expiry wakes a waiting `list` with 410, `stop()`
-releases it in < 0.3 s, `addFile` refused after expiry, non-live `addFile`.
+`app.js` needs the token; `addFile`: same path → same index, a missing file → -1,
+the added file served and listed on a reload, refused after expiry.
 Earlier checks:
 
 * helpers: range parsing (a-b, a-, -n, clamp, past end → 416, reversed /
@@ -374,51 +326,32 @@ decodes (OpenCV) to its URL; curl: page 200, image 200 with the PNG's
 size, no token → 404, video `Range: bytes=0-1` → 206, `d/1` attachment;
 the panel status turned to 「手機正在看：…」 after the fetch; 164 (停止分享)
 → connection refused; TTL 6 s → 410 and the panel's expired state; quit →
-`share: stopped`. With `--test-source android` the auto path was taken
+`share: stopped`. With `--test-source android` the adb path was taken
 (log `test android: would push …\自在投影_….png → /sdcard/Pictures/ZizaiCast/ZizaiCast_….png`,
 toast 「（測試）已傳到手機相簿」). 傳到手機… in `--test-offscreen` skips the
 dialog and shares the last screenshot + last recording (2 files).
 
-Several captures / 自動傳到手機, off-screen (`share/tools/app_share_batch_test.ps1
--Mode picker|autopush|live`; restores the dev settings.ini). Verified
+Several captures, off-screen (`share/tools/app_share_batch_test.ps1
+-Mode picker`; restores the dev settings.ini). Verified
 2026-10-08:
 
 * **picker**: 2 screenshots, a recording, a screenshot → chip, menus show
   「傳到手機 4 個未傳」; toolbar 傳到手機 → picker with 4 thumbnails (the MP4's
   from the shell), all ticked, rendered in 繁中 / English / 日本語 / 한국어
   (`batch_picker_3-picker-*.png`); untick the recording → 「傳送 3 個」 → QR
-  page `list` has exactly those 3; 傳到手機 again → the one unsent file (the
+  page has exactly those 3 cards (`data-i`); 傳到手機 again → the one unsent file (the
   recording) goes at once.
-* **autopush** (`--test-source android`, `PM_SHARE_FAKE_ADB=<dir with
-  pm_share_fake_adb.exe as adb.exe>`, `FAKE_ADB_PUSH_MS=1500`): option on,
-  3 screenshots 0.3 s apart + a recording → log 「queued (1 waiting)」,
-  「(2 waiting)」, four pushes in capture order (fake adb log: 3 ×
-  Pictures/ZizaiCast, 1 × Movies/ZizaiCast), all 「in the gallery」; the
-  window shot shows 「已傳到手機相簿」; video `drop 0 skip 0` throughout.
-* **live** (`share/tools/live_page_test.mjs`, headless Chrome, iPhone UA;
-  0.7.3: two tabs). **http tab** (`http://zizai.test:<port>/…`, mapped to
-  127.0.0.1 by `--host-resolver-rules`, `--disable-features=HttpsUpgrades`:
-  a real non-secure origin like the phone's LAN address, nothing stubbed):
-  `isSecureContext` false and `navigator.share` undefined; with 3 files
-  「全部下載（ZIP，3 個）」 and the Files → Photos sentence are visible, 全部儲存
-  is not; a real tap downloads `ZizaiCast_….zip` (Browser.setDownloadBehavior
-  into a temp dir), unzipped in node: 3 files = the server's (names in
-  order, sizes, bytes, CRC-32, UTF-8 flag); after one more 截圖 the button
-  reads 「下載新的 1 個（ZIP）」 → `zip?from=3` with just that file. Verified
-  2026-10-09, all 29 checks. **share tab** (`127.0.0.1`, `navigator.share`
-  stubbed): option on → live panel + empty page; app 截圖 →
-  the open page shows the card by itself; another 截圖 + a recording → 3
-  cards, recording on top, 「全部儲存（3）」; a real mouse tap → `share()` once,
-  inside the user activation, with 3 Files whose names / sizes / types equal
-  the server's list; cards 「已儲存 ✓」; one more 截圖 → 「全部儲存（1）」.
-  Page shots in 4 languages: `pm_share_test --serve 60 --lang 0..3 FILE…`
+  (0.8.4: the `autopush` and `live` modes of this script and
+  `live_page_test.mjs` went with 自動傳到手機. The page's save / ZIP behaviour
+  is checked by hand and with `page_shot.mjs`.) Page shots in 4 languages:
+  `pm_share_test --serve 60 --lang 0..3 FILE…`
   + `page_shot.mjs <url> out.png ios 390 stub` (`none` = a browser without
   file sharing: the fallback page).
 
 Dev-only hooks: `PM_SHARE_FAKE_ADB` (adb pushes through a fake adb.exe in
 `--test-source android`), DevCommand 908 (picker 傳送), 909 (tick item lp /
 -1 all), 910 (video window with its toast → `window.png`), 903 also writes
-`picker.png`, command 165 (CmdShareAuto). `--test-no-network` (no AirPlay / Miracast / adb, so a fresh
+`picker.png`. `--test-no-network` (no AirPlay / Miracast / adb, so a fresh
 build path never triggers a Windows Firewall prompt — also after a language
 switch), `PM_SHARE_BIND` (bind address), `PM_SHARE_TTL` (seconds),
 DevCommand 903, command ids 160–164 (CmdShareLast, …LastShot, …LastRec,
@@ -431,18 +364,6 @@ DevCommand 903, command ids 160–164 (CmdShareLast, …LastShot, …LastRec,
   folder) → 選取 → 全選 → 分享 → 「儲存 N 張影像」 → all in Photos. Check the
   Files wording on the owner's iOS version and a ZIP with a recording
   (「儲存 N 個項目」).
-* **0.7.1, iPhone**: turn on 截圖／錄影後自動傳到手機 with the iPhone mirroring
-  over AirPlay, scan the QR, keep Safari open; take screenshots / a
-  recording → they appear on the page by themselves; 全部儲存 → the share
-  sheet offers 「儲存 N 張影像」/「儲存 N 個項目」 → all in Photos. Check that a
-  locked / backgrounded Safari picks up again when reopened, and how large a
-  recording iOS Safari still prefetches (cap 200 MB per file).
-* **0.7.1, Android over wireless debugging**: option on, several quick
-  screenshots + a long recording → all in the gallery in order; watch the
-  mirror while a big recording is pushed (adb shares the Wi-Fi with scrcpy:
-  no drops expected at screenshot sizes, a several-hundred-MB push may
-  lower the mirror's bitrate for its duration).
-
 * **iPhone / iPad**: scan the panel's QR with the Camera app (same Wi-Fi) →
   Safari opens the page; long-press the picture → 「加入照片」 → it is in
   Photos; for a recording: 下載影片 → 下載 → 檔案 App → 下載項目 → 分享 →

@@ -101,7 +101,7 @@
 <!-- ============ Miracast ============ -->
 <section id="miracast">
 <h2><span class="num">2</span>Android キャスト（Miracast）</h2>
-<p class="goal"><b>やりたいこと</b>Android の画面を PC に映して<strong>見るだけ</strong>。設定は不要ですが、PC に「ワイヤレス ディスプレイ」対応の Wi-Fi アダプターが必要です（多くのノート PC は対応）。</p>
+<p class="goal"><b>やりたいこと</b>Android の画面を PC に映して<strong>見るだけ</strong>。設定は不要ですが、PC に「ワイヤレス ディスプレイ」対応の Wi-Fi アダプターが必要です（多くのノート PC は対応）。これは PC がワイヤレス ディスプレイに対応している場合のみ使えます。対応していない PC では Miracast の項目は表示されません。代わりに「Android（PC で操作）」を使ってください。</p>
 {{fig:cast}}
 <ol class="steps">
   <li>Zizai Cast が動いていて、<strong>PC の Wi-Fi がオン</strong>（有線でネットにつないでいてもオンに）。</li>
@@ -267,7 +267,7 @@
   <li>一部だけ訳したい：右クリック メニュー → 翻訳 → <span class="ui">範囲を翻訳</span>（<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>）で枠を描きます。</li>
 </ul></div>
 <h3 id="magnifier">拡大鏡：文字が小さい</h3>
-<p>ツールバーの<span class="ui">拡大</span>を 1 回で 2 倍、もう 1 回で 4 倍、さらに押すと元に戻ります。<kbd>Ctrl</kbd>＋ホイールでマウスの位置を拡大。右クリック メニュー → <span class="ui">拡大鏡</span>には<span class="ui">コントラストを強調</span>、<span class="ui">黒地に黄色の文字</span>などの色（<kbd>Ctrl</kbd><kbd>K</kbd> で切り替え）と<span class="ui">画面を静止</span>（<kbd>Ctrl</kbd><kbd>P</kbd>）もあります。</p>
+<p>ツールバーの<span class="ui">拡大</span>を 1 回で 2 倍、もう 1 回で 4 倍、さらに押すと元に戻ります。<kbd>Ctrl</kbd>＋ホイールでマウスの位置を拡大。右クリック メニュー → <span class="ui">拡大鏡</span>には<span class="ui">画面を静止</span>（<kbd>Ctrl</kbd><kbd>P</kbd>）もあります。</p>
 <h3 id="update">アップデート</h3>
 <p>新しいバージョンがあるとウィンドウが出ます。<span class="ui">今すぐアップデート</span>を押すと、Zizai Cast がいったん閉じ、インストール後に自動で開きます。今はしないなら<span class="ui">後で通知</span>。右クリック メニュー → <span class="ui">ヘルプ</span> → <span class="ui">アップデートを確認</span>でも確認できます。</p>
 {{img:update|新しいバージョンのウィンドウ（見本の架空のバージョン）|420}}
@@ -391,7 +391,7 @@
 <h4 id="remote-nolink">方法 B：一時アドレス（固定アドレスなしで使える）</h4>
 <ol class="steps">
   <li>PC：固定アドレスがないときは<span class="ui">リモート操作を許可</span>ブロックの<span class="ui">一時アドレスを作る</span>。固定アドレスがあるときは<span class="ui">詳細設定</span> → <span class="ui">一時アドレス（スマホにアプリ不要、モバイル通信からも接続）</span>。10～20 秒で QR コードと 6 桁の<span class="ui">パスコード</span>が出ます（小さなウィンドウの<span class="ui">一時アドレス</span>タブにも。小さなウィンドウのタブは<span class="ui">同じ Wi-Fi</span>、<span class="ui">固定アドレス</span>、<span class="ui">Tailscale</span>、<span class="ui">一時アドレス</span>の順で、メイン画面と同じです）。</li>
-  <li><span class="ui">アドレスをコピー</span>して友だちに送り、パスコードは別に伝えます。<strong>アドレスは 1 回だけ</strong>、10 分以内に使えます。</li>
+  <li><span class="ui">アドレスをコピー</span>して友だちに送り、パスコードは別に伝えます。<strong>アドレスは 1 回だけ</strong>、10 分以内に使えます。初めて一時アドレスを作るときは、先に小さなコンポーネント（約 52 MB、1 回だけ、インターネット接続が必要、進行状況が表示されます）をダウンロードします。</li>
   <li>友だちが開いてパスコードを入れると、PC に「スマホがこの PC を操作しようとしています」が出ます。<strong>あなたが PC の前で「許可」</strong>を押します。</li>
   <li>終わったら<span class="ui">一時アドレスを停止</span>、またはリモート操作をオフにします。</li>
 </ol>
@@ -430,6 +430,15 @@
   <li>Ctrl+Alt+Del が届かない：Windows のセキュリティ キーで、どのプログラムからも送れません。タスク マネージャーはバーの<span class="ui">タスク マネージャー</span>で。</li>
   <li>バーの<span class="ui">ファイル</span>がグレー：マウスを乗せると理由が出ます（表示のみ、またはファイル転送なしの一時アカウント）。</li>
 </ul></div>
+
+<h3 id="remote-mac">Mac から Windows を操作する</h3>
+<p>Mac（またはキーボードをつないだ iPad）の Safari や Chrome で同じアドレスを開くと、Mac と同じ感覚でショートカットが使えます：</p>
+<ul>
+  <li>⌘ + 英字は Windows の Ctrl + 英字として送られます：⌘C コピー、⌘V 貼り付け、⌘X 切り取り、⌘Z 取り消し、⌘A すべて選択、⌘S 保存、⌘F 検索、⌘T、⌘W …</li>
+  <li>⌘ だけを押すと Windows キー（スタート）、⌘ + 矢印は Win + 矢印、Option は Alt です（Option+F4 でウィンドウを閉じる）。</li>
+  <li>スマホのページの<span class="ui">設定</span>に<span class="ui">Mac：Cmd を Ctrl として使う</span>があり、Mac／iPad では自動でオンになります。オフにすると ⌘ はいつも Windows キーです。</li>
+  <li>⌘Q・⌘W・⌘Tab は Mac やブラウザーが先に使います。Windows に送るには<span class="ui">全画面</span>にするか、上のバーのボタン（Ctrl+W など）を使ってください。</li>
+</ul>
 
 <h3 id="remote-approve">接続のときに確認するか</h3>
 <p>PC：<span class="ui">リモート操作</span>タブ → <span class="ui">詳細設定</span> → <span class="ui">接続のときに確認するか</span>。メインアカウント（固定アドレス＋あなたのパスワード）、一時アカウント、一時アドレスごとに選べます：</p>

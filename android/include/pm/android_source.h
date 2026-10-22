@@ -60,7 +60,11 @@ public:
 
     Events events;
 
-    bool init(const std::wstring& toolsDir);  // dir containing adb.exe + scrcpy-server
+    // dir containing adb.exe + scrcpy-server. warmUp (default): start the adb server in the background at once
+    // (~1 s, stopped again when idle); 0.8.4: false = leave it to warmUp() / the first thing that needs adb
+    // (a PC that never paired a phone does not start adb at launch).
+    bool init(const std::wstring& toolsDir, bool warmUp = true);
+    void warmUp();  // start the adb server in the background now (no-op when init() failed or it is running)
     // Pairing QR as BGRA pixels (square, white quiet zone included), plus the
     // raw text; starts listening for the phone (mDNS) in the background.
     // State → WaitingForPairing → Pairing → Connecting → (onConnected).

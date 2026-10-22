@@ -571,7 +571,8 @@ void RemotePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitm
         } else {
             fill(rc(cardX - 10, kQrY, kQrCard + 20, kQrCard), withA(t.fg, 0.06f), 14);
             if (tunState_ == 1) {
-                text(tr(S::RemoteTunnelStarting), f.scan.Get(), rc(cardX + 6, kQrY + kQrCard / 2 - 20, kQrCard - 12, 40), t.fg);
+                if (tunErr_.empty()) text(tr(S::RemoteTunnelStarting), f.scan.Get(), rc(cardX + 6, kQrY + kQrCard / 2 - 20, kQrCard - 12, 40), t.fg);
+                else text(tunErr_, f.note.Get(), rc(cardX + 4, kQrY + 16, kQrCard - 8, kQrCard - 80), t.fg);  // 0.8.4: the add-on download's progress
             } else {
                 const std::wstring body = tunState_ == 3 ? pm::i18n::fmt(S::RemoteTunnelFailed, {tunErr_}) : std::wstring(tr(S::RemoteTunnelIntro));
                 text(body, f.note.Get(), rc(cardX + 4, kQrY + 16, kQrCard - 8, kQrCard - 80), tunState_ == 3 ? D2D1_COLOR_F{1.0f, 0.62f, 0.62f, 1} : t.fg);

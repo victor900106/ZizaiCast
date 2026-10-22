@@ -9,7 +9,7 @@
 **把手機畫面投到 Windows 電腦；也能反過來，用手機遠端控制電腦。**<br>
 iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要手機瀏覽器。免費、開源、沒有廣告、不用帳號。
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3.6-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3.6" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.4-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.4" height="40"></a>
 
 <a href="#mirror"><img src="https://img.shields.io/badge/%E6%89%8B%E6%A9%9F%E6%8A%95%E5%BD%B1-%E6%89%8B%E6%A9%9F%20%E2%86%92%20%E9%9B%BB%E8%85%A6-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="手機投影：手機 → 電腦" height="36"></a>&nbsp;<a href="#remote"><img src="https://img.shields.io/badge/%E9%81%A0%E7%AB%AF%E6%8E%A7%E5%88%B6-%E9%9B%BB%E8%85%A6%20%E2%86%90%20%E6%89%8B%E6%A9%9F-8FE3C4?style=for-the-badge&labelColor=2B2224" alt="遠端控制：電腦 ← 手機" height="36"></a>
 
@@ -49,7 +49,7 @@ iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要�
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-record.jpg" alt="錄影"><br><b>錄影與截圖</b><br>Ctrl+R 錄 MP4（60 fps、含聲音），Ctrl+S 存 PNG，Ctrl+F 加 iPhone 外框。</td>
-<td valign="top"><img src="docs/readme/features/f-magnifier.jpg" alt="放大鏡"><br><b>放大鏡與弱視濾鏡</b><br>最多 8 倍，加強對比、黑白、反轉、黃字黑底，可凍結畫面。</td>
+<td valign="top"><img src="docs/readme/features/f-magnifier.jpg" alt="放大鏡"><br><b>放大鏡</b><br>最多 8 倍，可凍結畫面。</td>
 <td valign="top"><img src="docs/readme/features/f-translate.jpg" alt="畫面翻譯"><br><b>畫面翻譯</b><br>Ctrl+L：英、日、韓、簡中翻成繁中，離線在電腦上執行。<sub>圖中菜單為合成測試圖。</sub></td>
 </tr>
 </table>
@@ -90,13 +90,17 @@ iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要�
 
 ## 新功能
 
-| v0.8.3.6 | |
+| v0.8.4 | |
 |---|---|
-| **畫面更順** | 新增每秒 120 張，電腦改用固定節拍送畫面；「解析度跟手機一樣」在手機上預設打開，每秒畫面更多、延遲更短。 |
-| **切畫質不黑** | 換畫質、每秒畫面、螢幕都在同一條連線裡完成，空白從約 0.4 秒變成約 0.07 秒，也不會再問「允許」。 |
-| **連線時要不要允許** | 主帳號、臨時帳號、臨時網址各自選：每次問、記住這台裝置、只用密碼；拒絕、中斷、刪帳號、改密碼會自動忘記。 |
-| **登入頁小夥伴** | 投投和三個粉紅小夥伴看著游標，打密碼時別開眼，密碼錯了會難過搖頭。 |
-| **手機頁** | 按「改用觸控板」後會說明觸控板怎麼用；允許視窗統一寫「記住這台裝置」。 |
+| **自動畫質** | 畫質預設「自動」：從低畫質起步，網路順就一階一階往上升，變慢就馬上降，都在同一條連線裡完成。 |
+| **隱私黑屏** | 遠端操控時，手機可以讓電腦螢幕蓋上黑幕，手機照常看得到畫面；在電腦前按 Ctrl+Alt+Shift+B 或連按三次 Esc 就能解除。 |
+| **電腦的檔案** | 手機「檔案」面板可以瀏覽電腦的桌面、文件、下載、圖片、影片，勾選多個檔案下載；電腦端可以關閉，每次下載都寫進連線紀錄。 |
+| **自訂快捷鍵** | 鍵盤面板可以新增最多 12 個自己的組合鍵，可取名、拖曳排序、按住連發；新增媒體鍵。 |
+| **系統管理員視窗** | 點到系統管理員權限的視窗時，同一個視窗只提醒一次，不再一直跳。 |
+| **Mac 當操控端** | 在 Mac（和 iPad 鍵盤）上 ⌘＋字母會當成 Ctrl＋字母，複製貼上照 Mac 習慣按；設定可以關掉。 |
+| **檔案走直連** | 用固定網址或臨時網址連線時，傳到電腦的檔案改走直連通道（1.76 MB 從約 4.9 秒變 0.5 秒），進度條顯示百分比和速度。 |
+| **登入動畫** | 登入頁的投投和小夥伴改成全身動作：跟著游標側身、打密碼時轉過身、等太久會緊張或打瞌睡、登入成功會歡呼。 |
+| **安裝檔變小** | 臨時網址用的 cloudflared 改成第一次使用時才下載（有 SHA-256 檢查），安裝檔小了約 12 MB。 |
 
 完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases)。
 
@@ -173,6 +177,12 @@ iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要�
 選了「背景待命」時，程式在背景繼續接收，按工作列右邊的圖示打開（沒看到先按「^」），要結束請在圖示上按右鍵 →「結束」。目前只有 Windows 10 / 11（64 位元）。是的，免費：GPL-3.0 開源，沒有付費版、廣告和資料收集。
 </details>
 
+<details>
+<summary><b>支援 Mac 嗎？</b></summary>
+
+主程式只支援 Windows 10 / 11（64 位元），目前沒有 Mac 版。不過 Mac、iPhone、iPad、Android 都能用瀏覽器打開「固定網址」或「臨時網址」，遠端操控你的 Windows 電腦。在 Mac 上 Cmd 會自動當成 Ctrl（0.8.4 起），複製貼上之類的快速鍵照 Mac 習慣按就好。
+</details>
+
 <a id="limits"></a>
 
 <details>
@@ -187,7 +197,7 @@ iPhone 不能從電腦操控；有 DRM 的影片是黑畫面；Miracast 需要�
 
 - **畫面、聲音、錄影、截圖都只在你的區域網路與電腦裡**，不經過任何伺服器；沒有遙測、分析、廣告，不用帳號。
 - 程式平常唯一的對外連線是**檢查更新**（向 `github.com/victor900106/ZizaiCast/releases/latest/download/update.json` 發一個 HTTPS GET，不帶裝置資訊；只有按「更新到 vX.Y.Z」才下載安裝程式並以 SHA-256 驗證）。在 `%LOCALAPPDATA%\PhoneMirror\settings.ini` 加一行 `update_url=` 即可關閉。
-- **畫面翻譯完全在電腦上離線執行**；模型下載前會先詢問、以 SHA-256 驗證；本機 AI 翻譯和線上翻譯（預設關閉，需自己的 DeepL／Azure／Google 金鑰，只送辨識出的文字）都只在你選用時才連線。
+- **畫面翻譯完全在電腦上離線執行**；模型下載前會先詢問、以 SHA-256 驗證；本機 AI 翻譯只在你選用時才連線。
 - **傳到手機只在區域網路**；**遠端控制預設關閉**，外部服務（你自己的 Tailscale、固定網址、Cloudflare 臨時網址）只在你選用時才經過。
 - 設定與記錄檔存在 `%LOCALAPPDATA%\PhoneMirror`，只在你的電腦上。各連線的程式碼位置見[教學與原始碼](https://github.com/victor900106/ZizaiCast/tree/main/docs)。
 

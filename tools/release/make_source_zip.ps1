@@ -411,10 +411,22 @@ $excludes = @(
     ':(exclude,glob)installer/Output/**',
     # private work notes / evidence (paths, test machines): never published
     ':(exclude,glob)launch/_work/**',
+    # working folders and test screenshots (_shots*, _e2e*, _work*, _tmp*), at any depth
+    ':(exclude,glob)**/_shots*/**',
+    ':(exclude,glob)**/_e2e*/**',
+    ':(exclude,glob)**/_work*/**',
+    ':(exclude,glob)**/_tmp*/**',
     # test material rebuilt from the owner's private screenshots (not published)
     ':(exclude)translate/testdata/eval/owner072.ref.json',
     ':(exclude)translate/testdata/make_owner_072.py'
 )
+# Guard: no file with a Windows user-folder path (drive, Users, a real user name, ...) may go into the zip.
+# Placeholders (<user>, %USERNAME%, $env:..., *, Public, Default, All Users) are fine.
+$userPathRe = '[A-Za-z]:[\\/]+Users[\\/]+[^\\/ "<>]+[\\/]'
+$userOk = '(?i)Users[\\/]+(<|%|\*|\$|\{|Public[\\/]|Default[\\/]|All Users[\\/]|user[\\/]|name[\\/]|username[\\/])'
+$userHits = @(& git -C $Repo grep -I -i -o -E -e $userPathRe $Commit -- . @excludes 2>$null | Where-Object { $_ -and $_ -notmatch $userOk })
+if ($userHits.Count -gt 0) { throw "a Windows user-folder path is in files that would go into the zip (scrub them or exclude them): $(($userHits | Select-Object -First 10) -join '; ')" }
+
 & git -C $Repo archive --format=zip -9 "--prefix=$Prefix/" "--add-file=$buildMdPath" -o $srcZip $Commit -- . @excludes
 if ($LASTEXITCODE -ne 0) { throw "git archive failed ($LASTEXITCODE)" }
 

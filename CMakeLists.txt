@@ -22,6 +22,10 @@ if(MSVC)
   add_link_options($<$<CONFIG:Release,MinSizeRel>:/OPT:REF> $<$<CONFIG:Release,MinSizeRel>:/OPT:ICF>)
 endif()
 
+# Test builds only: the downloader (add-ons: cloudflared, llama, OCR) may also fetch from http://127.0.0.1:PORT, and
+# PM_CF_TEST_* env vars redirect the cloudflared add-on to a local fake server. Never ON for a release build.
+option(PM_TEST_HTTP_DL "Test only: plain-HTTP localhost downloads" OFF)
+
 add_library(pm_media_api INTERFACE)
 target_include_directories(pm_media_api INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

@@ -209,7 +209,18 @@ int main(int argc, char** argv) {
     check("menu: each row reaches setPolicy (remoteCommand <- commands.cpp)", ra.find("setPolicy(static_cast<int>(cmd - CmdRemotePolicy0) / 3, static_cast<int>(cmd - CmdRemotePolicy0) % 3);") != std::string::npos &&
                                                                               cmds.find("cmd >= CmdRemotePolicy0 && cmd <= CmdRemotePolicyLast") != std::string::npos);
     check("menu: the old 外面的新手機也要電腦按允許 row is gone (its place: 連線時要不要允許 ▸)",
-          ra.find("checkItem(CmdRemoteFixedApproval") == std::string::npos && body(ra, "MenuItem remoteItem(").find("sub.push_back(policyMenu());") != std::string::npos);
+          ra.find("checkItem(CmdRemoteFixedApproval") == std::string::npos && body(ra, "MenuItem remoteSettingsMenu(").find("sub.push_back(policyMenu());") != std::string::npos);
+    // 0.8.4: the tray / right-click submenu is only 開/關, 複製網址, 中斷, 打開設定…; the full settings are the 進階設定 menu of the page
+    check("menu 0.8.4: the tray / right-click 遠端操控 submenu holds only 開關, 複製網址, 中斷 and 打開設定",
+          body(ra, "MenuItem remoteItem(").find("CmdRemoteToggle") != std::string::npos && body(ra, "MenuItem remoteItem(").find("CmdRemoteAddrCopy") != std::string::npos &&
+              body(ra, "MenuItem remoteItem(").find("CmdRemoteKick") != std::string::npos && body(ra, "MenuItem remoteItem(").find("CmdRemoteOpenSettings") != std::string::npos &&
+              body(ra, "MenuItem remoteItem(").find("policyMenu") == std::string::npos && body(ra, "MenuItem remoteItem(").find("CmdRemotePassword") == std::string::npos &&
+              body(ra, "MenuItem remoteItem(").find("CmdRemoteViewOnly") == std::string::npos && body(ra, "MenuItem remoteItem(").find("CmdRemoteIdle") == std::string::npos);
+    check("menu 0.8.4: 進階設定 (the page) is built from the full list and keeps 連線紀錄",
+          body(ra, "std::vector<MenuItem> remoteAdvancedItems() {").find("remoteSettingsMenu()") != std::string::npos &&
+              body(ra, "std::vector<MenuItem> remoteAdvancedItems() {").find("CmdRemoteLog") != std::string::npos);
+    check("menu 0.8.4: 打開設定… selects the 遠端控制 page and brings the window up", ra.find("case CmdRemoteOpenSettings:") != std::string::npos &&
+                                                                                  body(ra, "void remoteCommand(").find("g.settings.idleTab = 1;") != std::string::npos);
     check("the list holds no IP address: an entry is id, label, date, scope only (rememberDevice gets no address)",
           rd.find("std::string id, label, date, scope;") != std::string::npos && ra.find("void rememberDevice(const std::string& id, const std::string& label, const std::string& scope)") != std::string::npos);
     check("remote_devices.txt is written in one place (saveDevicesLocked), the file removed when empty",

@@ -50,7 +50,6 @@ void runCommand(UINT cmd) {
     case CmdShareLastRec:
     case CmdSharePick:
     case CmdShareStop:
-    case CmdShareAuto: shareCommand(cmd); break;
     case CmdRemoteToggle:
     case CmdRemoteQr:
     case CmdRemoteViewOnly:
@@ -78,6 +77,7 @@ void runCommand(UINT cmd) {
     case CmdRemoteLockOutside:  // 0.8.3.2: these three were never routed here (the menu items did nothing)
     case CmdRemoteLockLan:
     case CmdRemoteLog:
+    case CmdRemoteOpenSettings:  // 0.8.4 (tray / right-click 打開設定…)
     case CmdRemoteTsHelp: remoteCommand(cmd); break;
     case CmdIdleTabCast:
     case CmdIdleTabRemote:
@@ -124,14 +124,6 @@ void runCommand(UINT cmd) {
     case CmdZoomOut: zoomBy(-1); break;
     case CmdZoomReset: zoomReset(); break;
     case CmdMagCycle: magnifierCycle(); break;
-    case CmdFilter0:
-    case CmdFilter1:
-    case CmdFilter2:
-    case CmdFilter3:
-    case CmdFilter4: setFilterOption(static_cast<int>(cmd - CmdFilter0)); break;
-    case CmdFilterCycle:
-        if (needPicture()) setFilterOption((g.settings.filter + 1) % 5);
-        break;
     case CmdFreeze: toggleFreeze(); break;
     case CmdTranslateToggle:
     case CmdTranslateScreen:
@@ -156,7 +148,6 @@ void runCommand(UINT cmd) {
     case CmdTrModelsFolder: openModelsFolder(); break;
     case CmdTrDeleteAll: askDeleteModels(-1); break;
     case CmdTrLocalAi: pm::ui::trset::openLocalAi(); break;
-    case CmdTrOnline: pm::ui::trset::openOnline(); break;
     case CmdRightClickBack:
     case CmdRightClickMenu: setRightClickMenu(cmd == CmdRightClickMenu); break;
     case CmdApplyNow: applyNow(); break;
@@ -179,7 +170,8 @@ void runCommand(UINT cmd) {
         if ((cmd >= CmdInkColor0 && cmd <= CmdInkColorLast) || (cmd >= CmdInkWidth0 && cmd <= CmdInkWidthLast)) inkCommand(cmd);
         else if ((cmd >= CmdRemoteAudioDev0 && cmd <= CmdRemoteAudioDevLast) || (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) ||
                  (cmd >= CmdRemoteGuestNew && cmd <= CmdRemoteTsDownload) || (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast) ||  // 0.8.3.2
-                 (cmd >= CmdRemotePolicy0 && cmd <= CmdRemotePolicyLast))  // 0.8.3.6 連線時要不要允許
+                 (cmd >= CmdRemotePolicy0 && cmd <= CmdRemotePolicyLast) ||  // 0.8.3.6 連線時要不要允許
+                 (cmd >= CmdRemotePrivacy && cmd <= CmdRemotePcFilesGuest))  // 0.8.4 隱私黑屏 / 電腦的檔案
             remoteCommand(cmd);
         else if (cmd >= CmdTrDelete0 && cmd < CmdTrDelete0 + kModelPairCount) askDeleteModels(static_cast<int>(cmd - CmdTrDelete0));
         else if (cmd >= CmdTrDeleteLang0 && cmd < CmdTrDeleteLang0 + 5) {

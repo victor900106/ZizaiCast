@@ -100,7 +100,8 @@ const rangeRouted = name => {
 };
 const notRouted = [...used].filter(n => /^CmdRemote/.test(n) && !/Last$/.test(n) && !routed.has(n) && !rangeRouted(n) &&
   !(val(n) >= val('CmdRemoteGuestNew') && val(n) <= val('CmdRemoteTsDownload') && /cmd >= CmdRemoteGuestNew && cmd <= CmdRemoteTsDownload/.test(cc)) &&
-  !(val(n) >= val('CmdRemoteGuestDel0') && val(n) <= val('CmdRemoteGuestResetLast') && /cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast/.test(cc)));
+  !(val(n) >= val('CmdRemoteGuestDel0') && val(n) <= val('CmdRemoteGuestResetLast') && /cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestResetLast/.test(cc)) &&
+  !(val(n) >= val('CmdRemotePrivacy') && val(n) <= val('CmdRemotePcFilesGuest') && /cmd >= CmdRemotePrivacy && cmd <= CmdRemotePcFilesGuest/.test(cc)));
 check('every remote id used reaches remoteCommand()', notRouted.length === 0, notRouted.join(', '));
 
 // The ids the --dev test scripts use are the enum's (a script that hard-codes a moved id tests the wrong row).

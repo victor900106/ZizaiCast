@@ -22,16 +22,13 @@ fs::path lastShareable();
 std::wstring shareFilesLabel(const std::vector<fs::path>& files);
 bool androidPushPath();
 void copyToClipboard(const std::wstring& text);
-bool liveShareOn();
 void markSent(const std::vector<fs::path>& files);
 std::vector<fs::path> unsentCaptures();
 size_t unsentCount();
 void openSharePanel();
-void addToLive(const std::vector<fs::path>& files, bool showPanel);
-// clipboard (0.8.3): 1 = the page offers the PC clipboard (a share the owner opened), 0 = not
-// (started by itself: an automatic send), -1 = as the share it replaces (network rebind).
-bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds = 0, bool showPanel = true,
-                  int clipboard = 1);
+// clipboard (0.8.3): 1 = the page offers the PC clipboard (a share the owner opened), 0 = not,
+// -1 = as the share it replaces (network rebind).
+bool startShareQr(const std::vector<fs::path>& files, int ttlSeconds = 0, bool showPanel = true, int clipboard = 1);
 void checkShareNetwork(bool force = false);
 void sendViaQr(const std::vector<fs::path>& files, bool showPanel);
 
@@ -53,8 +50,6 @@ void onShareEvent(WPARAM kind, LPARAM lp);
 std::vector<fs::path> pickShareFiles();
 void openSharePicker();
 void shareSession();
-void setAutoShare(bool on);
-void autoSend(const fs::path& f);
 void shareCommand(UINT cmd);
 void offerShare(const fs::path& file);
 void stopSharing();

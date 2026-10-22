@@ -167,7 +167,7 @@ enum Command : UINT {
     CmdShareLastRec,     // 把最後一段錄影傳到手機
     CmdSharePick,        // 傳到手機… (file picker, multi-select)
     CmdShareStop,        // stop the QR share (panel 停止分享)
-    CmdShareAuto,        // 截圖／錄影後自動傳到手機 (toggle; settings.ini auto_share)
+    CmdRemoved_ShareAuto,  // 0.8.4: 截圖／錄影後自動傳到手機 removed (keeps later ids stable)
     // 自動更新: the 「有新版本」 dialog (menus, toolbar, idle pill, balloon);
     // CmdInstallUpdate (126) still installs at once (its 立即更新, scripts).
     CmdUpdateDialog = 170,
@@ -176,12 +176,12 @@ enum Command : UINT {
     CmdZoomOut,          // Ctrl+-
     CmdZoomReset,        // Ctrl+Shift+0 (還原 1×)
     CmdMagCycle,         // toolbar 放大鏡: 1× → 2× → 4× → 1×
-    CmdFilter0,          // + Settings::filter (0..4): 原色 / 加強對比 / 黑白 / 反轉 / 黃字黑底
-    CmdFilter1,
-    CmdFilter2,
-    CmdFilter3,
-    CmdFilter4,
-    CmdFilterCycle,      // Ctrl+K
+    CmdRemoved_Filter0,  // 0.8.4: the magnifier colour filters were removed (these six ids stay unused so the later ones keep their numbers)
+    CmdRemoved_Filter1,
+    CmdRemoved_Filter2,
+    CmdRemoved_Filter3,
+    CmdRemoved_Filter4,
+    CmdRemoved_FilterCycle,
     CmdFreeze,           // Ctrl+P, toolbar 凍結
     CmdTranslateToggle,  // Ctrl+L, toolbar 翻譯: translate the screen / close
     CmdTranslateScreen,  // 翻譯整個畫面
@@ -204,9 +204,9 @@ enum Command : UINT {
     CmdCloseAsk = 230,
     CmdCloseTray,
     CmdCloseQuit,
-    // 翻譯 ▸ 本機 AI 翻譯… / 線上翻譯（選用）… (0.7.4, app/tr_settings.cpp)
+    // 翻譯 ▸ 本機 AI 翻譯… (0.7.4, app/tr_settings.cpp)
     CmdTrLocalAi = 240,
-    CmdTrOnline,
+    CmdRemoved_TrOnline,  // 0.8.4: 線上翻譯 removed (keeps later ids stable)
     // 設定 ▸ 實驗：只提供螢幕鏡像 (hidden A/B item, 0.7.6; settings.ini airplay_advertise_audio)
     CmdAudioAdvertAB = 250,
     // 管理翻譯模型 ▸ one source language for the current target (+ index in kModelSources, 0.7.7;
@@ -287,6 +287,7 @@ enum Command : UINT {
     CmdRemoteTempShare,        // 442 產生臨時網址 (no fixed address: the cloudflared one)
     CmdRemoteFixedSetup,       // 443 開啟設定頁 (the tailnet's Funnel / HTTPS enable page the CLI named)
     CmdRemoteTsDownload,       // 444 0.8.3.3 下載 Tailscale (the Tailscale card without Tailscale)
+    CmdRemoteOpenSettings,     // 445 0.8.4 打開遠端控制設定… (tray / right-click menu -> the main window's 遠端控制 page)
     CmdRemoteGuestDel0 = 450,  // 刪除 (row i, up to 10)
     CmdRemoteGuestDelLast = CmdRemoteGuestDel0 + 9,
     CmdRemoteGuestReset0 = 460,  // 重設密碼 (row i)
@@ -295,6 +296,13 @@ enum Command : UINT {
     // policy 0 每次問, 1 記住這台裝置, 2 只用密碼 (Settings::remotePolicyFixed / Guest / Temp)
     CmdRemotePolicy0 = 470,
     CmdRemotePolicyLast = CmdRemotePolicy0 + 8,
+    // 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy; 490..: fixed ids for --dev scripts)
+    CmdRemotePrivacy = 490,      // 隱私黑屏 ✓ (while a phone controls this PC)
+    CmdRemotePcFiles,            // 491 電腦的檔案 ▸ 手機可以瀏覽並下載 ✓
+    CmdRemotePcFilesAdd,         // 492 電腦的檔案 ▸ 加入允許的資料夾…
+    CmdRemotePcFilesDel0,        // 493 電腦的檔案 ▸ one extra folder (click = remove it; up to 8)
+    CmdRemotePcFilesDelLast = CmdRemotePcFilesDel0 + 7,
+    CmdRemotePcFilesGuest,       // 501 電腦的檔案 ▸ 臨時帳號也可以瀏覽並下載 ✓ (default off)
 };
 enum IdleOptionId : int { OptAutostart = 1, OptPin = 2, OptRemoteAudio = 3, OptRemoteMutePc = 4 };
 constexpr UINT_PTR kOrientationTimer = 1;

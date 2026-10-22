@@ -101,7 +101,7 @@
 <!-- ============ Miracast ============ -->
 <section id="miracast">
 <h2><span class="num">2</span>Android casting (Miracast)</h2>
-<p class="goal"><b>What you want to do</b>Show an Android phone on the PC, <strong>to watch only</strong>. Nothing to set up, but the PC needs a Wi-Fi adapter that supports “wireless display” (most laptops do).</p>
+<p class="goal"><b>What you want to do</b>Show an Android phone on the PC, <strong>to watch only</strong>. Nothing to set up, but the PC needs a Wi-Fi adapter that supports “wireless display” (most laptops do). It needs a PC that supports wireless display; on a PC that does not, Zizai Cast shows no Miracast option at all: use “Android: control from the PC” instead.</p>
 {{fig:cast}}
 <ol class="steps">
   <li>Zizai Cast is running and <strong>the PC’s Wi-Fi is on</strong> (even if the PC uses a network cable).</li>
@@ -267,7 +267,7 @@
   <li>Only a small part: right-click menu → Translate → <span class="ui">Translate an area</span> (<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>) and drag a box.</li>
 </ul></div>
 <h3 id="magnifier">Magnifier: text too small</h3>
-<p>Click <span class="ui">Zoom</span> on the toolbar once for 2×, again for 4×, again to go back; <kbd>Ctrl</kbd> + wheel zooms where the mouse is. Right-click menu → <span class="ui">Magnifier</span> also has colours such as <span class="ui">More contrast</span> and <span class="ui">Yellow on black</span> (<kbd>Ctrl</kbd><kbd>K</kbd> switches) and <span class="ui">Freeze picture</span> (<kbd>Ctrl</kbd><kbd>P</kbd>).</p>
+<p>Click <span class="ui">Zoom</span> on the toolbar once for 2×, again for 4×, again to go back; <kbd>Ctrl</kbd> + wheel zooms where the mouse is. Right-click menu → <span class="ui">Magnifier</span> also has <span class="ui">Freeze picture</span> (<kbd>Ctrl</kbd><kbd>P</kbd>).</p>
 <h3 id="update">Updates</h3>
 <p>When there is a new version, a window says so: click <span class="ui">Update now</span>. Zizai Cast closes, installs and opens again by itself. Not now? Click <span class="ui">Remind me later</span>. You can also use right-click menu → <span class="ui">Help</span> → <span class="ui">Check for updates</span>.</p>
 {{img:update|The new-version window (a made-up version)|420}}
@@ -391,7 +391,7 @@
 <h4 id="remote-nolink">Way B: a temporary address (no fixed address needed)</h4>
 <ol class="steps">
   <li>PC: without a fixed address, click <span class="ui">Create a temporary address</span> in the <span class="ui">Allow remote control</span> block; with one, <span class="ui">More settings</span> → <span class="ui">Temporary address (no app on the phone; works on mobile data)</span>. After 10–20 seconds a QR code and a 6-digit <span class="ui">Passcode</span> appear (also on the <span class="ui">Temporary</span> tab of the small window, whose tabs are <span class="ui">Same Wi-Fi</span>, <span class="ui">Fixed address</span>, <span class="ui">Tailscale</span>, <span class="ui">Temporary</span>, in the same order as the main page).</li>
-  <li>Click <span class="ui">Copy address</span> and send the address to your friend; tell them the passcode separately. <strong>The address works once</strong>, within 10 minutes.</li>
+  <li>Click <span class="ui">Copy address</span> and send the address to your friend; tell them the passcode separately. <strong>The address works once</strong>, within 10 minutes. The first time you create one, Zizai Cast first downloads a small component (about 52 MB, once only; needs the internet; the progress is shown).</li>
   <li>Your friend opens it and enters the passcode; your PC asks “A phone wants to control this PC” and <strong>you click “Allow” at the PC</strong>.</li>
   <li>When you’re done, click <span class="ui">Stop the temporary address</span>, or just turn remote control off.</li>
 </ol>
@@ -430,6 +430,15 @@
   <li>Ctrl+Alt+Del doesn’t go through: it is Windows’ secure key and no program can send it. For Task Manager use <span class="ui">Task Manager</span> on the bar.</li>
   <li><span class="ui">Files</span> on the bar is grey: hover over it to see why (View only, or a temporary account without files).</li>
 </ul></div>
+
+<h3 id="remote-mac">Controlling Windows from a Mac</h3>
+<p>Open the same address in Safari or Chrome on a Mac (or an iPad with a keyboard) and use the shortcuts the Mac way:</p>
+<ul>
+  <li>⌘ + a letter goes to Windows as Ctrl + that letter: ⌘C copy, ⌘V paste, ⌘X cut, ⌘Z undo, ⌘A select all, ⌘S save, ⌘F find, ⌘T, ⌘W …</li>
+  <li>⌘ pressed alone is the Windows key (Start); ⌘ + an arrow is Win + that arrow; Option is Alt (Option+F4 closes a window).</li>
+  <li>The phone page’s <span class="ui">Settings</span> has <span class="ui">Mac: Cmd as Ctrl</span>, switched on by itself on a Mac / iPad; switched off, ⌘ is always the Windows key.</li>
+  <li>⌘Q, ⌘W and ⌘Tab are taken by the Mac or the browser first; to send them to Windows use <span class="ui">Full screen</span> or the bar’s buttons at the top (for example Ctrl+W).</li>
+</ul>
 
 <h3 id="remote-approve">Ask before someone connects</h3>
 <p>PC: the <span class="ui">Remote control</span> tab → <span class="ui">More settings</span> → <span class="ui">Ask before someone connects</span>. Your account (fixed address + your password), guest accounts and the temporary address each get one choice:</p>

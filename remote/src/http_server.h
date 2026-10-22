@@ -73,6 +73,8 @@ public:
         // attachment; fileName, UTF-8); body is ignored.
         std::wstring file;
         std::string fileName;
+        // 0.8.4: called after each piece of the file went out (end: the last call; sent == total = all of it).
+        std::function<void(uint64_t sent, uint64_t total, bool end)> progress;
     };
     using Handler = std::function<Response(const Request&)>;
 

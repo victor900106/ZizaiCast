@@ -531,13 +531,22 @@ int main(int argc, char** argv) {
     check("host: allowedDevices cleared only in start() (僅觀看 / 聲音 / 畫質 / settings never do)", countOf(host, "allowedDevices.clear()") == 1 && start.find("allowedDevices.clear()") != std::string::npos);
     check("host: allowedDevices.erase only in kick()", countOf(host, "allowedDevices.erase(") == 1 && kick.find("allowedDevices.erase(") != std::string::npos);
     // The page: one POST session, with the stored device id; every reconnect is connect(...).
-    check("page: one POST session, with the stored device id", countOf(page, "post('session', JSON.stringify({device, q: curQ, m: prefs.mon") == 1 &&
+    // 0.8.4: the request is built first (q -1 = 自動畫質, the rung a 'switch' reconnect goes on at)
+    check("page: one POST session, with the stored device id", countOf(page, "post('session', JSON.stringify(ask))") == 1 &&
+                                                                 countOf(page, "const ask = {device, q: prefs.q < 0 ? -1 : curQ, m: prefs.mon") == 1 &&
                                                                  page.find("let device = store.get('device', '');") != std::string::npos);
     // 0.8.3.6: 切換畫質 / 每秒畫面 / 解析度跟手機一樣 / 切換螢幕 / 自動調整畫質 go through applyStream() (inside the
     // connection); it falls back to connect('switch') (not connected / beyond the level / no answer), as does 臨時降畫質.
     const size_t sw = countOf(page, "connect('switch')"), lost = countOf(page, "connect('lost')"), as = countOf(page, "applyStream('");
-    check("page: picture changes = applyStream() falling back to connect('switch'), reconnects = connect('lost')", sw >= 4 && lost >= 5 && as >= 9,
+    // 0.8.4: 自動畫質's steps are the PC's own (autoTick: the session's preset / bitrate, inside the connection): the
+    // page's three automatic applyStream() calls (auto-down / auto-up / auto-restore) are gone.
+    check("page: picture changes = applyStream() falling back to connect('switch'), reconnects = connect('lost')", sw >= 4 && lost >= 5 && as >= 6,
           std::to_string(as) + " applyStream, " + std::to_string(sw) + " switch, " + std::to_string(lost) + " lost");
+    std::string autoTick = body(host, "void Host::Impl::autoTick(");
+    autoTick = autoTick.substr(0, autoTick.find("\n}"));  // (a checkout with CRLF: body() runs to the end)
+    check("host: 自動畫質's steps stay inside the connection (the session's preset / bitrate; no new session, no 允許)",
+          autoTick.find("s->quality = r.q, s->kbpsPct = r.pct") != std::string::npos && autoTick.find("offerFor") == std::string::npos &&
+              autoTick.find("closeSession") == std::string::npos);
     printf("%s (%d failed)\n", g_fail ? "FAILED" : "ALL PASSED", g_fail);
     return g_fail ? 1 : 0;
 }

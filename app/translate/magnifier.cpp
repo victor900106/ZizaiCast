@@ -59,17 +59,6 @@ void magnifierCycle() {
     else g.window->resetMagnifier();
 }
 
-void setFilterOption(int f, bool toast) {
-    if (f < 0 || f > 4) return;
-    if (f != g.settings.filter) {
-        g.settings.filter = f;
-        saveSettings();
-    }
-    g.window->setFilter(kFilters[f]);
-    g.log->write("info", std::string("filter ") + Settings::kFilterKeys[f]);
-    if (toast) g.window->showToast(fmt(S::FilterToast, {tr(kFilterNames[f])}));
-}
-
 void toggleFreeze() {
     if (!needPicture()) return;
     const bool on = !g.window->viewState().frozen;

@@ -60,21 +60,11 @@ void VideoWindow::setTextOverlay(std::vector<TextBox> boxes) {
     for (auto& b : boxes) {
         out.push_back({b.x0, b.y0, b.x1, b.y1, std::move(b.text), std::move(b.original), std::max(1, b.lines), b.bg, b.fg,
                        b.colors});
-        out.back().online = b.online;
     }
     {
         std::lock_guard lk(impl_->m);
         impl_->boxesReq = std::move(out);
-        impl_->onlineReq.reset();  // (marks of the previous boxes)
         impl_->ovSelUi = -1;
-    }
-    impl_->wake();
-}
-
-void VideoWindow::setTextOverlayOnline(std::vector<std::wstring> originals) {
-    {
-        std::lock_guard lk(impl_->m);
-        impl_->onlineReq = std::move(originals);
     }
     impl_->wake();
 }

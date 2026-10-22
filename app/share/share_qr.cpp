@@ -42,8 +42,6 @@ void copyToClipboard(const std::wstring& text) {
     CloseClipboard();
 }
 
-bool liveShareOn() { return g.share.live() && !g.share.expired(); }
-
 void markSent(const std::vector<fs::path>& files) {
     for (App::Capture& c : g.captures)
         if (std::find(files.begin(), files.end(), c.file) != files.end()) c.sent = true;
@@ -65,13 +63,8 @@ void openSharePanel() {
     std::vector<uint8_t> qr;
     int qrSize = 0;
     pm::share::renderQr(url, 1, 4, qr, qrSize);
-    const bool live = g.share.live();
     pm::ui::SharePanel::Callbacks cb;
-    cb.onStop = [live]() {
-        if (live && g.settings.autoShare) {  // 停止自動傳送: the option goes off with the page
-            setAutoShare(false);
-            return;
-        }
+    cb.onStop = []() {
         if (g.share.running()) {
             g.share.stop();
             g.window->showToast(tr(S::ShareStopped));
@@ -81,53 +74,32 @@ void openSharePanel() {
     cb.onAgain = []() {
         std::vector<fs::path> again;
         for (const std::wstring& f : g.share.files()) again.push_back(f);
-        startShareQr(again, g.share.live());
+        startShareQr(again);
     };
     cb.onCopy = []() {
         copyToClipboard(toWide(g.share.url()));
         g.window->showToast(tr(S::ShareCopied));
     };
-    if (live) cb.onHide = []() { g.log->write("info", "share: live panel hidden (still sharing)"); };
     if (!g.sharePanel.open(g.hwnd, std::move(cb))) {
         g.log->write("warn", "share panel could not be created");
-        if (!live) g.share.stop();
+        g.share.stop();
         return;
     }
     std::vector<fs::path> served;
     for (const std::wstring& f : g.share.files()) served.push_back(f);
-    g.sharePanel.setShare(url, qr, qrSize, live && !served.empty() ? served.back().filename().wstring() : shareFilesLabel(served),
-                          g.share.secondsLeft());
-    g.sharePanel.setLive(live, static_cast<int>(served.size()));
+    g.sharePanel.setShare(url, qr, qrSize, shareFilesLabel(served), g.share.secondsLeft());
     if (shareClipActive()) g.sharePanel.setStatus(tr(S::ShareClipStatus));  // 0.8.3: say that the page shows it
-}
-
-// Adds files to the running live page (the phone shows them within a second).
-void addToLive(const std::vector<fs::path>& files, bool showPanel) {
-    int added = 0;
-    for (const fs::path& f : files)
-        if (g.share.addFile(f.wstring()) >= 0) ++added;
-    markSent(files);
-    g.log->write("info", "share: " + std::to_string(added) + " file(s) added to the live page (" +
-                             std::to_string(g.share.fileCount()) + " in all)");
-    if (showPanel) openSharePanel();
-    else if (g.sharePanel.isOpen()) {
-        g.sharePanel.setLive(true, g.share.fileCount());
-        if (!files.empty()) g.sharePanel.setFiles(files.back().filename().wstring());
-    }
-    if (added > 0) g.window->showToast(tr(S::ShareLiveAdded), 2500);
 }
 
 // ttlSeconds > 0: this lifetime instead of the default (a rebind keeps the
 // time left). showPanel false: the QR panel is refreshed only if it is open.
-bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds, bool showPanel, int clipboard) {
+bool startShareQr(const std::vector<fs::path>& files, int ttlSeconds, bool showPanel, int clipboard) {
     static bool lastClip = false;
     const bool clip = clipboard < 0 ? lastClip : clipboard > 0;
     lastClip = clip;
     pm::share::Server::Options o;
     if (g.server) o.preferred = g.server->advertisedInterfaces();  // where phones already see us
     o.bindIp = g.shareBindTest;
-    o.live = live;
-    if (live) o.ttlSeconds = kLiveShareHours * 3600;
     if (g.shareTtlTest > 0) o.ttlSeconds = g.shareTtlTest;
     if (ttlSeconds > 0) o.ttlSeconds = ttlSeconds;
     o.english = pm::i18n::en();
@@ -173,7 +145,7 @@ bool startShareQr(const std::vector<fs::path>& files, bool live, int ttlSeconds,
 
 // 傳到手機 after sleep / a network change: the server is bound to one LAN
 // address. If that address is gone (other Wi-Fi, new DHCP lease) but the PC is
-// on a LAN again, the same files are shared again (same live flag, the time
+// on a LAN again, the same files are shared again (the time
 // left) on the current address and the QR / link refreshed; the old link is
 // dead anyway. `force` (--dev test): as if the address were gone.
 void checkShareNetwork(bool force) {
@@ -192,26 +164,20 @@ void checkShareNetwork(bool force) {
     }
     std::vector<fs::path> files;
     for (const std::wstring& f : g.share.files()) files.push_back(f);
-    const bool live = g.share.live();
     const int left = std::max(g.share.secondsLeft(), 60);
     std::string now;
     for (const auto& l : lan) now += (now.empty() ? "" : ", ") + l.name + "=" + l.ip;
     g.log->write("info", "share: " + ip + " is no longer a LAN address (now: " + (now.empty() ? "-" : now) +
                              "); sharing " + std::to_string(files.size()) + " file(s) again for " + std::to_string(left) + " s");
-    if (startShareQr(files, live, left, false, -1)) {
+    if (startShareQr(files, left, false, -1)) {
         g.window->showToast(tr(S::ShareLinkChanged), 6000);
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::AppName), tr(S::ShareLinkChanged));
     }
 }
 
-// The QR path for `files`: onto the live page when one runs, else a new
-// share (live while 自動傳到手機 is on).
+// The QR path for `files`: a new share.
 void sendViaQr(const std::vector<fs::path>& files, bool showPanel) {
-    if (liveShareOn()) {
-        addToLive(files, showPanel);
-        return;
-    }
-    startShareQr(files, g.settings.autoShare);
+    startShareQr(files, 0, showPanel);
 }
 
 }  // namespace pm_app

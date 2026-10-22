@@ -17,8 +17,7 @@ void queuePush(const std::vector<fs::path>& files) {
     g.log->write("info", "share: " + std::to_string(files.size()) + " file(s) → Android gallery (adb)" +
                              (g.pushing ? ", queued (" + std::to_string(g.pushQueue.size()) + " waiting)" : ""));
     if (g.pushing) {
-        if (!g.settings.autoShare)
-            g.window->showToast(fmt(S::ShareQueued, {std::to_wstring(g.pushQueue.size())}), 2500);
+        g.window->showToast(fmt(S::ShareQueued, {std::to_wstring(g.pushQueue.size())}), 2500);
         return;
     }
     pushNext();
@@ -42,7 +41,7 @@ void shareFiles(std::vector<fs::path> files) {
     sendViaQr(files, true);
 }
 
-// Android auto path: one file at a time (AndroidSource pushes on its own thread).
+// Android path: one file at a time (AndroidSource pushes on its own thread).
 void pushNext() {
     while (!g.pushQueue.empty()) {
         const fs::path f = g.pushQueue.front();
@@ -72,7 +71,7 @@ void pushNext() {
         g.pushing = true;
         g.log->write("info", "share: pushing " + toUtf8(f.filename().wstring()) + " (" +
                                  std::to_string(g.pushQueue.size()) + " more waiting)");
-        if (!g.settings.autoShare) g.window->showToast(fmt(S::SharePushing, {f.filename().wstring()}), 60000);
+        g.window->showToast(fmt(S::SharePushing, {f.filename().wstring()}), 60000);
         return;
     }
     g.pushing = false;
@@ -86,10 +85,9 @@ void onPushDone(const PushDone& d) {
                                  (r.inGallery ? " (in the gallery)" : " (not in MediaStore yet)"));
         std::string dir = r.remotePath.substr(0, r.remotePath.rfind('/'));
         if (dir.rfind("/sdcard/", 0) == 0) dir = dir.substr(8);  // Pictures/ZizaiCast
-        g.window->showToast(r.inGallery ? (g.settings.autoShare ? std::wstring(tr(S::ShareAutoPushed))
-                                                                : fmt(S::SharePushedGallery, {d.file.filename().wstring()}))
+        g.window->showToast(r.inGallery ? fmt(S::SharePushedGallery, {d.file.filename().wstring()})
                                         : fmt(S::SharePushedFolder, {toWide(dir)}),
-                            g.settings.autoShare ? 2500 : 4000);
+                            4000);
         pushNext();
         return;
     }

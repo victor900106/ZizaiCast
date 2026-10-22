@@ -24,7 +24,6 @@ void onShareEvent(WPARAM kind, LPARAM lp) {
         if (!m || m->gen != g_shareGen) return;  // an earlier share's (its file index means another list)
         const pm::share::Server::Access* a = &m->a;
         if (!g.sharePanel.isOpen() || a->status >= 400) return;
-        if (g.share.live()) g.sharePanel.setLive(true, g.share.fileCount());
         const std::wstring ip = toWide(a->ip);
         if (a->file < 0) {
             g.sharePanel.setStatus(fmt(S::SharePanelOpened, {ip}));
@@ -125,37 +124,9 @@ void shareSession() {
     shareFiles(unsent.empty() ? std::vector<fs::path>{lastShareable()} : unsent);
 }
 
-void setAutoShare(bool on) {
-    if (on == g.settings.autoShare) return;
-    g.settings.autoShare = on;
-    saveSettings();
-    g.log->write("info", std::string("share: auto-send ") + (on ? "on" : "off"));
-    if (on) {
-        g.window->showToast(tr(S::ShareAutoOn), 3000);
-        // Not an Android phone over adb: the live page now, so the phone can open it before the first capture.
-        if (!androidPushPath() && !liveShareOn()) startShareQr({}, true);
-        return;
-    }
-    if (g.share.live()) {
-        g.sharePanel.close();
-        g.share.stop();
-        shareClipOff();
-    }
-    g.window->showToast(tr(S::ShareAutoOff), 3000);
-}
-
-// A new screenshot / recording (自動傳到手機).
-void autoSend(const fs::path& f) {
-    g.log->write("info", "share: auto-send " + toUtf8(f.filename().wstring()));
-    if (androidPushPath()) queuePush({f});
-    else if (liveShareOn()) addToLive({f}, false);
-    else startShareQr({f}, g.settings.autoShare, 0, true, 0);  // started by itself: no 電腦剪貼簿 (0.8.3)
-}
-
 void shareCommand(UINT cmd) {
     switch (cmd) {
     case CmdShareLast: shareSession(); break;
-    case CmdShareAuto: setAutoShare(!g.settings.autoShare); break;
     case CmdShareLastShot: shareFiles({lastShotFile()}); break;
     case CmdShareLastRec: shareFiles({lastRecFile()}); break;
     case CmdSharePick: {
@@ -174,10 +145,8 @@ void shareCommand(UINT cmd) {
     }
 }
 
-// After a screenshot / recording: remembered for 傳到手機, then sent at once
-// (自動傳到手機) or offered. 0.7.8: the chip above the 「截圖已儲存」 /
-// 「錄影已儲存」 toast says where it went: 開啟資料夾 · 傳到手機 (only
-// 開啟資料夾 when it is sent automatically).
+// After a screenshot / recording: remembered for 傳到手機 and offered. 0.7.8: the
+// chip above the 「截圖已儲存」 / 「錄影已儲存」 toast: 開啟資料夾 · 傳到手機.
 void offerShare(const fs::path& file) {
     if (g.quitting) return;
     const bool video = isShareVideo(file);
@@ -188,11 +157,7 @@ void offerShare(const fs::path& file) {
                         if (video) openRecordingDir();
                         else openScreenshotDir();
                     }});
-    if (g.settings.autoShare) {
-        autoSend(file);
-    } else {
-        acts.push_back({kIcoShare, tr(S::ShareChip), []() { shareSession(); }});
-    }
+    acts.push_back({kIcoShare, tr(S::ShareChip), []() { shareSession(); }});
     g.applyChip.hide();  // same place (p9); it stays in 設定 ▸
     g.shareChip.show(g.hwnd, std::move(acts));
 }

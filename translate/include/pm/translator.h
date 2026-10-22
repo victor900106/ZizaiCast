@@ -9,17 +9,14 @@
 //   checks (qe): negation kept, numbers kept, placeholders, script
 //   2. failed -> the source split into clauses, each translated again
 //   3. still failed -> local LLM            (only if installed: installed())
-//   4. still failed -> online translation   (only if the user turned it on)
 //   5. still failed -> high-risk sentence templates (保存方法 / 注意 / allergens)
 //   6. still failed -> the best text, with the checked key facts (negation /
 //      prohibition, numbers, dates) written out from the source, and the
 //      original kept for "tap to compare" (TrHypothesis::verified / uncertain)
 //
 // Implementing an engine (e.g. translate/src/llm_engine.cpp,
-// translate/src/online_engine.cpp - picked up by translate/CMakeLists.txt by
-// file name, llm_engine*.cpp / online_engine*.cpp):
+// picked up by translate/CMakeLists.txt by file name, llm_engine*.cpp):
 //   extern "C" pm::translate::ITranslator* pm_create_local_llm_translator();
-//   extern "C" pm::translate::ITranslator* pm_create_online_translator();
 // return a new object (the caller owns it; nullptr = not available).  The
 // library has default definitions returning nullptr (MSVC /alternatename),
 // so a build without those files links and simply skips the step.
@@ -74,15 +71,13 @@ struct TrCost {
 class ITranslator {
 public:
     virtual ~ITranslator() = default;
-    virtual const char* id() const = 0;  // "bergamot", "llm-qwen3-1.7b-q4", "online-deepl"
+    virtual const char* id() const = 0;  // "bergamot", "llm-qwen3-1.7b-q4"
     // The pair is possible (direct: without a pivot language).
     virtual bool supports(Lang src, Lang tgt, bool* direct = nullptr) const = 0;
     // Ready to run now (models downloaded, user consent / key given).
     virtual bool installed(Lang src, Lang tgt) const = 0;
     // Bytes to download before installed() (0 if none / not downloadable).
     virtual uint64_t missingBytes(Lang /*src*/, Lang /*tgt*/) const { return 0; }
-    // Sends text off the PC (only used when the user turned it on).
-    virtual bool isOnline() const { return false; }
     virtual TrCost cost() const { return {}; }
     // Can answer now without first loading for seconds (a local model in memory).
     // Never blocks (0.8.3: a picture must not wait for a model being loaded).
@@ -98,7 +93,6 @@ public:
 struct EscalationConfig {
     bool splitClauses = true;          // step 2
     bool localLlm = true;              // step 3, when an LLM engine is installed
-    bool online = false;               // step 4: only when the user turned online translation on
     bool templates = true;             // step 5
     bool markVerified = true;          // step 6
     double llmBudgetMs = 20000;        // per picture: escalations stop using the LLM after this
@@ -116,9 +110,7 @@ struct EscalationConfig {
 
 // The engines found in this build (nullptr when not built in / not available).
 std::unique_ptr<ITranslator> createLocalLlmTranslator();
-std::unique_ptr<ITranslator> createOnlineTranslator();
 
 }  // namespace pm::translate
 
 extern "C" pm::translate::ITranslator* pm_create_local_llm_translator();
-extern "C" pm::translate::ITranslator* pm_create_online_translator();

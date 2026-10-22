@@ -1525,7 +1525,7 @@ AndroidSource::~AndroidSource() {
     d_->clip.reset();
 }
 
-bool AndroidSource::init(const std::wstring& toolsDir) {
+bool AndroidSource::init(const std::wstring& toolsDir, bool warmUp) {
     std::wstring dir = toolsDir;
     while (!dir.empty() && (dir.back() == L'\\' || dir.back() == L'/')) dir.pop_back();
     d_->toolsDir = dir;
@@ -1549,8 +1549,13 @@ bool AndroidSource::init(const std::wstring& toolsDir) {
         if (!d_->clip) d_->clip = d_->T.clipboardFactory ? d_->T.clipboardFactory() : clip::makeWindowsBackend();
     }
     d_->inited = true;
-    d_->post([this] { d_->ensureServer(); });  // warm up (~1 s) in the background; stopped again when idle
+    if (warmUp) this->warmUp();
     return true;
+}
+
+void AndroidSource::warmUp() {
+    if (!d_->inited || d_->serverStarted) return;
+    d_->post([this] { d_->ensureServer(); });  // ~1 s in the background; stopped again when idle
 }
 
 bool AndroidSource::beginQrPairing(std::vector<uint8_t>& bgra, int& size, std::wstring& qrText) {

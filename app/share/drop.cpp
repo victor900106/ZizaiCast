@@ -107,7 +107,7 @@ void dropToShare(std::vector<fs::path> files) {
             openSharePanel();
             g.window->showToast(fmt(S::DropAddedShare, {shareFilesLabel(files)}), 3000);
             if (static_cast<size_t>(added) < files.size())
-                g.window->showToast(fmt(S::DropTooMany, {std::to_wstring(pm::share::Server::kMaxLiveFiles)}), 4000);
+                g.window->showToast(fmt(S::DropTooMany, {std::to_wstring(pm::share::Server::kMaxAddedFiles)}), 4000);
             return;
         }
         // full: a new page with these
@@ -117,7 +117,7 @@ void dropToShare(std::vector<fs::path> files) {
         g.window->showToast(fmt(S::DropTooMany, {std::to_wstring(max)}), 4000);
     }
     g.log->write("info", "drop: " + std::to_string(files.size()) + " file(s) → a new QR page");
-    startShareQr(files, g.settings.autoShare);
+    startShareQr(files);
 }
 
 class DropTarget final : public IDropTarget {

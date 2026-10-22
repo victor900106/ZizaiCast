@@ -61,16 +61,6 @@ std::vector<MenuItem> magnifierItems() {
     v.push_back(std::move(reset));
     if (on && vs.zoom > 1.01f) v.push_back(MenuItem::note(fmt(S::MagZoomFmt, {zoomText(vs.zoom).substr(0, zoomText(vs.zoom).size() - 1)})));
     v.push_back(MenuItem::separator());
-    v.push_back(MenuItem::caption(tr(S::MenuFilter)));
-    for (int f = 0; f < 5; ++f) {
-        // Ctrl+K cycles the colours: named in the caption, not on 原色's row (0.7.2).
-        MenuItem m = MenuItem::command(CmdFilter0 + f, tr(kFilterNames[f]));
-        m.radio = true;
-        m.checked = g.settings.filter == f;
-        m.enabled = on;
-        v.push_back(std::move(m));
-    }
-    v.push_back(MenuItem::separator());
     MenuItem fr = checkItem(CmdFreeze, tr(S::MenuFreeze), kIcoFreeze, on && vs.frozen, L"Ctrl+P");
     fr.enabled = on;
     v.push_back(std::move(fr));
@@ -207,13 +197,12 @@ std::vector<MenuItem> translateLayoutItems() {
 }
 
 // 翻譯 ▸ 進階翻譯設定 ▸ (0.7.8; was part of 翻譯設定 ▸): a note that none of
-// it is needed, 本機 AI 翻譯…, 線上翻譯（選用）…, 管理翻譯模型 ▸.
+// it is needed, 本機 AI 翻譯…, 管理翻譯模型 ▸.
 std::vector<MenuItem> translateAdvancedItems() {
     std::vector<MenuItem> v;
     v.push_back(MenuItem::note(tr(S::MenuTrAdvancedNote)));
     if (pm::ui::trset::available()) {  // the optional engines' settings (0.7.4)
         v.push_back(checkItem(CmdTrLocalAi, tr(S::MenuTrLocalAi), kIcoLocalAi, pm::ui::trset::localAiOn()));
-        v.push_back(checkItem(CmdTrOnline, tr(S::MenuTrOnline), kIcoOnline, pm::ui::trset::onlineEnabled()));
         v.push_back(MenuItem::separator());
     }
     v.push_back(MenuItem::submenu(tr(S::MenuTrModels), kIcoModels, modelItems()));

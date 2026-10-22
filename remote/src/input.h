@@ -33,6 +33,9 @@
 
 namespace pm::remote {
 
+// 0.8.4: is this a key name the table in input.cpp (keyVk) knows? Only those may be saved as a custom button.
+bool keyNameKnown(const std::string& k);
+
 class InputInjector {
 public:
     // stub (0.8.3.5 tests): the whole injection path runs (button state, coordinates, checks)
@@ -78,9 +81,23 @@ public:
         std::string exe;      // "regedit.exe"
         bool higher = false;  // its integrity level is above ours (run as administrator): UIPI drops our input
         bool secure = false;  // the secure desktop (UAC prompt, lock screen): nothing gets through
+        uintptr_t win = 0;    // 0.8.4: its top-level window (one notice per window)
     };
-    // why = "admin" | "secure"; exe = the program (admin). Called from handle() (input lock held).
-    std::function<void(const std::string& why, const std::string& exe)> onBlocked;
+    // why = "admin" | "secure" | "sas"; exe = the program (admin); win = an id of that window ("" for the
+    // secure desktop / SAS). Called with the input lock held.
+    // 0.8.4: said ONCE per window (and once per visit to the secure desktop) to the same phone, not every
+    // 3 s; a SendInput refused with ERROR_ACCESS_DENIED (an administrator's window in the foreground)
+    // goes through the same notice instead of one message and one log line per refused event.
+    std::function<void(const std::string& why, const std::string& exe, const std::string& win)> onBlocked;
+    // 0.8.4: a new phone (device id) starts with no notices given; the same phone reconnecting (切換畫質 /
+    // 切換螢幕 / a reconnect) keeps them.
+    void resetNotices(const std::string& device);
+    // The real look-up of one top-level window, no cache: its process and integrity level against `own`.
+    // Public for the isolated test (a window of the test's own, off-screen, at another integrity level).
+    static Target probeWindow(HWND w, DWORD own);
+    int64_t deniedSends() const { return deniedSends_; }
+    // Tests (stub): true = this SendInput is refused as Windows does it (0 sent, ERROR_ACCESS_DENIED).
+    std::function<bool()> stubRefuse;
     // Tests: replaces the real look-up (window under the pointer / foreground window).
     std::function<Target(bool keyboard, POINT at)> targetProbe;
     int64_t uipiBlocked() const { return uipiBlocked_; }
@@ -94,6 +111,7 @@ public:
 
 private:
     UINT sendInputs(UINT n, INPUT* in, const char* what);
+    void refused(DWORD err, const char* what);
     void sendMouse(DWORD flags, LONG dx = 0, LONG dy = 0, DWORD data = 0);
     void sendVk(WORD vk, bool extended);
     void sendText(const std::wstring& w);
@@ -114,6 +132,8 @@ private:
     bool allowed(bool keyboard);
     void checkTarget(bool keyboard);
     Target realTarget(bool keyboard, POINT at);
+    Target lookTarget(bool keyboard);  // targetProbe (tests) or realTarget
+    void ensureOwnIntegrity();
     struct IlCache {
         DWORD pid;
         int64_t atUs;
@@ -122,8 +142,11 @@ private:
     };
     std::vector<IlCache> ilCache_;
     DWORD ownIntegrity_ = 0;
-    std::string lastBlockedKey_;
-    int64_t lastBlockedUs_ = 0;
+    std::vector<std::string> noticed_;  // what this phone was already told (keys, bounded)
+    std::string noticeDevice_;
+    void notice(const Target& t, const char* what, const char* how);
+    std::atomic<int64_t> deniedSends_{0};
+    int64_t deniedUnlogged_ = 0;
     std::atomic<int64_t> uipiBlocked_{0};
     void moveTo(double x, double y);
     RECT virtualDesk() const;

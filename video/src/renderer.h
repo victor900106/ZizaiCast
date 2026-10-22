@@ -291,15 +291,12 @@ public:
         // key facts highlighted, selecting its row shows the original).
         int kind = 0;
         std::wstring facts;  // kind 2: the checked key facts (the text's last line 「⚠ …」)
-        bool online = false;  // (part of) it came from online translation: a 「線上」 badge (card corner, list row)
     };
     // In place: each block's area painted in its background colour with the
     // translation in its text colour (dark cards with the 加強對比 / 黃字黑底
     // filters), never overlapping; blocks whose translation does not fit
     // readably get numbered markers and a list panel (text_overlay.cpp).
     void setTextOverlay(std::vector<TextBox> boxes);
-    // The boxes whose original is in `originals` get the 「線上」 badge (the others lose it).
-    void setTextOverlayOnline(const std::vector<std::wstring>& originals);
     void setTextOverlayOriginal(bool on) { showOriginal_ = on; }
     // 即時翻譯 (live_overlay.cpp): every block in place, never the list
     // panel; the boxes follow the page when it scrolls (live_scroll_tracker)
@@ -798,7 +795,6 @@ private:
         FitCand fc;
         FitCand facts, alt;   // kind 2: the checked key facts (below fc), the original (shown when selected)
         float factsY = 0;     // facts' top, relative to fc's
-        float badgeY = -1;    // online: the 「線上」 badge's top, relative to fc's (-1 none)
     };
     std::vector<OvItem> ovItems_;
     std::vector<OvRow> ovRows_;
@@ -824,9 +820,6 @@ private:
     void overlayChecks(float s);
     void legacyChecks(const D2D1_RECT_F& pic);
     void drawOverlayList(const D2D1_RECT_F& pic);
-    // The 「線上」 pill (TrOnlineBadge) at x, y (top-left; right: x is its right
-    // edge), text size fs; returns its size (DIPs). draw false: measure only.
-    D2D1_SIZE_F onlineBadge(float x, float y, float fs, bool right, bool yellowMode, bool draw = true);
     // Mascot: hover grow, click / connect reaction (hop + hearts [+ bubble]).
     bool mascotHot_ = false;
     double mascotHotAt_ = -1e9;

@@ -9,7 +9,7 @@
 **Put your phone on a Windows PC, or the other way round: control the PC from your phone.**<br>
 No app on the iPhone, mouse and keyboard control for Android; remote control needs only a phone browser. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.6-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.6" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.4-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.4" height="40"></a>
 
 <a href="#mirror"><img src="https://img.shields.io/badge/Phone%20mirroring-phone%20%E2%86%92%20PC-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Phone mirroring: phone to PC" height="36"></a>&nbsp;<a href="#remote"><img src="https://img.shields.io/badge/Remote%20control-PC%20%E2%86%90%20phone-8FE3C4?style=for-the-badge&labelColor=2B2224" alt="Remote control: PC from your phone" height="36"></a>
 
@@ -49,7 +49,7 @@ Forgot how? *Connect a phone ▸ How to connect?* is always in the app. An iPhon
 </tr>
 <tr>
 <td valign="top"><img src="docs/readme/features/f-record-en.jpg" alt="Recording"><br><b>Recording and screenshots</b><br>Ctrl+R records MP4 (60 fps, with audio), Ctrl+S saves a PNG, Ctrl+F adds an iPhone frame.</td>
-<td valign="top"><img src="docs/readme/features/f-magnifier-en.jpg" alt="Magnifier"><br><b>Magnifier and low-vision colours</b><br>Up to 8×, more contrast, greyscale, inverted, yellow on black; freeze the picture.</td>
+<td valign="top"><img src="docs/readme/features/f-magnifier-en.jpg" alt="Magnifier"><br><b>Magnifier</b><br>Up to 8×; freeze the picture.</td>
 <td valign="top"><img src="docs/readme/features/f-translate-en.jpg" alt="On-screen translation"><br><b>On-screen translation</b><br>Ctrl+L: English, Japanese, Korean and Simplified Chinese, offline on your PC. <sub>The menu is a synthetic test picture.</sub></td>
 </tr>
 </table>
@@ -90,13 +90,17 @@ The other way round: a phone's browser (Safari on iPhone, Chrome on Android) sho
 
 ## What's new
 
-| v0.8.3.6 | |
+| v0.8.4 | |
 |---|---|
-| **Smoother picture** | Up to 120 frames a second, sent on a steady beat; “Match the phone’s resolution” is on by default on phones: more frames, lower latency. |
-| **No black flash** | Quality, frame rate and screen change inside the same connection: the gap drops from about 0.4 s to 0.07 s, and Allow is not asked again. |
-| **Ask before someone connects** | For your account, guest accounts and the temporary address: Ask every time, Remember this device or Password only; Deny, End, deleting an account or a new password forget it. |
-| **Sign-in friends** | 投投 and three pink friends follow the pointer, look away while you type the password and shake their heads at a wrong one. |
-| **Phone page** | After Use Trackpad you get how the trackpad works; the Allow dialog now says “Remember this device”. |
+| **Auto quality** | Quality is now Auto by default: it starts low, climbs one step at a time while the network allows and drops at once when it slows, all inside the same connection. |
+| **Privacy screen** | While you control the PC, the phone can cover the PC's screen with black while it still sees everything; at the PC, Ctrl+Alt+Shift+B or Esc three times lifts it. |
+| **PC files** | Browse the PC's Desktop, Documents, Downloads, Pictures and Videos from the phone's Files panel and download several files at once; the PC can turn it off, and every download is in the connection log. |
+| **Custom keys** | The keyboard panel holds up to 12 key combinations of your own, with names, drag to reorder and key repeat; media keys are added. |
+| **Administrator windows** | Tapping a window that runs as administrator tells you once per window instead of over and over. |
+| **Mac as the controller** | On a Mac (and an iPad keyboard) ⌘ + letter works as Ctrl + letter, so copy and paste work the way you're used to; it can be turned off in the settings. |
+| **Faster files** | On the fixed or temporary address, files to the PC go over the direct channel (1.76 MB: about 4.9 s to 0.5 s), with percent and speed on the progress bar. |
+| **Sign-in animation** | The characters on the sign-in page act with their whole body: they lean after the pointer, turn their backs while you type the password, get nervous or doze off when you wait, and cheer when you are in. |
+| **A smaller installer** | cloudflared for the temporary address is downloaded the first time it is needed (SHA-256 checked): about 12 MB less to install. |
 
 Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases).
 
@@ -173,6 +177,12 @@ It is off by default; a new phone has to be allowed on the PC; repeated wrong pa
 With *Keep running in the background* it keeps receiving; click the icon at the right end of the taskbar (click ^ if you don't see it), and quit with right-click → *Quit*. Windows 10 / 11 (64-bit) only for now. Yes, free: GPL-3.0, no paid tier, no ads, no data collection.
 </details>
 
+<details>
+<summary><b>Does it support Mac?</b></summary>
+
+The app itself runs on Windows 10 / 11 only. But a Mac, iPhone, iPad or Android device can open the fixed address or the temporary address in a browser and remote-control your Windows PC. On a Mac, Cmd counts as Ctrl automatically (since 0.8.4), so copy and paste work the way you're used to.
+</details>
+
 <a id="limits"></a>
 
 <details>
@@ -187,7 +197,7 @@ An iPhone can't be controlled from the PC; DRM video is black; Miracast needs th
 
 - **Picture, sound, recordings and screenshots stay on your LAN and your PC**, with no server in between; no telemetry, analytics or ads, no account.
 - The only routine internet access is the **update check** (one HTTPS GET to `github.com/victor900106/ZizaiCast/releases/latest/download/update.json`, no device information; the installer is downloaded and SHA-256 verified only when you click “Update to vX.Y.Z”). Add the line `update_url=` to `%LOCALAPPDATA%\PhoneMirror\settings.ini` to turn it off.
-- **On-screen translation runs offline on your PC**; models are downloaded only after asking and SHA-256 verified; on-device AI translation and **online translation (off by default, your own DeepL / Azure / Google key, only the recognised text is sent)** connect only if you choose them.
+- **On-screen translation runs offline on your PC**; models are downloaded only after asking and SHA-256 verified; on-device AI translation connects only if you choose it.
 - **Send to phone stays on your LAN**; **remote control is off by default**, and outside services (your own Tailscale, the fixed address, Cloudflare's temporary address) are used only when you pick them.
 - Settings and logs live in `%LOCALAPPDATA%\PhoneMirror`, on your PC only. Where each connection is made in the code: see the [guides and source](https://github.com/victor900106/ZizaiCast/tree/main/docs).
 

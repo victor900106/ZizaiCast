@@ -353,11 +353,6 @@ void Renderer::drawLiveOverlay(const D2D1_RECT_F& pic, float /*radius*/) {
             if (it.clip) d2dTarget_->PushAxisAlignedClip(it.card, D2D1_ANTIALIAS_MODE_ALIASED);
             d2dTarget_->DrawTextLayout({it.text.left, it.text.top}, it.fc.text.Get(), brush(fg));
             if (it.clip) d2dTarget_->PopAxisAlignedClip();
-            if (b.online) {
-                const float bfs = std::clamp(it.lineH * 0.36f, 8.f, 11.f);
-                const D2D1_SIZE_F bs = onlineBadge(0, 0, bfs, true, filter == 4, false);
-                onlineBadge(it.card.right + bs.height * 0.25f, it.card.top - bs.height * 0.55f, bfs, true, filter == 4);
-            }
         }
         if (dy != 0) d2dTarget_->SetTransform(m0);
         if (follows) d2dTarget_->PopAxisAlignedClip();

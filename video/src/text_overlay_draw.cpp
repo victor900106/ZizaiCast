@@ -67,12 +67,6 @@ void Renderer::drawTextOverlay(const D2D1_RECT_F& pic, float radius) {
             d2dTarget_->FillRoundedRectangle({it.card, crad, crad}, brush(bg));
         }
         d2dTarget_->DrawTextLayout({it.text.left, it.text.top}, it.fc.text.Get(), brush(fg));
-        // Translated online: a small 「線上」 pill on the card's top-right corner.
-        if (b.online) {
-            const float bfs = std::clamp(it.lineH * 0.36f, 8.f, 11.f);
-            const D2D1_SIZE_F bs = onlineBadge(0, 0, bfs, true, filter == 4, false);
-            onlineBadge(it.card.right + bs.height * 0.25f, it.card.top - bs.height * 0.55f, bfs, true, filter == 4);
-        }
     }
     if (!ovListed_.empty()) drawOverlayList(pic);
     d2dTarget_->PopAxisAlignedClip();
@@ -188,7 +182,6 @@ void Renderer::drawOverlayList(const D2D1_RECT_F& pic) {
                                        brush(yellowMode ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1)));
         }
         const D2D1_POINT_2F at{A.left + pad + badge + fs * 0.55f, top + fs * 0.35f};
-        if (row.badgeY >= 0) onlineBadge(at.x, at.y + row.badgeY, fs * 0.72f, false, yellowMode);
         if (row.alt.text || row.facts.text) {
             // Doubtful translation: a warning bar; selected, the original instead.
             const D2D1_COLOR_F warn = yellowMode ? yellow : luma(card) > 0.5f ? D2D1::ColorF(0.78f, 0.36f, 0.f) : D2D1::ColorF(1.f, 0.66f, 0.2f);

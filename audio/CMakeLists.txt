@@ -75,3 +75,6 @@ if(TARGET pm_alac)
   # The test also uses Apple's ALAC *encoder* to produce ct=2 frames.
   target_link_libraries(pm_audio_test PRIVATE pm_alac)
 endif()
+
+# pm_open_backoff_test (0.8.4): WASAPI open-failure retry schedule + log merging (src/open_backoff.h); no device.
+add_executable(pm_open_backoff_test tools/pm_open_backoff_test.cpp src/open_backoff.h)

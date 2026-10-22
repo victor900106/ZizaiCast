@@ -176,8 +176,6 @@ for (const lang of langs) {
     await sleep(3000);
     v([['size', 420, 700]]); await sleep(1200); dev(C.MagCycle, 0, 2600); await win('3-narrow-frozen-zoom4', 200);
     v([['move', 0.5, 0.05]]); await sleep(500); await win('4-narrow-toolbar', 200);
-    await sleep(3000);
-    dev(936, 1, 800); await win('5-narrow-boxes', 200);
   }});
   // R (after only): the picture frozen by a translation (DevCommand 8342: no models needed) + 2x, then the toolbar.
   if (only.includes('R') && after) await run(lang, 'R', {steps: async ({v, dev, win}) => {

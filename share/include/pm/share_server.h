@@ -7,10 +7,8 @@
 // download button with instructions), plus 「全部下載（ZIP）」 (/<token>/zip:
 // every file as one stored ZIP, streamed; the iPhone opens it in Files) --
 // or 「全部儲存」 (navigator.share with all files) where the browser can share
-// files, which needs a secure context, so not on this http page. Live mode
-// (自動傳到手機): the share may start empty, addFile() adds
-// captures while it runs and the open page shows them within a second
-// (long-polled /list). See docs/share.md.
+// files, which needs a secure context, so not on this http page. See
+// docs/share.md.
 //
 // Security: bound to one LAN interface address (never 0.0.0.0), random port,
 // 32-character token (~190 bits) required in every path, constant-time
@@ -66,8 +64,7 @@ public:
         std::vector<std::string> preferred;
         // Tests: bind exactly here (e.g. "127.0.0.1"); empty = a LAN interface.
         std::string bindIp;
-        int ttlSeconds = 600;  // live: the hard cap (the app uses 12 h; the toggle / 停止 end it sooner)
-        bool live = false;     // 自動傳到手機: may start with no file, addFile() later, the page updates itself
+        int ttlSeconds = 600;
         bool english = false;  // page language (when lang < 0)
         int lang = -1;         // page language as pm::i18n::Lang (0 zh-TW, 1 en, 2 ja, 3 ko); -1: by `english`
         std::wstring appName = L"自在投影";
@@ -107,14 +104,12 @@ public:
     // Starts serving `files` (absolute paths; missing / unreadable ones are
     // skipped; at most kMaxFiles). A running share is stopped first.
     // False (and *error) if no file is usable or nothing could be bound.
-    // Live mode may start with no file.
     bool start(const std::vector<std::wstring>& files, const Options& options, std::string* error = nullptr);
     void stop();
-    // Adds a file to the running share (any mode; the page picks it up at its
-    // next load, a live page at once). Returns its index (an already shared
+    // Adds a file to the running share (the page picks it up at its next
+    // load). Returns its index (an already shared
     // path keeps its index), -1 if not running / expired / missing / full.
     int addFile(const std::wstring& path);
-    bool live() const;
     int fileCount() const;
     bool running() const;  // started and not stopped (true after expiry too, until stop())
     bool expired() const;
@@ -125,7 +120,7 @@ public:
     int secondsLeft() const;                // 0 once expired
     std::vector<std::wstring> files() const;
     static constexpr int kMaxFiles = 50;       // per start()
-    static constexpr int kMaxLiveFiles = 500;  // per share, with addFile()
+    static constexpr int kMaxAddedFiles = 500;  // per share, with addFile()
 
     // Pure helpers (unit-tested).
     static std::string contentType(const std::wstring& path);

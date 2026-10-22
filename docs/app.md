@@ -57,28 +57,24 @@ toolbar (newest file), 161 last screenshot, 162 last recording, 163 傳到手機
 `PM_SHARE_TTL`: see docs/share.md); 904 draws the open 「有新版本」 dialog into
 `update.png`; 170 opens that dialog (like the menu item). 0.7.0: 150 日本語,
 151 한국어 (語言 / Language); 放大鏡 / 翻譯 180 放大, 181 縮小, 182 還原 1×, 183
-toolbar 放大鏡 (1× → 2× → 4×), 184–188 colours 原色 / 加強對比 / 黑白 / 反轉 /
-黃字黑底, 189 next colour (Ctrl+K), 190 凍結畫面, 191 翻譯 toggle (Ctrl+L,
+toolbar 放大鏡 (1× → 2× → 4×), 184–189 (colours, Ctrl+K: removed in 0.8.4, ids unused), 190 凍結畫面, 191 翻譯 toggle (Ctrl+L,
 toolbar), 192 翻譯整個畫面, 193 框選翻譯, 194 顯示原文, 195 即時翻譯 (was 連續翻譯), 196 關閉翻譯,
 197 / 198 / 210 / 211 翻成 繁體中文 / English / 日本語 / 한국어, 199 開啟模型資料夾,
 200 刪除全部, 201–208 delete one model pair (201 = 文字辨識 OCR); 905 draws the open question dialog
 (consent / OCR language / delete) into `ask.png`, 906 answers it (`lParam` 1 =
 primary button, 0 = Esc), 907 draws the 放大鏡 / 翻譯 / 管理翻譯模型 submenus into
 `menu_magnifier.png` / `menu_translate.png` / `menu_models.png`. 0.7.4: 240
-本機 AI 翻譯…, 241 線上翻譯（選用）…; 930 draws those panels and their question
-dialog into `llm[_N].png` / `online[_N].png` / `trask[_N].png` (`lParam` N > 0
-adds the suffix), 931 / 932 click item `lParam` of the 本機 AI / 線上 panel (ids in
+本機 AI 翻譯… (241 was 線上翻譯, removed in 0.8.4); 930 draws that panel and its
+question dialog into `llm[_N].png` / `trask[_N].png` (`lParam` N > 0
+adds the suffix), 931 clicks item `lParam` of the 本機 AI panel (ids in
 `app/tr_settings.cpp`), 933 answers the question (1 primary, 2 secondary, 0
-Esc), 934 types a made-up key, 935 marks every shown block (`lParam` 0: none)
-as translated online, 936 shows two made-up blocks with 「線上」 badges; 940
-opens later panels at DPI `lParam & 0xFFFF` on a work area `lParam >> 16` px
-high, 937 draws what they show now (`llm_view` / `online_view`), 938 scrolls
-the 線上 panel by `lParam` DIPs, 939 sends it key `lParam` (9 = Tab;
+Esc); 940 opens later panels at DPI `lParam & 0xFFFF` on a work area
+`lParam >> 16` px high, 937 draws what they show now (`llm_view`;
 `launch/_work/trui/run_small.ps1`: 768 px at 100–200 %). With
-`--test-no-network` the model download and 測試連線 are fakes (nothing is
-fetched or sent; `PM_TEST_LLM_FAKE=ok|network|verify|disk|unpack`,
+`--test-no-network` the model download is a fake (nothing is
+fetched; `PM_TEST_LLM_FAKE=ok|network|verify|disk|unpack`,
 `PM_TEST_LLM_FAKE_MS`); `launch/_work/trui/run_panels.ps1` drives a run with
-`PM_MODELS_DIR` / `PM_ONLINE_CONFIG` in a temp folder. With
+`PM_MODELS_DIR` in a temp folder. With
 `--test-offscreen` (no tray icon) balloons are only logged (`tray balloon (no
 tray icon): …`), `--background` keeps the window hidden, and the dialog of a
 hidden window is placed off the desktop too.
@@ -98,7 +94,7 @@ brings the running window to the front (registered message
   開啟截圖資料夾, 開啟錄影資料夾 (0.7.8; were 資料夾 ▸), 說明 ▸ | 結束 (0.7.4: ~38 rows down to 13–17; rows that would do
   nothing now are left out instead of greyed). Shared submenus (both menus):
   - 傳到手機 ▸ (right: 「N 個未傳」): [傳送未傳的截圖／錄影], [把最後一張截圖 /
-    最後一段錄影傳到手機, when there is one], 傳到手機…, 截圖／錄影後自動傳到手機 ✓.
+    最後一段錄影傳到手機, when there is one], 傳到手機….
   - 連接手機 ▸ (0.7.8; was Android ▸) 連接 Android（掃 QR） (greyed without adb), [自動連線已配對的
     Android ✓, with adb], 接受 Android 投放（Miracast）✓ [+ reason notes] — or, on
     a PC that cannot receive Miracast, one row 「Miracast：這台電腦不支援 ▸」 whose
@@ -958,13 +954,11 @@ available only while a phone picture is shown (`viewAvailable()`: AirPlay /
 Android mirroring or paused, or a Miracast cast); without one the items are
 greyed with the note 「手機畫面出現後才能使用」 and the shortcuts only show that
 toast. When the picture ends (`syncViewTools`, after every app message) the
-translation closes, the zoom goes back to 1× and the freeze ends; the colour
-filter stays (settings.ini `filter=`).
+translation closes, the zoom goes back to 1× and the freeze ends. (0.8.4: the colour
+filters — 原色 / 加強對比 / 黑白 / 反轉 / 黃字黑底, Ctrl+K, `filter=` — were removed; an old `filter=` line is ignored.)
 
 * **Context menu** (after 畫面): 放大鏡 ▸ 放大 (Ctrl+=), 縮小 (Ctrl+-), 還原 1×
-  (Ctrl+Shift+0; greyed at the limits; a note 「放大 2.5×」 while zoomed), 高對比
-  caption + radio 原色 / 加強對比 / 黑白（灰階） / 反轉顏色（黑白對調） / 黃字黑底
-  (Ctrl+K cycles; toast 「顏色：…」), 凍結畫面 ✓ (Ctrl+P). 翻譯 ▸ 翻譯整個畫面
+  (Ctrl+Shift+0; greyed at the limits; a note 「放大 2.5×」 while zoomed), 凍結畫面 ✓ (Ctrl+P). 翻譯 ▸ 翻譯整個畫面
   (Ctrl+L), 框選翻譯 (Ctrl+Shift+L), 顯示原文 ✓ (Ctrl+O, while a translation
   is up), 即時翻譯 ✓ (was 連續翻譯（每 5 秒）), [關閉翻譯 (Ctrl+L) while up], 翻成 ▸ 繁體中文 /
   English / 日本語 / 한국어 (radio, settings.ini `translate_to`; `auto` follows the
@@ -983,20 +977,9 @@ filter stays (settings.ini `filter=`).
   繼續下載 after a consent dialog with `describeDownload()` (not translated)
   under the localised text, download on a worker thread with 下載中 N%（a/b
   MB） + 取消, 移除 after a red confirm, one message per `Result`, 記憶體不足…)
-  and 「線上翻譯（選用）…」 ✓ while on (`pm/online_translate.h`,
-  launch/_work/tr_arch/ONLINE_UI_SPEC.md: 啟用, DeepL / Microsoft Azure
-  Translator, 只在離線翻譯沒把握時 (Escalate) / 每一段都先用線上 (All), masked
-  key box (`keyHint` only, never read back), Azure 資源區域, 測試連線
-  (`testKey` / `testStoredKey`, plan + used / limit or a sample), back-off
-  line + 重試 (`blockedStatus` / `resetBackoff`), privacy note with 服務條款 /
-  隱私權說明 / 如何取得金鑰 (steps + free plan), 儲存 asks the consent of the
-  chosen provider first (`needsConsent` → `setConsent`), `StoreError`
-  messages, 移除金鑰並全部關閉 = `forgetAll`). `setOnlineAllowed` follows the
-  saved switch at start and after every save (never with
-  `--test-no-network`). After a translation: blocks with
-  `ScreenTranslator::Item::online` get a 「線上」 badge (card corner, list
-  row; `VideoWindow::setTextOverlayOnline`), and a new `online::lastStatus()`
-  failure is a toast once. Turning screen translation on calls
+  (0.8.4: the 「線上翻譯（選用）…」 panel, its API-key store, the online engine
+  and the 「線上」 badges were removed; translation never leaves the PC). Turning
+  screen translation on calls
   `local_llm::warmUp()`; 0.8.3: so does a phone connecting
   (`prewarmTranslation`, for users who translated before: OCR + the last
   pair + the local AI model, in the background), and
@@ -1097,7 +1080,7 @@ Changes:
   2. Not in any menu (settings.ini only): `mirror_quick_ack` (low-latency ACKs), `airplay_volume_control` /
      `airplay_audio_status` (iOS volume bar A/B, 0.7.10.1), 影音同步 (`avSync`, no menu since 0.3.1).
   3. Checked and *not* experimental (documented, tested features, left in the menus): 免安裝外網 (cloudflared),
-     本機 AI 翻譯 / 線上翻譯（選用） (already inside 翻譯 ▸ 進階翻譯設定), 外面的新手機也要電腦按允許.
+     本機 AI 翻譯 (already inside 翻譯 ▸ 進階翻譯設定), 外面的新手機也要電腦按允許.
 * **phonemirror.log rotation.** Used to be checked once at start (8 MB, one `.old.log`). Now `pm_app::Log` counts
   bytes and rotates while running: over 4 MB -> `phonemirror.old.log`, `.old2.log`, `.old3.log` (the oldest is
   deleted): at most 4 files, 16 MB. First-run Android pairing scan (`settings androidPaired`) reads all four.

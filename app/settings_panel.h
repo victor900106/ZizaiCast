@@ -1,4 +1,4 @@
-// Small themed settings panel (0.7.4: 翻譯 ▸ 本機 AI 翻譯… / 線上翻譯（選用）…):
+// Small themed settings panel (0.7.4: 翻譯 ▸ 本機 AI 翻譯…):
 // a list of rows the owner declares (text, notes, a switch, radio options,
 // buttons, links, a progress bar, edit boxes) and rebuilds with setItems()
 // whenever its state changes. Built like PairPanel: owned WS_POPUP, Direct2D

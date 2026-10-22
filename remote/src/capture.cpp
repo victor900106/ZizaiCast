@@ -1,5 +1,7 @@
 #include "capture.h"
 
+#include "cursor_shape.h"
+
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
 
@@ -235,7 +237,8 @@ bool DesktopCapture::open(const Options& o) {
     if (!createPipeline()) return false;
     logf("capture: monitor %d at %ld,%ld, %s, desktop %dx%d -> stream %dx%d, %d pool textures, stamp %s, scene %s",
          monIndex_, rect_.left, rect_.top, adapter_.c_str(), deskW_, deskH_, outW_, outH_, int(pool_.size()), stampGpu_ ? "on GPU (ClearView)" : "CPU fallback",
-         opt_.scene == Scene::Static ? "static" : opt_.scene == Scene::Motion ? "motion" : opt_.scene == Scene::Synth ? "synth" : "desktop");
+         opt_.scene == Scene::Static ? "static" : opt_.scene == Scene::Motion ? "motion" : opt_.scene == Scene::Synth ? "synth"
+         : opt_.scene == Scene::SynthStill ? "synth-still" : "desktop");
     return true;
 }
 
@@ -308,7 +311,7 @@ bool DesktopCapture::createDuplication() {
             FAILED(dev_->CreateRenderTargetView(comp_.Get(), nullptr, &compRtv_)))
             return logf("capture: desktop textures failed"), false;
         ComPtr<ID3D11RenderTargetView> rtv;
-        if (opt_.scene == Scene::Synth) {  // 0.8.3.6 benchmarks: the made-up desktop, never this PC's screen
+        if (opt_.scene == Scene::Synth || opt_.scene == Scene::SynthStill) {  // 0.8.3.6 benchmarks: the made-up desktop, never this PC's screen
             const std::vector<uint32_t> px = synthDesktop(w, h);
             ctx_->UpdateSubresource(desk_.Get(), 0, nullptr, px.data(), UINT(w) * 4, 0);
             frozen_ = true;
@@ -403,29 +406,14 @@ void DesktopCapture::updatePointerShape(const DXGI_OUTDUPL_FRAME_INFO& fi) {
     DXGI_OUTDUPL_POINTER_SHAPE_INFO si{};
     UINT req = 0;
     if (FAILED(dupl_->GetFramePointerShape(UINT(shapeBuf_.size()), shapeBuf_.data(), &req, &si))) return;
-    const int w = int(si.Width);
-    const bool mono = si.Type == DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MONOCHROME;
-    const int h = mono ? int(si.Height) / 2 : int(si.Height);
-    if (w <= 0 || h <= 0 || w > 512 || h > 512) return;
-    std::vector<uint32_t> color(size_t(w) * size_t(h), 0), inv(size_t(w) * size_t(h), 0);
-    bool anyInv = false;
-    const uint8_t* b = shapeBuf_.data();
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            uint32_t& c = color[size_t(y) * size_t(w) + size_t(x)];
-            uint32_t& v = inv[size_t(y) * size_t(w) + size_t(x)];
-            if (mono) {
-                const int andBit = (b[size_t(y) * si.Pitch + size_t(x / 8)] >> (7 - x % 8)) & 1;
-                const int xorBit = (b[size_t(y + h) * si.Pitch + size_t(x / 8)] >> (7 - x % 8)) & 1;
-                if (!andBit) c = xorBit ? 0xFFFFFFFFu : 0xFF000000u;
-                else if (xorBit) v = 0xFFFFFFFFu, anyInv = true;
-            } else {
-                const uint32_t px = *reinterpret_cast<const uint32_t*>(b + size_t(y) * si.Pitch + size_t(x) * 4);
-                if (si.Type == DXGI_OUTDUPL_POINTER_SHAPE_TYPE_COLOR) c = px;
-                else if ((px >> 24) == 0) c = px | 0xFF000000u;                       // masked: replace
-                else if (px & 0xFFFFFFu) v = 0xFFFFFFFFu, anyInv = true;              // masked: XOR
-            }
-        }
+    CursorShape cs;
+    cursorShapeFromDxgi(shapeBuf_.data(), int(si.Type), int(si.Width), int(si.Height), int(si.Pitch), int(si.HotSpot.x), int(si.HotSpot.y), cs);
+    setPointerTextures(cs);
+}
+
+void DesktopCapture::setPointerTextures(const CursorShape& cs) {
+    const int w = cs.w, h = cs.h;
+    if (w <= 0 || h <= 0) return;
     auto makeSrv = [&](const std::vector<uint32_t>& px, ComPtr<ID3D11ShaderResourceView>& srv) {
         srv.Reset();
         D3D11_TEXTURE2D_DESC td{};
@@ -436,10 +424,28 @@ void DesktopCapture::updatePointerShape(const DXGI_OUTDUPL_FRAME_INFO& fi) {
         ComPtr<ID3D11Texture2D> t;
         if (SUCCEEDED(dev_->CreateTexture2D(&td, &sd, &t))) dev_->CreateShaderResourceView(t.Get(), nullptr, &srv);
     };
-    makeSrv(color, ptrColor_);
-    if (anyInv) makeSrv(inv, ptrInvert_);
+    makeSrv(cs.color, ptrColor_);
+    if (cs.anyInvert()) makeSrv(cs.invert, ptrInvert_);
     else ptrInvert_.Reset();
-    ptrW_ = w, ptrH_ = h, ptrHotX_ = int(si.HotSpot.x), ptrHotY_ = int(si.HotSpot.y);
+    ptrW_ = w, ptrH_ = h, ptrHotX_ = cs.hotX, ptrHotY_ = cs.hotY;
+}
+
+// 0.8.4 tests: a pointer in the synthetic scenes (where the PC's own pointer never is), drawn like the
+// Desktop Duplication one: x / y = its hot spot, monitor pixels. Capture thread.
+void DesktopCapture::setTestPointer(int x, int y, bool visible, HCURSOR shape) {
+    if (opt_.scene == Scene::Desktop || !dev_) return;
+    if (shape != testShape_) {
+        testShape_ = shape;
+        CursorShape cs;
+        if (shape && cursorShapeOf(shape, cs)) setPointerTextures(cs);
+        if (!hideApplied_) needCompose_ = changed_ = true;
+    }
+    const int tx = x - ptrHotX_, ty = y - ptrHotY_;
+    if (visible != ptrVisible_ || tx != ptrX_ || ty != ptrY_) {
+        ptrVisible_ = visible, ptrX_ = tx, ptrY_ = ty;
+        testPointer_ = true;
+        if (!hideApplied_) needCompose_ = changed_ = true;
+    }
 }
 
 bool DesktopCapture::poll(int timeoutMs, bool& changed) {
@@ -467,7 +473,7 @@ bool DesktopCapture::poll(int timeoutMs, bool& changed) {
         if (hr != DXGI_ERROR_WAIT_TIMEOUT || left <= 0) break;
         waitUs(std::min<int64_t>(left, 1000));  // 0.8.3.6: 1 ms really (see setPreciseWait)
     }
-    auto pending = [&] { return opt_.scene == Scene::Motion || opt_.scene == Scene::Synth || (changed_ && (!frozen_ || frameNo_ == 0)); };
+    auto pending = [&] { return opt_.scene == Scene::Motion || opt_.scene == Scene::Synth || (changed_ && (!frozen_ || frameNo_ == 0 || testPointer_)); };
     if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
         changed = pending();
         return true;
@@ -493,7 +499,8 @@ bool DesktopCapture::poll(int timeoutMs, bool& changed) {
             const int x = fi.PointerPosition.Position.x, y = fi.PointerPosition.Position.y;
             if (vis != ptrVisible_ || (vis && (x != ptrX_ || y != ptrY_)) || fi.PointerShapeBufferSize) {
                 ptrVisible_ = vis, ptrX_ = x, ptrY_ = y;
-                needCompose_ = changed_ = true;
+                // 0.8.4: a pointer left out of the picture (the page draws it) changes nothing to encode
+                if (!hideApplied_) needCompose_ = changed_ = true;
             }
             updatePointerShape(fi);
         }
@@ -505,7 +512,7 @@ bool DesktopCapture::poll(int timeoutMs, bool& changed) {
 
 void DesktopCapture::compose() {
     ctx_->CopyResource(comp_.Get(), desk_.Get());
-    if (!opt_.drawCursor || hideApplied_ || !ptrVisible_ || !ptrColor_ || opt_.scene != Scene::Desktop) return;
+    if (!opt_.drawCursor || hideApplied_ || !ptrVisible_ || !ptrColor_ || (opt_.scene != Scene::Desktop && !testPointer_)) return;
     const float l = float(ptrX_) / deskW_ * 2 - 1, t = 1 - float(ptrY_) / deskH_ * 2;
     const float r = float(ptrX_ + ptrW_) / deskW_ * 2 - 1, bt = 1 - float(ptrY_ + ptrH_) / deskH_ * 2;
     const float rect[4] = {l, t, r, bt};

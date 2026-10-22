@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.3.6)
+set(PM_APP_VERSION 0.8.4)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -56,7 +56,7 @@ add_library(pm_app_ui STATIC popup_menu.cpp popup_menu.h pair_panel.cpp pair_pan
   remote_password_panel.cpp remote_password_panel.h
   remote_guest_panel.cpp remote_guest_panel.h)
 target_link_libraries(pm_app_ui PUBLIC pm_app_config)
-# 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
+# 翻譯 ▸ 本機 AI 翻譯 (tr_settings.cpp) need the optional engines of pm_translate.
 if(PM_TRANSLATE_ENGINES)
   target_compile_definitions(pm_app_ui PRIVATE PM_APP_TR_ENGINES)
 endif()
@@ -95,8 +95,12 @@ target_link_libraries(pm_app_menus     PUBLIC pm_app_view)
 
 # 遠端操控 (0.8.0, docs/remote.md): optional like pm_remote itself (libdatachannel / opus
 # from vcpkg). Without it the app builds the same, with no 遠端操控 menu.
-add_library(pm_app_remote STATIC remote/remote.h remote/remote_actions.cpp)
-target_link_libraries(pm_app_remote PUBLIC pm_app_share pm_app_help)
+add_library(pm_app_remote STATIC remote/remote.h remote/remote_actions.cpp remote/cloudflared_addon.h remote/cloudflared_addon.cpp)
+target_link_libraries(pm_app_remote PUBLIC pm_app_share pm_app_help PRIVATE pm_translate bcrypt winhttp)
+target_include_directories(pm_app_remote PRIVATE ${CMAKE_SOURCE_DIR}/translate/src)  # downloader.h (the add-on downloader)
+if(PM_TEST_HTTP_DL)
+  target_compile_definitions(pm_app_remote PRIVATE PM_DL_TEST_HTTP)
+endif()
 if(TARGET pm_remote)
   target_link_libraries(pm_app_remote PRIVATE pm_remote)
   target_compile_definitions(pm_app_remote PRIVATE PM_APP_REMOTE)
@@ -155,18 +159,10 @@ else()
   message(WARNING "android tools (adb, scrcpy-server) missing: run android/third_party/fetch_tools.ps1")
 endif()
 
-# 免安裝外網 (0.8.1): cloudflared next to the exe (<bin>/cloudflared: cloudflared.exe,
-# LICENSE, VERSION.txt) — the installer ships that folder as 程式\cloudflared.
-set(PM_CLOUDFLARED_DIR ${CMAKE_SOURCE_DIR}/remote/third_party/cloudflared)
-if(TARGET pm_remote AND EXISTS ${PM_CLOUDFLARED_DIR}/cloudflared.exe)
-  add_custom_command(TARGET PhoneMirror POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:PhoneMirror>/cloudflared
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PM_CLOUDFLARED_DIR}/cloudflared.exe ${PM_CLOUDFLARED_DIR}/LICENSE
-            ${PM_CLOUDFLARED_DIR}/VERSION.txt $<TARGET_FILE_DIR:PhoneMirror>/cloudflared/
-    COMMENT "cloudflared → $<TARGET_FILE_DIR:PhoneMirror>/cloudflared")
-elseif(TARGET pm_remote)
-  message(WARNING "cloudflared missing (免安裝外網 uses an installed one if any): run remote/third_party/fetch_cloudflared.ps1")
-endif()
+# 免安裝外網: cloudflared is NOT in the build output or the installer any more (0.8.4): app/remote/cloudflared_addon.cpp
+# fetches it on first use (GitHub Pages /addons/ mirror, GitHub release second, SHA-256 pinned).
+# remote/third_party/fetch_cloudflared.ps1 still downloads the pinned release to prepare the mirror upload
+# (launch/_release/addons/) and for tests that need the real bytes.
 
 # 使用教學 / User guide (both languages) next to the exe for dev builds (the
 # installer puts them in 程式\ too, and the UI language's one at the top level).
@@ -247,3 +243,23 @@ target_include_directories(pm_panel_anim_test PRIVATE ${CMAKE_SOURCE_DIR}/includ
 target_link_libraries(pm_panel_anim_test PRIVATE d2d1 dwrite windowscodecs dwmapi shcore comctl32 shlwapi ole32 shell32)
 target_compile_definitions(pm_panel_anim_test PRIVATE UNICODE _UNICODE NOMINMAX)
 target_compile_options(pm_panel_anim_test PRIVATE /utf-8)
+
+# pm_log_throttle_test (0.8.4): which phonemirror.log lines are written (core/base/log_throttle.h); no I/O.
+add_executable(pm_log_throttle_test tools/pm_log_throttle_test.cpp core/base/log_throttle.h)
+target_include_directories(pm_log_throttle_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# pm_cf_addon_test (0.8.4): the cloudflared add-on download against local fake servers (tools/cf_addon_test.mjs); builds its
+# own copy of the downloader with the plain-HTTP-to-127.0.0.1 test hook (never in the app unless -DPM_TEST_HTTP_DL=ON).
+add_executable(pm_cf_addon_test tools/pm_cf_addon_test.cpp remote/cloudflared_addon.cpp remote/cloudflared_addon.h
+  ${CMAKE_SOURCE_DIR}/translate/src/downloader.cpp)
+target_include_directories(pm_cf_addon_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/translate/src ${CMAKE_SOURCE_DIR}/translate/include)
+target_compile_definitions(pm_cf_addon_test PRIVATE PM_DL_TEST_HTTP NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+target_link_libraries(pm_cf_addon_test PRIVATE pm_translate winhttp bcrypt shell32 ole32)  # its downloader.obj is not pulled in: the copy above (with the test hook) comes first
+target_compile_options(pm_cf_addon_test PRIVATE /utf-8 /EHsc)
+
+# fake_cloudflared (0.8.4 tests): a harmless stand-in for cloudflared.exe (prints an error, exits 3).
+add_executable(fake_cloudflared tools/fake_cloudflared.cpp)
+
+# log_replay (0.8.4): replays a phonemirror.log through LogThrottle and counts the lines the new logger would write.
+add_executable(log_replay tools/log_replay.cpp core/base/log_throttle.h)
+target_include_directories(log_replay PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

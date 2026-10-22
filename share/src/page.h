@@ -5,8 +5,7 @@
 // only) swaps the ZIP for 「全部儲存」 / per-item 儲存 through
 // navigator.share({files}) where the browser can share files (a secure
 // context only, so not the LAN page's http; iOS: one sheet → 「儲存 N 張影像」
-// → Photos), and on a live share (自動傳到手機) long-polls list?n=K so new
-// captures appear by themselves.
+// → Photos).
 // Texts come from pm/i18n_strings.inc (Pg* entries).
 #pragma once
 
@@ -36,18 +35,14 @@ struct PageExtra {
     std::string clipText;
 };
 
-// kind: "ios" | "android" | "other" (both sets of instructions). live: the
-// newest file first, 「即時更新」, an empty state, the live footer
-// (ttlSeconds = the cap).  Files that are neither pictures nor videos get a
-// plain file card (name, size, 下載檔案).
+// kind: "ios" | "android" | "other" (both sets of instructions).  Files that
+// are neither pictures nor videos get a plain file card (name, size, 下載檔案).
 std::string sharePage(int lang, const std::wstring& appName, const PagePalette& pal,
                       const std::vector<PageFile>& files, const std::string& kind, const std::string& untilHHMM,
-                      int ttlSeconds, bool live = false, const PageExtra* extra = nullptr);
+                      int ttlSeconds, const PageExtra* extra = nullptr);
 // /<token>/clip: {"text":"…"}
 std::string clipJson(const std::string& textUtf8);
-std::string expiredPage(int lang, const std::wstring& appName, const PagePalette& pal, bool live = false);
-// /<token>/list: {"live":…,"n":N,"files":[{"i","name","video","size","sizeText","type"}…]}
-std::string listJson(const std::vector<PageFile>& files, bool live);
+std::string expiredPage(int lang, const std::wstring& appName, const PagePalette& pal);
 // /<token>/app.js
 const std::string& shareScript();
 std::string htmlEscape(const std::string& s);

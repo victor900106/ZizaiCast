@@ -350,12 +350,6 @@ the program's model manager.
        Source. (Windows 10 version 1903 and later also include a DirectML.dll
        of their own.)
 
-2d.4 Online translation (optional, off by default)
-     Sends the recognised text to the DeepL API or to Microsoft Azure AI
-     Translator with the user's own key, only after the user turned it on.
-     No code of these services is included; the user's agreement with the
-     provider applies.
-
 
 ------------------------------------------------------------------------------
 PART 2e — REMOTE CONTROL (遠端操控, 0.8.0): DLLs next to 自在投影.exe and the
@@ -417,7 +411,7 @@ source, with the vcpkg port scripts, is in ZizaiCast-<version>-deps-source.zip
 
 
 ------------------------------------------------------------------------------
-PART 3 — SEPARATE PROGRAMS (folders 程式\android-tools\, 程式\cloudflared\)
+PART 3 — SEPARATE PROGRAMS (folder 程式\android-tools\; cloudflared is downloaded on first use)
 ------------------------------------------------------------------------------
 These are independent programs, run as separate processes and shipped
 unmodified ("aggregate", GPL-3.0 §5). Their licence files are installed next
@@ -450,13 +444,15 @@ to them.
                  Copyright (C) 2018-2026 Romain Vimont
 
 3.3  cloudflared (Cloudflare Tunnel client; remote control "No-app link", 0.8.1)
-     File      : 程式\cloudflared\cloudflared.exe (with LICENSE, VERSION.txt)
+     File      : NOT in the installer (0.8.4). Downloaded unchanged the first time a temporary address is used, to
+                 %LOCALAPPDATA%\PhoneMirror\addons\cloudflared\cloudflared.exe (with LICENSE, VERSION.txt), from this
+                 project's mirror https://victor900106.github.io/ZizaiCast/addons/ or the GitHub release; SHA-256 checked.
      Version   : 2026.7.2 (official release asset cloudflared-windows-amd64.exe,
                  https://github.com/cloudflare/cloudflared/releases/tag/2026.7.2,
                  SHA-256 cdb5d4432f6ae1595654a692a51308b69d2bf7af961f5578d9391837cf072df9,
                  signed by Cloudflare, Inc., unmodified)
      Source    : https://github.com/cloudflare/cloudflared/tree/2026.7.2
-     Licence   : Apache License 2.0 — Appendix A; cloudflared\LICENSE
+     Licence   : Apache License 2.0 — Appendix A; addons\cloudflared\LICENSE
      Copyright : Copyright Cloudflare, Inc.
      Remark    : Run as a separate process only when the user clicks "Get the
                  link" (quick tunnel, trycloudflare.com, no account); it stops

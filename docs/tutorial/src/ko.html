@@ -101,7 +101,7 @@
 <!-- ============ Miracast ============ -->
 <section id="miracast">
 <h2><span class="num">2</span>Android 화면 전송(Miracast)</h2>
-<p class="goal"><b>하고 싶은 일</b>Android 화면을 PC에 띄워 <strong>보기만</strong> 합니다. 설정은 필요 없지만, PC에 “무선 디스플레이”를 지원하는 Wi-Fi 어댑터가 있어야 합니다(대부분의 노트북은 지원).</p>
+<p class="goal"><b>하고 싶은 일</b>Android 화면을 PC에 띄워 <strong>보기만</strong> 합니다. 설정은 필요 없지만, PC에 “무선 디스플레이”를 지원하는 Wi-Fi 어댑터가 있어야 합니다(대부분의 노트북은 지원). PC가 무선 디스플레이를 지원해야 하며, 지원하지 않는 PC에서는 Miracast 항목이 표시되지 않습니다. 대신 “Android(PC로 조작)”를 사용하세요.</p>
 {{fig:cast}}
 <ol class="steps">
   <li>Zizai Cast가 실행 중이고 <strong>PC의 Wi-Fi가 켜져 있음</strong>(랜선으로 인터넷을 써도 켜 두기).</li>
@@ -267,7 +267,7 @@
   <li>일부만 번역: 오른쪽 클릭 메뉴 → 번역 → <span class="ui">영역 번역</span>(<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>)으로 상자를 그립니다.</li>
 </ul></div>
 <h3 id="magnifier">돋보기: 글자가 작을 때</h3>
-<p>도구 모음의 <span class="ui">확대</span>를 한 번 누르면 2배, 다시 누르면 4배, 한 번 더 누르면 원래대로. <kbd>Ctrl</kbd>+휠로 마우스 위치를 확대. 오른쪽 클릭 메뉴 → <span class="ui">돋보기</span>에는 <span class="ui">대비 강화</span>, <span class="ui">검은 바탕에 노란 글자</span> 같은 색(<kbd>Ctrl</kbd><kbd>K</kbd>로 전환)과 <span class="ui">화면 정지</span>(<kbd>Ctrl</kbd><kbd>P</kbd>)도 있습니다.</p>
+<p>도구 모음의 <span class="ui">확대</span>를 한 번 누르면 2배, 다시 누르면 4배, 한 번 더 누르면 원래대로. <kbd>Ctrl</kbd>+휠로 마우스 위치를 확대. 오른쪽 클릭 메뉴 → <span class="ui">돋보기</span>에는 <span class="ui">화면 정지</span>(<kbd>Ctrl</kbd><kbd>P</kbd>)도 있습니다.</p>
 <h3 id="update">업데이트</h3>
 <p>새 버전이 있으면 창이 뜹니다. <span class="ui">지금 업데이트</span>를 누르면 Zizai Cast가 닫히고 설치 후 자동으로 다시 열립니다. 지금은 아니면 <span class="ui">나중에 알림</span>. 오른쪽 클릭 메뉴 → <span class="ui">도움말</span> → <span class="ui">업데이트 확인</span>으로도 확인할 수 있습니다.</p>
 {{img:update|새 버전 창(예시용 가짜 버전)|420}}
@@ -391,7 +391,7 @@
 <h4 id="remote-nolink">방법 B: 임시 주소(고정 주소 없이)</h4>
 <ol class="steps">
   <li>PC: 고정 주소가 없으면 <span class="ui">원격 제어 허용</span> 영역의 <span class="ui">임시 주소 만들기</span>, 고정 주소가 있으면 <span class="ui">고급 설정</span> → <span class="ui">임시 주소(휴대폰에 앱 없이, 모바일 데이터로도 연결)</span>. 10~20초 뒤 QR 코드와 6자리 <span class="ui">통행 코드</span>가 나옵니다(작은 창의 <span class="ui">임시 주소</span> 탭에도. 작은 창의 탭은 <span class="ui">같은 Wi-Fi</span>, <span class="ui">고정 주소</span>, <span class="ui">Tailscale</span>, <span class="ui">임시 주소</span> 순서로 메인 화면과 같습니다).</li>
-  <li><span class="ui">주소 복사</span>로 친구에게 주소를 보내고 통행 코드는 따로 알려 줍니다. <strong>주소는 한 번만</strong>, 10분 안에 쓸 수 있습니다.</li>
+  <li><span class="ui">주소 복사</span>로 친구에게 주소를 보내고 통행 코드는 따로 알려 줍니다. <strong>주소는 한 번만</strong>, 10분 안에 쓸 수 있습니다. 임시 주소를 처음 만들 때는 먼저 작은 구성 요소(약 52 MB, 한 번만, 인터넷 연결 필요, 진행률 표시)를 내려받습니다.</li>
   <li>친구가 열고 통행 코드를 넣으면 PC에 “휴대폰이 이 PC를 조작하려고 합니다”가 나옵니다. <strong>내가 PC 앞에서 “허용”</strong>을 누릅니다.</li>
   <li>끝나면 <span class="ui">임시 주소 중지</span>, 또는 원격 제어를 끕니다.</li>
 </ol>
@@ -430,6 +430,15 @@
   <li>Ctrl+Alt+Del이 가지 않음: Windows 보안 키라서 어떤 프로그램도 보낼 수 없습니다. 작업 관리자는 바의 <span class="ui">작업 관리자</span>로.</li>
   <li>바의 <span class="ui">파일</span>이 회색: 마우스를 올리면 이유가 나옵니다(보기만, 또는 파일 전송이 없는 임시 계정).</li>
 </ul></div>
+
+<h3 id="remote-mac">Mac에서 Windows 조작하기</h3>
+<p>Mac(또는 키보드를 연결한 iPad)의 Safari나 Chrome에서 같은 주소를 열면 Mac에서 쓰던 대로 단축키를 쓸 수 있습니다:</p>
+<ul>
+  <li>⌘ + 글자는 Windows의 Ctrl + 글자로 보냅니다: ⌘C 복사, ⌘V 붙여넣기, ⌘X 잘라내기, ⌘Z 실행 취소, ⌘A 모두 선택, ⌘S 저장, ⌘F 찾기, ⌘T, ⌘W …</li>
+  <li>⌘만 누르면 Windows 키(시작), ⌘ + 화살표는 Win + 화살표, Option은 Alt입니다(Option+F4로 창 닫기).</li>
+  <li>휴대폰 페이지의 <span class="ui">설정</span>에 <span class="ui">Mac: Cmd를 Ctrl로</span>가 있고 Mac/iPad에서는 자동으로 켜집니다. 끄면 ⌘는 항상 Windows 키입니다.</li>
+  <li>⌘Q, ⌘W, ⌘Tab은 Mac이나 브라우저가 먼저 씁니다. Windows로 보내려면 <span class="ui">전체 화면</span>을 쓰거나 위쪽 바의 버튼(예: Ctrl+W)을 누르세요.</li>
+</ul>
 
 <h3 id="remote-approve">연결할 때 허용을 물을지</h3>
 <p>PC: <span class="ui">원격 제어</span> 탭 → <span class="ui">고급 설정</span> → <span class="ui">연결할 때 허용을 물을지</span>. 기본 계정(고정 주소 + 내 비밀번호), 임시 계정, 임시 주소마다 고를 수 있습니다:</p>

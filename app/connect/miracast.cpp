@@ -49,6 +49,12 @@ void miracastApply(bool on) {
     ev.onDisconnected = [h]() { postSource(h, MiraDisconnected); };
     ev.onPin = [h](const std::wstring& pin) { postSource(h, MiraPin, pin); };
     g.miracastOp = std::thread([m, w, h, name, ev]() mutable {
+        // 0.8.4: ask first (cheap). A PC that cannot receive Miracast says so once and is left alone: no start / stop
+        // round, no further log lines (the owner's PC wrote 3 lines per launch, 62 launches, always "Unavailable").
+        if (const std::wstring reason = pm::MiracastReceiver::unsupportedReason(); !reason.empty()) {
+            postSource(h, MiraStatus, L"0" + reason);
+            return;
+        }
         const bool ok = m->start(name, w, std::move(ev));
         postSource(h, MiraStarted, ok ? L"1" : L"0");
     });

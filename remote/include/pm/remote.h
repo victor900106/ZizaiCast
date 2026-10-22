@@ -275,7 +275,10 @@ struct Options {
     int vbvFrames = 2;
     bool inlineSend = false;
     int rtpPayload = 1200;   // RTP payload bytes per packet (Tailscale sessions: at most 1100, MTU 1280)
-    std::string scene = "desktop";  // desktop | static | motion | synth (test scenes; synth = a made-up desktop, 0.8.3.6)
+    std::string scene = "desktop";  // desktop | static | motion | synth | synth-still (test scenes; synth = a made-up desktop, 0.8.3.6)
+    // 0.8.4 tests (with injectStub): the stub pointer takes Windows' arrow, I-beam, hand and busy shapes in
+    // turn (2.5 s each), drawn into the synthetic scenes as the PC's own pointer is into the desktop.
+    bool testCursorCycle = false;
     bool testClipboard = false;  // tests: an in-memory clipboard instead of the PC's real one
     std::string testClipboardText;
     std::wstring snapDir;    // where POST /<token>/snap PNGs go (empty = disabled)
@@ -329,6 +332,14 @@ struct Options {
     // the PC may change it (not 僅觀看, never a 臨時帳號: refused here, never reaches this). The
     // callback stores it like the PC's own menu item and calls setMutePc(); unset: setMutePc() at once.
     std::function<void(bool on, const std::string& label)> onMutePcRequest;
+    // 0.8.4 自訂快捷鍵 (see custom_keys.h): the buttons of the keyboard panel, kept on the PC for the 主帳號.
+    // customKeys = the saved list (JSON; empty = never saved: the three examples); a list that does not
+    // pass sanitizeCustomKeys() is replaced by the examples. The phone saves with {"t":"keys-set","list":[..]}:
+    // only a session that may control the PC (not 僅觀看, never a 臨時帳號: it can use the buttons, not change
+    // them) and only a list that passes the check; then onKeysChanged(canonical JSON, label) is called (the
+    // app stores it in settings.ini) and setCustomKeys() is NOT needed. Unset: the host just keeps it in memory.
+    std::string customKeys;
+    std::function<void(const std::string& json, const std::string& label)> onKeysChanged;
     // 0.8.3: 中斷 on the PC ends that phone's fixed-link login (its token id; expiry in epoch
     // seconds): keep it (settings) and hand it back here, so a restart does not let it in again.
     std::vector<std::string> revokedLogins;  // "<token id>:<expiry>"
@@ -353,7 +364,30 @@ struct Options {
     // pixels). false = not injected, only logged.
     std::function<bool(bool keyboard)> injectGuard;
     std::function<bool(int x, int y)> injectMoveGuard;
+
+    // ---- 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy) ----
+    // 隱私黑屏: the PC's screens are covered while the phone keeps seeing the desktop (privacy_screen.h).
+    // Only a session that controls the PC may turn it on (never 僅觀看, never a 臨時帳號); it goes off when
+    // the session ends, at the PC with Ctrl+Alt+Shift+B / Esc x3 (then not again in that session).
+    bool privacyAllowed = true;
+    std::string privacyTest;  // tests: "offscreen" | "tiny" (the cover never covers the screen); "" = real
+    std::function<void(bool on, const std::string& why)> onPrivacy;  // why: phone | pc | local | ended | failed
+    // 電腦的檔案: the phone lists and downloads files below these folders only (pc_files.h): 桌面 / 文件 / 下載 /
+    // 圖片 / 影片 + the app's screenshot / recording folders + pcFilesExtra (the PC's 允許清單). Same rights as
+    // 傳檔 (file_perm.h). pcFilesTestRoots ("id=path"): tests, replaces every folder.
+    bool pcFiles = true;
+    bool pcFilesGuest = false;  // 臨時帳號 may browse / download too (default off; 主帳號 always may)
+    std::wstring pcShotDir, pcRecDir;
+    std::vector<std::wstring> pcFilesExtra, pcFilesTestRoots;
+    // Every download that starts (a PC file: kind "pc", what = "<folder>/<path>"; a copied file: kind "clip"; a refused 臨時帳號 request: kind "denied", what "pc-guest:list|download").
+    std::function<void(const Peer&, const std::string& what, uint64_t bytes, const std::string& kind)> onDownload;
 };
+
+// 0.8.4 隱私黑屏: Windows 10 2004 (build 19041) or later (WDA_EXCLUDEFROMCAPTURE); else hide the switch.
+bool privacySupported();
+// Call first thing in main(): when this process was started as the cover ("--pm-privacy-mask ...") or to
+// render it ("--pm-privacy-render ..."), runs that and returns its exit code; else -1 (go on as usual).
+int runPrivacyMaskIfAsked();
 
 class Host {
 public:
@@ -381,6 +415,8 @@ public:
     void notifyPhone(const std::string& what);
     void setAudioSource(const std::string& source);  // Options::audioSource, while running too
     // 0.8.2: these take effect at once (no restart of the host).
+    void setCustomKeys(const std::string& json);  // 0.8.4: replace the list (a check failure keeps the old one); the phone is told
+    std::string customKeys() const;                // 0.8.4: the list now (canonical JSON)
     void setMutePc(bool on);         // Options::mutePc: mute the PC while the phone plays its sound
     void setAudioOffered(bool on);   // Options::audio
     void setIdleMinutes(double minutes);
@@ -420,6 +456,14 @@ public:
     // the fixed link / the 外網連結, lan = the LAN / Tailscale. Only shown on the page
     // (next to 中斷); the locking itself is the app's (onEnded: Peer::tunnel / fixed).
     void setLockAfterSession(bool outside, bool lan);
+
+    // ---- 0.8.4 (feat-084-privacy) ----
+    // 隱私黑屏 from the PC's menu: only while a phone controls the PC. false + why ("no-session",
+    // "unsupported", "off", "viewOnly", "guest", "local", "failed").
+    bool setPrivacy(bool on, std::string* why = nullptr);
+    bool privacyOn() const;
+    // 電腦的檔案 on / off and the PC's extra folders (允許清單), at once.
+    void setPcFiles(bool on, const std::vector<std::wstring>& extra, bool guestOn = false);
 
 private:
     struct Impl;

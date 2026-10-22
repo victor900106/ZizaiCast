@@ -1,14 +1,10 @@
-# Off-screen tests of 傳到手機 with several captures and 自動傳到手機 in the real
+# Off-screen tests of 傳到手機 with several captures in the real
 # app (no phone, no LAN, no firewall prompt: --dev --test-offscreen
 # --test-no-network, PM_SHARE_BIND=127.0.0.1, PM_VIDEO_OFFSCREEN=1). Writes
 # PNGs / logs to %TEMP%\pmshots\batch_*. The dev settings.ini is restored after.
 #   -Mode picker    3 screenshots + 1 recording → 傳到手機 → the picker in zh / en / ja / ko,
 #                   untick one, 傳送 → QR page with the 3 others (curl list)
-#   -Mode autopush  --test-source android + PM_SHARE_FAKE_ADB (fake adb.exe): 自動傳到手機 on,
-#                   3 quick screenshots + 1 recording → 4 queued pushes to the gallery, in order
-#   -Mode live      自動傳到手機 on (no adb) → live QR page; headless Chrome keeps it open while
-#                   the app takes screenshots / a recording (share/tools/live_page_test.mjs)
-param([string]$Exe, [string]$Feed, [ValidateSet("picker", "autopush", "live")][string]$Mode = "picker")
+param([string]$Exe, [string]$Feed, [ValidateSet("picker")][string]$Mode = "picker")
 $ErrorActionPreference = "Stop"
 Add-Type @"
 using System; using System.Runtime.InteropServices; using System.Text;
@@ -38,23 +34,7 @@ $logStart = if (Test-Path $logFile) { (Get-Item $logFile).Length } else { 0 }
 
 $env:PM_VIDEO_OFFSCREEN = "1"
 $env:PM_SHARE_BIND = "127.0.0.1"
-$source = "airplay"
-if ($Mode -eq "autopush") {
-  $tools = Join-Path $env:TEMP "pm_batch_fake_adb"
-  New-Item -ItemType Directory -Force $tools | Out-Null
-  Copy-Item -Force (Join-Path (Split-Path $Exe) "pm_share_fake_adb.exe") (Join-Path $tools "adb.exe")
-  Set-Content -Path (Join-Path $tools "scrcpy-server") -Value "dummy"
-  $adbLog = Join-Path $tools "fake_adb.log"
-  Remove-Item -Force -ErrorAction SilentlyContinue $adbLog
-  $env:PM_SHARE_FAKE_ADB = $tools
-  $env:FAKE_ADB_LOG = $adbLog
-  $env:FAKE_ADB_MODE = "ok"
-  $env:FAKE_ADB_PUSH_MS = "1500"   # slow pushes: the next captures queue up
-  $env:PM_ADB_PORT = "15097"
-  $source = "android"
-}
 $argv = @("--dev", "--test-offscreen", "--test-no-network", "--test-feed", "`"$Feed`"")
-if ($source -ne "airplay") { $argv += @("--test-source", $source) }
 $p = Start-Process -FilePath $Exe -ArgumentList $argv -PassThru
 $msg = [PmWinB]::RegisterWindowMessage("PhoneMirror.DevCommand")
 $h = [IntPtr]::Zero
@@ -85,28 +65,9 @@ try {
     Dev 908 0 2000                           # 傳送 3 個 → QR page
     Dev 903 0 900; Grab "5-shared"
     $url = Get-Content (Join-Path $shots "batch_picker_5-shared_share_url.txt") -Raw
-    if ($url) { Write-Output ("list: " + (curl.exe -s ($url.Trim() + "list"))) }
+    if ($url) { Write-Output ("cards on the page: " + ([regex]::Matches((curl.exe -s $url.Trim()), 'data-i="')).Count) }
     Dev 160 0 1500                           # 傳到手機 again: nothing unsent → the newest file, as before
     Dev 903 0 900; Grab "6-again"
-  } elseif ($Mode -eq "autopush") {
-    Start-Sleep -Seconds 2                   # the test push source connects to the fake phone
-    Dev 165 0 1200                           # 自動傳到手機 on
-    Dev 107 0 300; Dev 107 0 300; Dev 107 0 300   # three quick screenshots: queued
-    Dev 112 0 2500; Dev 112 0 200            # a recording
-    for ($i = 0; $i -lt 100 -and ([regex]::Matches((AppLog), "share: pushed ")).Count -lt 4; $i++) { Start-Sleep -Milliseconds 100 }
-    Dev 910 0 500; Grab "1-toast"              # 「已傳到手機相簿」 after the last push
-    Dev 900 0 900; Grab "2-menus"
-    Dev 165 0 1200                           # off again
-    Write-Output "---- fake adb log (push lines)"
-    Get-Content $adbLog -Encoding UTF8 | Where-Object { $_ -match "\| push \|" }
-  } else {
-    Dev 165 0 1500                           # 自動傳到手機 on → live page + QR panel
-    Dev 903 0 900; Grab "1-live-panel"
-    $url = (Get-Content (Join-Path $shots "batch_live_1-live-panel_share_url.txt") -Raw).Trim()
-    Write-Output "live url $url"
-    & node (Join-Path $PSScriptRoot "live_page_test.mjs") $url $p.Id (Join-Path $PSScriptRoot "dev_cmd.ps1") (Join-Path $shots "batch_live")
-    Dev 903 0 900; Grab "9-live-panel-after"
-    Dev 910 0 600; Grab "9-toast"
   }
 } finally {
   Write-Output "---- app log (share lines)"

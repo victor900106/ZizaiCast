@@ -325,11 +325,6 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
        套件來源（api.nuget.org）下載，本專案不再散布，也不屬於對應原始碼。
        （Windows 10 1903 以後的版本本身也內建 DirectML.dll。）
 
-2d.4 線上翻譯（選用，預設關閉）
-     只有在使用者開啟後，才用使用者自己的金鑰把辨識出的文字送到 DeepL API
-     或 Microsoft Azure AI Translator。不含這些服務的任何程式碼；適用使用者與
-     服務提供者之間的條款。
-
 
 ------------------------------------------------------------------------------
 第二之五部分　遠端操控（0.8.0）：自在投影.exe 旁的 DLL 與程式送給手機的網頁
@@ -386,7 +381,7 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
 
 
 ------------------------------------------------------------------------------
-第三部分　獨立程式（資料夾 程式\android-tools\、程式\cloudflared\）
+第三部分　獨立程式（資料夾 程式\android-tools\；cloudflared 於第一次使用時下載）
 ------------------------------------------------------------------------------
 以下為獨立程式，以個別行程執行並以原樣隨附（「聚集」，GPL-3.0 第 5 條）。
 其授權檔與程式放在同一資料夾。
@@ -415,13 +410,15 @@ Windows 系統 DLL。各元件授權條款以原文（英文）收錄，以原�
                Copyright (C) 2018-2026 Romain Vimont
 
 3.3  cloudflared（Cloudflare Tunnel 用戶端；遠端操控「免安裝外網」，0.8.1）
-     檔案　　：程式\cloudflared\cloudflared.exe（另附 LICENSE、VERSION.txt）
+     檔案　　：0.8.4 起不在安裝檔內。第一次使用臨時網址時原樣下載到
+               %LOCALAPPDATA%\PhoneMirror\addons\cloudflared\cloudflared.exe（另附 LICENSE、VERSION.txt），
+               來源為本專案鏡像 https://victor900106.github.io/ZizaiCast/addons/ 或 GitHub 發布頁，下載後驗證 SHA-256。
      版本　　：2026.7.2（官方發布檔 cloudflared-windows-amd64.exe，
                https://github.com/cloudflare/cloudflared/releases/tag/2026.7.2，
                SHA-256 cdb5d4432f6ae1595654a692a51308b69d2bf7af961f5578d9391837cf072df9，
                Cloudflare, Inc. 數位簽章，未修改）
      原始碼　：https://github.com/cloudflare/cloudflared/tree/2026.7.2
-     授權　　：Apache License 2.0 — 附錄 A；cloudflared\LICENSE
+     授權　　：Apache License 2.0 — 附錄 A；addons\cloudflared\LICENSE
      著作權　：Copyright Cloudflare, Inc.
      備註　　：只在使用者按「取得外網連結」時以獨立行程執行（quick tunnel，
                trycloudflare.com，不需帳號）；關閉時與自在投影結束時一併結束。

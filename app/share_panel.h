@@ -28,7 +28,6 @@ public:
         std::function<void()> onStop;   // 停止分享 / × / Esc / 關閉 (the panel is already gone)
         std::function<void()> onAgain;  // 再分享 10 分鐘 (after expiry)
         std::function<void()> onCopy;   // 複製連結
-        std::function<void()> onHide;   // live: × / Esc only hide the panel (the share goes on); unset → onStop
     };
     bool open(HWND owner, Callbacks cb);  // centred over owner; an open panel is brought forward
     void close();                          // no callback
@@ -40,10 +39,6 @@ public:
                   int seconds);
     void setExpired();
     bool expired() const { return expired_; }
-    // 自動傳到手機 (live share): 「自動傳送中 · 已傳 N 個」 instead of the
-    // countdown, the keep-the-page-open hint, 停止自動傳送.
-    void setLive(bool live, int sent);
-    bool live() const { return live_; }
     void setStatus(const std::wstring& text);
     void setFiles(const std::wstring& files);  // the name / 「N 個檔案」 line
     void retheme();
@@ -70,8 +65,6 @@ private:
     int qrSize_ = 0;
     unsigned long long deadline_ = 0;  // GetTickCount64
     bool expired_ = false;
-    bool live_ = false;
-    int liveSent_ = 0;
     Hit hot_ = HitNone, pressed_ = HitNone;
     bool tracking_ = false;
     float copyW_ = 80;

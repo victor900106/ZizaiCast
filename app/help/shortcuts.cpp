@@ -55,7 +55,6 @@ std::vector<pm::ui::SettingsPanel::Item> shortcutItems() {
     key(pair(S::MenuZoomIn, S::MenuZoomOut), L"Ctrl+= / -");
     key(tr(S::KeysZoomWheel), tr(S::KeyCtrlWheel));
     key(tr(S::MenuZoomReset), L"Ctrl+Shift+0");
-    key(shortLabel(tr(S::MenuFilter)), L"Ctrl+K");
     key(tr(S::MenuFreeze), L"Ctrl+P");
     head(tr(S::MenuTranslateSub));
     key(tr(S::MenuTrScreen), L"Ctrl+L");

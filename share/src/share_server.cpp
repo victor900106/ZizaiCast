@@ -2,8 +2,7 @@
 // socket on a LAN address, a thread per connection (HTTP/1.1 keep-alive,
 // GET / HEAD, single byte ranges), a generated mobile page and the shared
 // files. Nothing but /<token>/, /<token>/v/<i>, /<token>/d/<i>, the page's
-// script /<token>/app.js, its file list /<token>/list (long-polled by a
-// live page) and all files as one ZIP /<token>/zip[?from=F] exists.
+// script /<token>/app.js and all files as one ZIP /<token>/zip[?from=F] exists.
 #include "pm/share_server.h"
 
 #include <winsock2.h>
@@ -15,7 +14,6 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <cstdio>
 #include <ctime>
 #include <list>
@@ -43,7 +41,6 @@ constexpr int kRecvTimeoutMs = 20000;
 constexpr int kSendTimeoutMs = 30000;
 constexpr int kMaxRequestsPerConn = 200;
 constexpr int kLingerAfterExpiryS = 300;  // 410 answers this long after the deadline, then the socket closes
-constexpr int kListWaitS = 20;            // /list?n=K holds the request this long for a file K+1 (live page)
 
 std::string narrow(const std::wstring& w) {
     if (w.empty()) return {};
@@ -351,10 +348,8 @@ struct Server::Impl {
         uint32_t crc = 0;
         uint64_t crcSize = 0, crcTime = 0;
     };
-    // Grows while serving (addFile); indices never change. Guarded by fmu;
-    // fcv wakes the long-polled /list requests (new file, expiry, stop).
+    // Grows while serving (addFile); indices never change. Guarded by fmu.
     mutable std::mutex fmu;
-    std::condition_variable fcv;
     std::vector<File> files;
     File fileAt(int i) const {
         std::lock_guard<std::mutex> lk(fmu);
@@ -363,10 +358,6 @@ struct Server::Impl {
     int fileTotal() const {
         std::lock_guard<std::mutex> lk(fmu);
         return int(files.size());
-    }
-    void wakeLists() {
-        { std::lock_guard<std::mutex> lk(fmu); }
-        fcv.notify_all();
     }
 
     struct Conn {
@@ -413,7 +404,6 @@ struct Server::Impl {
             if (!expiredNotified && Clock::now() >= deadline) {
                 expiredNotified = true;
                 isExpired = true;
-                wakeLists();
                 logf("link expired");
                 if (self->onExpired) self->onExpired();
             }
@@ -616,7 +606,7 @@ struct Server::Impl {
         if (isExpired) {
             logf(ip + " " + rq.method + " 410 (expired)");
             if (self->onAccess) self->onAccess(Access{ip, -1, false, 410});
-            return respond(410, "text/html; charset=utf-8", expiredPage(opts.lang >= 0 ? opts.lang : opts.english ? 1 : 0, opts.appName, pagePalette(), opts.live)) && keep;
+            return respond(410, "text/html; charset=utf-8", expiredPage(opts.lang >= 0 ? opts.lang : opts.english ? 1 : 0, opts.appName, pagePalette())) && keep;
         }
         if (seg.size() == 1) {  // /<token> → /<token>/ (relative links)
             logf(ip + " " + rq.method + " page 301");
@@ -635,23 +625,6 @@ struct Server::Impl {
             const std::string text = narrow(opts.clipboard());
             logf(ip + " " + rq.method + " clip 200 (" + std::to_string(text.size()) + " bytes)");
             return respond(200, "application/json; charset=utf-8", clipJson(text)) && keep;
-        }
-        if (seg.size() == 2 && seg[1] == "list") {  // the page's file list; live: ?n=K waits for file K+1
-            int n = -1;
-            if (query.rfind("n=", 0) == 0 && query.size() > 2 && query.size() <= 5 &&
-                query.find_first_not_of("0123456789", 2) == std::string::npos)
-                n = std::stoi(query.substr(2));
-            if (opts.live && n >= 0) {
-                std::unique_lock<std::mutex> lk(fmu);
-                fcv.wait_for(lk, std::chrono::seconds(kListWaitS),
-                             [&] { return stop.load() || isExpired.load() || int(files.size()) > n; });
-            }
-            if (stop) return false;
-            if (isExpired) {
-                logf(ip + " " + rq.method + " list 410 (expired)");
-                return respond(410, "application/json; charset=utf-8", "{\"ended\":true}") && keep;
-            }
-            return respond(200, "application/json; charset=utf-8", listJson(pageFiles(), opts.live)) && keep;
         }
         if (seg.size() == 2 && seg[1] == "zip") {  // 全部下載: files F.. as one stored ZIP
             int from = 0;
@@ -699,7 +672,7 @@ struct Server::Impl {
             ex.clipText = narrow(opts.clipboard());
         }
         return sharePage(opts.lang >= 0 ? opts.lang : opts.english ? 1 : 0, opts.appName, pagePalette(), pageFiles(),
-                         kind, hhmm, opts.ttlSeconds, opts.live, &ex);
+                         kind, hhmm, opts.ttlSeconds, &ex);
     }
 
     bool sendFile(SOCKET s, const std::string& ip, const Request& rq, int idx, bool download, bool keep, bool isHead) {
@@ -939,7 +912,7 @@ bool Server::start(const std::vector<std::wstring>& paths, const Options& o, std
     }
     const bool none = d.files.empty();
     flk.unlock();
-    if (none && !o.live) return fail("no readable file");
+    if (none) return fail("no readable file");
     d.opts = o;
     if (d.opts.ttlSeconds <= 0) d.opts.ttlSeconds = 600;
 
@@ -1011,7 +984,7 @@ bool Server::start(const std::vector<std::wstring>& paths, const Options& o, std
     d.isRunning = true;
     std::string names;
     for (const auto& f : d.files) names += (names.empty() ? "" : ", ") + narrow(f.name);
-    d.logf(std::string(d.opts.live ? "live, " : "") + "serving " + std::to_string(d.files.size()) + " file(s) on " +
+    d.logf(std::string("serving ") + std::to_string(d.files.size()) + " file(s) on " +
            d.bindIp + ":" + std::to_string(d.boundPort) + (d.ifName.empty() ? "" : " (" + d.ifName + ")") + " for " +
            std::to_string(d.opts.ttlSeconds) + " s: " + names);
     d.acceptThread = std::thread([this] { d_->acceptLoop(); });
@@ -1022,7 +995,6 @@ void Server::stop() {
     Impl& d = *d_;
     const bool was = d.isRunning.exchange(false);
     d.stop = true;
-    d.wakeLists();
     {
         // Wake the accept loop and every connection at once.
         std::lock_guard<std::mutex> lk(d.cmu);
@@ -1081,7 +1053,7 @@ int Server::addFile(const std::wstring& p) {
         std::lock_guard<std::mutex> lk(d.fmu);
         for (size_t i = 0; i < d.files.size(); ++i)
             if (_wcsicmp(d.files[i].path.c_str(), p.c_str()) == 0) return int(i);
-        if (int(d.files.size()) >= kMaxLiveFiles) return -1;
+        if (int(d.files.size()) >= kMaxAddedFiles) return -1;
         Impl::File f;
         f.path = p;
         f.name = fileName(p);
@@ -1091,12 +1063,9 @@ int Server::addFile(const std::wstring& p) {
         d.files.push_back(std::move(f));
         idx = int(d.files.size()) - 1;
     }
-    d.fcv.notify_all();
     d.logf("added file " + std::to_string(idx) + ": " + narrow(fileName(p)));
     return idx;
 }
-
-bool Server::live() const { return d_->isRunning && d_->opts.live; }
 
 int Server::fileCount() const { return d_->fileTotal(); }
 

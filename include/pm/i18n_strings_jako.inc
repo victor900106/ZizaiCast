@@ -808,24 +808,8 @@ PM_JAKO(PgExpiredText, L"リンクの有効期限は 10 分です。PC の{0}で
         L"링크는 10분 동안만 유효합니다. PC의 {0}에서 ‘휴대폰으로 보내기’를 다시 선택하세요.")
 PM_JAKO(ShareUnsentCount, L"未送信 {0} 個",
         L"안 보낸 항목 {0}개")
-PM_JAKO(MenuShareAuto, L"スクリーンショット／録画を自動でスマホに送る",
-        L"스크린샷/녹화를 자동으로 휴대폰에 보내기")
-PM_JAKO(ShareAutoOn, L"オン：スクリーンショットと録画を自動でスマホに送ります",
-        L"켜짐: 스크린샷과 녹화를 자동으로 휴대폰에 보냅니다")
-PM_JAKO(ShareAutoOff, L"スマホへの自動送信をオフにしました",
-        L"휴대폰 자동 전송을 껐습니다")
-PM_JAKO(ShareAutoPushed, L"スマホのギャラリーに送りました",
-        L"휴대폰 갤러리로 보냈습니다")
-PM_JAKO(ShareLiveAdded, L"スマホのページに送りました",
-        L"휴대폰 페이지로 보냈습니다")
 PM_JAKO(ShareQueued, L"送信待ちに追加しました（残り {0} 個）",
         L"전송 대기열에 추가했습니다(남은 항목 {0}개)")
-PM_JAKO(SharePanelLive, L"自動送信中 · {0} 個送信済み",
-        L"자동 전송 중 · {0}개 보냄")
-PM_JAKO(SharePanelLiveHint, L"ページを開いたままにすると、新しいスクリーンショットや録画が自動で表示されます。このウィンドウを閉じても送信は続きます。",
-        L"페이지를 열어 두면 새 스크린샷과 녹화가 자동으로 표시됩니다. 이 창을 닫아도 계속 보냅니다.")
-PM_JAKO(SharePanelLiveStop, L"自動送信を停止",
-        L"자동 전송 중지")
 PM_JAKO(SharePickerSub, L"今回のスクリーンショットと録画です。送るものを選んでください。",
         L"이번에 찍은 스크린샷과 녹화입니다. 보낼 항목을 선택하세요.")
 PM_JAKO(SharePickerAll, L"すべて選択",
@@ -848,24 +832,10 @@ PM_JAKO(PgSave, L"保存",
         L"저장")
 PM_JAKO(PgSaved, L"保存済み ✓",
         L"저장됨 ✓")
-PM_JAKO(PgLive, L"ライブ：PC の新しいスクリーンショットや録画が自動で表示されます",
-        L"실시간: PC의 새 스크린샷과 녹화가 자동으로 표시됩니다")
-PM_JAKO(PgWaiting, L"まだありません。PC でスクリーンショットを撮るか録画すると、ここに表示されます。",
-        L"아직 없습니다. PC에서 스크린샷을 찍거나 녹화하면 여기에 표시됩니다.")
-PM_JAKO(PgLiveFooter, L"PC の「スクリーンショット／録画を自動でスマホに送る」がオンの間（最長 {0} 時間）有効で、PC の QR コードをスキャンした人だけが開けます。",
-        L"PC에서 ‘스크린샷/녹화를 자동으로 휴대폰에 보내기’가 켜져 있는 동안(최대 {0}시간) 유효하며, PC의 QR 코드를 스캔한 사람만 열 수 있습니다.")
-PM_JAKO(PgEnded, L"共有は終了しました。このページにあるファイルはまだ保存できます。",
-        L"공유가 종료되었습니다. 이 페이지에 있는 파일은 계속 저장할 수 있습니다.")
-PM_JAKO(PgOffline, L"PC に接続できません。再試行しています…",
-        L"PC에 연결할 수 없습니다. 다시 시도하는 중…")
 PM_JAKO(PgShareFail, L"共有メニューを開けませんでした。各ファイルのボタンを使ってください。",
         L"공유 메뉴를 열 수 없습니다. 각 파일의 버튼을 사용하세요.")
-PM_JAKO(PgExpiredLiveText, L"PC で自動送信が停止されました。続けるには、{0}で「スクリーンショット／録画を自動でスマホに送る」をもう一度オンにして、新しい QR コードをスキャンしてください。",
-        L"PC에서 자동 전송이 중지되었습니다. 계속하려면 {0}에서 ‘스크린샷/녹화를 자동으로 휴대폰에 보내기’를 다시 켜고 새 QR 코드를 스캔하세요.")
 PM_JAKO(PgZipAll, L"すべてダウンロード（ZIP・{0} 個）",
         L"모두 다운로드(ZIP, {0}개)")
-PM_JAKO(PgZipNew, L"新しい {0} 個をダウンロード（ZIP）",
-        L"새 항목 {0}개 다운로드(ZIP)")
 PM_JAKO(PgZipHintIos, L"<b>「写真」に保存するには：</b>上のボタン →「ダウンロード」をタップし、<b>「ファイル」App →「ダウンロード」</b>で ZIP をタップしてフォルダーに展開、フォルダーを開いて「選択」→「すべて選択」→「共有」→<b>「…を保存」</b>（例：「3 枚の画像を保存」）をタップします。1 枚だけなら、画像を長押し →「写真に保存」がいちばん簡単です。",
         L"<b>사진 앱에 저장하려면:</b> 위 버튼 → ‘다운로드’를 누르고, <b>파일 앱 → 다운로드</b>에서 ZIP을 눌러 폴더로 압축을 푼 뒤, 폴더를 열어 ‘선택’ → ‘모두 선택’ → ‘공유’ → <b>‘… 저장’</b>(예: ‘이미지 3개 저장’)을 누르세요. 한 장만이라면 사진을 길게 터치 → ‘사진 앱에 저장’이 가장 빠릅니다.")
 PM_JAKO(PgZipHintAndroid, L"ダウンロード後、<b>「ファイル」アプリの Download</b> で ZIP をタップ →「展開」すると、画像と動画がギャラリーに表示されます。1 つだけなら、その下の「ダウンロード」がいちばん簡単です。",
@@ -886,18 +856,6 @@ PM_JAKO(MenuZoomOut, L"縮小",
         L"축소")
 PM_JAKO(MenuZoomReset, L"1× に戻す",
         L"1×로 되돌리기")
-PM_JAKO(MenuFilter, L"色（Ctrl+K で切り替え）",
-        L"색상(Ctrl+K로 전환)")
-PM_JAKO(FilterNone, L"元の色",
-        L"원래 색")
-PM_JAKO(FilterContrast, L"コントラストを強調",
-        L"대비 강화")
-PM_JAKO(FilterGray, L"グレースケール",
-        L"회색조")
-PM_JAKO(FilterInvert, L"色を反転",
-        L"색 반전")
-PM_JAKO(FilterYellow, L"黒地に黄色の文字",
-        L"검은 바탕에 노란 글자")
 PM_JAKO(MenuFreeze, L"画面を静止",
         L"화면 정지")
 PM_JAKO(MenuTranslate, L"画面を翻訳",
@@ -1042,8 +1000,6 @@ PM_JAKO(TipFreeze, L"画面を静止（Ctrl+P）",
         L"화면 정지(Ctrl+P)")
 PM_JAKO(TipUnfreeze, L"静止を解除（Ctrl+P）",
         L"정지 해제(Ctrl+P)")
-PM_JAKO(FilterToast, L"色：{0}",
-        L"색상: {0}")
 PM_JAKO(TrTargetToast, L"翻訳先：{0}",
         L"번역할 언어: {0}")
 PM_JAKO(VolTipMute, L"ミュート（Ctrl+M）",
@@ -1058,7 +1014,7 @@ PM_JAKO(VolToastMuted, L"ミュートしました",
         L"음소거됨")
 PM_JAKO(VolToastMutedLevel, L"音量 {0}%（ミュート中）",
         L"음량 {0}%(음소거 중)")
-PM_JAKO(VolToastPhoneMuted, L"スマートフォンがミュートされています",
+PM_JAKO(VolToastPhoneMuted, L"スマホがミュートされています",
         L"휴대폰이 음소거되었습니다")
 PM_JAKO(MenuVolume, L"音量：{0}%",
         L"음량: {0}%")
@@ -1070,7 +1026,7 @@ PM_JAKO(MenuVolUp, L"音量を上げる",
         L"음량 높이기")
 PM_JAKO(MenuVolDown, L"音量を下げる",
         L"음량 낮추기")
-PM_JAKO(MenuVolNote, L"スマートフォンの音量ボタンでも変わります",
+PM_JAKO(MenuVolNote, L"スマホの音量ボタンでも変わります",
         L"휴대폰의 음량 버튼으로도 바뀝니다")
 PM_JAKO(LangJa, L"日本語",
         L"日本語")
@@ -1130,7 +1086,7 @@ PM_JAKO(MenuMiracastNo, L"Miracast：この PC では使えません",
         L"Miracast: 이 PC에서는 사용할 수 없음")
 PM_JAKO(MenuShareUnsent, L"未送信のスクリーンショット／録画を送る",
         L"보내지 않은 스크린샷/녹화 보내기")
-// 0.7.4: 翻譯 ▸ 本機 AI 翻譯… / 線上翻譯（選用）… (machine-drafted: have a native reader check before release)
+// 0.7.4: 翻譯 ▸ 本機 AI 翻譯… (machine-drafted: have a native reader check before release)
 PM_JAKO(MenuTrLocalAi, L"ローカル AI 翻訳…",
         L"로컬 AI 번역…")
 PM_JAKO(TrLlmTitle, L"ローカル AI 翻訳",
@@ -1210,154 +1166,8 @@ PM_JAKO(TrLlmErrModel, L"このモデルは見つかりません。選び直し�
         L"이 모델을 찾을 수 없습니다. 다시 선택하세요.")
 PM_JAKO(TrLlmSaveFailed, L"設定を保存できません。ディスクの空き容量と権限を確認してください。",
         L"설정을 저장할 수 없습니다. 디스크 공간과 권한을 확인하세요.")
-PM_JAKO(MenuTrOnline, L"オンライン翻訳（任意）…",
-        L"온라인 번역(선택)…")
-PM_JAKO(TrOnlineTitle, L"オンライン翻訳（任意）",
-        L"온라인 번역(선택)")
-PM_JAKO(TrOnlineEnable, L"オンライン翻訳を有効にする",
-        L"온라인 번역 사용")
-PM_JAKO(TrOnlineOffNote, L"初期状態ではオフです。オフの間、すべての文字はこの PC 上だけで翻訳されます。",
-        L"기본값은 꺼짐입니다. 꺼져 있으면 모든 글자가 이 PC에서만 번역됩니다.")
-PM_JAKO(TrOnlineProvider, L"翻訳サービス",
-        L"번역 서비스")
-PM_JAKO(TrOnlineModeLabel, L"使用するタイミング",
-        L"사용 시점")
-PM_JAKO(TrOnlineModeEscalate, L"オフライン翻訳に自信がないときだけ（推奨）",
-        L"오프라인 번역이 불확실할 때만(권장)")
-PM_JAKO(TrOnlineModeAll, L"すべての文で先にオンライン翻訳を使う（送信する文字が増えます）",
-        L"모든 문장에 먼저 온라인 번역 사용(전송하는 글자가 늘어남)")
-PM_JAKO(TrOnlineKey, L"API キー",
-        L"API 키")
-PM_JAKO(TrOnlineKeyHint, L"ご自身のキーを貼り付けてください（このアプリにキーは含まれていません）",
-        L"직접 발급받은 키를 붙여 넣으세요(이 앱에는 키가 포함되어 있지 않습니다)")
-PM_JAKO(TrOnlineKeySaved, L"保存済み {0}",
-        L"저장됨 {0}")
-PM_JAKO(TrOnlineKeyCueNew, L"新しいキーを貼り付けると置き換えます（空欄なら現在のキー）",
-        L"새 키를 붙여 넣으면 바뀝니다(비워 두면 유지)")
-PM_JAKO(TrOnlineKeyShow, L"表示",
-        L"표시")
-PM_JAKO(TrOnlineKeyHide, L"非表示",
-        L"숨기기")
-PM_JAKO(TrOnlineRegion, L"リソースのリージョン",
-        L"리소스 지역")
-PM_JAKO(TrOnlineRegionHint, L"例: eastasia、japaneast。リソース作成時に Global を選んだ場合は空欄",
-        L"예: eastasia, japaneast. 리소스를 만들 때 Global을 선택했다면 비워 두세요")
-PM_JAKO(TrOnlineTest, L"キーをテスト",
-        L"키 테스트")
-PM_JAKO(TrOnlineTesting, L"テスト中…",
-        L"테스트 중…")
-PM_JAKO(TrOnlineSave, L"保存",
-        L"저장")
-PM_JAKO(TrOnlineForget, L"キーを削除してすべてオフにする",
-        L"키를 삭제하고 모두 끄기")
-PM_JAKO(TrOnlineForgetAsk, L"保存済みのキーを削除し、オンライン翻訳をオフにしますか？再び使うにはキーを貼り付け直す必要があります。",
-        L"저장된 키를 삭제하고 온라인 번역을 끌까요? 다시 사용하려면 키를 다시 붙여 넣어야 합니다.")
-PM_JAKO(TrOnlineForgotten, L"キーを削除し、オンライン翻訳をオフにしました",
-        L"키를 삭제했고 온라인 번역이 꺼졌습니다")
-PM_JAKO(TrOnlineSaved, L"オンライン翻訳の設定を保存しました",
-        L"온라인 번역 설정을 저장했습니다")
-PM_JAKO(TrOnlineBadge, L"オンライン",
-        L"온라인")
-PM_JAKO(TrOnlineTermsLink, L"利用規約",
-        L"서비스 약관")
-PM_JAKO(TrOnlinePrivacyLink, L"プライバシー情報",
-        L"개인정보 처리 안내")
-PM_JAKO(TrOnlineGetKey, L"キーの取得方法",
-        L"키 발급 방법")
-PM_JAKO(TrOnlineSignup, L"登録ページを開く",
-        L"가입 페이지 열기")
-PM_JAKO(TrOnlinePrivacyHead, L"プライバシー",
-        L"개인정보")
-PM_JAKO(TrOnlinePrivacy, L"オンにすると、画面から認識した文字（と前後の文字）が HTTPS で {0} に送信され、翻訳されます。画面の画像は送信されません。文字はこの PC の外に出て、そのサービスの利用規約に従って扱われ、利用枠の消費や料金の対象になることがあります。キーは Windows の暗号化でこの PC に保存され、ログには書き込まれません。",
-        L"켜면 화면에서 인식한 글자(와 그 앞뒤 글자)가 HTTPS로 {0}에 전송되어 번역됩니다. 화면 이미지는 전송되지 않습니다. 글자는 이 PC 밖으로 나가며 해당 서비스의 약관에 따라 처리되고, 사용 한도나 요금에 포함될 수 있습니다. 키는 Windows 암호화로 이 PC에 저장되며 로그에 기록되지 않습니다.")
-PM_JAKO(TrOnlineConsentTitle, L"オンライン翻訳をオンにする",
-        L"온라인 번역 켜기")
-PM_JAKO(TrOnlineConsentBody, L"オンにすると、オフライン翻訳に自信がない文字が {0} に送信され、より正確な訳が得られます。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
-        L"켜면 오프라인 번역이 불확실한 글자가 {0}에 전송되어 더 정확한 번역을 받습니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
-PM_JAKO(TrOnlineConsentBodyAll, L"オンにすると、画面から認識したすべての文が先に {0} に送信され、翻訳されます。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」からいつでもオフにしてキーを削除できます。",
-        L"켜면 화면에서 인식한 모든 문장이 먼저 {0}에 전송되어 번역됩니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 언제든지 끄고 키를 삭제할 수 있습니다.")
-PM_JAKO(TrOnlineConsentSends, L"送信する内容",
-        L"전송 내용")
-PM_JAKO(TrOnlineConsentSendsVal, L"認識した文字のみ（画像は送信しません）",
-        L"인식한 글자만(이미지는 전송 안 함)")
-PM_JAKO(TrOnlineConsentTo, L"送信先",
-        L"전송 대상")
-PM_JAKO(TrOnlineConsentYes, L"理解したのでオンにする",
-        L"이해했습니다, 켜기")
-PM_JAKO(TrOnlineConsentNo, L"今はしない",
-        L"지금은 안 함")
-PM_JAKO(TrOnlineTestOk, L"接続できました（{0}）",
-        L"연결되었습니다({0})")
-PM_JAKO(TrOnlineTestOkPlain, L"接続できました",
-        L"연결되었습니다")
-PM_JAKO(TrOnlineTestUsage, L"使用済み {0} / {1} 文字",
-        L"{0} / {1}자 사용")
-PM_JAKO(TrOnlineTestSample, L"訳の例: {0}",
-        L"번역 예: {0}")
-PM_JAKO(TrOnlineErrBadKey, L"キーが正しくないか、別のサービスのキーです（Azure ではリージョンも確認してください）",
-        L"키가 올바르지 않거나 다른 서비스의 키입니다(Azure는 지역도 확인하세요)")
-PM_JAKO(TrOnlineErrQuota, L"このキーの利用枠を使い切りました（無料枠または設定した上限）",
-        L"이 키의 사용량을 모두 썼습니다(무료 사용량 또는 설정한 한도)")
-PM_JAKO(TrOnlineErrRate, L"リクエストが多すぎます。しばらくしてからやり直してください",
-        L"요청이 너무 많습니다. 잠시 후 다시 시도하세요")
-PM_JAKO(TrOnlineErrTimeout, L"サービスから応答がありません。しばらくしてからやり直してください",
-        L"서비스가 응답하지 않습니다. 잠시 후 다시 시도하세요")
-PM_JAKO(TrOnlineErrNetwork, L"ネットワークに接続できません。接続、プロキシ、ファイアウォールを確認してください",
-        L"네트워크에 연결할 수 없습니다. 연결, 프록시, 방화벽을 확인하세요")
-PM_JAKO(TrOnlineErrServer, L"サービスに一時的な問題があります。しばらくしてからやり直してください",
-        L"서비스에 일시적인 문제가 있습니다. 잠시 후 다시 시도하세요")
-PM_JAKO(TrOnlineErrUnsupported, L"このサービスは現在の言語の組み合わせに対応していません",
-        L"이 서비스는 현재 언어 조합을 지원하지 않습니다")
-PM_JAKO(TrOnlineErrBad, L"サービスから予期しない応答がありました",
-        L"서비스가 예상하지 못한 응답을 보냈습니다")
-PM_JAKO(TrOnlineErrNotConfigured, L"先にキーを貼り付けてください",
-        L"먼저 키를 붙여 넣으세요")
-PM_JAKO(TrOnlineErrDetails, L"詳細",
+PM_JAKO(TrErrDetails, L"詳細",
         L"자세히")
-PM_JAKO(TrOnlineReasonRate, L"リクエストが多すぎます",
-        L"요청이 너무 많음")
-PM_JAKO(TrOnlineReasonTimeout, L"応答なし",
-        L"응답 없음")
-PM_JAKO(TrOnlineReasonNetwork, L"接続できません",
-        L"연결 안 됨")
-PM_JAKO(TrOnlineReasonServer, L"サービスの問題",
-        L"서비스 문제")
-PM_JAKO(TrOnlineReasonUnsupported, L"この言語の組み合わせは非対応",
-        L"지원하지 않는 언어 조합")
-PM_JAKO(TrOnlineReasonBad, L"予期しない応答",
-        L"예상하지 못한 응답")
-PM_JAKO(TrOnlineBlocked, L"オンライン翻訳を一時停止中：{0}",
-        L"온라인 번역 일시 중지: {0}")
-PM_JAKO(TrOnlineBlockedKey, L"キーかリージョンを変更すると再試行します",
-        L"키나 지역을 바꾸면 다시 시도합니다")
-PM_JAKO(TrOnlineBlockedWait, L"約 {0} 秒後に自動で再試行します",
-        L"약 {0}초 후 자동으로 다시 시도합니다")
-PM_JAKO(TrOnlineBlockedWaitMin, L"約 {0} 分後に自動で再試行します",
-        L"약 {0}분 후 자동으로 다시 시도합니다")
-PM_JAKO(TrOnlineRetry, L"再試行",
-        L"다시 시도")
-PM_JAKO(TrOnlineStoreNoFolder, L"設定フォルダー（%LOCALAPPDATA%）が見つからないため、保存できません",
-        L"설정 폴더(%LOCALAPPDATA%)를 찾을 수 없어 저장하지 못했습니다")
-PM_JAKO(TrOnlineStoreWrite, L"設定ファイルに書き込めません。ディスクの空き容量と権限を確認してください",
-        L"설정 파일을 쓸 수 없습니다. 디스크 공간과 권한을 확인하세요")
-PM_JAKO(TrOnlineStoreEncrypt, L"Windows がキーを暗号化できなかったため、保存していません",
-        L"Windows가 키를 암호화하지 못해 저장하지 않았습니다")
-PM_JAKO(TrOnlineStoreProvider, L"先に翻訳サービスを選んでください",
-        L"먼저 번역 서비스를 선택하세요")
-PM_JAKO(TrOnlineQuotaToast, L"オンライン翻訳の利用枠を使い切ったため、オフライン翻訳に切り替えました",
-        L"온라인 번역 사용량을 모두 써서 오프라인 번역으로 전환했습니다")
-PM_JAKO(TrOnlineBadKeyToast, L"オンライン翻訳のキーが無効なため、オフライン翻訳に切り替えました。「翻訳 ▸ 翻訳の詳細設定 ▸ オンライン翻訳」で確認してください",
-        L"온라인 번역 키가 유효하지 않아 오프라인 번역으로 전환했습니다. 「번역 ▸ 고급 번역 설정 ▸ 온라인 번역」에서 확인하세요")
-PM_JAKO(TrOnlineFailToast, L"オンライン翻訳を一時的に利用できないため、オフライン翻訳に切り替えました（{0}）",
-        L"온라인 번역을 일시적으로 사용할 수 없어 오프라인 번역으로 전환했습니다({0})")
-PM_JAKO(TrOnlineFreeDeepL, L"DeepL には無料の API プランがあります。翻訳できる文字数は DeepL のその時点のプランによります（DeepL のサイトで確認してください）。",
-        L"DeepL에는 무료 API 요금제가 있습니다. 번역할 수 있는 글자 수는 DeepL의 현재 요금제에 따라 다릅니다(DeepL 웹사이트에서 확인하세요).")
-PM_JAKO(TrOnlineFreeAzure, L"Azure の無料価格レベル F0 では、毎月 200 万文字まで翻訳できます。",
-        L"Azure의 무료 가격 책정 계층 F0에서는 매월 200만 자까지 번역할 수 있습니다.")
-PM_JAKO(TrOnlineHelpDeepL, L"1) deepl.com で DeepL API アカウントを登録します（通常の翻訳アカウントとは別です）。2) ログイン後「アカウント → API キー」を開きます。3) キー（無料のキーは末尾が :fx）をコピーして上に貼り付けます。",
-        L"1) deepl.com에서 DeepL API 계정을 만드세요(일반 번역 계정과 별도입니다). 2) 로그인 후 「계정 → API 키」를 엽니다. 3) 키(무료 키는 끝이 :fx)를 복사해 위에 붙여 넣으세요.")
-PM_JAKO(TrOnlineHelpAzure, L"1) Azure ポータルにサインインし、価格レベルを Free (F0) にして Translator リソースを作成します。2) デプロイ後「キーとエンドポイント」を開きます。3) キー 1 を上の欄に貼り付け、場所/リージョンを入力します（Global リソースは空欄）。",
-        L"1) Azure 포털에 로그인해 가격 책정 계층을 Free (F0)로 하여 Translator 리소스를 만드세요. 2) 배포 후 「키 및 엔드포인트」를 엽니다. 3) 키 1을 위 칸에 붙여 넣고 위치/지역을 입력하세요(Global 리소스는 비워 둠).")
 PM_JAKO(TrFactsNeg, L"原文は否定／禁止：{0}",
         L"원문은 부정/금지: {0}")
 PM_JAKO(TrFactsNum, L"数字：{0}",
@@ -1368,21 +1178,6 @@ PM_JAKO(TrFactsSep, L"、",
         L", ")
 PM_JAKO(TrFactsCue, L"「{0}」＝{1}",
         L"「{0}」={1}")
-PM_JAKO(TrOnlinePrivacyShort, L"オンにすると、認識した文字が HTTPS で {0} に送信されます。画面の画像は送信されません。",
-        L"켜면 인식한 글자가 HTTPS로 {0}에 전송됩니다. 화면 이미지는 전송되지 않습니다.")
-PM_JAKO(TrOnlinePrivacyOpen, L"{0} のプライバシーポリシー",
-        L"{0} 개인정보 처리방침")
-// ---- 0.7.10: Google Cloud Translation (Basic, v2) ----
-PM_JAKO(TrOnlineErrApiDisabled, L"Cloud Translation API が有効になっていないか、このキーでは使えません（キーの API 制限とプロジェクトの課金設定を確認してください）",
-        L"Cloud Translation API가 사용 설정되지 않았거나 이 키로 사용할 수 없습니다(키의 API 제한과 프로젝트 결제 설정을 확인하세요)")
-PM_JAKO(TrOnlineReasonApiDisabled, L"API が未有効",
-        L"API 미사용 설정")
-PM_JAKO(TrOnlineFreeGoogle, L"Cloud Translation Basic は毎月最初の 50 万文字まで無料です。超過分は Google が公表する料金（現在は 100 万文字あたり 20 米ドル）で課金され、プロジェクトに請求先アカウントが必要です。1 日の文字数クォータは初期設定では無制限なので、Google Cloud で予算アラートかクォータの上限を設定することをおすすめします。",
-        L"Cloud Translation Basic은 매월 처음 50만 자까지 무료입니다. 초과분은 Google이 공개한 요금(현재 100만 자당 20달러)으로 청구되며, 프로젝트에 결제 계정이 연결되어 있어야 합니다. 일일 글자 수 할당량은 기본적으로 제한이 없으므로 Google Cloud에서 예산 알림이나 할당량 한도를 설정하는 것을 권장합니다.")
-PM_JAKO(TrOnlineHelpGoogle, L"1) Google Cloud コンソールにサインインし、プロジェクトを作成（または選択）して請求先アカウントをリンクします。2) 「Cloud Translation API」を有効にします。3) 「API とサービス → 認証情報」で「認証情報を作成 → API キー」を選び、キーを上の欄に貼り付けます。4) 推奨：このキーを編集し、「API の制限」で Cloud Translation API だけにチェックを入れます。キーが漏れても他のサービスには使われません。",
-        L"1) Google Cloud 콘솔에 로그인해 프로젝트를 만들거나 선택하고 결제 계정을 연결하세요. 2) 「Cloud Translation API」를 사용 설정합니다. 3) 「API 및 서비스 → 사용자 인증 정보」에서 「사용자 인증 정보 만들기 → API 키」를 선택하고 키를 위 칸에 붙여 넣으세요. 4) 권장: 이 키를 수정해 「API 제한」에서 Cloud Translation API만 선택하세요. 키가 유출되어도 다른 서비스에는 쓸 수 없습니다.")
-PM_JAKO(TrOnlinePrivacyGoogle, L"オンにすると、画面から認識した文字（前後の文字は含みません）が HTTPS で {0} に送信され、翻訳されます。画面の画像は送信されません。文字はこの PC の外に出て、Google Cloud の利用規約に従って扱われ、Google Cloud の利用枠を消費し、無料枠を超えると課金されます。Google は、送信された内容を翻訳機能のトレーニングに使用しないと説明しています（プライバシーのリンクを参照）。キーは Windows の暗号化でこの PC に保存され、ログには書き込まれません。",
-        L"켜면 화면에서 인식한 글자(앞뒤 글자는 제외)가 HTTPS로 {0}에 전송되어 번역됩니다. 화면 이미지는 전송되지 않습니다. 글자는 이 PC 밖으로 나가 Google Cloud 약관에 따라 처리되며, Google Cloud 할당량을 소모하고 무료 사용량을 넘으면 요금이 청구됩니다. Google은 전송된 내용을 번역 기능 학습에 사용하지 않는다고 설명합니다(개인정보 링크 참조). 키는 Windows 암호화로 이 PC에 저장되며 로그에 기록되지 않습니다.")
 PM_JAKO(TrLlmGpuShared, L"この設定は文字認識（OCR）にも使われます。文字認識への反映は Zizai Cast の再起動後です。",
         L"이 설정은 문자 인식(OCR)에도 적용됩니다. 문자 인식에는 Zizai Cast를 다시 시작한 후 반영됩니다.")
 PM_JAKO(TrOcrGpuDownload, L"文字認識のグラフィックスカード高速化をダウンロード（約 {0}）",
@@ -1542,6 +1337,8 @@ PM_JAKO(MenuRemoteForget, L"記憶したスマホを消去",
         L"기억한 휴대폰 지우기")
 PM_JAKO(MenuRemoteKick, L"今のリモート接続を切断",
         L"현재 원격 연결 끊기")
+PM_JAKO(MenuRemoteOpenSettings, L"リモート操作の設定を開く…",
+        L"원격 제어 설정 열기…")
 PM_JAKO(MenuRemoteHelp, L"リモート操作の説明",
         L"원격 제어 안내")
 PM_JAKO(RemotePanelTitle, L"リモート操作",
@@ -1836,6 +1633,12 @@ PM_JAKO(RemoteTunnelStart, L"一時アドレスを取得",
         L"임시 주소 받기")
 PM_JAKO(RemoteTunnelStarting, L"一時アドレスを取得中…（約 10～20 秒）",
         L"임시 주소를 받는 중…(약 10~20초)")
+PM_JAKO(RemoteCfDownloading, L"一時アドレスを初めて使うため、必要なコンポーネントをダウンロード中（約 {0} MB・1 回だけ）… {1}%",
+        L"임시 주소를 처음 사용하므로 필요한 구성 요소를 내려받는 중(약 {0} MB, 한 번만)… {1}%")
+PM_JAKO(RemoteCfVerifying, L"ダウンロードしたコンポーネントを確認中…",
+        L"내려받은 구성 요소를 확인하는 중…")
+PM_JAKO(RemoteCfFailed, L"一時アドレスに必要なコンポーネントをダウンロードできませんでした（{0}）。ネットワーク接続を確認して、もう一度お試しください。",
+        L"임시 주소에 필요한 구성 요소를 내려받지 못했습니다({0}). 인터넷 연결을 확인하고 다시 시도하세요.")
 PM_JAKO(RemoteScanTunnel, L"カメラで読み取り（1 回だけ有効）、パスコードを入力",
         L"카메라로 스캔(한 번만 유효)한 뒤 통행 코드 입력")
 PM_JAKO(RemoteTunnelCode, L"パスコード  {0}",
@@ -1848,8 +1651,6 @@ PM_JAKO(RemoteTunnelFailed, L"一時アドレスを取得できません：{0}",
         L"임시 주소를 받을 수 없습니다: {0}")
 PM_JAKO(RemoteTunnelRetry, L"再試行",
         L"다시 시도")
-PM_JAKO(RemoteTunnelMissing, L"cloudflared が見つかりません（一時アドレスに必要です）。Zizai Cast を再インストールしてください。",
-        L"cloudflared가 없습니다(임시 주소에 필요). Zizai Cast를 다시 설치하세요.")
 PM_JAKO(RemoteAskViaTunnel, L"{0}（一時アドレス）",
         L"{0}(임시 주소)")
 PM_JAKO(MenuRemoteTunnel, L"一時アドレス（スマホにアプリ不要、モバイル通信からも接続）",
@@ -1969,7 +1770,7 @@ PM_JAKO(AndUsbNote, L"スマホで「USB デバッグ」をオンに", L"휴대�
 PM_JAKO(AndUsbTrying, L"USB で接続中…", L"USB로 연결하는 중…")
 PM_JAKO(AndUsbNone, L"USB 接続の Android スマホが見つかりません。ケーブルを差し、スマホの開発者向けオプションで「USB デバッグ」をオンにして許可してください",
         L"USB로 연결된 Android 휴대폰이 없습니다. 케이블을 꽂고 휴대폰 개발자 옵션에서 “USB 디버깅”을 켠 다음 허용하세요")
-PM_JAKO(AndUsbBusy, L"別の Android スマホをペアリング中または接続中です。終わってから USB ケーブルで接続してください",
+PM_JAKO(AndUsbBusy, L"別の Android スマホをペア設定中または接続中です。終わってから USB ケーブルで接続してください",
         L"다른 Android 휴대폰을 페어링하거나 연결하는 중입니다. 끝난 뒤 USB 케이블로 다시 연결하세요")
 PM_JAKO(AndOptOn, L"{0}：オン", L"{0}: 켬")
 PM_JAKO(AndOptOff, L"{0}：オフ", L"{0}: 끔")
@@ -2210,3 +2011,65 @@ PM_JAKO(RemoteLogHowPassword0836, L"パスワードが正しいので許可不�
 PM_JAKO(RemoteLogHowPasscode0836, L"アドレスとパスコードが正しいので許可不要",
         L"주소와 통행 코드가 맞아 허용 불필요")
 // ---- end 0.8.3.6 auth ----
+// ---- 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy) ----
+PM_JAKO(MenuRemotePrivacy084, L"プライバシー画面（パソコンの画面を隠す、スマホでは見える）",
+        L"개인정보 가림 화면(PC 화면은 가리고 휴대폰에서는 보임)")
+PM_JAKO(RemotePrivacyOnToast084, L"プライバシー画面をオンにしました：Ctrl+Alt+Shift+B か Esc 3 回で解除できます",
+        L"가림 화면을 켰습니다. Ctrl+Alt+Shift+B 또는 Esc 세 번으로 해제됩니다")
+PM_JAKO(RemotePrivacyOffToast084, L"プライバシー画面を解除しました",
+        L"가림 화면을 해제했습니다")
+PM_JAKO(RemotePrivacyLocalToast084, L"パソコンの前でプライバシー画面が解除されました（この接続ではもう使えません）",
+        L"PC 앞에서 가림 화면이 해제되었습니다(이번 연결에서는 다시 켤 수 없음)")
+PM_JAKO(RemotePrivacyFailedToast084, L"プライバシー画面を表示できませんでした",
+        L"가림 화면을 표시하지 못했습니다")
+PM_JAKO(RemotePrivacyNoViewOnly084, L"「表示のみ」ではプライバシー画面を使えません",
+        L"“보기 전용”에서는 가림 화면을 쓸 수 없습니다")
+PM_JAKO(RemotePrivacyNoGuest084, L"一時アカウントの接続ではプライバシー画面を使えません",
+        L"임시 계정 연결에서는 가림 화면을 쓸 수 없습니다")
+PM_JAKO(RemotePrivacyNoSession084, L"スマホが接続して操作しているときだけ使えます",
+        L"휴대폰이 연결되어 조작 중일 때만 쓸 수 있습니다")
+PM_JAKO(MenuRemotePcFiles084, L"パソコンのファイル",
+        L"PC 파일")
+PM_JAKO(MenuRemotePcFilesOn084, L"スマホからパソコンのファイルを見てダウンロードできる",
+        L"휴대폰에서 PC 파일을 보고 받을 수 있음")
+PM_JAKO(RemotePcFilesDefault084, L"既定：デスクトップ、ドキュメント、ダウンロード、ピクチャ、ビデオ、スクリーンショットと録画フォルダー",
+        L"기본: 바탕 화면, 문서, 다운로드, 사진, 동영상, 스크린샷·녹화 폴더")
+PM_JAKO(RemotePcFilesExtraHint084, L"追加で許可したフォルダー（クリックで削除）",
+        L"추가로 허용한 폴더(클릭하면 제거)")
+PM_JAKO(MenuRemotePcFilesAdd084, L"許可するフォルダーを追加…",
+        L"허용할 폴더 추가…")
+PM_JAKO(RemotePcFilesFull084, L"追加できるフォルダーは 8 個までです",
+        L"추가 폴더는 최대 8개입니다")
+PM_JAKO(RemotePcFilesAdded084, L"スマホからこのフォルダーも見られます：{0}",
+        L"이제 휴대폰에서 이 폴더도 볼 수 있습니다: {0}")
+PM_JAKO(RemotePcFilesOnToast084, L"スマホからパソコンのファイルを見てダウンロードできます",
+        L"휴대폰에서 PC 파일을 보고 받을 수 있습니다")
+PM_JAKO(RemotePcFilesOffToast084, L"スマホからパソコンのファイルは見られなくなりました",
+        L"휴대폰에서 더 이상 PC 파일을 볼 수 없습니다")
+PM_JAKO(MenuRemotePcFilesGuest084, L"一時アカウントもパソコンのファイルを見てダウンロードできる",
+        L"임시 계정도 PC 파일을 보고 받을 수 있음")
+PM_JAKO(RemotePcFilesGuestOnToast084, L"一時アカウントからパソコンのファイルを見てダウンロードできます",
+        L"임시 계정에서 PC 파일을 보고 받을 수 있습니다")
+PM_JAKO(RemotePcFilesGuestOffToast084, L"一時アカウントからパソコンのファイルは見られなくなりました",
+        L"임시 계정에서 더 이상 PC 파일을 볼 수 없습니다")
+PM_JAKO(RemoteLogPcGuestDenied084, L"一時アカウントがパソコンのファイルを要求（許可されていません）",
+        L"임시 계정이 PC 파일을 요청함(허용되지 않음)")
+PM_JAKO(RemoteLogDownload084, L"ダウンロード",
+        L"다운로드")
+PM_JAKO(RemoteLogDlClip084, L"コピーしたファイル",
+        L"복사한 파일")
+PM_JAKO(RemoteFolderDesktop084, L"デスクトップ",
+        L"바탕 화면")
+PM_JAKO(RemoteFolderDocuments084, L"ドキュメント",
+        L"문서")
+PM_JAKO(RemoteFolderDownloads084, L"ダウンロード",
+        L"다운로드")
+PM_JAKO(RemoteFolderPictures084, L"ピクチャ",
+        L"사진")
+PM_JAKO(RemoteFolderVideos084, L"ビデオ",
+        L"동영상")
+PM_JAKO(RemoteFolderShots084, L"スクリーンショット",
+        L"스크린샷")
+PM_JAKO(RemoteFolderRecordings084, L"録画",
+        L"녹화")
+// ---- end 0.8.4 隱私黑屏 / 電腦的檔案 ----

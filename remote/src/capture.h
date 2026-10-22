@@ -22,6 +22,8 @@ namespace pm::remote {
 
 using Microsoft::WRL::ComPtr;
 
+struct CursorShape;  // cursor_shape.h
+
 // Capture-time stamp (see capture.cpp / web/index.html readStamp).
 int stampBlockSize(int streamHeight);
 void drawStampCpu(std::vector<uint8_t>& nv12, int w, int h, uint32_t ms);
@@ -42,7 +44,8 @@ public:
     // owner's screen): Static = the first desktop image frozen; Motion = the
     // frozen image panned every frame (whole-frame motion, like scrolling); Synth (0.8.3.6) = a
     // made-up desktop (windows, text, a photo; never this PC's screen) panned like Motion.
-    enum class Scene { Desktop, Static, Motion, Synth };
+    // SynthStill (0.8.4): the made-up desktop standing still (a pointer moving over a still picture).
+    enum class Scene { Desktop, Static, Motion, Synth, SynthStill };
     struct Options {
         int maxWidth = 1280, maxHeight = 720;  // output fits inside, aspect kept, even sizes
         bool drawCursor = true;
@@ -94,12 +97,15 @@ public:
     // 0.8.3.5: a PC browser draws the pointer itself (no lag, no double pointer): leave it out of
     // the picture while set. Any thread.
     void setHideCursor(bool hide) { hideCursor_ = hide; }
+    // 0.8.4 tests: a pointer drawn in the synthetic scenes (Desktop: ignored). Capture thread.
+    void setTestPointer(int x, int y, bool visible, HCURSOR shape);
 
 private:
     bool createDuplication();
     bool createPipeline();
     bool createShaders();
     void updatePointerShape(const DXGI_OUTDUPL_FRAME_INFO& fi);
+    void setPointerTextures(const CursorShape& cs);
     void compose();
 
     struct Slot {
@@ -136,6 +142,8 @@ private:
     int ptrW_ = 0, ptrH_ = 0, ptrHotX_ = 0, ptrHotY_ = 0;
     int ptrX_ = 0, ptrY_ = 0;
     bool ptrVisible_ = false;
+    bool testPointer_ = false;  // setTestPointer() was used (synthetic scenes)
+    HCURSOR testShape_ = nullptr;
     std::atomic<bool> hideCursor_{false};
     HANDLE waitTimer_ = nullptr;  // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION (0.8.3.6)
     bool preciseWait_ = true;

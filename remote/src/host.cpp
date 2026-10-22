@@ -20,6 +20,7 @@
 #include <atomic>
 #include <chrono>
 #include <climits>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstring>
@@ -33,11 +34,17 @@
 
 #include "approval_memory.h"
 #include "audio.h"
+#include "auto_quality.h"
 #include "capture.h"
+#include "custom_keys.h"
+#include "cursor_shape.h"
 #include "encoder.h"
+#include "file_kind.h"
 #include "file_perm.h"
 #include "http_server.h"
 #include "input.h"
+#include "pc_files.h"        // 0.8.4 電腦的檔案
+#include "privacy_screen.h"  // 0.8.4 隱私黑屏
 #include "pm/share_server.h"  // pm::share::lanInterfaces (same LAN choice as 傳到手機)
 #include "remote_apple_icon_png.h"
 #include "remote_icon192_png.h"
@@ -47,6 +54,8 @@
 #include "remote_page_html.h"
 #include "remote_trackpad_js.h"
 #include "remote_vkbd_js.h"
+#include "remote_p084_js.h"  // 0.8.4 隱私黑屏 / 電腦的檔案 (web/p084.js)
+#include "rtcp_stats.h"
 #include "util.h"
 
 namespace pm::remote {
@@ -469,19 +478,51 @@ struct Session {
     std::atomic<bool> clipWatch{false};  // the page's clipboard panel is open: push PC clipboard changes
     std::atomic<int64_t> moveSeq{0};     // last applied "move" (the page's cursor prediction)
     std::atomic<bool> localCursor{false};  // 0.8.3.5: a PC browser draws the pointer itself (left out of the picture)
+    // 0.8.4 游標: the page draws the PC pointer over the video itself (its shape from {"t":"cshape"}, sent once
+    // per shape; its place from "cur", stamped with the picture's time): left out of the picture.
+    std::atomic<bool> overlayCursor{false};
+    std::set<uint32_t> shapesSent;  // capture thread only
     // 0.8.3.6 影像: what the page asked for besides the preset; changed inside the session ({"t":"quality"}).
     std::atomic<int> fpsWant{kDefaultFps};  // 30 / 60 / 120 (capped at the monitor's refresh rate)
     std::atomic<int> fitW{0}, fitH{0};      // 解析度跟手機一樣: the phone's screen in pixels (0 = off)
     std::atomic<int> topQuality{-1};        // the user's own preset (auto may run below it): the offer's level covers it
+    // 0.8.4 自動畫質: the PC moves the picture along a ladder (auto_quality.h) from the network's state; a preset
+    // chosen by hand on the phone is kept as it is (autoQ false). kbpsPct: the share of the preset's bitrate.
+    std::atomic<bool> autoQ{false};
+    std::atomic<int> kbpsPct{100};
+    std::atomic<int> autoRung{-1};
+    AutoQuality aq;                          // capture thread only
+    std::atomic<bool> aqReset{false};        // 自動 (re)started: the capture thread resets aq at autoRung
+    std::shared_ptr<RtcpStats> rtcp;         // the video track's receiver reports
+    std::atomic<int64_t> phoneShortUs{0};    // the phone said it shows far fewer frames than we send ({"t":"rx"})
+    // 0.8.4 自動畫質's start: from outside (the fixed / temporary address, Tailscale: usually away from home) at
+    // 流暢 60 %; the LAN at 流暢 100 % (owner)
+    bool outside() const { return viaTunnel || tailscale; }
+    // 自動 from this rung on (or a preset by hand: rung < 0)
+    void setAuto(int rung) {
+        if (rung < 0) {
+            autoQ = false, kbpsPct = 100, autoRung = -1;
+            return;
+        }
+        rung = std::clamp(rung, 0, kAutoTop);
+        quality = kAutoRungs[rung].q, kbpsPct = kAutoRungs[rung].pct, autoRung = rung;
+        topQuality = kQualityLevels - 1;  // the offer's H.264 level covers the top rung: every step stays in this connection
+        autoQ = true, aqReset = true;
+    }
     int lvIdc = 52, lvMaxFs = 36864, lvMaxMbps = 2073600;  // the H.264 level of this session's offer
     std::shared_ptr<rtc::PeerConnection> pc;
     std::shared_ptr<rtc::Track> video, audio;
     std::shared_ptr<rtc::DataChannel> dc;
+    // 0.8.3.7: files from the phone over the direct path (a second DataChannel the page opens: "files"); the
+    // upload it carries now (one at a time, in order; guarded by Impl::fmu)
+    std::shared_ptr<rtc::DataChannel> fdc;
+    std::string fdcFid;
     std::shared_ptr<rtc::RtpPacketizationConfig> rtpV, rtpA;
     std::atomic<bool> videoOpen{false}, audioOpen{false}, dcOpen{false}, closed{false}, wantAudio{false};
     int64_t startUs = 0;
     std::atomic<bool> firstFrameSent{false};
     std::atomic<int64_t> lastMsgUs{0};  // last DataChannel message (pings every 500 ms)
+    std::atomic<int64_t> pcDeniedLogUs{0};  // 0.8.4 last 連線紀錄 row for a refused 臨時帳號 PC-files request
     std::atomic<int64_t> lastIdrAskUs{0};  // 0.8.3.1: the page's last {"t":"idr"} (rate limit)
     std::mutex gmu;
     std::condition_variable gcv;
@@ -591,6 +632,7 @@ struct Host::Impl {
     Samples lateMs, submitMs;  // 0.8.3.6: how late a frame left its beat, and how long the encoder took to take it
     std::atomic<int64_t> bytes{0}, framesSent{0}, idrs{0}, maxAu{0}, queueDrops{0};
     int64_t winFrames = 0, winBytes = 0, winMaxAu = 0, winIdrs = 0, winQDrops = 0;
+    bool idleLogged = false;  // 0.8.4: "idle (no viewer)" is written when idle begins, not every 5 s
     std::vector<Samples::Summary> winC2s, winC2e, winEnc, winRender;
     std::mutex tmu;
     std::deque<std::pair<int64_t, int64_t>> encStart;  // captureUs -> encode() call time
@@ -710,7 +752,23 @@ struct Host::Impl {
     static const char* mutePcWhy(const std::shared_ptr<Session>& s) { return s && s->guest() ? "guest" : "viewOnly"; }
     // every {"t":"mode"} carries who may change it now (僅觀看 can be switched on the PC mid-session)
     json modeMsg(const std::shared_ptr<Session>& s) const {
-        return json{{"t", "mode"}, {"viewOnly", vo(s)}, {"filesWhy", filesWhy(filesDenyOf(s))}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};
+        return json{{"t", "mode"}, {"viewOnly", vo(s)}, {"filesWhy", filesWhy(filesDenyOf(s))}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)},
+                    {"keysOk", keysOk(s)}, {"keysWhy", keysOk(s) ? "" : keysWhy(s)}};
+    }
+    // 0.8.4 自訂快捷鍵: the list (canonical JSON, custom_keys.h), who may change it (the same rule as 電腦喇叭靜音:
+    // not 僅觀看, never a 臨時帳號 - a guest uses the buttons, the owner's list is not its to edit)
+    mutable std::mutex keysMu;
+    std::string keysJson;
+    std::string keysNow() const {
+        std::lock_guard<std::mutex> lk(keysMu);
+        return keysJson;
+    }
+    bool keysOk(const std::shared_ptr<Session>& s) const { return s && !vo(s) && !s->guest(); }
+    static const char* keysWhy(const std::shared_ptr<Session>& s) { return s && s->guest() ? "guest" : "viewOnly"; }
+    json keysMsg(const std::shared_ptr<Session>& s) const {
+        json m{{"t", "keys"}, {"keysOk", keysOk(s)}, {"keysWhy", keysOk(s) ? "" : keysWhy(s)}};
+        m["list"] = json::parse(keysNow(), nullptr, false);
+        return m;
     }
     void applyMutePc(bool on);  // Host::setMutePc (and the phone's switch without onMutePcRequest)
     std::mutex offerMu;  // 0.8.3: one session set-up at a time (two at once left an orphan that could still control)
@@ -770,16 +828,29 @@ struct Host::Impl {
         std::string session;
         uint64_t total = 0, got = 0;
         int64_t lastUs = 0;
+        int64_t startUs = 0;    // 0.8.3.7: for the log's time / speed
+        HANDLE h = INVALID_HANDLE_VALUE;  // 0.8.3.7: the DataChannel keeps the .part open (HTTP opens it per piece)
+        uint64_t ackAt = 0;     // 0.8.3.7 DataChannel: bytes at the last progress message
+        bool viaDc = false;
     };
     struct Download {
         std::wstring path;
         std::string name, session;
         int64_t untilUs = 0;    // one use, 10 minutes
+        std::string kind = "clip", what;  // 0.8.4: "pc" = 電腦的檔案 (what = "<folder kind>/<path>", 連線紀錄)
     };
     std::mutex fmu;
     std::map<std::string, Upload> uploads;    // upload id -> state
     std::map<std::string, Download> downloads;  // one-time key -> file
     HttpServer::Response upload(const HttpServer::Request& r);
+    // 0.8.3.7: shared by POST up and the files DataChannel (both under fmu): may this session start an upload of
+    // `total` bytes? 0 = yes, else the HTTP status and the page's reason ({"ok":false, ...}).
+    int uploadRefusal(const std::shared_ptr<Session>& s, uint64_t total, json& why);
+    // ... the .part file and the entry in `uploads` (under fmu); false = could not make the file
+    bool uploadCreate(const std::shared_ptr<Session>& s, const std::string& fid, const std::wstring& name, uint64_t total, bool viaDc);
+    // ... complete: the final name in uploadDir (never over a file: "name (2).ext"), the entry removed; "" = failed
+    std::string uploadFinish(const std::shared_ptr<Session>& s, std::map<std::string, Upload>::iterator it);
+    void onFilesChannel(const std::shared_ptr<Session>& s, rtc::message_variant m);
     HttpServer::Response download(const HttpServer::Request& r, const std::string& key);
     void filesList(const std::shared_ptr<Session>& s);
     void dropUploads(const std::string& session, const char* why, int64_t olderThanUs);
@@ -805,8 +876,9 @@ struct Host::Impl {
     struct Plan {
         int quality = 2, monitor = 0, w = 0, h = 0, fps = kDefaultFps, fpsWant = kDefaultFps, kbps = 0, hz = 0;
         bool fit = false, levelCut = false;
+        int pct = 100;  // 0.8.4: the share of the bitrate (自動畫質's rung)
     };
-    Plan plan(int quality, int monitor, int fpsWant, int fitW, int fitH) const {
+    Plan plan(int quality, int monitor, int fpsWant, int fitW, int fitH, int pct = 100) const {
         Plan P;
         P.quality = std::clamp(quality, 0, kQualityLevels - 1);
         const auto mons = enumMonitors();
@@ -840,13 +912,15 @@ struct Host::Impl {
             const double px = double(P.w) * P.h, px0 = double(even(dw * presetSc)) * even(dh * presetSc);
             k *= std::clamp(std::sqrt(px / std::max(1.0, px0)), 0.5, 1.0);
             k *= fps >= 100 ? 1.5 : fps <= 40 ? 0.75 : 1.0;
+            P.pct = std::clamp(pct, 10, 100);
+            k = k * P.pct / 100;
         }
         P.kbps = int(k);
         return P;
     }
     std::atomic<int> curKbps{0}, curHz{0}, curFpsCap{0}, curFpsWant{kDefaultFps};  // 0.8.3.6: the stream now (stats)
     std::atomic<bool> curFit{false}, curLevelCut{false};
-    int hintFps = kDefaultFps, hintFitW = 0, hintFitH = 0;  // guarded by capMu (with hintQuality)
+    int hintFps = kDefaultFps, hintFitW = 0, hintFitH = 0, hintPct = 100;  // guarded by capMu (with hintQuality)
     // The session request's own picture wishes (0.8.3.6: fps / fit / top), noted for the capture that opens now.
     void noteStreamAsk(const std::shared_ptr<Session>& s, const json& body) {
         if (body.contains("fps") && body["fps"].is_number_integer()) s->fpsWant = std::clamp(body["fps"].get<int>(), 10, kMaxFps);
@@ -855,9 +929,36 @@ struct Host::Impl {
             s->fitW = std::clamp(body["fit"][0].get<int>(), 0, 16384), s->fitH = std::clamp(body["fit"][1].get<int>(), 0, 16384);
         if (body.contains("top") && body["top"].is_number_integer()) s->topQuality = std::clamp(body["top"].get<int>(), 0, kQualityLevels - 1);
         std::lock_guard<std::mutex> lk(capMu);
-        hintFps = s->fpsWant, hintFitW = s->fitW, hintFitH = s->fitH;
+        hintFps = s->fpsWant, hintFitW = s->fitW, hintFitH = s->fitH, hintPct = s->kbpsPct;
     }
     void streamAsk(const std::shared_ptr<Session>& s, const json& j);
+    // 0.8.4 自動畫質: where a session starts (the page may say a rung: a reconnect goes on where it was)
+    static int autoStartRung(const std::shared_ptr<Session>& s, const json& body) {
+        if (body.contains("rung") && body["rung"].is_number_integer()) return std::clamp(body["rung"].get<int>(), 0, kAutoTop);
+        return s->outside() ? kAutoStartOutside : kAutoStartLan;
+    }
+    void autoTick(const std::shared_ptr<Session>& s, int64_t now, double sentKbps, int sendDrops);
+    // ---- 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy; the code is at the end of this file) ----
+    PrivacyScreen privacy;
+    std::mutex privMu;                    // one cover start / stop at a time (never held in privacyEvent)
+    std::atomic<bool> privacyWant{false};
+    std::mutex privLockMu;                // guards the two below
+    std::string privacySession;           // the session it was turned on for
+    std::string privacyLockedSession;     // lifted at the PC during this session: not again in it
+    std::string privacyWhyNot(const std::shared_ptr<Session>& s);  // "" = this session may turn it on
+    bool privacySet(const std::shared_ptr<Session>& s, bool on, const std::string& from, std::string* why);
+    void privacyEvent(const std::string& what);
+    json p84State(const std::shared_ptr<Session>& s);
+    void on084(const std::shared_ptr<Session>& s, const std::string& t, const json& j);
+    void house084();
+    std::atomic<bool> pcFilesOn{true};
+    std::atomic<bool> pcGuestOn{false};  // 臨時帳號 may browse / download PC files too (its own switch, default off)
+    std::mutex pcfMu;
+    std::vector<std::wstring> pcExtra;    // guarded by pcfMu
+    std::vector<PcRoot> pcRootsNow();
+    const char* pcfsWhyNot(const std::shared_ptr<Session>& s);  // "" = may browse
+    void pcGuestDenied(const std::shared_ptr<Session>& s, const char* what);
+    void dl084(const std::shared_ptr<Session>& s, const Download& d, const std::string& key, HttpServer::Response& resp);
     std::shared_ptr<Session> current() {
         std::lock_guard<std::mutex> lk(smu);
         return session;
@@ -912,6 +1013,17 @@ bool Host::start(const Options& o) {
     stop();
     Impl& d = *d_;
     d.opt = o;
+    {
+        std::string keys;
+        std::lock_guard<std::mutex> lk(d.keysMu);
+        d.keysJson = !o.customKeys.empty() && sanitizeCustomKeys(o.customKeys, keys) ? keys : defaultCustomKeys();
+    }
+    d.pcFilesOn = o.pcFiles;  // 0.8.4 電腦的檔案
+    d.pcGuestOn = o.pcFilesGuest;
+    {
+        std::lock_guard<std::mutex> lk(d.pcfMu);
+        d.pcExtra = o.pcFilesExtra;
+    }
     d.stop = false;
     d.viewOnly = o.viewOnly;
     d.stampOn = o.stamp;
@@ -983,8 +1095,9 @@ bool Host::start(const Options& o) {
     d.input->guard = o.injectGuard;
     d.input->moveGuard = o.injectMoveGuard;
     // 0.8.3.5: a click / key Windows will drop (UIPI: an administrator window; the secure desktop) -> the phone says so
-    d.input->onBlocked = [&d](const std::string& why, const std::string& exe) {
-        if (auto s = d.current()) d.sendDc(s, json{{"t", "blocked"}, {"why", why}, {"app", exe}});
+    d.input->onBlocked = [&d](const std::string& why, const std::string& exe, const std::string& win) {
+        // 0.8.4: once per window for the same phone (InputInjector::notice); win lets the page keep it once too
+        if (auto s = d.current()) d.sendDc(s, json{{"t", "blocked"}, {"why", why}, {"app", exe}, {"win", win}});
     };
     if (o.injectStub && o.testClipboard) {  // tests: Ctrl+C "copies" in a program of the PC
         d.input->onStubCopy = [&d] {
@@ -996,9 +1109,15 @@ bool Host::start(const Options& o) {
     }
     if (o.injectStub) {  // tests: never the owner's real windows
         const std::string elevated = o.injectStubElevated;
-        d.input->targetProbe = [elevated](bool, POINT) {
+        d.input->targetProbe = [elevated](bool keyboard, POINT at) {
             InputInjector::Target t;
             if (!elevated.empty()) t.pid = 4242, t.exe = elevated, t.higher = true;
+            // 0.8.4 (once per window): that program has two windows, the left and the right half of each
+            // screen; keys go to the left one (the foreground)
+            MONITORINFO mi{sizeof mi};
+            const bool right = !keyboard && GetMonitorInfoW(MonitorFromPoint(at, MONITOR_DEFAULTTONEAREST), &mi) &&
+                               at.x >= (mi.rcMonitor.left + mi.rcMonitor.right) / 2;
+            if (!elevated.empty()) t.win = right ? 0x4243 : 0x4242;
             return t;
         };
     }
@@ -1088,6 +1207,7 @@ void Host::stop() {
     }
     d.capCv.notify_all();
     if (d.houseThread.joinable()) d.houseThread.join();
+    d.privacySet(nullptr, false, "stopped", nullptr);  // 0.8.4: never a cover without remote control
     if (d.capThread.joinable()) d.capThread.join();
     d.enc.close();
     {
@@ -1269,6 +1389,8 @@ HttpServer::Response Host::Impl::routeRest(const HttpServer::Request& r, const s
                 std::string(reinterpret_cast<const char*>(kRemoteTrackpadJs), sizeof(kRemoteTrackpadJs))};
     if (r.method == "GET" && rest == "vkbd.js")
         return {200, "text/javascript; charset=utf-8", std::string(reinterpret_cast<const char*>(kRemoteVkbdJs), sizeof(kRemoteVkbdJs))};
+    if (r.method == "GET" && rest == "p084.js")  // 0.8.4 (the page has it inline; this is for a cached page)
+        return {200, "text/javascript; charset=utf-8", std::string(reinterpret_cast<const char*>(kRemoteP084Js), sizeof(kRemoteP084Js))};
     if (r.method == "GET" && rest == "help" && !opt.helpFile.empty()) {
         FILE* f = _wfopen(opt.helpFile.c_str(), L"rb");
         if (!f) return {404, "text/plain", "no guide"};
@@ -1309,6 +1431,8 @@ HttpServer::Response Host::Impl::page(const HttpServer::Request& r, const std::s
                       "<script>" + std::string(reinterpret_cast<const char*>(kRemoteTrackpadJs), sizeof(kRemoteTrackpadJs)) + "</script>");
     html = replaceAll(html, "<script src=\"vkbd.js\"></script>",
                       "<script>" + std::string(reinterpret_cast<const char*>(kRemoteVkbdJs), sizeof(kRemoteVkbdJs)) + "</script>");
+    html = replaceAll(html, "<script src=\"p084.js\"></script>",  // 0.8.4 隱私黑屏 / 電腦的檔案
+                      "<script>" + std::string(reinterpret_cast<const char*>(kRemoteP084Js), sizeof(kRemoteP084Js)) + "</script>");
     json cfg{{"lang", std::clamp(opt.lang, 0, 3)},
              {"app", opt.appName},
              {"bg", hexColor(opt.pageBg)},
@@ -1402,6 +1526,8 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         const json& q = body.contains("q") && body["q"].is_number_integer() ? body["q"] : json(int(curQuality));
         const json& m = body.contains("m") && body["m"].is_number_integer() ? body["m"] : json(0);
         s->quality = std::clamp(q.get<int>(), 0, kQualityLevels - 1);
+        // 0.8.4 自動畫質 (q = -1): a low start (the first picture sooner), the PC climbs from there
+        if (q.get<int>() < 0) s->setAuto(autoStartRung(s, body));
         s->monitor = std::clamp(m.get<int>(), 0, std::max(0, int(enumMonitors().size()) - 1));
         noteStreamAsk(s, body);  // 0.8.3.6: frame rate, 解析度跟手機一樣
     }
@@ -1463,6 +1589,7 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
                 pending->guestViewOnly = s->guestViewOnly, pending->guestFiles = s->guestFiles;
                 pending->quality = s->quality, pending->monitor = s->monitor;
                 pending->fpsWant = s->fpsWant.load(), pending->fitW = s->fitW.load(), pending->fitH = s->fitH.load(), pending->topQuality = s->topQuality.load();  // 0.8.3.6 video
+                pending->setAuto(s->autoQ ? int(s->autoRung) : -1);  // 0.8.4 自動畫質 or a preset by hand
                 pending->policy = s->policy;  // 0.8.3.6
                 return {202, "application/json", json{{"id", pending->id}, {"pending", true}}.dump()};
             }
@@ -1513,6 +1640,7 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
         std::lock_guard<std::mutex> lk(smu);
         session = s;
     }
+    if (input) input->resetNotices(s->device);  // 0.8.4: a new phone hears the administrator-window notices afresh
     json mons = json::array();
     for (const Monitor& m : monitors()) mons.push_back(json{{"w", m.w}, {"h", m.h}, {"primary", m.primary}});
     json j{{"id", s->id},          {"type", "offer"},       {"sdp", sdp},   {"monitors", mons},
@@ -1520,8 +1648,12 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
            {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed && !s->guest()},
            {"lockAfter", s->viaTunnel ? bool(lockOutside) : bool(lockLan)},
            {"upload", !opt.uploadDir.empty() && s->filesOk()}, {"uploadMax", opt.uploadMaxBytes},
+           {"fdc", 1},  // 0.8.3.7: files may come over a "files" DataChannel (the page falls back to POST up without it)
            {"guest", s->guestName}, {"files", s->filesOk()}, {"filesWhy", filesWhy(filesDenyOf(s))},
-           {"mutePc", opt.mutePc}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};  // 0.8.3.4: the phone's 電腦喇叭靜音 switch
+           {"mutePc", opt.mutePc}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)},  // 0.8.3.4: the phone's 電腦喇叭靜音 switch
+           {"keysOk", keysOk(s)}, {"keysWhy", keysOk(s) ? "" : keysWhy(s)}};  // 0.8.4 自訂快捷鍵: the list comes with {"t":"keys"} right after
+    j["keys"] = json::parse(keysNow(), nullptr, false);
+    if (s->autoQ) j["auto"] = true, j["rung"] = int(s->autoRung);  // 0.8.4
     return {200, "application/json", j.dump()};
 }
 
@@ -1588,7 +1720,7 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
         // The stream size this session will get (for the SDP level). 0.8.3.6: the level also covers the
         // user's own preset at up to the monitor's refresh rate (120 at most), so that 切換畫質 / 幀率 and the
         // automatic steps stay inside this connection ({"t":"quality"}); a change beyond it reconnects.
-        const Plan sp = plan(s->quality, s->monitor, s->fpsWant, s->fitW, s->fitH);
+        const Plan sp = plan(s->quality, s->monitor, s->fpsWant, s->fitW, s->fitH, s->kbpsPct);
         const Plan top = plan(std::max(s->quality, s->topQuality.load()), s->monitor, kMaxFps, 0, 0);
         const Quality q{sp.w, sp.h, sp.fps, sp.kbps};
         const int ow = sp.w, oh = sp.h;
@@ -1622,6 +1754,8 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
             if (auto sp = ws.lock()) logf("webrtc[%s]: PLI/FIR from the browser -> IDR", sp->id.substr(0, 6).c_str());
             enc.forceKeyFrame();
         }));
+        s->rtcp = std::make_shared<RtcpStats>();  // 0.8.4: the phone's receiver reports (自動畫質), last: it changes nothing
+        pack->addToChain(s->rtcp);
         s->video->setMediaHandler(pack);
         s->video->onOpen([this, ws] {
             if (auto sp = ws.lock()) {
@@ -1665,6 +1799,9 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
                 sp->dcOpen = true;
                 logf("webrtc[%s]: DataChannel open", sp->id.substr(0, 6).c_str());
                 sendDc(sp, modeMsg(sp));
+                // 0.8.4 游標: the video's RTP time at the session's start, so that the page can tell which
+                // picture a pointer position ("cur" c: ms since then) belongs to (rVFC rtpTimestamp)
+                if (sp->rtpV) sendDc(sp, json{{"t", "vsync"}, {"rtp0", sp->rtpV->startTimestamp}, {"clock", 90000}});
             }
         });
         s->dc->onClosed([this, ws] {
@@ -1675,6 +1812,36 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
             auto sp = ws.lock();
             if (!sp) return;
             if (const auto* str = std::get_if<std::string>(&m)) onDcMessage(sp, *str);
+        });
+        // 0.8.3.7: files from the phone over the direct path. 0.8.3-0.8.3.6 sent them as HTTP pieces to the
+        // address the page came from: on the fixed link that is HTTPS through Tailscale Funnel's relay while the
+        // picture goes straight over the LAN (owner, 2026-10-22: two photos, 0.46 + 1.76 MB, ~0.4 MB/s). The
+        // page opens a "files" DataChannel on this connection (reliable, ordered) when it has one.
+        s->pc->onDataChannel([this, ws](std::shared_ptr<rtc::DataChannel> ch) {
+            auto sp = ws.lock();
+            if (!sp || !ch || ch->label() != "files") return;
+            {
+                std::lock_guard<std::mutex> lk(fmu);
+                sp->fdc = ch;
+            }
+            logf("webrtc[%s]: files DataChannel from the page", sp->id.substr(0, 6).c_str());
+            std::weak_ptr<Session> ws2 = sp;
+            ch->onMessage([this, ws2](rtc::message_variant m) {
+                if (auto sp2 = ws2.lock()) onFilesChannel(sp2, std::move(m));
+            });
+            ch->onClosed([this, ws2] {
+                auto sp2 = ws2.lock();
+                if (!sp2) return;
+                std::lock_guard<std::mutex> lk(fmu);
+                auto it = uploads.find(sp2->fdcFid);
+                if (it != uploads.end() && it->second.viaDc) {
+                    logf("files: unfinished \"%s\" removed (the files DataChannel closed)", narrow(it->second.name).c_str());
+                    if (it->second.h != INVALID_HANDLE_VALUE) CloseHandle(it->second.h);
+                    DeleteFileW(it->second.part.c_str());
+                    uploads.erase(it);
+                }
+                sp2->fdcFid.clear();
+            });
         });
 
         s->pc->setLocalDescription(rtc::Description::Type::Offer);
@@ -2262,27 +2429,89 @@ HttpServer::Response Host::Impl::snap(const HttpServer::Request& r) {
 // POST up?id=<session>&f=<upload id>&n=<name>&o=<offset>&t=<total>, body = the next piece
 // (in order; a piece that does not start where the file is now gets 409 + where it is).
 // Only the current, connected session, never in 僅觀看, only into uploadDir.
+int Host::Impl::uploadRefusal(const std::shared_ptr<Session>& s, uint64_t total, json& why) {
+    if (vo(s)) {
+        logf("files: upload from %s refused (僅觀看)", s->peer.c_str());
+        return why = json{{"ok", false}, {"viewOnly", true}}, 403;
+    }
+    if (!s->filesOk()) {
+        logf("files: upload from %s refused (臨時帳號 %s: no 傳檔)", s->peer.c_str(), s->guestName.c_str());
+        return why = json{{"ok", false}, {"noFiles", true}}, 403;
+    }
+    if (opt.uploadDir.empty()) return why = json{{"ok", false}, {"off", true}}, 404;
+    if (total > opt.uploadMaxBytes) {
+        logf("files: upload from %s refused: %.1f MB is over the %.0f MB limit", s->peer.c_str(), total / 1048576.0, opt.uploadMaxBytes / 1048576.0);
+        return why = json{{"ok", false}, {"tooBig", true}, {"max", opt.uploadMaxBytes}}, 413;
+    }
+    return 0;
+}
+
+bool Host::Impl::uploadCreate(const std::shared_ptr<Session>& s, const std::string& fid, const std::wstring& name, uint64_t total, bool viaDc) {
+    Upload u;
+    u.name = name;
+    u.part = opt.uploadDir + L"\\" + u.name + L"." + widen(fid) + L".part";
+    u.session = s->id, u.total = total, u.viaDc = viaDc;
+    u.startUs = u.lastUs = nowUs();
+    HANDLE h = CreateFileW(u.part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    if (viaDc) u.h = h;  // kept open: the pieces are 64 KB
+    else CloseHandle(h);
+    logf("files: %s sends \"%s\" (%.2f MB)%s", s->peer.c_str(), narrow(u.name).c_str(), total / 1048576.0,
+         viaDc ? " over the direct DataChannel" : " as HTTP pieces");
+    uploads.emplace(fid, std::move(u));
+    return true;
+}
+
+std::string Host::Impl::uploadFinish(const std::shared_ptr<Session>& s, std::map<std::string, Upload>::iterator it) {
+    Upload& u = it->second;
+    if (u.h != INVALID_HANDLE_VALUE) CloseHandle(u.h), u.h = INVALID_HANDLE_VALUE;
+    {  // 0.8.3.7: an image's extension follows its bytes (file_kind.h: an iPhone may convert HEIC <-> JPEG on the way)
+        uint8_t head[32] = {};
+        DWORD n = 0;
+        HANDLE h = CreateFileW(u.part.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (h != INVALID_HANDLE_VALUE) ReadFile(h, head, sizeof(head), &n, nullptr), CloseHandle(h);
+        const std::wstring fixedName = fixMediaExt(u.name, head, n);
+        if (fixedName != u.name) {
+            logf("files: \"%s\" holds %s: saved as \"%s\"", narrow(u.name).c_str(), narrow(sniffExt(head, n)).c_str(), narrow(fixedName).c_str());
+            u.name = fixedName;
+        }
+    }
+    // Done: the final name, never over an existing file ("name (2).ext" ...).
+    const size_t dot = u.name.rfind(L'.');
+    const std::wstring stem = dot == std::wstring::npos || dot == 0 ? u.name : u.name.substr(0, dot), ext = stem.size() == u.name.size() ? L"" : u.name.substr(dot);
+    std::wstring finalName = u.name;
+    bool moved = false;
+    for (int n = 1; n < 1000 && !moved; ++n) {
+        if (n > 1) finalName = stem + L" (" + std::to_wstring(n) + L")" + ext;
+        moved = MoveFileExW(u.part.c_str(), (opt.uploadDir + L"\\" + finalName).c_str(), 0) != 0;
+        if (!moved && GetLastError() != ERROR_ALREADY_EXISTS && GetLastError() != ERROR_FILE_EXISTS) break;
+    }
+    const uint64_t savedBytes = u.total;
+    const std::string nameU8 = narrow(finalName);
+    const double secs = std::max(1e-3, (nowUs() - u.startUs) / 1e6);
+    const bool viaDc = u.viaDc;
+    if (!moved) DeleteFileW(u.part.c_str());
+    uploads.erase(it);
+    if (!moved) return {};
+    // 0.8.3.7: how long it took and over which path (before / after numbers come from these lines)
+    logf("files: \"%s\" from %s saved (%.2f MB in %.2f s, %.2f MB/s, %s)", nameU8.c_str(), s->peer.c_str(), savedBytes / 1048576.0, secs,
+         savedBytes / 1048576.0 / secs, viaDc ? "direct DataChannel" : "HTTP pieces");
+    if (opt.onUploaded) opt.onUploaded(s->toPeer(), nameU8, savedBytes);
+    return nameU8.empty() ? std::string("?") : nameU8;
+}
+
 HttpServer::Response Host::Impl::upload(const HttpServer::Request& r) {
     auto s = current();
     const std::string id = queryParam(r.query, "id"), fid = queryParam(r.query, "f");
     if (!s || s->closed || !constantTimeEq(id, s->id) || !s->activeNotified) return {409, "application/json", json{{"ok", false}, {"noSession", true}}.dump()};
-    if (vo(s)) {
-        logf("files: upload from %s refused (僅觀看)", s->peer.c_str());
-        return {403, "application/json", json{{"ok", false}, {"viewOnly", true}}.dump()};
+    const uint64_t off = strtoull(queryParam(r.query, "o").c_str(), nullptr, 10), total = strtoull(queryParam(r.query, "t").c_str(), nullptr, 10);
+    {
+        json why;
+        if (const int st = uploadRefusal(s, total, why)) return {st, "application/json", why.dump()};
     }
-    if (!s->filesOk()) {
-        logf("files: upload from %s refused (臨時帳號 %s: no 傳檔)", s->peer.c_str(), s->guestName.c_str());
-        return {403, "application/json", json{{"ok", false}, {"noFiles", true}}.dump()};
-    }
-    if (opt.uploadDir.empty()) return {404, "application/json", json{{"ok", false}, {"off", true}}.dump()};
     bool fidOk = fid.size() >= 8 && fid.size() <= 32;
     for (char c : fid) fidOk &= isalnum(static_cast<unsigned char>(c)) != 0;
-    const uint64_t off = strtoull(queryParam(r.query, "o").c_str(), nullptr, 10), total = strtoull(queryParam(r.query, "t").c_str(), nullptr, 10);
     if (!fidOk) return {400, "application/json", json{{"ok", false}}.dump()};
-    if (total > opt.uploadMaxBytes) {
-        logf("files: upload from %s refused: %.1f MB is over the %.0f MB limit", s->peer.c_str(), total / 1048576.0, opt.uploadMaxBytes / 1048576.0);
-        return {413, "application/json", json{{"ok", false}, {"tooBig", true}, {"max", opt.uploadMaxBytes}}.dump()};
-    }
     s->lastActUs = nowUs();  // sending a file is using it (no idle disconnect meanwhile)
     std::lock_guard<std::mutex> lk(fmu);
     auto it = uploads.find(fid);
@@ -2298,18 +2527,11 @@ HttpServer::Response Host::Impl::upload(const HttpServer::Request& r) {
             logf("files: upload refused: not enough disk space (%.0f MB free)", freeBytes.QuadPart / 1048576.0);
             return {507, "application/json", json{{"ok", false}, {"diskFull", true}}.dump()};
         }
-        Upload u;
-        u.name = cleanFileName(pctDecode(queryParam(r.query, "n")));
-        u.part = opt.uploadDir + L"\\" + u.name + L"." + widen(fid) + L".part";
-        u.session = s->id, u.total = total;
-        HANDLE h = CreateFileW(u.part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (h == INVALID_HANDLE_VALUE) return {500, "application/json", json{{"ok", false}}.dump()};
-        CloseHandle(h);
-        logf("files: %s sends \"%s\" (%.2f MB)", s->peer.c_str(), narrow(u.name).c_str(), total / 1048576.0);
-        it = uploads.emplace(fid, std::move(u)).first;
+        if (!uploadCreate(s, fid, cleanFileName(pctDecode(queryParam(r.query, "n"))), total, false)) return {500, "application/json", json{{"ok", false}}.dump()};
+        it = uploads.find(fid);
     }
     Upload& u = it->second;
-    if (u.session != s->id) return {409, "application/json", json{{"ok", false}, {"noSession", true}}.dump()};
+    if (u.session != s->id || u.viaDc) return {409, "application/json", json{{"ok", false}, {"noSession", true}}.dump()};
     if (off != u.got || u.got + r.body.size() > u.total) return {409, "application/json", json{{"ok", false}, {"got", u.got}}.dump()};
     HANDLE h = CreateFileW(u.part.c_str(), FILE_APPEND_DATA, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     DWORD wrote = 0;
@@ -2322,24 +2544,119 @@ HttpServer::Response Host::Impl::upload(const HttpServer::Request& r) {
     }
     u.got += wrote, u.lastUs = nowUs();
     if (u.got < u.total) return {200, "application/json", json{{"ok", true}, {"got", u.got}}.dump()};
-    // Done: the final name, never over an existing file ("name (2).ext" ...).
-    const size_t dot = u.name.rfind(L'.');
-    const std::wstring stem = dot == std::wstring::npos || dot == 0 ? u.name : u.name.substr(0, dot), ext = stem.size() == u.name.size() ? L"" : u.name.substr(dot);
-    std::wstring finalName = u.name;
-    bool moved = false;
-    for (int n = 1; n < 1000 && !moved; ++n) {
-        if (n > 1) finalName = stem + L" (" + std::to_wstring(n) + L")" + ext;
-        moved = MoveFileExW(u.part.c_str(), (opt.uploadDir + L"\\" + finalName).c_str(), 0) != 0;
-        if (!moved && GetLastError() != ERROR_ALREADY_EXISTS && GetLastError() != ERROR_FILE_EXISTS) break;
-    }
     const uint64_t savedBytes = u.total;
-    const std::string nameU8 = narrow(finalName);
-    if (!moved) DeleteFileW(u.part.c_str());
-    uploads.erase(it);
-    if (!moved) return {500, "application/json", json{{"ok", false}}.dump()};
-    logf("files: \"%s\" from %s saved (%.2f MB)", nameU8.c_str(), s->peer.c_str(), savedBytes / 1048576.0);
-    if (opt.onUploaded) opt.onUploaded(s->toPeer(), nameU8, savedBytes);
+    const std::string nameU8 = uploadFinish(s, it);
+    if (nameU8.empty()) return {500, "application/json", json{{"ok", false}}.dump()};
     return {200, "application/json", json{{"ok", true}, {"got", savedBytes}, {"done", true}, {"name", nameU8}}.dump()};
+}
+
+// 0.8.3.7: the files DataChannel. Text: {"t":"up","f":id,"n":name,"s":bytes} starts a file (the answer
+// {"t":"up","f","ok","got"} or the reason as for POST up), {"t":"up-cancel","f"}; binary messages are the next
+// bytes of the file started last (the channel is reliable and ordered). Progress {"t":"up-got","f","got"} every
+// 512 KB and at the end with "done" and the saved name; a failure {"t":"up-got","f","ok":false}.
+void Host::Impl::onFilesChannel(const std::shared_ptr<Session>& s, rtc::message_variant m) {
+    std::shared_ptr<rtc::DataChannel> ch;
+    std::vector<json> out;
+    {
+        std::lock_guard<std::mutex> lk(fmu);
+        ch = s->fdc;
+        if (const auto* str = std::get_if<std::string>(&m)) {
+            const json j = json::parse(*str, nullptr, false);
+            if (j.is_discarded() || !j.is_object()) return;
+            const std::string t = j.value("t", std::string()), fid = j.value("f", std::string());
+            bool fidOk = fid.size() >= 8 && fid.size() <= 32;
+            for (char c : fid) fidOk &= isalnum(static_cast<unsigned char>(c)) != 0;
+            if (!fidOk) return;
+            if (t == "up-cancel") {
+                auto it = uploads.find(fid);
+                if (it != uploads.end() && it->second.session == s->id) {
+                    logf("files: \"%s\" cancelled on the phone", narrow(it->second.name).c_str());
+                    if (it->second.h != INVALID_HANDLE_VALUE) CloseHandle(it->second.h);
+                    DeleteFileW(it->second.part.c_str());
+                    uploads.erase(it);
+                }
+                if (s->fdcFid == fid) s->fdcFid.clear();
+                return;
+            }
+            if (t != "up") return;
+            const uint64_t total = j.contains("s") && j["s"].is_number_unsigned() ? j["s"].get<uint64_t>() : 0;
+            const std::string nameIn = j.contains("n") && j["n"].is_string() ? j["n"].get<std::string>() : std::string();
+            json why;
+            int st = s->closed || !s->activeNotified ? 409 : uploadRefusal(s, total, why);
+            if (st == 409) why = json{{"ok", false}, {"noSession", true}};
+            if (!st) {
+                // the one before on this channel, unfinished: gone (the page starts files one after another)
+                if (auto it = uploads.find(s->fdcFid); it != uploads.end() && it->second.viaDc) {
+                    if (it->second.h != INVALID_HANDLE_VALUE) CloseHandle(it->second.h);
+                    DeleteFileW(it->second.part.c_str());
+                    uploads.erase(it);
+                }
+                s->fdcFid.clear();
+                int mine = 0;
+                for (const auto& [k, u] : uploads) mine += u.session == s->id;
+                std::error_code ec;
+                std::filesystem::create_directories(opt.uploadDir, ec);
+                ULARGE_INTEGER freeBytes{};
+                if (uploads.count(fid)) st = 409, why = json{{"ok", false}, {"got", uploads[fid].got}};
+                else if (mine >= 4) st = 429, why = json{{"ok", false}, {"busy", true}};
+                else if (GetDiskFreeSpaceExW(opt.uploadDir.c_str(), &freeBytes, nullptr, nullptr) && freeBytes.QuadPart < total + 256ull * 1024 * 1024) {
+                    logf("files: upload refused: not enough disk space (%.0f MB free)", freeBytes.QuadPart / 1048576.0);
+                    st = 507, why = json{{"ok", false}, {"diskFull", true}};
+                } else if (!uploadCreate(s, fid, cleanFileName(nameIn), total, true))
+                    st = 500, why = json{{"ok", false}};
+            }
+            if (st) {
+                why["t"] = "up", why["f"] = fid;
+                out.push_back(why);
+            } else {
+                s->fdcFid = fid;
+                s->lastActUs = nowUs();
+                out.push_back(json{{"t", "up"}, {"f", fid}, {"ok", true}, {"got", 0}});
+                if (total == 0) {  // an empty file: done at once
+                    const std::string nm = uploadFinish(s, uploads.find(fid));
+                    s->fdcFid.clear();
+                    out.push_back(nm.empty() ? json{{"t", "up-got"}, {"f", fid}, {"ok", false}}
+                                             : json{{"t", "up-got"}, {"f", fid}, {"got", 0}, {"done", true}, {"name", nm}});
+                }
+            }
+        } else if (const auto* bin = std::get_if<rtc::binary>(&m)) {
+            auto it = uploads.find(s->fdcFid);
+            if (it == uploads.end() || !it->second.viaDc || it->second.session != s->id) return;  // cancelled / refused: dropped
+            Upload& u = it->second;
+            const std::string fid = s->fdcFid;
+            DWORD wrote = 0;
+            const bool fits = u.got + bin->size() <= u.total;
+            const bool ok = fits && !vo(s) && s->filesOk() &&
+                            (bin->empty() || WriteFile(u.h, bin->data(), DWORD(bin->size()), &wrote, nullptr)) && wrote == bin->size();
+            if (!ok) {
+                logf("files: \"%s\" from %s failed (%s)", narrow(u.name).c_str(), s->peer.c_str(), !fits ? "more bytes than announced" : vo(s) ? "僅觀看" : "write");
+                if (u.h != INVALID_HANDLE_VALUE) CloseHandle(u.h);
+                DeleteFileW(u.part.c_str());
+                uploads.erase(it);
+                s->fdcFid.clear();
+                out.push_back(json{{"t", "up-got"}, {"f", fid}, {"ok", false}});
+            } else {
+                u.got += wrote, u.lastUs = nowUs();
+                s->lastActUs = u.lastUs;
+                if (u.got == u.total) {
+                    const uint64_t got = u.got;
+                    const std::string nm = uploadFinish(s, it);
+                    s->fdcFid.clear();
+                    out.push_back(nm.empty() ? json{{"t", "up-got"}, {"f", fid}, {"ok", false}}
+                                             : json{{"t", "up-got"}, {"f", fid}, {"got", got}, {"done", true}, {"name", nm}});
+                } else if (u.got - u.ackAt >= 512 * 1024) {
+                    u.ackAt = u.got;
+                    out.push_back(json{{"t", "up-got"}, {"f", fid}, {"got", u.got}});
+                }
+            }
+        }
+    }
+    for (const json& j : out) {
+        try {
+            if (ch && ch->isOpen()) ch->send(j.dump());
+        } catch (...) {
+        }
+    }
 }
 
 void Host::Impl::dropUploads(const std::string& sid, const char* why, int64_t olderThanUs) {
@@ -2352,6 +2669,7 @@ void Host::Impl::dropUploads(const std::string& sid, const char* why, int64_t ol
             continue;
         }
         logf("files: unfinished \"%s\" removed (%s)", narrow(it->second.name).c_str(), why);
+        if (it->second.h != INVALID_HANDLE_VALUE) CloseHandle(it->second.h);  // 0.8.3.7: the DataChannel's open .part
         DeleteFileW(it->second.part.c_str());
         it = uploads.erase(it);
     }
@@ -2404,10 +2722,11 @@ HttpServer::Response Host::Impl::download(const HttpServer::Request& r, const st
     }
     if (!s || s->closed || s->id != d.session) return {410, "text/plain", "session ended"};
     if (vo(s)) return {403, "text/plain", "view only"};
-    if (!s->filesOk()) return {403, "text/plain", "no file transfer for this guest account"};
+    if (d.kind != "pc" && !s->filesOk())  /* a PC file: its own rule (dl084: the 臨時帳號 switch) */ return {403, "text/plain", "no file transfer for this guest account"};
     logf("files: %s downloads \"%s\"", s->peer.c_str(), d.name.c_str());
     HttpServer::Response resp{200, "application/octet-stream", ""};
     resp.file = d.path, resp.fileName = d.name;
+    dl084(s, d, key, resp);  // 0.8.4: 電腦的檔案 checked again, 連線紀錄, progress to the page
     return resp;
 }
 
@@ -2466,6 +2785,7 @@ void Host::Impl::closeSession(const std::shared_ptr<Session>& s, const std::stri
         if (s->wantAudio) logf("host: PC sound -> phone off");
         s->wantAudio = false;
         stopAudioNow("the session ended");
+        if (privacyWant || privacy.running()) privacySet(nullptr, false, "ended", nullptr);  // 0.8.4: the cover goes with the session
     }
     if (fromCallback) {
         // pc->close() inside a libdatachannel callback would wait on itself:
@@ -2714,6 +3034,20 @@ void Host::Impl::applyMutePc(bool on) {
         sendDc(s, m);
     }
 }
+// 0.8.4: the list changed on the PC side (or at start); the phone's panel follows.
+void Host::setCustomKeys(const std::string& j) {
+    std::string keys;
+    if (!sanitizeCustomKeys(j, keys)) {
+        logf("host: 自訂快捷鍵: the new list was refused (not a valid list); the old one stays");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lk(d_->keysMu);
+        d_->keysJson = keys;
+    }
+    if (auto s = d_->current()) d_->sendDc(s, d_->keysMsg(s));
+}
+std::string Host::customKeys() const { return d_->keysNow(); }
 void Host::setAudioOffered(bool on) {
     d_->opt.audio = on;
     if (!on) {
@@ -2840,7 +3174,7 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
     }
     // Anything the person did on the phone (not the page's own pings / reports).
     if (t != "ping" && t != "report" && t != "stamp" && t != "bitrate" && t != "idr" && t != "pause" && t != "release" &&
-        t != "clip-stop" && t != "ack" && t != "path" && t != "ws-media" && t != "unlock")
+        t != "clip-stop" && t != "ack" && t != "path" && t != "ws-media" && t != "unlock" && t != "rx")
         s->lastActUs = now;
     if (t == "ack") {  // 外網連結: the page got video frame n
         if (auto l = s->link.load()) l->ack(uint32_t(j.value("n", 0)));
@@ -2881,6 +3215,10 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         enc.setBitrate(j.value("kbps", 0));
         return;
     }
+    if (t == "rx") {  // 0.8.4 自動畫質: the phone shows far fewer frames than we send (it cannot keep up)
+        if (j.value("short", false)) s->phoneShortUs = now;
+        return;
+    }
     if (t == "quality") {  // 0.8.3.6: 畫質 / 幀率 / 解析度跟手機一樣 / 螢幕 inside this connection
         streamAsk(s, j);
         return;
@@ -2915,11 +3253,44 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         sendDc(s, json{{"t", "mutepc"}, {"ok", true}, {"on", on}});
         return;
     }
+    if (t == "keys-set") {  // 0.8.4 自訂快捷鍵: the phone saves its list (the PC checks it; the app keeps it in settings.ini)
+        std::string keys, why;
+        if (!keysOk(s)) {
+            logf("page %s: 自訂快捷鍵 save REFUSED (%s)", s->peer.c_str(), s->guest() ? "a 臨時帳號" : "僅觀看");
+            json km = keysMsg(s);
+            km["ok"] = false, km["why"] = keysWhy(s);
+            sendDc(s, km);
+            return;
+        }
+        if (!j.contains("list") || !sanitizeCustomKeys(j["list"].dump(), keys, &why)) {
+            logf("page %s: 自訂快捷鍵 save REFUSED (bad list: %s)", s->peer.c_str(), why.c_str());
+            json km = keysMsg(s);
+            km["ok"] = false, km["why"] = "bad";
+            sendDc(s, km);
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lk(keysMu);
+            keysJson = keys;
+        }
+        logf("page %s: 自訂快捷鍵 saved (%zu button(s))", s->peer.c_str(), json::parse(keys, nullptr, false).size());
+        if (opt.onKeysChanged) opt.onKeysChanged(keys, s->label);
+        json km = keysMsg(s);
+        km["ok"] = true;
+        sendDc(s, km);
+        return;
+    }
     if (t == "cursor") {  // 0.8.3.5: the PC browser shows the pointer itself (mouse, not in 遊戲模式)
         const bool local = j.value("local", false);
         if (local != s->localCursor) {
             s->localCursor = local;
             logf("page %s: pointer %s", s->peer.c_str(), local ? "drawn by the PC browser (left out of the picture: no lag, no double pointer)" : "back in the picture");
+        }
+        // 0.8.4 游標: the page draws the PC pointer itself (its own shape, a size a finger can see)
+        const bool overlay = j.value("overlay", false);
+        if (overlay != s->overlayCursor) {
+            s->overlayCursor = overlay;
+            logf("page %s: pointer %s", s->peer.c_str(), overlay ? "drawn by the page over the picture (shape + place on the DataChannel, left out of the picture)" : "in the picture");
         }
         return;
     }
@@ -2966,6 +3337,10 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
     }
     if (t == "clip-stop") {
         s->clipWatch = false;
+        return;
+    }
+    if (t == "privacy" || t == "p84-get" || t.rfind("pcfs-", 0) == 0) {  // 0.8.4 隱私黑屏 / 電腦的檔案 (rights checked there)
+        on084(s, t, j);
         return;
     }
     if (t == "files-get") {  // 0.8.3: the files copied in Explorer (never in 僅觀看)
@@ -3090,7 +3465,22 @@ void Host::Impl::sendFrame(Encoded&& f) {
 // connection, no 允許. Beyond it the page is told to reconnect (the old path, still without 允許).
 void Host::Impl::streamAsk(const std::shared_ptr<Session>& s, const json& j) {
     int q = s->quality, m = s->monitor, fps = s->fpsWant, fw = s->fitW, fh = s->fitH;
-    if (j.contains("q") && j["q"].is_number_integer()) q = std::clamp(j["q"].get<int>(), 0, kQualityLevels - 1);
+    // 0.8.4: q = -1: 自動畫質 (from the rung the picture is at now: no jump); 0..2: that preset, by hand
+    int rung = s->autoQ ? int(s->autoRung) : -1;
+    if (j.contains("q") && j["q"].is_number_integer()) {
+        const int jq = j["q"].get<int>();
+        if (jq < 0) {
+            if (rung < 0) {
+                rung = kAutoStartLan;  // 流暢 at its full bitrate, or the rung of the preset shown now
+                for (int i = 0; i < kAutoRungCount; ++i)
+                    if (kAutoRungs[i].q == s->quality && kAutoRungs[i].pct == 100) rung = i;
+            }
+            q = kAutoRungs[rung].q;
+        } else {
+            q = std::clamp(jq, 0, kQualityLevels - 1), rung = -1;
+        }
+    }
+    const int pct = rung >= 0 ? kAutoRungs[rung].pct : 100;
     if (j.contains("m") && j["m"].is_number_integer()) m = std::clamp(j["m"].get<int>(), 0, std::max(0, int(enumMonitors().size()) - 1));
     if (j.contains("fps") && j["fps"].is_number_integer()) fps = std::clamp(j["fps"].get<int>(), 10, kMaxFps);
     if (j.contains("fit")) {
@@ -3101,12 +3491,12 @@ void Host::Impl::streamAsk(const std::shared_ptr<Session>& s, const json& j) {
             fw = fh = 0;
     }
     if (j.contains("top") && j["top"].is_number_integer()) s->topQuality = std::clamp(j["top"].get<int>(), 0, kQualityLevels - 1);
-    const Plan np = plan(q, m, fps, fw, fh);
+    const Plan np = plan(q, m, fps, fw, fh, pct);
     const int mbs = ((np.w + 15) / 16) * ((np.h + 15) / 16);
     const bool fits = wsMedia(s) || (mbs <= s->lvMaxFs && int64_t(mbs) * np.fps <= s->lvMaxMbps);
     json a{{"t", "quality"}, {"id", j.value("id", 0)}, {"q", np.quality}, {"m", np.monitor}, {"fps", np.fpsWant},
            {"fpsCap", np.fps}, {"hz", np.hz},          {"w", np.w},       {"h", np.h},        {"kbps", np.kbps},
-           {"fit", np.fit},  {"levelCut", np.levelCut}, {"ok", fits}};
+           {"fit", np.fit},  {"levelCut", np.levelCut}, {"ok", fits}, {"auto", rung >= 0}, {"rung", rung}};
     if (!fits) {
         a["reconnect"] = true;
         logf("page %s: picture -> quality %d, monitor %d, %dx%d @%d fps: beyond this connection's H.264 level %d.%d -> the page reconnects",
@@ -3114,10 +3504,63 @@ void Host::Impl::streamAsk(const std::shared_ptr<Session>& s, const json& j) {
         sendDc(s, a);
         return;
     }
+    const bool wasAuto = s->autoQ;
     s->quality = np.quality, s->monitor = np.monitor, s->fpsWant = np.fpsWant, s->fitW = fw, s->fitH = fh;
-    logf("page %s: picture -> quality %d, monitor %d, %dx%d @%d fps (asked %d, monitor %d Hz), %d kbps%s: in this session (no new connection)",
-         s->peer.c_str(), np.quality, np.monitor, np.w, np.h, np.fps, np.fpsWant, np.hz, np.kbps, np.fit ? ", fit to the phone" : "");
+    if (rung >= 0 && !wasAuto) s->setAuto(rung);
+    else if (rung < 0) s->setAuto(-1);
+    if (wasAuto != (rung >= 0)) logf("page %s: 畫質 %s", s->peer.c_str(), rung >= 0 ? "自動 (the PC follows the network)" : "chosen by hand (kept as it is)");
+    // 0.8.3.7: the phone's own screen rate (requestAnimationFrame): a phone that draws 60 a second asks for 60
+    const int disp = j.contains("disp") && j["disp"].is_number() ? std::clamp(int(j["disp"].get<double>() + 0.5), 0, 1000) : 0;
+    const std::string why = j.contains("why") && j["why"].is_string() ? j["why"].get<std::string>().substr(0, 24) : std::string();
+    logf("page %s: picture -> quality %d, monitor %d, %dx%d @%d fps (asked %d, monitor %d Hz%s), %d kbps%s: in this session (no new connection)%s%s",
+         s->peer.c_str(), np.quality, np.monitor, np.w, np.h, np.fps, np.fpsWant, np.hz, disp ? (", phone screen " + std::to_string(disp) + " Hz").c_str() : "",
+         np.kbps, np.fit ? ", fit to the phone" : "", why.empty() ? "" : " [", why.empty() ? "" : (why + "]").c_str());
     sendDc(s, a);
+}
+
+// 0.8.4 自動畫質, once a second on the capture thread while the picture goes to the phone: what the link
+// looks like (the phone's receiver reports, the PC's own queues, the phone's word that it cannot keep up)
+// -> a rung of the ladder (auto_quality.h). The capture loop follows within a frame: the same size = the
+// open encoder's bitrate, another size = the scaler and a new encoder (a key frame). The connection stays.
+void Host::Impl::autoTick(const std::shared_ptr<Session>& s, int64_t now, double sentKbps, int sendDrops) {
+    const bool outside = s->outside();
+    if (s->aqReset.exchange(false)) s->aq.reset(s->autoRung >= 0 ? int(s->autoRung) : outside ? kAutoStartOutside : kAutoStartLan, kAutoTop);
+    AutoSignals g;
+    if (s->rtcp && s->videoOpen) {
+        const auto r = s->rtcp->snapshot(now);
+        g.rttMs = r.rttMs, g.rttMinMs = r.rttMinMs, g.lossPct = r.lossPct, g.deliveredKbps = r.deliveredKbps, g.queuedMs = r.queuedMs;
+        g.windowSentKbps = r.sentKbps;
+        g.linkReport = std::isfinite(r.ageMs) && r.ageMs < 2500;
+    }
+    g.sentKbps = sentKbps;
+    g.sendQueueDrops = sendDrops;
+    g.tunnelFull = wsMedia(s) && lastDropUs && now - lastDropUs < 1200000;
+    if (wsMedia(s)) g.linkReport = true;  // 外網連結 WebSocket: no RTCP; its acks (tunnelFull) are the report
+    if (s->dcOpen && s->dc) {
+        try {
+            g.dcBufferedKB = s->dc->bufferedAmount() / 1024.0;
+        } catch (...) {
+        }
+    }
+    g.phoneShort = now - s->phoneShortUs < 2500000;
+    // each rung's bitrate for this stream now (cached for this second: plan() asks Windows for the monitors)
+    double kb[kAutoRungCount];
+    for (double& x : kb) x = -1;
+    auto rungKbps = [&](int i) {
+        i = std::clamp(i, 0, kAutoTop);
+        if (kb[i] < 0) kb[i] = plan(kAutoRungs[i].q, s->monitor, s->fpsWant, s->fitW, s->fitH, kAutoRungs[i].pct).kbps;
+        return kb[i];
+    };
+    const AutoQuality::Step st = s->aq.tick(g, now / 1000.0, rungKbps);
+    if (st.to == st.from || !s->autoQ) return;
+    const AutoRung r = kAutoRungs[st.to];
+    s->quality = r.q, s->kbpsPct = r.pct, s->autoRung = st.to;
+    logf("auto quality: rung %d -> %d (%s, %d %% = %.0f kbps) because %s | RTT %.0f (min %.0f) ms, loss %.1f %%, delivered %.0f / sent %.0f kbps, "
+         "queued %.0f ms, send-queue drops %d%s%s, hold %.0f s, capacity %.0f kbps",
+         st.from, st.to, r.q == 0 ? "流暢" : r.q == 1 ? "標準" : "清晰", r.pct, rungKbps(st.to), st.why.c_str(), g.rttMs, g.rttMinMs, g.lossPct,
+         g.deliveredKbps, g.sentKbps, g.queuedMs, g.sendQueueDrops, g.tunnelFull ? ", tunnel full" : "", g.phoneShort ? ", phone behind" : "",
+         s->aq.holdMs(now / 1000.0) / 1000.0, s->aq.bandwidthKbps());
+    sendDc(s, json{{"t", "auto"}, {"rung", st.to}, {"from", st.from}, {"q", r.q}, {"pct", r.pct}, {"kbps", int(rungKbps(st.to))}, {"why", st.why}});
 }
 
 // 外網連結 full: ask for a key frame (at most once a second) and lower the
@@ -3260,6 +3703,7 @@ void Host::Impl::houseLoop() {
         if (stop) break;
         try {
             housekeeping(nowUs());
+            house084();  // 0.8.4: the cover's heartbeat / rules
         } catch (const std::exception& e) {
             logf("host: housekeeping failed: %s", e.what());
         }
@@ -3277,6 +3721,7 @@ void Host::Impl::captureLoop() {
     co.scene = opt.scene == "static"   ? DesktopCapture::Scene::Static
                : opt.scene == "motion" ? DesktopCapture::Scene::Motion
                : opt.scene == "synth"  ? DesktopCapture::Scene::Synth
+               : opt.scene == "synth-still" ? DesktopCapture::Scene::SynthStill
                                        : DesktopCapture::Scene::Desktop;
     std::vector<uint8_t> nv12;
     int64_t nextDue = 0, lastEncode = 0, lastStats = nowUs(), lastLog = nowUs();
@@ -3284,7 +3729,7 @@ void Host::Impl::captureLoop() {
     int openQuality = -1, openMonitor = -1, encFps = 0, encKbps = 0;
     // 0.8.3.6: what the open capture / encoder were planned for (preset, monitor, fps asked, fit)
     struct StreamKey {
-        int q = -1, m = -1, fps = 0, fitW = 0, fitH = 0;
+        int q = -1, m = -1, fps = 0, fitW = 0, fitH = 0, pct = 100;
         bool operator==(const StreamKey&) const = default;
     } openKey;
     Plan P = plan(curQuality, curMonitor, kDefaultFps, 0, 0);
@@ -3299,6 +3744,11 @@ void Host::Impl::captureLoop() {
     POINT lastCur{INT_MIN, INT_MIN};
     int64_t lastCurSeq = -1, lastCurUs = 0;
     bool lastCurVisible = true;
+    const char* lastCurKind = nullptr;  // 0.8.4: a new shape alone is news too (0.8.3.6 waited for a move)
+    uint32_t lastCurShape = 0, curShapeId = 0;  // 0.8.4 游標: the shape of the last "cur", the one of curShapeHandle
+    HCURSOR curShapeHandle = HCURSOR(-1);
+    json curShapeMsg;
+    const Session* lastCurSess = nullptr;  // a new session gets the pointer at once (0.8.3.6 waited for a move)
 
     int64_t lastWantUs = 0, lastChangeUs = 0;  // 0.8.3: lastChangeUs = the picture changed (full rate while it moves)
     while (!stop) {
@@ -3306,18 +3756,18 @@ void Host::Impl::captureLoop() {
         // 0.8.3: capture + encoder only while a phone is there (or on its way: a session
         // request woke us), released 30 s after the last one; until then this thread sleeps.
         {
-            int hq = -1, hm = 0, hf = kDefaultFps, hfw = 0, hfh = 0;
+            int hq = -1, hm = 0, hf = kDefaultFps, hfw = 0, hfh = 0, hp = 100;
             int64_t hus = 0;
             {
                 std::lock_guard<std::mutex> lk(capMu);
-                hq = hintQuality, hm = hintMonitor, hus = hintUs, hf = hintFps, hfw = hintFitW, hfh = hintFitH;
+                hq = hintQuality, hm = hintMonitor, hus = hintUs, hf = hintFps, hfw = hintFitW, hfh = hintFitH, hp = hintPct;
             }
             const int64_t t = nowUs();
             const bool hinted = hq >= 0 && t - hus < 30000000;
             if (s || hinted) lastWantUs = t;
-            if (!s && hinted && !open && StreamKey{hq, hm, hf, hfw, hfh} != openKey) {  // open it for the session on its way
-                openKey = StreamKey{hq, hm, hf, hfw, hfh};
-                P = plan(hq, hm, hf, hfw, hfh);
+            if (!s && hinted && !open && StreamKey{hq, hm, hf, hfw, hfh, hp} != openKey) {  // open it for the session on its way
+                openKey = StreamKey{hq, hm, hf, hfw, hfh, hp};
+                P = plan(hq, hm, hf, hfw, hfh, hp);
                 curQuality = P.quality, curMonitor = P.monitor;
             }
             if (!s && !hinted && (open || encOpen) && t - lastWantUs > 30000000) {
@@ -3341,9 +3791,9 @@ void Host::Impl::captureLoop() {
         // the encoder: a key frame with the new size follows), a new frame rate / bitrate only the encoder
         // (below). The WebRTC connection stays either way.
         if (s) {
-            const StreamKey k{s->quality, s->monitor, s->fpsWant.load(), s->fitW.load(), s->fitH.load()};
+            const StreamKey k{s->quality, s->monitor, s->fpsWant.load(), s->fitW.load(), s->fitH.load(), s->kbpsPct.load()};
             if (k != openKey) {
-                const Plan np = plan(k.q, k.m, k.fps, k.fitW, k.fitH);
+                const Plan np = plan(k.q, k.m, k.fps, k.fitW, k.fitH, k.pct);
                 if (open && np.monitor == P.monitor && (np.w != P.w || np.h != P.h)) {
                     // the same screen, another size: only the scaler is made again (encoder first: it holds pool textures)
                     const int64_t t0 = nowUs();
@@ -3383,6 +3833,12 @@ void Host::Impl::captureLoop() {
             deskW = cap.desktopWidth(), deskH = cap.desktopHeight();
             if (input) input->setScreen(cap.desktopRect());
         }
+        // 0.8.4: a new bitrate alone (自動畫質's steps at the same size and frame rate) goes to the open encoder
+        // where that works (CBR: no new encoder, no key frame); in VBR the encoder is opened again (see
+        // H264Encoder::dynamicBitrate: the NVIDIA MFT accepts a new VBR bitrate and ignores it).
+        if (encOpen && enc.dynamicBitrate() && cap.width() == outW && cap.height() == outH && encFps == q.fps && encKbps != q.kbps &&
+            enc.setBitrate(q.kbps))
+            encKbps = q.kbps;
         if (!encOpen || cap.width() != outW || cap.height() != outH || encFps != q.fps || encKbps != q.kbps) {
             enc.close();
             H264Encoder::Options eo;
@@ -3438,28 +3894,66 @@ void Host::Impl::captureLoop() {
             logf("host: %s", awake ? "keeping the PC awake (no sleep, screen stays on) while the phone is connected"
                                    : "PC may sleep again");
         }
-        cap.setHideCursor(s && s->localCursor && !s->closed);  // 0.8.3.5
+        cap.setHideCursor(s && (s->localCursor || s->overlayCursor) && !s->closed);  // 0.8.3.5 / 0.8.4
         // Where the PC pointer is (O7): the page draws its prediction from it.
+        if (s && s.get() != lastCurSess) lastCurSess = s.get(), lastCur = POINT{INT_MIN, INT_MIN};
         if (active && (s->dcOpen || s->link.load()) && now - lastCurUs >= 16000) {
             CURSORINFO ci{sizeof(ci)};
             const bool gotCursor = GetCursorInfo(&ci) != FALSE;
+            const char* testKind = nullptr;
             if (input && input->stubbed()) {  // 0.8.3.5 tests: the stub's pointer, never this PC's real one
                 ci.ptScreenPos = input->stubCursor();
                 ci.flags = CURSOR_SHOWING;
+                ci.hCursor = nullptr;
+                if (opt.testCursorCycle) {  // 0.8.4 tests: Windows' own shapes in turn (this process's handles)
+                    static const LPCWSTR ids[] = {IDC_ARROW, IDC_IBEAM, IDC_HAND, IDC_WAIT};
+                    static const char* kinds[] = {"arrow", "ibeam", "hand", "wait"};
+                    const int k = int((now / 2500000) % 4);
+                    ci.hCursor = LoadCursorW(nullptr, ids[k]), testKind = kinds[k];
+                }
+                const RECT rc = cap.desktopRect();
+                cap.setTestPointer(ci.ptScreenPos.x - rc.left, ci.ptScreenPos.y - rc.top, true, ci.hCursor ? ci.hCursor : LoadCursorW(nullptr, IDC_ARROW));
             }
             if (gotCursor || (input && input->stubbed())) {
                 const RECT rc = cap.desktopRect();
                 const bool vis = (ci.flags & CURSOR_SHOWING) != 0;
                 const int64_t seq = s->moveSeq;
-                if (ci.ptScreenPos.x != lastCur.x || ci.ptScreenPos.y != lastCur.y || seq != lastCurSeq || vis != lastCurVisible) {
-                    lastCur = ci.ptScreenPos, lastCurSeq = seq, lastCurVisible = vis, lastCurUs = now;
+                const char* kind = testKind ? testKind : input && input->stubbed() ? "arrow" : cursorKind(ci.hCursor);
+                // 0.8.4 游標: the shape's picture, once per shape and session (a new handle is read again: an
+                // application's own pointer may be destroyed and its handle reused)
+                uint32_t shapeId = 0;
+                const bool overlay = s->overlayCursor;
+                if (overlay) {
+                    const HCURSOR hc = ci.hCursor ? ci.hCursor : (input && input->stubbed() ? LoadCursorW(nullptr, IDC_ARROW) : nullptr);
+                    if (hc != curShapeHandle) {
+                        curShapeHandle = hc, curShapeId = 0, curShapeMsg = json();
+                        CursorShape cs;
+                        if (hc && cursorShapeOf(hc, cs)) {
+                            curShapeId = cursorShapeId(cs);
+                            curShapeMsg = json{{"t", "cshape"}, {"id", curShapeId}, {"w", cs.w}, {"h", cs.h}, {"hx", cs.hotX}, {"hy", cs.hotY},
+                                               {"k", kind}, {"png", base64(pngOf(cs.color, cs.w, cs.h))}};
+                            if (cs.anyInvert()) curShapeMsg["inv"] = base64(pngOf(cs.invert, cs.w, cs.h));
+                        }
+                    }
+                    shapeId = curShapeId;
+                    if (shapeId && !s->shapesSent.count(shapeId) && !curShapeMsg.is_null()) {
+                        sendDc(s, curShapeMsg);
+                        s->shapesSent.insert(shapeId);
+                    }
+                }
+                if (ci.ptScreenPos.x != lastCur.x || ci.ptScreenPos.y != lastCur.y || seq != lastCurSeq || vis != lastCurVisible || kind != lastCurKind ||
+                    shapeId != lastCurShape) {
+                    lastCur = ci.ptScreenPos, lastCurSeq = seq, lastCurVisible = vis, lastCurUs = now, lastCurKind = kind, lastCurShape = shapeId;
                     const double w = std::max(1L, rc.right - rc.left), h = std::max(1L, rc.bottom - rc.top);
-                    sendDc(s, json{{"t", "cur"},
-                                   {"x", (ci.ptScreenPos.x - rc.left) / w},
-                                   {"y", (ci.ptScreenPos.y - rc.top) / h},
-                                   {"v", vis},
-                                   {"n", seq},
-                                   {"k", input && input->stubbed() ? "arrow" : cursorKind(ci.hCursor)}});
+                    json cj{{"t", "cur"},
+                            {"x", (ci.ptScreenPos.x - rc.left) / w},
+                            {"y", (ci.ptScreenPos.y - rc.top) / h},
+                            {"v", vis},
+                            {"n", seq},
+                            {"k", kind}};
+                    // 0.8.4: its shape, and when (ms on the video's own clock: the page shows it with that picture)
+                    if (overlay) cj["s"] = shapeId, cj["c"] = std::round((now - s->startUs) / 100.0) / 10.0;
+                    sendDc(s, cj);
                 }
             }
         }
@@ -3549,6 +4043,7 @@ void Host::Impl::captureLoop() {
             const int64_t fr = framesSent.exchange(0), by = bytes.exchange(0), mx = maxAu.exchange(0), ir = idrs.exchange(0),
                           qd = queueDrops.exchange(0);
             winFrames += fr, winBytes += by, winMaxAu = std::max(winMaxAu, mx), winIdrs += ir, winQDrops += qd;
+            if (s && s->autoQ && active) autoTick(s, now, by * 8 / 1000.0 / secs, int(qd));  // 0.8.4 自動畫質
             winC2s.push_back(a), winC2e.push_back(ce), winEnc.push_back(e), winRender.push_back(rd);
             if (s && (s->dcOpen || s->link.load())) {
                 json j{{"t", "stats"},           {"fps", fr / secs},           {"kbps", by * 8 / 1000.0 / secs},
@@ -3566,6 +4061,19 @@ void Host::Impl::captureLoop() {
                        // bitrate this stream is planned for, 解析度跟手機一樣, the level's size cut
                        {"fpsWant", int(curFpsWant)}, {"fpsCap", int(curFpsCap)}, {"hz", int(curHz)},
                        {"kbpsBase", int(curKbps)}, {"fit", bool(curFit)}, {"levelCut", bool(curLevelCut)}};
+                // 0.8.4 自動畫質: on or not, its rung, the bitrate the encoder has now, what the PC sees of the link
+                j["auto"] = bool(s->autoQ), j["rung"] = int(s->autoRung), j["kbpsNow"] = encKbps;
+                if (s->rtcp) {
+                    const auto r = s->rtcp->snapshot(now);
+                    if (std::isfinite(r.rttMs)) j["rttPc"] = std::round(r.rttMs);
+                    if (std::isfinite(r.lossPct)) j["lossPc"] = r.lossPct;
+                }
+                {  // 0.8.3.7: the PC's GPU (last 5-s sample, 0..100 %); left out when not known (gpu_util.h)
+                    double g3 = -1, ge = -1;
+                    gpu.last(g3, ge);
+                    if (g3 >= 0) j["gpu3d"] = std::round(g3 * 10) / 10;
+                    if (ge >= 0) j["gpuEnc"] = std::round(ge * 10) / 10;
+                }
 
                 sendDc(s, j);
             }
@@ -3622,8 +4130,11 @@ void Host::Impl::captureLoop() {
                              (long long)aSent, aBytes * 8 / 1000.0 / ws, apk, aLat, aPeak, audio.agcGain(), audio.compGain(), audio.takeRmsDb(),
                              aDev.empty() ? "?" : aDev.c_str(),
                              aOthers.empty() ? "" : " | other devices: ", aOthers.c_str());
-                } else {
-                    logf("idle (no viewer): CPU %.2f%% of machine (%.1f%% of one core) | GPU %s", lAll, l1, g.c_str());
+                    idleLogged = false;
+                } else if (!idleLogged) {
+                    idleLogged = true;
+                    logf("idle (no viewer): CPU %.2f%% of machine (%.1f%% of one core) | GPU %s (logged once per idle spell)",
+                         lAll, l1, g.c_str());
                 }
                 winFrames = winBytes = winMaxAu = winIdrs = winQDrops = 0;
                 winC2s.clear(), winC2e.clear(), winEnc.clear(), winRender.clear();
@@ -3637,6 +4148,297 @@ void Host::Impl::captureLoop() {
     cap.close();
     timeEndPeriod(1);
     CoUninitialize();
+}
+
+// ---- 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy) ---------------------------------
+// Kept together here (a separate block from the other 0.8.4 work). Messages from the page:
+//   {"t":"p84-get"}                         -> {"t":"p84", privacy, privacyOk, privacyWhy, privacySupported, pcfs, pcfsWhy}
+//   {"t":"privacy","on":b}                  -> {"t":"p84", ...} (+ "ok":false, "why" when refused)
+//   {"t":"pcfs-roots"}                      -> {"t":"pcfs-roots","roots":[{id,kind,label}]} | {"t":"pcfs-err","why","for"}
+//   {"t":"pcfs-list","root","path"}         -> {"t":"pcfs-list","root","path","entries":[{n,d,s,m}],"more":b} | ... "err"
+//   {"t":"pcfs-get","root","items":[path]}  -> {"t":"pcfs-keys","list":[{p,n,s,k} | {p,err}]}  (GET dl/<k>, one use, 10 min)
+// and while a file goes out: {"t":"pcfs-prog","k","got","total","end"}.
+
+bool privacySupported() { return privacyOsSupported(); }
+
+int runPrivacyMaskIfAsked() {
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) return -1;
+    int code = -1;
+    const std::wstring a1 = argc > 1 ? argv[1] : L"";
+    if (a1 == L"--pm-privacy-mask" && argc >= 5) {
+        code = privacyMaskMain(wcstoul(argv[2], nullptr, 10), _wtoi(argv[3]), narrow(argv[4]));
+    } else if (a1 == L"--pm-privacy-render" && argc >= 7) {
+        code = privacyRenderPng(argv[2], _wtoi(argv[3]), _wtoi(argv[4]), _wtoi(argv[5]), _wtoi(argv[6]));
+    }
+    LocalFree(argv);
+    return code;
+}
+
+std::string Host::Impl::privacyWhyNot(const std::shared_ptr<Session>& s) {
+    if (!privacyOsSupported()) return "unsupported";
+    if (!opt.privacyAllowed) return "off";
+    if (!s || s->closed || !s->activeNotified) return "no-session";
+    if (vo(s)) return "viewOnly";
+    // A 臨時帳號 (someone helping) never hides what it does from the person at the PC.
+    if (s->guest()) return "guest";
+    std::lock_guard<std::mutex> lk(privLockMu);
+    if (privacyLockedSession == s->id) return "local";
+    return {};
+}
+
+json Host::Impl::p84State(const std::shared_ptr<Session>& s) {
+    const std::string why = privacyWhyNot(s);
+    const char* pw = pcfsWhyNot(s);
+    return json{{"t", "p84"},
+                {"privacy", privacy.running()},
+                {"privacyOk", why.empty()},
+                {"privacyWhy", why},
+                {"privacySupported", privacyOsSupported() && opt.privacyAllowed},
+                {"pcfs", *pw == 0},
+                {"pcfsWhy", pw}};
+}
+
+bool Host::Impl::privacySet(const std::shared_ptr<Session>& s, bool on, const std::string& from, std::string* why) {
+    {
+        std::lock_guard<std::mutex> lk(privMu);
+        if (on) {
+            const std::string w = privacyWhyNot(s);
+            if (!w.empty()) {
+                if (why) *why = w;
+                logf("privacy: ON refused for %s (%s)", s ? s->label.c_str() : "-", w.c_str());
+                return false;
+            }
+            if (!privacy.running()) {
+                wchar_t exe[MAX_PATH * 2] = {};
+                GetModuleFileNameW(nullptr, exe, DWORD(std::size(exe)));
+                std::string err;
+                if (!privacy.start(exe, opt.lang, opt.privacyTest, [this](const std::string& what) { privacyEvent(what); }, err)) {
+                    logf("privacy: the cover could not be shown (%s)", err.c_str());
+                    privacyWant = false;
+                    if (why) *why = "failed";
+                    return false;
+                }
+                {
+                    std::lock_guard<std::mutex> lk2(privLockMu);
+                    privacySession = s->id;
+                }
+                privacyWant = true;
+                logf("privacy: ON for %s (from %s)", s->label.c_str(), from.c_str());
+                if (opt.onPrivacy) opt.onPrivacy(true, from);
+            }
+        } else {
+            const bool was = privacyWant.exchange(false) || privacy.running();
+            privacy.stop();
+            if (was) {
+                logf("privacy: OFF (%s)", from.c_str());
+                if (opt.onPrivacy) opt.onPrivacy(false, from);
+            }
+        }
+    }
+    if (auto cur = current(); cur && !cur->closed) sendDc(cur, p84State(cur));
+    return true;
+}
+
+// The cover's own news (its reader thread): lifted at the PC, or it ended by itself.
+void Host::Impl::privacyEvent(const std::string& what) {
+    privacyWant = false;
+    if (what == "local") {
+        std::lock_guard<std::mutex> lk(privLockMu);
+        privacyLockedSession = privacySession;  // not again in this session
+    }
+    if (opt.onPrivacy) opt.onPrivacy(false, what == "local" ? "local" : "failed");
+    if (auto s = current(); s && !s->closed) {
+        json m = p84State(s);
+        m["why"] = what == "local" ? "local" : "failed";
+        sendDc(s, m);
+    }
+}
+
+void Host::Impl::house084() {
+    if (privacy.running()) privacy.beat();
+    {
+        std::lock_guard<std::mutex> lk(privMu);
+        privacy.reap();
+    }
+    if (!privacyWant) return;
+    auto s = current();
+    std::string sid;
+    {
+        std::lock_guard<std::mutex> lk(privLockMu);
+        sid = privacySession;
+    }
+    const std::string w = privacyWhyNot(s);
+    if (!s || s->id != sid) privacySet(nullptr, false, "ended", nullptr);
+    else if (!w.empty()) privacySet(s, false, w, nullptr);  // e.g. 僅觀看 switched on at the PC
+}
+
+bool Host::setPrivacy(bool on, std::string* why) {
+    Impl& d = *d_;
+    if (!on) return d.privacySet(nullptr, false, "pc", why);
+    return d.privacySet(d.current(), true, "pc", why);
+}
+bool Host::privacyOn() const { return d_->privacy.running(); }
+
+// ---- 電腦的檔案 ----
+std::vector<PcRoot> Host::Impl::pcRootsNow() {
+    std::vector<std::wstring> extra;
+    {
+        std::lock_guard<std::mutex> lk(pcfMu);
+        extra = pcExtra;
+    }
+    return pcRoots(opt.pcShotDir, opt.pcRecDir, extra, opt.pcFilesTestRoots);
+}
+
+const char* Host::Impl::pcfsWhyNot(const std::shared_ptr<Session>& s) {
+    if (!pcFilesOn) return "off";
+    if (!s || s->closed) return "no-session";
+    // 僅觀看 never; a 臨時帳號 only while the PC's own switch for it is on (independent of its 傳檔 right); 主帳號 always
+    if (vo(s)) return "viewOnly";
+    if (s->guest() && !pcGuestOn) return "guestOff";
+    return "";
+}
+
+void Host::setPcFiles(bool on, const std::vector<std::wstring>& extra, bool guestOn) {
+    Impl& d = *d_;
+    d.pcGuestOn = guestOn;
+    {
+        std::lock_guard<std::mutex> lk(d.pcfMu);
+        d.pcExtra = extra;
+    }
+    d.pcFilesOn = on;
+    logf("pcfiles: %s, %zu extra folder(s), 臨時帳號 %s", on ? "on" : "off", extra.size(), guestOn ? "may" : "may not");
+    if (auto s = d.current(); s && !s->closed) d.sendDc(s, d.p84State(s));
+}
+
+void Host::Impl::on084(const std::shared_ptr<Session>& s, const std::string& t, const json& j) {
+    if (t == "p84-get") return sendDc(s, p84State(s));
+    if (t == "privacy") {
+        const bool on = j.value("on", false);
+        std::string why;
+        if (!privacySet(on ? s : nullptr, on, "phone", &why)) {
+            json m = p84State(s);
+            m["ok"] = false, m["why"] = why;
+            sendDc(s, m);
+        }
+        return;
+    }
+    auto str = [&](const char* k) { return j.contains(k) && j[k].is_string() ? j[k].get<std::string>() : std::string(); };
+    if (const char* why = pcfsWhyNot(s); *why) {
+        logf("pcfiles: %s refused for %s (%s)", t.c_str(), s->peer.c_str(), why);
+        if (!strcmp(why, "guestOff")) pcGuestDenied(s, t == "pcfs-get" ? "download" : "list");
+        sendDc(s, json{{"t", "pcfs-err"}, {"why", why}, {"for", t}});
+        return;
+    }
+    const std::vector<PcRoot> roots = pcRootsNow();
+    if (t == "pcfs-roots") {
+        json list = json::array();
+        for (const PcRoot& r : roots) list.push_back(json{{"id", r.id}, {"kind", r.kind}, {"label", r.label}});
+        sendDc(s, json{{"t", "pcfs-roots"}, {"roots", list}});
+        return;
+    }
+    const std::string root = str("root"), path = str("path");
+    if (t == "pcfs-list") {
+        std::vector<PcEntry> entries;
+        bool more = false;
+        const PcPathErr e = listPcDir(roots, root, path, entries, more);
+        if (e != PcPathErr::Ok) {
+            logf("pcfiles: %s: list %s/%s refused (%s)", s->peer.c_str(), root.substr(0, 20).c_str(), path.substr(0, 200).c_str(), pcPathErrName(e));
+            sendDc(s, json{{"t", "pcfs-list"}, {"root", root}, {"path", path}, {"err", pcPathErrName(e)}});
+            return;
+        }
+        json m{{"t", "pcfs-list"}, {"root", root}, {"path", path}, {"more", more}};
+        json arr = json::array();
+        size_t msgBytes = 200;
+        for (const PcEntry& x : entries) {
+            json o{{"n", x.name}, {"d", x.dir}, {"s", x.size}, {"m", x.mtime}};
+            msgBytes += o.dump().size() + 1;
+            if (msgBytes > 200 * 1024) {  // one DataChannel message (the browsers take 256 KB)
+                m["more"] = true;
+                break;
+            }
+            arr.push_back(std::move(o));
+        }
+        m["entries"] = std::move(arr);
+        logf("pcfiles: %s lists %s/%s (%zu)", s->peer.c_str(), root.c_str(), path.c_str(), entries.size());
+        sendDc(s, m);
+        return;
+    }
+    if (t == "pcfs-get") {
+        json list = json::array();
+        const int64_t now = nowUs();
+        int n = 0;
+        if (j.contains("items") && j["items"].is_array())
+            for (const auto& it : j["items"]) {
+                if (!it.is_string() || ++n > 20) break;  // a few at a time (the page asks again for more)
+                const std::string rel = it.get<std::string>();
+                std::wstring canon;
+                const PcRoot* r = nullptr;
+                const PcPathErr e = resolvePcPath(roots, root, rel, false, canon, &r);
+                if (e != PcPathErr::Ok) {
+                    logf("pcfiles: %s: download %s/%s refused (%s)", s->peer.c_str(), root.substr(0, 20).c_str(), rel.substr(0, 200).c_str(), pcPathErrName(e));
+                    list.push_back(json{{"p", rel}, {"err", pcPathErrName(e)}});
+                    continue;
+                }
+                WIN32_FILE_ATTRIBUTE_DATA fa{};
+                GetFileAttributesExW(canon.c_str(), GetFileExInfoStandard, &fa);
+                const uint64_t size = (uint64_t(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
+                const size_t slash = canon.find_last_of(L'\\');
+                Download d{canon, narrow(slash == std::wstring::npos ? canon : canon.substr(slash + 1)), s->id, now + 600000000LL};
+                d.kind = "pc", d.what = r->kind + (r->kind == "extra" ? ":" + r->label : std::string()) + "/" + rel;
+                const std::string key = randomString(24);
+                list.push_back(json{{"p", rel}, {"n", d.name}, {"s", size}, {"k", key}});
+                std::lock_guard<std::mutex> lk(fmu);
+                downloads.emplace(key, std::move(d));
+            }
+        sendDc(s, json{{"t", "pcfs-keys"}, {"root", root}, {"list", list}});
+        return;
+    }
+}
+
+// A 臨時帳號 asked for PC files while the PC does not allow it: into the 連線紀錄 (kind "denied"), at most one row per 5 s.
+void Host::Impl::pcGuestDenied(const std::shared_ptr<Session>& s, const char* what) {
+    const int64_t now = nowUs();
+    const int64_t last = s->pcDeniedLogUs.load();
+    if (last && now - last < 5000000) return;
+    s->pcDeniedLogUs = now;
+    if (opt.onDownload) opt.onDownload(s->toPeer(), std::string("pc-guest:") + what, 0, "denied");
+}
+
+// GET dl/<key> passed its checks (download()): a PC file is checked again where it is now (a link put in
+// its place since it was offered would lead elsewhere), the download goes into the 連線紀錄, and the
+// page sees its progress.
+void Host::Impl::dl084(const std::shared_ptr<Session>& s, const Download& d, const std::string& key, HttpServer::Response& resp) {
+    if (d.kind == "pc") {
+        const std::wstring now = finalPath(d.path);
+        bool inside = false;
+        for (const PcRoot& r : pcRootsNow()) inside |= underRoot(r.path, now);
+        if (s->guest() && !pcGuestOn) {  // the PC switched 臨時帳號 off after the key was handed out
+            logf("pcfiles: %s: \"%s\" refused at download (臨時帳號 may not)", s->peer.c_str(), d.what.c_str());
+            pcGuestDenied(s, "download");
+            resp = HttpServer::Response{403, "text/plain", "this file is no longer allowed"};
+            return;
+        }
+        if (!pcFilesOn || now.empty() || now != d.path || !inside) {
+            logf("pcfiles: %s: \"%s\" refused at download (moved / no longer allowed)", s->peer.c_str(), d.what.c_str());
+            resp = HttpServer::Response{403, "text/plain", "this file is no longer allowed"};
+            return;
+        }
+    }
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    GetFileAttributesExW(d.path.c_str(), GetFileExInfoStandard, &fa);
+    const uint64_t size = (uint64_t(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
+    if (opt.onDownload) opt.onDownload(s->toPeer(), d.kind == "pc" ? d.what : d.name, size, d.kind);
+    std::weak_ptr<Session> ws = s;
+    auto last = std::make_shared<int64_t>(0);
+    resp.progress = [this, ws, key, last](uint64_t got, uint64_t total, bool end) {
+        const int64_t t = nowUs();
+        if (!end && t - *last < 250000) return;  // 4 a second
+        *last = t;
+        if (auto sp = ws.lock(); sp && !sp->closed) sendDc(sp, json{{"t", "pcfs-prog"}, {"k", key}, {"got", got}, {"total", total}, {"end", end}});
+        if (end) logf("files: download %s: %llu of %llu bytes sent", got == total ? "done" : "ended early", (unsigned long long)got, (unsigned long long)total);
+    };
 }
 
 }  // namespace pm::remote

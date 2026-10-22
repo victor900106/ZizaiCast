@@ -82,13 +82,6 @@ void closeEmptyTranslation(int tries) {
     returnToLive("ended without a result");
 }
 
-// 線上翻譯（選用）: the translator may go online only as the user saved it
-// (online_translate.h activeMode() also checks consent, key and back-off);
-// never in --dev --test-no-network runs. At start and after every save.
-void applyOnlineAllowed() {
-    if (g.translator) g.translator->setOnlineAllowed(!g.testNoNetwork && pm::ui::trset::onlineEnabled());
-}
-
 void createTranslator() {
     pm::translate::ScreenTranslator::Callbacks cb;
     cb.askDownload = translatorAskDownload;
@@ -106,12 +99,6 @@ void createTranslator() {
         // do not leave the picture frozen with an empty overlay.
         if (!ok) closeEmptyTranslation(0);
         if (ok && g.translator) {
-            // 「線上」 badges on the blocks translated online (ARCHITECTURE.md §3.7.3).
-            std::vector<std::wstring> online;
-            for (const auto& it : g.translator->lastItems())
-                if (it.online) online.push_back(it.original);
-            if (!online.empty()) g.log->write("info", "translate: " + std::to_string(online.size()) + " block(s) translated online");
-            g.window->setTextOverlayOnline(std::move(online));
             if (t.source != pm::translate::Lang::Unknown) {
                 const std::string last = toUtf8(pm::translate::langTag(t.source));
                 if (last != g.settings.translateLast) {
@@ -120,16 +107,10 @@ void createTranslator() {
                 }
             }
         }
-        // An online failure (quota, bad key, no connection): said once per new state.
-        if (const std::wstring t = pm::ui::trset::onlineToast(); !t.empty()) {
-            g.log->write("warn", "translate: online " + toUtf8(t));
-            g.window->showToast(t, 5000);
-        }
     };
     g.translator = std::make_unique<pm::translate::ScreenTranslator>(*g.window, std::move(cb));
     g.window->setTextOverlayStyle(g.settings.translateLayout, g.settings.translateDark);
     g.translator->setTarget(translateTarget());
-    applyOnlineAllowed();
     std::wstring err;
     if (!pm::translate::Engine::available(&err)) g.log->write("warn", "translate: engine unavailable: " + toUtf8(err));
 }

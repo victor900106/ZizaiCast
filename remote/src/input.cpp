@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <vector>
 
 #include "coords.h"
@@ -27,7 +28,19 @@ bool keyVk(const std::string& k, WORD& vk, bool& ext) {
                              {"PageDown", VK_NEXT, true},    {"Insert", VK_INSERT, true},    {" ", VK_SPACE, false},
                              {"Space", VK_SPACE, false},     {"Control", VK_CONTROL, false}, {"Alt", VK_MENU, false},
                              {"Shift", VK_SHIFT, false},     {"Meta", VK_LWIN, true},        {"PrintScreen", VK_SNAPSHOT, true},
-                             {"ContextMenu", VK_APPS, true}};
+                             {"ContextMenu", VK_APPS, true},
+                             // 0.8.4 custom keys: media keys, lock keys, the punctuation keys (KeyboardEvent.key names)
+                             {"AudioVolumeUp", VK_VOLUME_UP, false},         {"AudioVolumeDown", VK_VOLUME_DOWN, false},
+                             {"AudioVolumeMute", VK_VOLUME_MUTE, false},     {"MediaPlayPause", VK_MEDIA_PLAY_PAUSE, false},
+                             {"MediaTrackNext", VK_MEDIA_NEXT_TRACK, false}, {"MediaTrackPrevious", VK_MEDIA_PREV_TRACK, false},
+                             {"MediaStop", VK_MEDIA_STOP, false},            {"CapsLock", VK_CAPITAL, false},
+                             {"NumLock", VK_NUMLOCK, true},                  {"ScrollLock", VK_SCROLL, false},
+                             {"Pause", VK_PAUSE, false},                     {"-", VK_OEM_MINUS, false},
+                             {"=", VK_OEM_PLUS, false},                      {"[", VK_OEM_4, false},
+                             {"]", VK_OEM_6, false},                         {"\\", VK_OEM_5, false},
+                             {";", VK_OEM_1, false},                         {"'", VK_OEM_7, false},
+                             {"`", VK_OEM_3, false},                         {",", VK_OEM_COMMA, false},
+                             {".", VK_OEM_PERIOD, false},                    {"/", VK_OEM_2, false}};
     for (const K& x : keys)
         if (k == x.name) return vk = x.vk, ext = x.ext, true;
     ext = false;
@@ -36,9 +49,11 @@ bool keyVk(const std::string& k, WORD& vk, bool& ext) {
         if (c >= 'a' && c <= 'z') return vk = WORD(c - 'a' + 'A'), true;
         if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) return vk = WORD(c), true;
     }
-    if (k.size() >= 2 && k.size() <= 3 && k[0] == 'F') {  // F1..F12
-        const int n = atoi(k.c_str() + 1);
-        if (n >= 1 && n <= 12) return vk = WORD(VK_F1 + n - 1), true;
+    if (k.size() >= 2 && k.size() <= 3 && k[0] == 'F') {  // F1..F24 (0.8.4: was F12)
+        bool digits = true;
+        for (size_t i = 1; i < k.size(); ++i) digits = digits && k[i] >= '0' && k[i] <= '9';
+        const int n = digits ? atoi(k.c_str() + 1) : 0;
+        if (n >= 1 && n <= 24) return vk = WORD(VK_F1 + n - 1), true;
     }
     return false;
 }
@@ -58,16 +73,35 @@ void mouseFlagsName(DWORD f, std::string& out) {
 
 }  // namespace
 
+// 0.8.4: Windows refused a SendInput. Owner log (0.7.12, 2026-10-20 22:57:46-22:58:00): 248 lines, one per
+// refused pointer move. Now the first of a run is logged, the rest counted (flushLog), the phone told once.
+void InputInjector::refused(DWORD err, const char* what) {
+    ++deniedSends_;
+    if (deniedUnlogged_++ == 0)
+        logf("input: SendInput(%s) refused by Windows (error %lu; an administrator's window in the foreground, or the secure desktop)", what, err);
+    if (err != ERROR_ACCESS_DENIED) return;
+    Target t = lookTarget(true);  // what decides it: the foreground window / the input desktop
+    if (!t.secure && !t.higher) t = Target{}, t.higher = true;  // Windows said no, our look-up does not see why
+    notice(t, "input", "refused");
+}
+
+// 0.8.4: is this a key name the table above knows (custom_keys.cpp checks the buttons the phone saves against it)?
+bool keyNameKnown(const std::string& k) {
+    WORD vk = 0;
+    bool ext = false;
+    return keyVk(k, vk, ext);
+}
+
 // Every event goes out here. stub: logged, never sent (tests).
 UINT InputInjector::sendInputs(UINT n, INPUT* in, const char* what) {
     if (!stub_) {
         const UINT sent = SendInput(n, in, sizeof(INPUT));
-        if (sent != n) {
-            const DWORD err = GetLastError();
-            logf("input: SendInput(%s) failed (error %lu; the window may run as administrator)", what, err);
-            if (err == ERROR_ACCESS_DENIED && onBlocked) onBlocked("admin", "");
-        }
+        if (sent != n) refused(GetLastError(), what);
         return sent;
+    }
+    if (stubRefuse && stubRefuse()) {  // tests: as if Windows refused it (an administrator's window in front)
+        refused(ERROR_ACCESS_DENIED, what);
+        return 0;
     }
     for (UINT i = 0; i < n; ++i) {
         const INPUT& x = in[i];
@@ -160,7 +194,7 @@ bool InputInjector::allowed(bool keyboard) {
 // (a program run as administrator) or to the secure desktop (UAC prompt, lock screen):
 // SendInput even reports success. So the target is checked before a click / key: the window
 // under the pointer (mouse) or the foreground window (keys), its process' integrity level
-// against ours. The phone is told (onBlocked, at most once per 3 s per program).
+// against ours. The phone is told (onBlocked; 0.8.4: once per window, see notice()).
 
 static DWORD processIntegrity(HANDLE process, bool& denied) {
     denied = false;
@@ -181,6 +215,34 @@ static DWORD processIntegrity(HANDLE process, bool& denied) {
     return rid;
 }
 
+// The process behind one top-level window: its program and whether its integrity level is above `own`.
+InputInjector::Target InputInjector::probeWindow(HWND w, DWORD own) {
+    Target t;
+    if (!w) return t;
+    w = GetAncestor(w, GA_ROOT);
+    t.win = reinterpret_cast<uintptr_t>(w);
+    DWORD pid = 0;
+    GetWindowThreadProcessId(w, &pid);
+    t.pid = pid;
+    if (!pid || pid == GetCurrentProcessId()) return t;
+    HANDLE p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (p) {
+        wchar_t path[MAX_PATH] = {};
+        DWORD n = MAX_PATH;
+        if (QueryFullProcessImageNameW(p, 0, path, &n)) {
+            const wchar_t* base = wcsrchr(path, L'\\');
+            t.exe = narrow(base ? base + 1 : path);
+        }
+        bool denied = false;
+        const DWORD rid = processIntegrity(p, denied);
+        t.higher = denied || (rid && own && rid > own);
+        CloseHandle(p);
+    } else {
+        t.higher = GetLastError() == ERROR_ACCESS_DENIED;  // a protected / elevated process
+    }
+    return t;
+}
+
 InputInjector::Target InputInjector::realTarget(bool keyboard, POINT at) {
     Target t;
     // the secure desktop (UAC prompt, lock screen, Ctrl+Alt+Del screen): no input reaches it
@@ -198,55 +260,66 @@ InputInjector::Target InputInjector::realTarget(bool keyboard, POINT at) {
     w = GetAncestor(w, GA_ROOT);
     DWORD pid = 0;
     GetWindowThreadProcessId(w, &pid);
-    t.pid = pid;
-    if (!pid || pid == GetCurrentProcessId()) return t;
     const int64_t now = nowUs();
     for (auto& c : ilCache_)
         if (c.pid == pid && now - c.atUs < 2000000) {
-            t.higher = c.higher, t.exe = c.exe;
+            t.pid = pid, t.win = reinterpret_cast<uintptr_t>(w), t.higher = c.higher, t.exe = c.exe;
             return t;
         }
-    HANDLE p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (p) {
-        wchar_t path[MAX_PATH] = {};
-        DWORD n = MAX_PATH;
-        if (QueryFullProcessImageNameW(p, 0, path, &n)) {
-            const wchar_t* base = wcsrchr(path, L'\\');
-            t.exe = narrow(base ? base + 1 : path);
-        }
-        bool denied = false;
-        const DWORD rid = processIntegrity(p, denied);
-        t.higher = denied || (rid && ownIntegrity_ && rid > ownIntegrity_);
-        CloseHandle(p);
-    } else {
-        t.higher = GetLastError() == ERROR_ACCESS_DENIED;  // a protected / elevated process
-    }
+    t = probeWindow(w, ownIntegrity_);
+    if (!t.pid || t.pid == GetCurrentProcessId()) return t;
     if (ilCache_.size() > 16) ilCache_.erase(ilCache_.begin());
-    ilCache_.push_back({pid, now, t.higher, t.exe});
+    ilCache_.push_back({t.pid, now, t.higher, t.exe});
     return t;
 }
 
 DWORD InputInjector::integrityOf(HANDLE process, bool& denied) { return processIntegrity(process, denied); }
 
+void InputInjector::ensureOwnIntegrity() {
+    if (ownIntegrity_) return;
+    bool denied = false;
+    ownIntegrity_ = processIntegrity(GetCurrentProcess(), denied);
+    if (!ownIntegrity_) ownIntegrity_ = SECURITY_MANDATORY_MEDIUM_RID;
+}
+
+InputInjector::Target InputInjector::lookTarget(bool keyboard) {
+    ensureOwnIntegrity();
+    return targetProbe ? targetProbe(keyboard, cursorPos()) : realTarget(keyboard, cursorPos());
+}
+
 void InputInjector::checkTarget(bool keyboard) {
-    if (!ownIntegrity_) {
-        bool denied = false;
-        ownIntegrity_ = processIntegrity(GetCurrentProcess(), denied);
-        if (!ownIntegrity_) ownIntegrity_ = SECURITY_MANDATORY_MEDIUM_RID;
+    const Target t = lookTarget(keyboard);
+    if (!t.secure) {  // back on the normal desktop: the next visit to the secure one is told again
+        auto it = std::find(noticed_.begin(), noticed_.end(), std::string("#secure"));
+        if (it != noticed_.end()) noticed_.erase(it);
     }
-    const Target t = targetProbe ? targetProbe(keyboard, cursorPos()) : realTarget(keyboard, cursorPos());
     if (!t.secure && !t.higher) return;
-    const int64_t now = nowUs();
-    const std::string key = t.secure ? std::string("#secure") : t.exe + "#" + std::to_string(t.pid);
-    if (key == lastBlockedKey_ && now - lastBlockedUs_ < 3000000) return;
-    lastBlockedKey_ = key, lastBlockedUs_ = now;
+    notice(t, keyboard ? "key" : "click", "not delivered");
+}
+
+// 0.8.4: once per window (per visit to the secure desktop) for this phone.
+void InputInjector::notice(const Target& t, const char* what, const char* how) {
+    char win[32] = "";
+    if (!t.secure) std::snprintf(win, sizeof win, "%llx", static_cast<unsigned long long>(t.win ? t.win : t.pid));
+    const std::string key = t.secure ? std::string("#secure") : t.exe + "#" + std::to_string(t.pid) + "#" + win;
+    if (std::find(noticed_.begin(), noticed_.end(), key) != noticed_.end()) return;
+    if (noticed_.size() >= 64) noticed_.erase(noticed_.begin());
+    noticed_.push_back(key);
     ++uipiBlocked_;
     if (t.secure)
-        logf("input: the PC shows the secure desktop (UAC prompt / lock screen): %s not delivered (Windows blocks it)", keyboard ? "key" : "click");
+        logf("input: the PC shows the secure desktop (UAC prompt / lock screen): %s %s (Windows blocks it; the phone is told once)",
+             what, how);
     else
-        logf("input: %s runs as administrator (integrity above ours): %s not delivered (UIPI)", t.exe.empty() ? "the window" : t.exe.c_str(),
-             keyboard ? "key" : "click");
-    if (onBlocked) onBlocked(t.secure ? "secure" : "admin", t.exe);
+        logf("input: %s runs as administrator (integrity above ours): %s %s (UIPI; the phone is told once for this window)",
+             t.exe.empty() ? "the window" : t.exe.c_str(), what, how);
+    if (onBlocked) onBlocked(t.secure ? "secure" : "admin", t.exe, win);
+}
+
+void InputInjector::resetNotices(const std::string& device) {
+    std::lock_guard<std::mutex> lk(mu_);
+    if (device == noticeDevice_) return;
+    noticeDevice_ = device;
+    noticed_.clear();
 }
 
 // Absolute target in virtual-desktop pixels -> SendInput (normalised to the
@@ -389,7 +462,7 @@ bool InputInjector::combo(const std::vector<std::string>& keys) {
         if (has("Control") && has("Alt") && has("Delete")) {  // 0.8.3.5: the secure attention sequence
             std::lock_guard<std::mutex> lk(mu_);
             logf("input: Ctrl+Alt+Del cannot be sent by any program (Windows' secure attention sequence)");
-            if (onBlocked) onBlocked("sas", "");
+            if (onBlocked) onBlocked("sas", "", "");
             return true;
         }
     }
@@ -514,7 +587,7 @@ bool InputInjector::physKey(const std::string& code, bool down) {
     // ignored), so say so instead of pretending.
     if (code == "Delete" && held("ControlLeft", "ControlRight") && held("AltLeft", "AltRight")) {
         logf("input: Ctrl+Alt+Del cannot be sent by any program (Windows' secure attention sequence)");
-        if (onBlocked) onBlocked("sas", "");
+        if (onBlocked) onBlocked("sas", "", "");
         return true;
     }
     if (it == keysHeld_.end()) {
@@ -555,6 +628,8 @@ void InputInjector::flushLog(bool force) {
     keyDowns_ = 0;
     if (absN_) logf("input%s: pointer placed x%d (last at %ld,%ld)", mode, absN_, lastAbs_.x, lastAbs_.y);
     if (wheelN_) logf("input%s: wheel x%d, total dx=%.0f dy=%.0f", mode, wheelN_, wheelDx_, wheelDy_);
+    if (deniedUnlogged_ > 1) logf("input: %lld more SendInput refused by Windows (administrator window / secure desktop)", (long long)(deniedUnlogged_ - 1));
+    deniedUnlogged_ = 0;
     moveN_ = wheelN_ = absN_ = 0;
     moveDx_ = moveDy_ = wheelDx_ = wheelDy_ = 0;
 }

@@ -241,7 +241,11 @@ const L = readLog();
 fs.writeFileSync(path.join(outDir, 'app-remote.log'), L.split('\n').filter(l => /remote|dev remote/.test(l)).join('\n'));
 const checks = [
   ['turned on, URL with the kept token and port', results.on && L.includes(`:${port}/${token}/`)],
-  ['QR panel shots (LAN + Tailscale tab)', fs.existsSync(path.join(outDir, '1-on_remote_panel.png')) && fs.existsSync(path.join(outDir, '1-on_remote_panel_ts.png'))],
+  // 0.8.2 / 0.8.3.6: at idle the QR codes are on the main window's 遠端控制 page, so turning on opens no small panel (no 1-on shot);
+  // the small panel (LAN + Tailscale tab) only comes over a live phone picture (3b-panel-reopened).
+  ['QR: no small panel at idle (the 遠端控制 page has the codes); the small panel (LAN + Tailscale tab) shots over a live picture',
+   !fs.existsSync(path.join(outDir, '1-on_remote_panel.png')) && /dev remote shots: panel -/.test(L) &&
+   fs.existsSync(path.join(outDir, '3b-panel-reopened_remote_panel.png')) && fs.existsSync(path.join(outDir, '3b-panel-reopened_remote_panel_ts.png'))],
   ['new phone waits for 允許 on the PC', results.pending === true && results.askLogged === true],
   ['允許 dialog shot', fs.existsSync(path.join(outDir, '2-ask_remote_ask.png'))],
   ['picture plays after 允許', results.playing === true],
@@ -255,7 +259,11 @@ const checks = [
   ['turned off', results.offLogged === true],
   ['0.8.3.6 中斷 took the phone off the 記住 list (remote_devices.txt gone)', results.forgottenOnKick === true],
   ['0.8.3.6 ... so after on again it asks 允許 again, then plays', results.askedAfterForget === true && results.rememberedStraightIn === true],
-  ['0.8.1 QR panel closes when the phone connects (both times)', results.panelClosed === true && results.panelClosedAgain === true],
+  // 0.8.1 closed the small panel when a phone came in; since 0.8.2 it is not open at idle, so nothing is in front of the picture
+  // at either connection (no panel shot with the ask / the connected banner; no 'QR panel closed' needed).
+  ['0.8.2 no small QR panel in front of the picture of the phone when it connects (both times)',
+   results.panelClosed === false && results.panelClosedAgain === false && !fs.existsSync(path.join(outDir, '2-ask_remote_panel.png')) &&
+   !fs.existsSync(path.join(outDir, '3-connected_remote_panel.png')) && !fs.existsSync(path.join(outDir, '5-again_remote_panel.png'))],
   ['0.8.1 menu 關閉 right after a phone click: refused', results.menuAfterClickRefused === true],
   ['0.8.1 phone-tagged clicks refused: banner 中斷/僅觀看, menu, QR panel 關閉遠端操控',
    results.bannerRefused === true && results.menuTagRefused === true && results.panelRefused === true],

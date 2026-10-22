@@ -73,11 +73,10 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   New in 0.7:
   - Magnifier: right-click menu → "Magnifier" ("Zoom" in the toolbar). Ctrl+= zoom in, Ctrl+- zoom out (up to 8×), Ctrl+Shift+0 back to 1×;
     Ctrl+wheel zooms where the pointer is; drag to move around (Ctrl+drag while controlling an Android phone).
-    High contrast (Ctrl+K cycles): Original colours / More contrast / Greyscale / Invert colours / Yellow on black.
     Freeze picture (Ctrl+P): holds the picture still on the PC while the phone carries on.
   - Translate: right-click menu → "Translate" ("Translate" in the toolbar). Translate the whole screen (Ctrl+L, again to close), Translate a selected area
     (Ctrl+Shift+L), Show original (Ctrl+O, available after translating), Live translation (re-translates when the screen changes), Translate into: 繁體中文 / English / 日本語 / 한국어,
-    Show translations: Automatic / Over the text / List, Advanced translation settings (Local AI translation…, Online translation (optional)…, Manage translation models; not needed for everyday use).
+    Show translations: Automatic / Over the text / List, Advanced translation settings (Local AI translation…, Manage translation models; not needed for everyday use).
     Runs offline on this PC, nothing is sent to the internet; the first time it asks, then downloads a model (about 50 MB per direction).
     Japanese/Korean not recognised: Windows Settings → Time & language → Language & region → Add a language, tick only "Optical character recognition".
   - Send to phone: after a screenshot or recording click "Send to phone" (also in the right-click menu under "Send to phone"). Android (wireless debugging): straight into the gallery;

@@ -24,7 +24,6 @@ bool needPicture();
 void zoomBy(int steps);
 void zoomReset();
 void magnifierCycle();
-void setFilterOption(int f, bool toast = true);
 void toggleFreeze();
 
 // ---- translate/translate_actions.cpp
@@ -52,7 +51,6 @@ void openModelsFolder();
 void translatorAskDownload(pm::translate::Lang src, pm::translate::Lang tgt, double mb, std::function<void(bool)> answer);
 void translatorNotify(const std::wstring& title, const std::wstring& text, bool important);
 void closeEmptyTranslation(int tries);
-void applyOnlineAllowed();
 void createTranslator();
 
 }  // namespace pm_app

@@ -59,9 +59,12 @@ void refreshIdleHints() {
     // Cannot be fixed with a click or a restart: the other Android way.
     if (andOk && (why == MiraOldWindows || why == MiraPolicy || why == MiraNoWifi || why == MiraOther))
         miraNote += L"\n" + std::wstring(tr(S::CardCastAlt));
+    // 0.8.4: a PC that cannot receive Miracast has no 「Android 只要看」 card at all (not greyed): two cards
+    const bool showCast = !(g.testWays < 0 && g.miracastUnsupported);
+    const int adbCard = showCast ? 2 : 1;
     std::vector<IC> cards;
     cards.push_back(IC{tr(S::CardIphoneTitle), fmt(S::CardIphoneBody, {g.name}), L"", false});
-    cards.push_back(IC{tr(S::CardCastTitle), fmt(S::CardCastBody, {g.name}), miraNote, why != MiraOn});
+    if (showCast) cards.push_back(IC{tr(S::CardCastTitle), fmt(S::CardCastBody, {g.name}), miraNote, why != MiraOn});
     cards.push_back(IC{tr(S::CardAdbTitle), tr(S::CardAdbBody), andOk ? L"" : tr(S::CardAdbMissing), !andOk});
     g.window->setIdleCards(std::move(cards));
     // Actions: each card's button first (the video window draws actions on
@@ -69,7 +72,7 @@ void refreshIdleHints() {
     // tutorial in the row under the cards.
     std::vector<IA> actions = std::move(tabs);
     actions.push_back({tr(S::CardSteps), true, []() { openTutorial(L"iphone"); }, 0});
-    switch (why) {
+    if (showCast) switch (why) {
     case MiraOn: actions.push_back({tr(S::CardSteps), true, []() { openTutorial(L"miracast"); }, 1}); break;
     case MiraOff: {
         const HWND h = g.hwnd;  // posted: the window is inside its own click handling
@@ -79,8 +82,8 @@ void refreshIdleHints() {
     case MiraFeature: actions.push_back({tr(S::CardHowInstall), false, []() { openTutorial(L"faq-miracast"); }, 1}); break;
     default: actions.push_back({tr(S::CardWhy), false, []() { openTutorial(L"faq-miracast"); }, 1}); break;
     }
-    if (andOk) actions.push_back({tr(S::CardShowQr), true, []() { openPairPanel(); }, 2});
-    else actions.push_back({tr(S::CardReinstall), false, []() { openDownloadPage(); }, 2});
+    if (andOk) actions.push_back({tr(S::CardShowQr), true, []() { openPairPanel(); }, adbCard});
+    else actions.push_back({tr(S::CardReinstall), false, []() { openDownloadPage(); }, adbCard});
     if (const std::string ver = offerVersion(); !ver.empty()) {
         const HWND h = g.hwnd;  // posted: the window is inside its own click handling
         actions.push_back({fmt(S::MenuUpdateTo, {toWide(ver)}), true,

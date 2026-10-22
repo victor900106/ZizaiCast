@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/base/base.h"
+#include "core/base/log_throttle.h"
 
 namespace pm_app {
 
@@ -10,7 +11,7 @@ class Log {
 public:
     // 0.8.3: phonemirror.log is rotated while the program runs too (it used to be checked only at
     // start): over kMaxBytes it becomes phonemirror.old.log, the older ones shift to .old2.log and
-    // .old3.log, the oldest is deleted. At most kKeep + 1 files of kMaxBytes each (4 x 4 MB).
+    // .old3.log, the oldest is deleted. At most kKeep + 1 files of kMaxBytes each (4 x 4 MB). (0.8.4: unchanged; lines are thinned out first, see log_throttle.h.)
     static constexpr std::uintmax_t kMaxBytes = 4u << 20;
     static constexpr int kKeep = 3;
 
@@ -46,7 +47,19 @@ public:
         localtime_s(&tm, &t);
         char ts[32];
         std::strftime(ts, sizeof ts, "%Y-%m-%d %H:%M:%S", &tm);
-        std::string line = std::string(ts) + " [" + level + "] " + msg + "\n";
+        // 0.8.4: chatty / identical lines are thinned out (see log_throttle.h)
+        const LogThrottle::Verdict v = throttle_.check(level, msg, static_cast<int64_t>(t));
+        if (!v.write) return;
+        std::string line;
+        if (v.flushDup)
+            line += std::string(ts) + " [info] (the line above was repeated " + std::to_string(v.flushDup) + " more times)\n";
+        line += std::string(ts) + " [" + level + "] " + msg;
+        if (v.suppressed)
+            line += " (+" + std::to_string(v.suppressed) + " similar lines left out in the last " +
+                    std::to_string(v.ruleSeconds) + " s)";
+        else if (v.dupNow)
+            line += " (+" + std::to_string(v.dupNow) + " identical lines left out)";
+        line += "\n";
         if (bytes_ + line.size() >= kMaxBytes && out_.is_open()) {  // rotate now, then this line opens the new file
             out_.close();
             rotate(file_, true);
@@ -64,6 +77,7 @@ private:
     std::uintmax_t bytes_ = 0;
     std::mutex mu_;
     std::ofstream out_;
+    LogThrottle throttle_;
 };
 
 }  // namespace pm_app

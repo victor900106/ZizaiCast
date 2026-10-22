@@ -80,31 +80,6 @@ void Renderer::setTextOverlay(std::vector<TextBox> boxes) {
     ovHits_ = {};
 }
 
-void Renderer::setTextOverlayOnline(const std::vector<std::wstring>& originals) {
-    bool changed = false;
-    for (TextBox& b : boxes_) {
-        const bool on = std::find(originals.begin(), originals.end(), b.original) != originals.end();
-        changed |= on != b.online;
-        b.online = on;
-    }
-    if (changed) ovValid_ = false;  // list rows grow by the badge
-}
-
-D2D1_SIZE_F Renderer::onlineBadge(float x, float y, float fs, bool right, bool yellowMode, bool draw) {
-    auto l = layout(tr(S::TrOnlineBadge), fs, 400, DWRITE_FONT_WEIGHT_SEMI_BOLD, false);
-    if (!l) return {0, 0};
-    const float tw = textW(l.Get()), th = textH(l.Get());
-    const float w = std::ceil(tw) + fs * 1.0f, h = th + fs * 0.2f;
-    if (!draw) return {w, h};
-    const float left = right ? x - w : x;
-    l->SetMaxWidth(std::ceil(tw) + 2);
-    d2dTarget_->FillRoundedRectangle({{left, y, left + w, y + h}, h / 2, h / 2},
-                                     brush(yellowMode ? D2D1::ColorF(1, 0.92f, 0.1f) : pal_.accent, 0.94f));
-    d2dTarget_->DrawTextLayout({left + fs * 0.5f, y + fs * 0.1f}, l.Get(),
-                               brush(yellowMode ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1)));
-    return {w, h};
-}
-
 bool Renderer::setText(const std::wstring& text, float size, float maxW, DWRITE_FONT_WEIGHT weight, bool force, FitCand& c) {
     c = {};
     c.size = size;
@@ -499,10 +474,6 @@ void Renderer::layoutOverlay(const D2D1_RECT_F& pic, float radius) {
                     row.alt.h = textH(row.alt.text.Get());
                     textHgt = std::max(textHgt, row.alt.h);
                 }
-            }
-            if (tb.online) {  // the 「線上」 badge under the text
-                row.badgeY = textHgt + fs * 0.25f;
-                textHgt = row.badgeY + onlineBadge(0, 0, fs * 0.72f, false, false, false).height;
             }
             row.y = y;
             row.h = std::max(badge, textHgt) + fs * 0.7f;

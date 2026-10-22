@@ -63,6 +63,7 @@ void activateRunningInstance(bool background, UINT showMsg, Log& log) {
 using namespace pm_app;
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+    if (const int cover = remotePrivacyChild(); cover >= 0) return cover;  // 0.8.4 隱私黑屏: this process is the cover (no app, no window)
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     std::wstring name;
@@ -221,8 +222,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     pm::ui::warmUp();  // D2D/DWrite factories now, so the first menu opens fast
     applyTheme();             // 主題: idle screen + menus
     applyView(false);         // 畫面: rotation, flip, iPhone frame
-    setFilterOption(g.settings.filter, false);  // 放大鏡 colours (applied to pictures only)
-    {  // 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 panels (app/tr_settings.cpp)
+    {  // 翻譯 ▸ 本機 AI 翻譯 panel (app/tr_settings.cpp)
         pm::ui::trset::Host th;
         th.owner = hwnd;
         th.toast = [](const std::wstring& t) { g.window->showToast(t, 4000); };
@@ -231,7 +231,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             if (g.testOffscreen) g.log->write("info", "test-offscreen: not opened " + toUtf8(url));
             else if (url.rfind(L"https://", 0) == 0) ShellExecuteW(g.hwnd, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         };
-        th.onlineChanged = [] { applyOnlineAllowed(); };
         th.noNetwork = g.testNoNetwork;
         th.offscreen = g.testOffscreen;
         pm::ui::trset::init(std::move(th));
@@ -355,7 +354,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     g.android = &android;
     g_android = &android;
     g.testAndroid = dev && testFeed.source == SrcAndroid && !testFeed.file.empty();
-    g.androidOk = !g.testNoNetwork && android.init(toolsDir.wstring());
+    g.androidOk = !g.testNoNetwork && android.init(toolsDir.wstring(), false);  // 0.8.4: adb starts below (paired) or when the Android menu opens
     if (!g.androidOk && !g.testNoNetwork)
         log.write("warn", "android: tools missing or unusable in " + toUtf8(toolsDir.wstring()));
     if (g.settings.androidPaired < 0) {  // settings from before 0.7.9: has a phone ever connected? (the log says)
@@ -368,6 +367,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         saveSettings();
         log.write("info", std::string("android: ") + (seen ? "paired before (log): auto-reconnect on" : "never paired: no reconnect scans until a pairing"));
     }
+    if (g.androidOk && g.settings.androidPaired == 1) android.warmUp();  // never paired: no adb until the Android menu / a pairing
     if (g.androidOk && !g.testAndroid) {
         tryAndroidReconnect();
         SetTimer(hwnd, kAndroidTimer, kAndroidRetryMs, nullptr);

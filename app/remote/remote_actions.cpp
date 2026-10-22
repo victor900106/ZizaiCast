@@ -8,6 +8,7 @@
 #include "remote/remembered_devices.h"  // 0.8.3.6 記住這台裝置
 
 #include <bcrypt.h>
+#include <shobjidl.h>  // 0.8.4 電腦的檔案: 加入允許的資料夾… (folder picker)
 
 #include <algorithm>
 #include <atomic>
@@ -27,6 +28,7 @@
 #ifdef PM_APP_REMOTE
 #include "pm/remote.h"
 #endif
+#include "remote/cloudflared_addon.h"
 
 namespace pm_app {
 
@@ -58,6 +60,7 @@ struct RemoteState {
     bool on = false;
     unsigned gen = 0;
     std::string askSession, askLabel;  // the session the 允許 / 拒絕 dialog is about, its phone
+    bool privacy = false;  // 0.8.4 隱私黑屏 is on now (the host says so: onPrivacy)
     std::string askDevice;             // 0.8.3.6: ... its device id (中斷 while it is open forgets it)
     bool active = false;        // a phone is connected (banner shown)
     std::string activeSession, activeLabel, activeIp;
@@ -98,10 +101,72 @@ struct RemoteState {
 #ifdef PM_APP_REMOTE
     pm::remote::QuickTunnel fixTunnel;   // fallback when Funnel cannot be used
 #endif
+    // 0.8.4 cloudflared is an add-on fetched at first use (cloudflared_addon.h): one download at a time, wanted by the
+    // 臨時網址 (cfWantTun) and / or the fixed address's fallback (cfWantFix, for fixGen cfFixGen; cfFixWhy = why Funnel failed)
+    std::thread cfThread;
+    std::atomic<bool> cfCancel{false}, cfRunning{false};
+    bool cfWantTun = false, cfWantFix = false;
+    unsigned cfFixGen = 0;
+    std::wstring cfFixWhy;
 };
 RemoteState& R() {
     static RemoteState r;
     return r;
+}
+
+// ---- cloudflared add-on (0.8.4) ----
+std::wstring cfAddonRoot() { return g.settingsFile.parent_path().wstring() + L"\\addons"; }  // <data dir>\addons
+#ifdef PM_APP_REMOTE
+// The cloudflared.exe to run: one next to the app (older installs) or installed on this PC, else the downloaded add-on ("" = none yet).
+std::wstring findCloudflared() {
+    wchar_t me[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, me, MAX_PATH);
+    std::wstring exe;
+    wchar_t only[4] = {};  // --dev tests: PM_CF_ADDON_ONLY=1 = never use a cloudflared that is installed on this PC (only the add-on)
+    const bool addonOnly = g.dev && GetEnvironmentVariableW(L"PM_CF_ADDON_ONLY", only, 4) > 0 && only[0] == L'1';
+    if (!addonOnly) exe = pm::remote::QuickTunnel::findExe(fs::path(me).parent_path().wstring());
+    return exe.empty() ? cfaddon::installedExe(cfAddonRoot()) : exe;
+}
+#endif
+// Nobody waits for the download any more (turned off / stopped): cancel it (the .part is kept for next time).
+void cfRelease(bool tun, bool fix) {
+    RemoteState& r = R();
+    if (tun) r.cfWantTun = false;
+    if (fix) r.cfWantFix = false;
+    if (!r.cfWantTun && !r.cfWantFix && r.cfRunning) r.cfCancel = true;
+}
+void startCfDownload() {
+#ifdef PM_APP_REMOTE
+    RemoteState& r = R();
+    if (r.cfRunning) {
+        r.cfCancel = false;  // wanted again before the cancel was seen
+        return;
+    }
+    if (r.cfThread.joinable()) r.cfThread.join();
+    r.cfCancel = false;
+    r.cfRunning = true;
+    const HWND h = g.hwnd;
+    const std::wstring root = cfAddonRoot();
+    g.log->write("info", "remote: cloudflared add-on: downloading to " + toUtf8(cfaddon::dirIn(root)));
+    r.cfThread = std::thread([h, root]() {
+        auto post = [h](RemoteEvent ev, const std::string& s) {
+            auto* m = new RemoteMsg{0, "", "", "", "", s};
+            if (!PostMessageW(h, WM_PM_REMOTE, ev, reinterpret_cast<LPARAM>(m))) delete m;
+        };
+        std::wstring err;
+        ULONGLONG lastPost = 0;
+        const bool ok = cfaddon::download(
+            root,
+            [&](const cfaddon::Progress& p) {
+                const ULONGLONG now = GetTickCount64();
+                if (now - lastPost < 250 && !p.verifying) return;
+                lastPost = now;
+                post(RemCfProgress, std::string(p.verifying ? "v:" : "p:") + std::to_string(p.percent()) + ":" + std::to_string(p.total));
+            },
+            &R().cfCancel, &err);
+        post(RemCfDone, ok ? std::string("ok") : "err:" + toUtf8(err));
+    });
+#endif
 }
 
 fs::path devicesFile() { return g.settingsFile.parent_path() / L"remote_devices.txt"; }
@@ -271,11 +336,47 @@ void connLog(const char* src, const std::string& ip, const std::string& label, c
     for (char& c : l)
         if (c == '\t' || c == '\n' || c == '\r') c = ' ';
     std::ofstream out(connLogFile(), std::ios::app | std::ios::binary);
-    std::string h = how.substr(0, 40);
+    std::string h = how.substr(0, strcmp(result, "download") == 0 ? 240 : 40);  // 0.8.4: a download names its file
     for (char& c : h)
         if (c == '\t' || c == '\n' || c == '\r') c = ' ';
     out << when << '\t' << src << '\t' << maskIp(ip) << '\t' << l << '\t' << result << (h.empty() ? "" : "\t" + h) << '\n';
 }
+// 0.8.4 連線紀錄 of a download: how = "pc:<folder kind>[:<label>]/<path>" (電腦的檔案) or "clip:<name>" (copied in Explorer).
+std::wstring downloadWhatText(const std::string& how) {
+    if (how.rfind("clip:", 0) == 0) return tr(S::RemoteLogDlClip084) + std::wstring(L" · ") + toWide(how.substr(5));
+    if (how.rfind("pc:", 0) != 0) return toWide(how);
+    const std::string rest = how.substr(3);
+    const size_t slash = rest.find('/');
+    std::string kind = rest.substr(0, slash), label;
+    if (const size_t c = kind.find(':'); c != std::string::npos) label = kind.substr(c + 1), kind = kind.substr(0, c);
+    const std::wstring path = slash == std::string::npos ? std::wstring() : toWide(rest.substr(slash + 1));
+    std::wstring folder = kind == "desktop" ? tr(S::RemoteFolderDesktop084) : kind == "documents" ? tr(S::RemoteFolderDocuments084)
+                        : kind == "downloads" ? tr(S::RemoteFolderDownloads084) : kind == "pictures" ? tr(S::RemoteFolderPictures084)
+                        : kind == "videos" ? tr(S::RemoteFolderVideos084) : kind == "shots" ? tr(S::RemoteFolderShots084)
+                        : kind == "recordings" ? tr(S::RemoteFolderRecordings084) : toWide(label.empty() ? kind : label);
+    return folder + L" \\ " + path;
+}
+
+// 0.8.4 電腦的檔案 允許清單 (settings.ini remote_pc_files_extra, "|"-separated UTF-8, at most 8).
+std::vector<std::wstring> pcExtraFolders() {
+    std::vector<std::wstring> v;
+    const std::string& s = g.settings.remotePcFilesExtra;
+    for (size_t a = 0; a <= s.size() && v.size() < 8;) {
+        const size_t b = s.find('|', a);
+        const std::string p = s.substr(a, b == std::string::npos ? std::string::npos : b - a);
+        if (!p.empty()) v.push_back(toWide(p));
+        if (b == std::string::npos) break;
+        a = b + 1;
+    }
+    return v;
+}
+void savePcExtraFolders(const std::vector<std::wstring>& v) {
+    std::string s;
+    for (size_t i = 0; i < v.size() && i < 8; ++i) s += (s.empty() ? "" : "|") + toUtf8(v[i]);
+    g.settings.remotePcFilesExtra = s;
+    saveSettings();
+}
+
 struct ConnRow {
     std::string when, src, ip, label, result, how;
 };
@@ -323,11 +424,14 @@ std::wstring connLogText() {
         return tr(s == "lan" ? S::RemoteLogSrcLan : s == "ts" ? S::RemoteLogSrcTs : s == "fixed" ? S::RemoteLogSrcFixed : s == "tunnel" ? S::RemoteLogSrcTunnel : S::RemoteLogSrcOutside);
     };
     auto res = [](const std::string& s) {
-        return tr(s == "ok" ? S::RemoteLogOk : s == "wrong-password" ? S::RemoteLogWrongPw : s == "blocked" ? S::RemoteLogBlocked : S::RemoteLogDenied);
+        return tr(s == "ok" ? S::RemoteLogOk : s == "wrong-password" ? S::RemoteLogWrongPw : s == "blocked" ? S::RemoteLogBlocked
+                  : s == "download" ? S::RemoteLogDownload084 : S::RemoteLogDenied);
     };
     std::wstring out;
     for (const ConnRow& r : rows) {
-        const std::wstring how = r.result == "ok" ? connHowText(r.how, r.src) : std::wstring();  // 0.8.3.6
+        // 0.8.3.6 what let it in; 0.8.4 a download: which file (folder kind / path)
+        const std::wstring how = r.result == "ok" ? connHowText(r.how, r.src) : r.result == "download" ? downloadWhatText(r.how)
+                                : r.result == "denied" && r.how.rfind("pc-guest:", 0) == 0 ? std::wstring(tr(S::RemoteLogPcGuestDenied084)) : std::wstring();
         out += toWide(r.when) + L"  " + src(r.src) + L"  " + toWide(r.ip) + L"  " + (r.label.empty() ? std::wstring(L"-") : toWide(r.label)) + L"  " +
                res(r.result) + (how.empty() ? std::wstring() : L" · " + how) + L"\n";
     }
@@ -712,6 +816,7 @@ bool startHost() {
     o.viewOnly = g.settings.remoteViewOnly;
     o.audio = g.settings.remoteAudio;
     o.mutePc = g.settings.remoteMutePc;
+    o.customKeys = g.settings.remoteKeys;
     o.audioSource = g.settings.remoteAudioSource;
     o.idleMinutes = g.settings.remoteIdleMinutes;
     o.inject = true;
@@ -815,7 +920,37 @@ bool startHost() {
         p.label = label;
         post(RemMutePc, p, on ? "1" : "0");
     };
+    // 0.8.4 自訂快捷鍵: the phone saved its list (the host checked the list and that this session may change it)
+    o.onKeysChanged = [post](const std::string& json, const std::string& label) {
+        pm::remote::Peer p;
+        p.label = label;
+        post(RemKeys, p, json);
+    };
     o.onUploaded = [post](const pm::remote::Peer& p, const std::string& name, uint64_t) { post(RemUploaded, p, name); };
+    // 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy)
+    o.pcShotDir = screenshotDir().wstring();
+    o.pcRecDir = recordingDir().wstring();
+    o.pcFiles = g.settings.remotePcFiles;
+    o.pcFilesGuest = g.settings.remotePcFilesGuest;
+    o.pcFilesExtra = pcExtraFolders();
+    if (g.dev) {  // a --dev instance never covers the owner's screen: the cover's windows are 1x1 off every screen
+        wchar_t v[32] = {};
+        o.privacyTest = GetEnvironmentVariableW(L"PM_REMOTE_PRIVACY_TEST", v, 32) > 0 && std::wstring(v) == L"tiny" ? "tiny" : "offscreen";
+        wchar_t roots[2048] = {};  // tests: PM_REMOTE_PCFS_ROOTS="id=dir;id=dir" instead of this PC's folders
+        if (const DWORD n = GetEnvironmentVariableW(L"PM_REMOTE_PCFS_ROOTS", roots, 2048); n > 0 && n < 2048) {
+            std::wstring s = roots;
+            for (size_t a = 0; a <= s.size();) {
+                const size_t b = s.find(L';', a);
+                if (b != a) o.pcFilesTestRoots.push_back(s.substr(a, b == std::wstring::npos ? std::wstring::npos : b - a));
+                if (b == std::wstring::npos) break;
+                a = b + 1;
+            }
+        }
+    }
+    o.onPrivacy = [post](bool on, const std::string& why) { post(RemPrivacy, pm::remote::Peer{}, (on ? "1:" : "0:") + why); };
+    o.onDownload = [post](const pm::remote::Peer& p, const std::string& what, uint64_t bytes, const std::string& kind) {
+        post(RemDownload, p, kind + "\t" + what + "\t" + std::to_string(bytes));
+    };
     // The kept port (the phone's Home Screen icon has it); the next free one if it is taken.
     for (int i = 0; i < 10; ++i) {
         o.port = static_cast<uint16_t>(g.settings.remotePort + i);
@@ -899,6 +1034,7 @@ std::wstring funnelWhy(const std::string& err) {
 
 void stopFixed(const char* why) {
     RemoteState& r = R();
+    cfRelease(false, true);
     bool ours = false;
     {
         std::lock_guard<std::mutex> lk(r.fixMu);
@@ -1027,9 +1163,12 @@ void startFixedFallback(const std::wstring& why) {
     RemoteState& r = R();
     wchar_t me[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, me, MAX_PATH);
-    const std::wstring exe = pm::remote::QuickTunnel::findExe(fs::path(me).parent_path().wstring());
+    const std::wstring exe = findCloudflared();
     if (exe.empty()) {
-        r.fixState = 3, r.fixErr = why;
+        // 0.8.4: cloudflared is not in the installer: fetch it now (progress on the page), then start the fallback
+        r.cfWantFix = true, r.cfFixGen = r.fixGen, r.cfFixWhy = why;
+        r.fixInfo = pm::i18n::fmt(S::RemoteCfDownloading, {L"52", L"0"});
+        startCfDownload();
         return;
     }
     const HWND h = g.hwnd;
@@ -1213,10 +1352,13 @@ void startTunnel() {
     }
     wchar_t me[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, me, MAX_PATH);
-    const std::wstring exe = pm::remote::QuickTunnel::findExe(fs::path(me).parent_path().wstring());
+    const std::wstring exe = findCloudflared();
     if (exe.empty()) {
-        r.tunState = 3, r.tunErr = tr(S::RemoteTunnelMissing);
-        g.log->write("warn", "remote: 免安裝外網: cloudflared not found");
+        // 0.8.4: not in the installer: fetched the first time it is needed, then the address is made
+        g.log->write("info", "remote: 免安裝外網: cloudflared not installed yet: downloading the add-on");
+        r.cfWantTun = true;
+        r.tunState = 1, r.tunErr = pm::i18n::fmt(S::RemoteCfDownloading, {L"52", L"0"}), r.tunUrl.clear();
+        startCfDownload();
         updateTunnelPanel();
         return;
     }
@@ -1243,6 +1385,7 @@ void startTunnel() {
 void stopTunnel(const char* why) {
     RemoteState& r = R();
     if (r.tunState == 0) return;
+    cfRelease(true, false);
 #ifdef PM_APP_REMOTE
     r.tunnel.stop();
     r.host.setTunnel(false);
@@ -1513,6 +1656,47 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         g.log->write("info", "remote: 臨時帳號 login " + std::string(m->why == "ok" ? "right" : "WRONG") + " for \"" + m->label.substr(0, 40) + "\" from " + m->ip);
         return;
     }
+    if (m && kind == RemCfProgress) {  // 0.8.4: "p:<percent>:<total bytes>" / "v:..." (checking)
+        const bool verify = m->why.rfind("v:", 0) == 0;
+        const size_t c2 = m->why.find(':', 2);
+        const std::wstring pct = toWide(m->why.substr(2, c2 == std::string::npos ? std::string::npos : c2 - 2));
+        const uint64_t total = c2 == std::string::npos ? 0 : std::strtoull(m->why.c_str() + c2 + 1, nullptr, 10);
+        const std::wstring text = verify ? std::wstring(tr(S::RemoteCfVerifying))
+                                         : pm::i18n::fmt(S::RemoteCfDownloading, {std::to_wstring((total + (1u << 19)) >> 20), pct});
+        if (r.cfWantTun && r.tunState == 1) r.tunErr = text, updateTunnelPanel();
+        if (r.cfWantFix && r.fixState == 1) r.fixInfo = text, updateFixedPanel();
+        if (r.cfWantTun || r.cfWantFix) remoteChanged();
+        static int lastBucket = -1;  // the log gets 0 / 25 / 50 / 75 / 100 % (and the checking step), not every update
+        const int bucket = verify ? 5 : std::min(4, std::atoi(toUtf8(pct).c_str()) / 25);
+        if (bucket != lastBucket) {
+            lastBucket = bucket;
+            g.log->write("info", std::string("remote: cloudflared add-on: ") + (verify ? "checking SHA-256" : toUtf8(pct) + " % of " + std::to_string(total >> 20) + " MB"));
+        }
+        return;
+    }
+    if (m && kind == RemCfDone) {
+        r.cfRunning = false;
+        if (r.cfThread.joinable()) r.cfThread.join();
+        const bool ok = m->why == "ok";
+        const std::wstring err = ok ? std::wstring() : toWide(m->why.substr(4));
+        const bool cancelled = !ok && err == L"cancelled";
+        g.log->write(ok ? "info" : "warn", "remote: cloudflared add-on: " + (ok ? std::string("installed (SHA-256 checked)") : "download " + (cancelled ? std::string("cancelled") : "failed: " + toUtf8(err))));
+        const bool wantTun = r.cfWantTun && r.tunState == 1, wantFix = r.cfWantFix && r.fixState == 1 && r.cfFixGen == r.fixGen;
+        r.cfWantTun = r.cfWantFix = false;
+        if (cancelled) return;
+        if (ok) {
+            if (wantTun && r.on) r.tunState = 0, r.tunErr.clear(), startTunnel();
+            if (wantFix && r.on) r.fixInfo.clear(), startFixedFallback(r.cfFixWhy);
+        } else {
+            const std::wstring msg = pm::i18n::fmt(S::RemoteCfFailed, {err});
+            if (wantTun) r.tunState = 3, r.tunErr = msg, g.window->showToast(pm::i18n::fmt(S::RemoteTunnelFailed, {msg}), 6000);
+            if (wantFix) r.fixState = 3, r.fixErr = r.cfFixWhy + L"\n" + msg, r.fixInfo.clear();
+        }
+        updateTunnelPanel();
+        updateFixedPanel();
+        remoteChanged();
+        return;
+    }
     if (m && (kind == RemTunnelUrl || kind == RemTunnelEnd || kind == RemTunnelLink || kind == RemTunnelCheck)) {
         if (!r.on) return;
         if (kind == RemTunnelUrl && r.tunState == 1) {
@@ -1568,8 +1752,40 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUnlockedToast, {w(m->label)}));
         setPanelStatus();
         break;
+    case RemPrivacy: {  // 0.8.4 隱私黑屏 on / off (phone / pc / local = the keys at the PC / ended / failed)
+        const bool on = m->why.rfind("1:", 0) == 0;
+        const std::string why = m->why.size() > 2 ? m->why.substr(2) : std::string();
+        r.privacy = on;
+        g.log->write("info", std::string("remote: 隱私黑屏 ") + (on ? "on" : "off") + " (" + why + ")");
+        if (why == "local") g.window->showToast(tr(S::RemotePrivacyLocalToast084), 5000);
+        else if (why == "failed") g.window->showToast(tr(S::RemotePrivacyFailedToast084), 5000);
+        else if (why == "phone" || why == "pc") g.window->showToast(tr(on ? S::RemotePrivacyOnToast084 : S::RemotePrivacyOffToast084), 3000);
+        remoteChanged();
+        break;
+    }
+    case RemDownload: {  // 0.8.4: every download into the 連線紀錄 (which file; never a link / key)
+        const size_t a = m->why.find('\t'), b = a == std::string::npos ? a : m->why.find('\t', a + 1);
+        const std::string kind = m->why.substr(0, a), what = a == std::string::npos ? std::string() : m->why.substr(a + 1, b == std::string::npos ? b : b - a - 1),
+                          bytes = b == std::string::npos ? std::string() : m->why.substr(b + 1);
+        const char* src = m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan";
+        if (kind == "denied") {  // a 臨時帳號 asked for PC files while the PC does not allow it
+            connLog(src, m->ip, guestLabel(*m), "denied", what);
+            g.log->write("info", "remote: " + guestLabel(*m) + " refused: PC files (" + what + ")");
+            break;
+        }
+        connLog(src, m->ip, guestLabel(*m), "download", (kind == "pc" ? "pc:" : "clip:") + what);
+        g.log->write("info", "remote: " + guestLabel(*m) + " downloads " + kind + " \"" + what + "\" (" + bytes + " bytes)");
+        break;
+    }
     case RemMutePc:  // 0.8.3.4: 電腦喇叭靜音 from the phone = 手機播聲音時電腦靜音 (kept like the menu item)
         setMutePcFrom(m->why == "1", "the phone (" + m->label + ")");
+        break;
+    case RemKeys:  // 0.8.4: kept in settings.ini (one list for the 主帳號, whatever device it signs in from)
+        if (g.settings.remoteKeys != m->why) {
+            g.settings.remoteKeys = m->why;
+            saveSettings();
+        }
+        g.log->write("info", "remote: 自訂快捷鍵 saved from the phone (" + m->label + "): " + std::to_string(m->why.size()) + " bytes");
         break;
     case RemUploaded:  // 0.8.3: a file from the phone is in Downloads\自在投影遠端
         g.log->write("info", "remote: file from the phone saved: " + m->why);
@@ -1777,6 +1993,121 @@ static ULONGLONG flipDebounceMs() {
     return std::clamp<ULONGLONG>(GetDoubleClickTime() + 200, 600, 1500);
 }
 
+// ---- 0.8.4 隱私黑屏 / 電腦的檔案 from the PC's menu (feat-084-privacy) ----
+// The phone's own clicks never get here (remoteCommand refuses them first): a phone cannot widen what
+// it may download, and a 臨時帳號 cannot cover the screen through the PC's menu either.
+static bool pickPcFolder(std::wstring& out) {
+    if (g.dev || g.testOffscreen) {  // tests: no dialog, the folder from the environment
+        wchar_t v[MAX_PATH * 2] = {};
+        if (GetEnvironmentVariableW(L"PM_TEST_PCFILES_ADD", v, MAX_PATH * 2) == 0) return false;
+        out = v;
+        return true;
+    }
+    IFileOpenDialog* d = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&d)))) return false;
+    DWORD f = 0;
+    d->GetOptions(&f);
+    d->SetOptions(f | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+    d->SetTitle(tr(S::MenuRemotePcFilesAdd084));
+    bool ok = false;
+    if (SUCCEEDED(d->Show(g.hwnd))) {
+        IShellItem* it = nullptr;
+        if (SUCCEEDED(d->GetResult(&it))) {
+            PWSTR p = nullptr;
+            if (SUCCEEDED(it->GetDisplayName(SIGDN_FILESYSPATH, &p)) && p) out = p, ok = true;
+            CoTaskMemFree(p);
+            it->Release();
+        }
+    }
+    d->Release();
+    return ok;
+}
+static void applyPcFiles() {
+#ifdef PM_APP_REMOTE
+    if (R().on) R().host.setPcFiles(g.settings.remotePcFiles, pcExtraFolders(), g.settings.remotePcFilesGuest);
+#endif
+}
+static void remoteCommand084(UINT cmd) {
+    if (cmd == CmdRemotePrivacy) {
+#ifdef PM_APP_REMOTE
+        std::string why;
+        const bool want = !R().host.privacyOn();
+        if (!R().host.setPrivacy(want, &why)) {
+            g.log->write("info", "remote: 隱私黑屏 from the PC menu refused (" + why + ")");
+            g.window->showToast(tr(why == "viewOnly" ? S::RemotePrivacyNoViewOnly084 : why == "guest" ? S::RemotePrivacyNoGuest084
+                                   : why == "local" ? S::RemotePrivacyLocalToast084 : why == "no-session" ? S::RemotePrivacyNoSession084
+                                                    : S::RemotePrivacyFailedToast084), 4000);
+        }
+#endif
+        return;
+    }
+    if (cmd == CmdRemotePcFiles) {
+        g.settings.remotePcFiles = !g.settings.remotePcFiles;
+        saveSettings();
+        applyPcFiles();
+        g.log->write("info", std::string("remote: 電腦的檔案 ") + (g.settings.remotePcFiles ? "on" : "off"));
+        g.window->showToast(tr(g.settings.remotePcFiles ? S::RemotePcFilesOnToast084 : S::RemotePcFilesOffToast084), 3000);
+        return;
+    }
+    if (cmd == CmdRemotePcFilesGuest) {
+        g.settings.remotePcFilesGuest = !g.settings.remotePcFilesGuest;
+        saveSettings();
+        applyPcFiles();
+        g.log->write("info", std::string("remote: 電腦的檔案 for 臨時帳號 ") + (g.settings.remotePcFilesGuest ? "on" : "off"));
+        g.window->showToast(tr(g.settings.remotePcFilesGuest ? S::RemotePcFilesGuestOnToast084 : S::RemotePcFilesGuestOffToast084), 3000);
+        return;
+    }
+    std::vector<std::wstring> extra = pcExtraFolders();
+    if (cmd == CmdRemotePcFilesAdd) {
+        std::wstring dir;
+        if (!pickPcFolder(dir)) return;
+        const DWORD a = GetFileAttributesW(dir.c_str());
+        if (a == INVALID_FILE_ATTRIBUTES || !(a & FILE_ATTRIBUTE_DIRECTORY)) return;
+        for (const std::wstring& e : extra)
+            if (_wcsicmp(e.c_str(), dir.c_str()) == 0) return;
+        if (extra.size() >= 8) {
+            g.window->showToast(tr(S::RemotePcFilesFull084), 3000);
+            return;
+        }
+        extra.push_back(dir);
+        savePcExtraFolders(extra);
+        applyPcFiles();
+        g.log->write("info", "remote: 電腦的檔案 允許清單 + " + toUtf8(dir));
+        g.window->showToast(pm::i18n::fmt(S::RemotePcFilesAdded084, {dir}), 3000);
+        return;
+    }
+    if (cmd >= CmdRemotePcFilesDel0 && cmd <= CmdRemotePcFilesDelLast) {
+        const size_t i = cmd - CmdRemotePcFilesDel0;
+        if (i >= extra.size()) return;
+        g.log->write("info", "remote: 電腦的檔案 允許清單 - " + toUtf8(extra[i]));
+        extra.erase(extra.begin() + static_cast<std::ptrdiff_t>(i));
+        savePcExtraFolders(extra);
+        applyPcFiles();
+    }
+}
+// 0.8.4 電腦的檔案 ▸ (the 遠端操控 menu and 進階設定)
+static MenuItem pcFilesMenu() {
+    std::vector<MenuItem> v;
+    v.push_back(checkItem(CmdRemotePcFiles, tr(S::MenuRemotePcFilesOn084), kIcoShow, g.settings.remotePcFiles));
+    v.push_back(MenuItem::caption(tr(S::RemotePcFilesDefault084)));
+    MenuItem gst = checkItem(CmdRemotePcFilesGuest, tr(S::MenuRemotePcFilesGuest084), kIcoShow, g.settings.remotePcFilesGuest);
+    gst.enabled = g.settings.remotePcFiles;
+    v.push_back(std::move(gst));
+    v.push_back(MenuItem::separator());
+    const std::vector<std::wstring> extra = pcExtraFolders();
+    if (!extra.empty()) v.push_back(MenuItem::caption(tr(S::RemotePcFilesExtraHint084)));
+    for (size_t i = 0; i < extra.size() && i < 8; ++i) {
+        MenuItem m = MenuItem::command(CmdRemotePcFilesDel0 + static_cast<UINT>(i), extra[i], kIcoDelete);
+        m.enabled = g.settings.remotePcFiles;
+        v.push_back(std::move(m));
+    }
+    MenuItem add = MenuItem::command(CmdRemotePcFilesAdd, tr(S::MenuRemotePcFilesAdd084), kIcoSettings);
+    add.enabled = g.settings.remotePcFiles && extra.size() < 8;
+    v.push_back(std::move(add));
+    return valueSubmenu(tr(S::MenuRemotePcFiles084), kIcoShow, std::move(v),
+                        g.settings.remotePcFiles ? std::wstring(tr(S::RemoteOnShort)) : std::wstring());
+}
+
 // Would cmd turn remote control or the fixed address on / off (now)?
 static bool flipsOnOff(UINT cmd) {
     const RemoteState& r = R();
@@ -1805,15 +2136,17 @@ void remoteCommand(UINT cmd) {
         cmd == CmdRemoteFixedApproval || cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp || cmd == CmdRemoteAdvanced ||
         cmd == CmdRemoteLockOutside || cmd == CmdRemoteLockLan || cmd == CmdRemoteLog ||
         (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ||
-        cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd == CmdRemoteFixedSetup || cmd == CmdRemoteTsDownload ||
-        (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) || (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast)) {
+        cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd == CmdRemoteFixedSetup || cmd == CmdRemoteTsDownload || cmd == CmdRemoteOpenSettings ||
+        (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) || (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast) ||
+        (cmd >= CmdRemotePrivacy && cmd <= CmdRemotePcFilesGuest)) {  // 0.8.4: a phone never widens its own file access / covers the PC through the PC's menu
         if (fromPhone()) {
-            refuseRemote(cmd == CmdRemoteToggle   ? "開啟遠端操控 (menu)"
+            refuseRemote(cmd >= CmdRemotePrivacy && cmd <= CmdRemotePcFilesGuest ? "隱私黑屏 / 電腦的檔案 (menu)"
+                         : cmd == CmdRemoteToggle ? "開啟遠端操控 (menu)"
                          : cmd == CmdRemoteKick   ? "中斷 (menu)"
                          : cmd == CmdRemoteTunnel ? "免安裝外網 (menu)"
                          : cmd == CmdRemotePersistent || cmd == CmdRemotePassword || cmd == CmdRemoteFixedApproval ||
                                    cmd == CmdRemoteFixedToggle || cmd == CmdRemoteFixedTemp ? "常駐外網 / 固定網址"
-                         : cmd == CmdRemoteAdvanced || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ? "遠端控制 settings"
+                         : cmd == CmdRemoteAdvanced || cmd == CmdRemoteOpenSettings || cmd == CmdRemoteAudio || cmd == CmdRemoteMutePc ? "遠端控制 settings"
                          : cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast ? "已記住的手機"
                          : cmd == CmdRemoteGuestNew || cmd == CmdRemoteAddrCopy || cmd == CmdRemoteTempShare || cmd >= CmdRemoteGuestDel0
                              ? "允許遠端控制 / 臨時帳號"
@@ -1821,6 +2154,7 @@ void remoteCommand(UINT cmd) {
             return;
         }
     }
+    if (cmd >= CmdRemotePrivacy && cmd <= CmdRemotePcFilesGuest) return remoteCommand084(cmd);  // 0.8.4
     switch (cmd) {
     case CmdRemoteToggle: setRemote(!R().on); break;
     case CmdRemoteGuestNew: openGuestNew(); break;  // 0.8.3.2
@@ -1829,6 +2163,7 @@ void remoteCommand(UINT cmd) {
 #ifdef PM_APP_REMOTE
         if (R().fixState == 2) a = R().fixUrl;
         else if (R().tunState == 2) a = R().tunUrl + R().host.tunnelLinkPath();
+        else if (R().on) a = !R().host.tailscaleUrl().empty() ? R().host.tailscaleUrl() : R().host.url();  // 0.8.4: the menus' 複製網址
 #endif
         if (!a.empty()) copyToClipboard(toWide(a)), g.window->showToast(tr(S::RemoteCopied), 2000);
         break;
@@ -1939,6 +2274,18 @@ void remoteCommand(UINT cmd) {
         remoteChanged();
         break;
     }
+    case CmdRemoteOpenSettings:  // 0.8.4: the full settings live on the main window's 遠端控制 page
+        if (liveSourceNow() != SrcNone) {  // a phone fills the window (no page): the same 進階設定 menu at the pointer
+            POINT pt{};
+            GetCursorPos(&pt);
+            runMenu(remoteAdvancedItems(), pt, false, false);
+            break;
+        }
+        g.settings.idleTab = 1;
+        saveSettings();
+        refreshIdleHints();
+        bringToFront();
+        break;
     case CmdRemoteAdvanced: {
         POINT pt{};
         GetCursorPos(&pt);
@@ -1991,14 +2338,22 @@ void remoteCommand(UINT cmd) {
     }
 }
 
-// 遠端操控 ▸ (both menus; right: 「開」 / the connected phone).
-MenuItem remoteItem() {
+// The full list of remote control settings (it used to be the tray / right-click submenu; 0.8.4: only the
+// 進階設定 menu on the 遠端控制 page is built from it, see remoteAdvancedItems()).
+MenuItem remoteSettingsMenu() {
     RemoteState& r = R();
     std::vector<MenuItem> sub;
     sub.push_back(checkItem(CmdRemoteToggle, tr(S::MenuRemoteOn), kIcoRemote, r.on));
     if (r.on) sub.push_back(MenuItem::command(CmdRemoteQr, tr(S::MenuRemoteQr), kIcoQr));
     if (r.on) sub.push_back(checkItem(CmdRemoteTunnel, tr(S::MenuRemoteTunnel), kIcoRemote, r.tunState == 1 || r.tunState == 2));
     if (r.active) sub.push_back(MenuItem::command(CmdRemoteKick, tr(S::MenuRemoteKick), kIcoDisconnect, L"Ctrl+D"));
+#ifdef PM_APP_REMOTE
+    if (r.active && pm::remote::privacySupported()) {  // 0.8.4 隱私黑屏 (hidden before Windows 10 2004)
+        MenuItem pv = checkItem(CmdRemotePrivacy, tr(S::MenuRemotePrivacy084), kIcoShow, r.privacy);
+        pv.enabled = !g.settings.remoteViewOnly;
+        sub.push_back(std::move(pv));
+    }
+#endif
     sub.push_back(MenuItem::separator());
     // 常駐外網 (0.8.2)
     sub.push_back(checkItem(CmdRemotePersistent, tr(S::MenuRemotePersistent), kIcoRemote, g.settings.remotePersistent));
@@ -2067,6 +2422,7 @@ MenuItem remoteItem() {
         sub.push_back(valueSubmenu(tr(S::MenuRemoteLock), kIcoPower, std::move(lock),
                                    g.settings.remoteLockOutside || g.settings.remoteLockLan ? std::wstring(L"✓") : std::wstring()));
     }
+    sub.push_back(pcFilesMenu());  // 0.8.4 電腦的檔案 ▸
     sub.push_back(MenuItem::command(CmdRemoteLog, tr(S::MenuRemoteLog), kIcoHelp));
     MenuItem forget = MenuItem::command(CmdRemoteForget, tr(S::MenuRemoteForget), kIcoDelete,
                                         r.on ? std::to_wstring(rememberedCount()) : std::wstring());
@@ -2079,12 +2435,35 @@ MenuItem remoteItem() {
     return valueSubmenu(tr(S::MenuRemoteSub), kIcoRemote, std::move(sub), right);
 }
 
+// 遠端操控 ▸ in the tray and the right-click menu (0.8.4): only 開 / 關, 複製網址, 中斷, 隱私黑屏 (while connected) and 打開設定…; every other
+// setting is on the main window's 遠端控制 page (進階設定 there). right: 「開」 / the connected phone.
+MenuItem remoteItem() {
+    RemoteState& r = R();
+    std::vector<MenuItem> sub;
+    sub.push_back(checkItem(CmdRemoteToggle, tr(S::MenuRemoteOn), kIcoRemote, r.on));
+    if (r.on) sub.push_back(MenuItem::command(CmdRemoteAddrCopy, tr(S::RemoteFixedCopy), kIcoShare));
+    if (r.active) sub.push_back(MenuItem::command(CmdRemoteKick, tr(S::MenuRemoteKick), kIcoDisconnect, L"Ctrl+D"));
+#ifdef PM_APP_REMOTE
+    if (r.active && pm::remote::privacySupported()) {  // 0.8.4 隱私黑屏: an action on this connection (like 中斷), not a setting
+        MenuItem pv = checkItem(CmdRemotePrivacy, tr(S::MenuRemotePrivacy084), kIcoShow, r.privacy);
+        pv.enabled = !g.settings.remoteViewOnly;
+        sub.push_back(std::move(pv));
+    }
+#endif
+    sub.push_back(MenuItem::separator());
+    sub.push_back(MenuItem::command(CmdRemoteOpenSettings, tr(S::MenuRemoteOpenSettings), kIcoSettings));
+    std::wstring right;
+    if (r.active) right = w(r.activeLabel);
+    else if (r.on) right = tr(S::RemoteOnShort);
+    return valueSubmenu(tr(S::MenuRemoteSub), kIcoRemote, std::move(sub), right);
+}
+
 // 進階設定: what the page keeps out of sight (聲音來源, 外面的新手機也要允許,
 // 已記住的手機, 僅觀看, 自動中斷, 免安裝外網).
 std::vector<MenuItem> remoteAdvancedItems() {
     RemoteState& r = R();
     std::vector<MenuItem> v;
-    MenuItem src = remoteItem();  // its 聲音來源 ▸ / 自動中斷 ▸ rows are reused
+    MenuItem src = remoteSettingsMenu();  // its 聲音來源 ▸ / 自動中斷 ▸ rows are reused
     // 0.8.3.4 聲音 ▸ 電腦聲音傳到手機 ✓, 手機播聲音時電腦靜音 ✓ (off the page) and 聲音來源 (its choices inline)
     std::vector<MenuItem> sound;
     for (auto& m : src.sub)
@@ -2098,7 +2477,7 @@ std::vector<MenuItem> remoteAdvancedItems() {
             for (auto& d : m.sub) sound.push_back(d);
             continue;
         }
-        const bool keep = m.id == CmdRemoteViewOnly || m.id == CmdRemoteTunnel ||
+        const bool keep = m.id == CmdRemoteViewOnly || m.id == CmdRemoteTunnel || m.id == CmdRemoteLog ||
                           m.id == CmdRemotePassword || m.id == CmdRemotePersistent || (m.kind == MenuItem::Kind::Submenu);
         if (m.id == CmdRemotePersistent && !g.settings.remotePwHash.empty())  // 0.8.3.4 (design B): off the page, here
             v.push_back(checkItem(CmdRemoteFixedToggle, tr(S::MenuRemoteFixedOn), kIcoRemote, r.fixState == 1 || r.fixState == 2));
@@ -2225,7 +2604,7 @@ void remoteIdlePage(std::vector<pm::VideoWindow::IdleCard>& cards, std::vector<p
                 qrOf(tunLink, c);
                 return 2;
             }
-            if (r.tunState == 1) return c.note = tr(S::RemoteTunnelStarting), 1;
+            if (r.tunState == 1) return c.note = r.tunErr.empty() ? std::wstring(tr(S::RemoteTunnelStarting)) : r.tunErr, 1;
             if (r.tunState == 3) c.note = pm::i18n::fmt(S::RemoteTunnelFailed, {r.tunErr});
             return 0;
         };
@@ -2405,7 +2784,9 @@ void remoteStartup(bool background) {
 void stopRemote() {
     RemoteState& r = R();
     stopTunnel("quit");
-    stopFixed("quit");  // the Funnel port goes with the app (nothing would answer behind it)
+    stopFixed("quit");  // the Funnel port goes with the app
+    r.cfCancel = true;  // 0.8.4: a running cloudflared add-on download ends (its .part is kept)
+    if (r.cfThread.joinable()) r.cfThread.join();
 #ifdef PM_APP_REMOTE
     if (g.quitting) {  // 0.8.3.2: the window is gone: the port off (normally < 1 s), 4 s at most, then the CLI is ended
         for (int i = 0; i < 40 && pm::remote::FunnelJobs::pending() > 0; ++i) Sleep(100);
@@ -2618,6 +2999,37 @@ void remoteDevMutePc(int on) {
     auto* m = new RemoteMsg{R().gen, "", "", "", "--dev phone", on ? "1" : "0"};
     g.log->write("info", std::string("dev remote: 電腦喇叭靜音 ") + (on ? "on" : "off") + " as if from the phone");
     if (!PostMessageW(g.hwnd, WM_PM_REMOTE, RemMutePc, reinterpret_cast<LPARAM>(m))) delete m;
+}
+
+// ---- 0.8.4 (feat-084-privacy) ----
+int remotePrivacyChild() {
+#ifdef PM_APP_REMOTE
+    return pm::remote::runPrivacyMaskIfAsked();
+#else
+    return -1;
+#endif
+}
+// --dev DevCommand 8401..8406 (see remote.h): the same paths as the menu items (no phone tag: as if at the PC).
+void remoteDevPrivacy(int which, LPARAM lp) {
+    if (!g.dev) return;
+    g.log->write("info", "dev remote: 0.8.4 command " + std::to_string(which) + " lp " + std::to_string(static_cast<long long>(lp)));
+    if (which == 8401) {
+        if ((lp != 0) != R().privacy) remoteCommand084(CmdRemotePrivacy);
+    } else if (which == 8402) remoteCommand084(CmdRemotePcFilesAdd);
+    else if (which == 8403) remoteCommand084(CmdRemotePcFilesDel0 + static_cast<UINT>(std::clamp<LPARAM>(lp, 0, 7)));
+    else if (which == 8404) {
+        if ((lp != 0) != g.settings.remotePcFiles) remoteCommand084(CmdRemotePcFiles);
+    } else if (which == 8406) {  // 臨時帳號 may browse PC files: on / off
+        if ((lp != 0) != g.settings.remotePcFilesGuest) remoteCommand084(CmdRemotePcFilesGuest);
+    } else if (which == 8405) {
+        const fs::path d = fs::temp_directory_path() / L"pmshots";
+        std::error_code ec;
+        fs::create_directories(d, ec);
+        const bool a = pm::ui::renderMenuPng(remoteItem().sub, (d / L"remote_menu_084.png").wstring());
+        const bool b = pm::ui::renderMenuPng(pcFilesMenu().sub, (d / L"pcfiles_menu_084.png").wstring());
+        g.log->write("info", std::string("dev remote: 0.8.4 menu shots ") + (a && b ? "ok" : "failed"));
+    }
+    remoteChanged();
 }
 
 // 0.8.3.2 --dev hooks for the 臨時帳號 tests and screenshots (see remote.h). Never a password in the log.

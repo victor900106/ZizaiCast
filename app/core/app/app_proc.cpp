@@ -238,7 +238,6 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             case VK_ADD: zoomBy(+1); return 0;
             case VK_OEM_MINUS:
             case VK_SUBTRACT: zoomBy(-1); return 0;
-            case 'K': runCommand(CmdFilterCycle); return 0;
             case 'P': toggleFreeze(); return 0;
             case 'L': runCommand(shift ? CmdTranslateRegion : CmdTranslateToggle); return 0;
             case 'O': runCommand(CmdTranslateOriginal); return 0;
@@ -403,6 +402,7 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             else if (wp == 965) remoteDevLog(static_cast<int>(lp));     // 0.8.3: 連線紀錄 into the log
             else if (wp >= 981 && wp <= 986) remoteDevGuest(static_cast<int>(wp), lp);  // 0.8.3.2 臨時帳號 / DPI (see remote.h)
             else if (wp == 988) remoteDevMutePc(static_cast<int>(lp));  // 0.8.3.4: 電腦喇叭靜音 as if from the phone
+            else if (wp >= 8401 && wp <= 8406) remoteDevPrivacy(static_cast<int>(wp), lp);  // 0.8.4 隱私黑屏 / 電腦的檔案
             else if (wp == 987) {  // 0.8.3.3: the pairing window's 開發人員選項 steps (lp 1 shown, 0 back to the QR code)
                 g.pairPanel.showDevOpt(lp != 0);
                 g.log->write("info", std::string("dev pair: 開發人員選項 steps ") + (g.pairPanel.devOptShown() ? "shown" : "hidden"));
@@ -418,53 +418,33 @@ LRESULT appProcInner(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                 fs::create_directories(d, ec);
                 const bool a = g.askPanel.renderPng((d / L"ask.png").wstring());
                 g.log->write("info", std::string("dev ask shot: ") + (a ? "ok (" + toUtf8(g.askPanel.title()) + ")" : "- (no dialog)"));
-            } else if (wp == 936) {  // 「線上」 badge test: two made-up blocks (a card, a listed row) over the picture
-                std::vector<pm::VideoWindow::TextBox> b(2);
-                b[0] = {0.08f, 0.30f, 0.92f, 0.36f, tr(S::TrOnlineTestOkPlain), L"Connected", 1};
-                b[0].online = lp != 0;
-                b[1] = {0.10f, 0.60f, 0.30f, 0.605f, std::wstring(1, wchar_t(0xE000)) + tr(S::TrOnlineSaved), L"Saved", 1};
-                b[1].online = lp != 0;
-                g.log->write("info", "dev online badge boxes");
-                g.window->setTextOverlay(std::move(b));
             } else if (wp == 941) {  // the open panels as if moved to DPI lp & 0xFFFF (lp & 0x10000: no WM_DPICHANGED)
                 pm::ui::trset::devDpiChanged(static_cast<int>(lp & 0xFFFF), (lp & 0x10000) != 0);
             } else if (wp == 942) {  // self-check of the open panels: hit where drawn, window / client / target sizes
                 pm::ui::trset::devSelfCheck();
-            } else if (wp >= 937 && wp <= 940) {  // the panels on a small screen (DPI / work area tests)
-                if (wp == 937) {  // what the open panels show now: llm_view[_lp] / online_view[_lp].png
+            } else if (wp == 937 || wp == 940) {  // the panels on a small screen (DPI / work area tests)
+                if (wp == 937) {  // what the open panels show now: llm_view[_lp].png
                     const fs::path d = fs::temp_directory_path() / L"pmshots";
                     std::error_code ec;
                     fs::create_directories(d, ec);
                     pm::ui::trset::devShots(d.wstring(), lp > 0 ? L"_" + std::to_wstring(lp) : L"", true);
-                } else if (wp == 938) {  // scroll the 線上翻譯 panel by lp DIPs (wheel)
-                    pm::ui::trset::devScroll(1, static_cast<float>(static_cast<int>(lp)));
-                } else if (wp == 939) {  // key lp (e.g. 9 = Tab) in the 線上翻譯 panel
-                    pm::ui::trset::devKey(1, static_cast<UINT>(lp));
                 } else {  // 940: panels opened from now on at DPI (lp & 0xFFFF) on a work area (lp >> 16) px high
                     pm::ui::trset::devScreen(static_cast<int>(lp & 0xFFFF), static_cast<int>((lp >> 16) & 0xFFFF));
                     g.log->write("info", "dev translate settings screen: dpi " + std::to_string(lp & 0xFFFF) + ", work area " +
                                              std::to_string((lp >> 16) & 0xFFFF) + " px");
                 }
-            } else if (wp >= 930 && wp <= 935) {  // 翻譯 ▸ 本機 AI 翻譯 / 線上翻譯 panels (app/tr_settings.cpp)
-                if (wp == 930) {  // the open panels + their question as llm / online / trask[_lp].png
+            } else if (wp >= 930 && wp <= 933) {  // 翻譯 ▸ 本機 AI 翻譯 panel (app/tr_settings.cpp)
+                if (wp == 930) {  // the open panel + its question as llm / trask[_lp].png
                     const fs::path d = fs::temp_directory_path() / L"pmshots";
                     std::error_code ec;
                     fs::create_directories(d, ec);
                     const int n = pm::ui::trset::devShots(d.wstring(), lp > 0 ? L"_" + std::to_wstring(lp) : L"");
                     g.log->write("info", "dev translate settings shots: " + std::to_string(n));
-                } else if (wp == 931 || wp == 932) {  // click item lp in 本機 AI 翻譯 (931) / 線上翻譯 (932)
+                } else if (wp == 931) {  // click item lp in 本機 AI 翻譯
                     g.log->write("info", "dev translate settings click " + std::to_string(wp) + ": " + std::to_string(lp));
-                    pm::ui::trset::devClick(wp == 931 ? 0 : 1, static_cast<int>(lp));
+                    pm::ui::trset::devClick(0, static_cast<int>(lp));
                 } else if (wp == 933) {  // answer their question (lp 1 primary, 2 secondary, 0 Esc)
                     pm::ui::trset::devAnswer(static_cast<int>(lp));
-                } else if (wp == 934) {  // a made-up key in the 線上翻譯 key box (lp 1: an Azure-style one)
-                    pm::ui::trset::devSetKey(lp == 1 ? L"0123456789abcdef0123456789abcdef" : L"00000000-0000-0000-0000-000000000000:fx");
-                } else if (wp == 935) {  // 「線上」 badges: mark every shown block (lp 0: none) as translated online
-                    std::vector<std::wstring> all;
-                    if (lp && g.translator)
-                        for (const auto& it : g.translator->lastItems()) all.push_back(it.original);
-                    g.log->write("info", "dev online badges: " + std::to_string(all.size()));
-                    g.window->setTextOverlayOnline(std::move(all));
                 }
             } else if (wp == 906) {  // answer the open question dialog (lp 1 = primary button, 0 = Esc)
                 g.log->write("info", std::string("dev ask answer: ") + (lp == 1 ? "primary" : "cancel"));

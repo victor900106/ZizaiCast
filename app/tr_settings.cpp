@@ -1,10 +1,10 @@
-// 翻譯 ▸ 本機 AI 翻譯… / 線上翻譯（選用）… (see tr_settings.h, docs/app.md
-// "Translation settings").  Blocking engine calls (download, key test) run
+// 翻譯 ▸ 本機 AI 翻譯… (see tr_settings.h, docs/app.md
+// "Translation settings").  Blocking engine calls (download) run
 // on worker threads; their results come back to the UI thread through a
 // message-only window (a closed panel just ignores them).
 #include "tr_settings.h"
 
-#ifdef PM_APP_TR_ENGINES  // app/CMakeLists.txt: pm_translate has the LLM / online engines
+#ifdef PM_APP_TR_ENGINES  // app/CMakeLists.txt: pm_translate has the LLM engine
 
 #include <algorithm>
 #include <atomic>
@@ -17,7 +17,6 @@
 #include "ask_panel.h"
 #include "pm/i18n.h"
 #include "pm/llm_translate.h"
-#include "pm/online_translate.h"
 #include "pm/translate.h"  // ModelStore / PaddleOcr: the OCR GPU add-on
 #include "settings_panel.h"
 
@@ -29,13 +28,11 @@ namespace pm::ui::trset {
 namespace {
 
 namespace llm = pm::translate::local_llm;
-namespace onl = pm::translate::online;
 using Item = SettingsPanel::Item;
 using Kind = SettingsPanel::Item::Kind;
 using Btn = SettingsPanel::Button;
 
 constexpr wchar_t kIcoLlm = 0xE7F8;     // DeviceLaptopNoPic (this PC)
-constexpr wchar_t kIcoOnline = 0xE774;  // Globe
 constexpr const char* kModelBest = "qwen3.5-2b-q4km";
 constexpr const char* kModelSmall = "qwen3.5-0.8b-q4";
 
@@ -81,26 +78,8 @@ std::wstring sizeText(uint64_t bytes) {
     else swprintf_s(b, L"%.0f MB", (std::max)(1.0, bytes / (1024.0 * 1024)));
     return b;
 }
-std::wstring grouped(int64_t v) {  // 1,234,567
-    std::wstring s = std::to_wstring(v), out;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (i && (s.size() - i) % 3 == 0) out += L',';
-        out += s[i];
-    }
-    return out;
-}
-std::wstring trim(std::wstring s) {
-    while (!s.empty() && iswspace(s.back())) s.pop_back();
-    size_t i = 0;
-    while (i < s.size() && iswspace(s[i])) ++i;
-    return s.substr(i);
-}
-void wipe(std::wstring& s) {
-    if (!s.empty()) SecureZeroMemory(s.data(), s.size() * sizeof(wchar_t));
-    s.clear();
-}
 
-AskPanel ask;  // the panels' own question dialog (consent, remove, forget)
+AskPanel ask;  // the panel's own question dialog (consent, remove)
 
 // ===================================================================== 本機 AI 翻譯
 enum LlmId { LEnable = 1, LModelBest, LModelSmall, LGpu, LDownload = 10, LCancel, LRemove, LDetails, LOcrGpu, LOcrCancel, LOcrDetails, LClose = 20 };
@@ -247,7 +226,7 @@ std::vector<Item> llmItems() {
     if (!Ai.ocrDownloading && Ai.ocrResult > 0) {
         add(Kind::Status, llmResultText(Ai.ocrResult)).tone = Ai.ocrResult == static_cast<int>(llm::Result::Cancelled) ? 0 : 2;
         if (!Ai.ocrDetail.empty()) {
-            add(Kind::Links, L"").buttons.push_back({LOcrDetails, tr(S::TrOnlineErrDetails)});
+            add(Kind::Links, L"").buttons.push_back({LOcrDetails, tr(S::TrErrDetails)});
             if (Ai.ocrShowDetail) add(Kind::Code, Ai.ocrDetail);
         }
     }
@@ -312,7 +291,7 @@ std::vector<Item> llmItems() {
             add(Kind::Status, llmResultText(Ai.result)).tone = Ai.result == static_cast<int>(llm::Result::Cancelled) ? 0 : 2;
             if (!Ai.detail.empty()) {
                 Item& lk = add(Kind::Links, L"");
-                lk.buttons.push_back({LDetails, tr(S::TrOnlineErrDetails)});
+                lk.buttons.push_back({LDetails, tr(S::TrErrDetails)});
                 if (Ai.showDetail) add(Kind::Code, Ai.detail);
             }
         }
@@ -583,395 +562,6 @@ void llmAction(int id) {
     llmRefresh();
 }
 
-// ===================================================================== 線上翻譯
-enum OnId {
-    OEnable = 101, ODeepL, OAzure, OModeEscalate, OModeAll, OGoogle,  // (OGoogle last: the other ids stay as dev scripts know them)
-    OKey = 110, OKeyShow, ORegion,
-    OTest = 120, ODetails, ORetry,
-    OTerms = 130, OPrivacy, OGetKey, OSignup, OPrivacyUrl,
-    OForget = 140, OCancel, OSave,
-};
-
-struct OnlineUi {
-    SettingsPanel panel;
-    bool on = false;                       // staged switch
-    onl::Provider provider = onl::Provider::DeepL;
-    onl::Mode mode = onl::Mode::Escalate;  // staged mode while on
-    bool keyShown = false, helpShown = false, privacyShown = false, detailShown = false;
-    bool testing = false, hasTest = false;
-    onl::TestResult test;
-    std::thread tester;
-    int storeError = 0;   // onl::StoreError of the last save
-    bool needKey = false; // 儲存 while on without a key
-    onl::Status toasted = onl::Status::Ok;
-} O;
-
-std::wstring statusText(onl::Status s) {
-    switch (s) {
-    case onl::Status::BadKey: return tr(S::TrOnlineErrBadKey);
-    case onl::Status::QuotaExceeded: return tr(S::TrOnlineErrQuota);
-    case onl::Status::ApiDisabled: return tr(S::TrOnlineErrApiDisabled);
-    case onl::Status::RateLimited: return tr(S::TrOnlineErrRate);
-    case onl::Status::Timeout: return tr(S::TrOnlineErrTimeout);
-    case onl::Status::Network: return tr(S::TrOnlineErrNetwork);
-    case onl::Status::ServerError: return tr(S::TrOnlineErrServer);
-    case onl::Status::Unsupported: return tr(S::TrOnlineErrUnsupported);
-    case onl::Status::BadResponse: return tr(S::TrOnlineErrBad);
-    case onl::Status::NotConfigured: return tr(S::TrOnlineErrNotConfigured);
-    default: return {};
-    }
-}
-std::wstring shortReason(onl::Status s) {
-    switch (s) {
-    case onl::Status::RateLimited: return tr(S::TrOnlineReasonRate);
-    case onl::Status::ApiDisabled: return tr(S::TrOnlineReasonApiDisabled);
-    case onl::Status::Timeout: return tr(S::TrOnlineReasonTimeout);
-    case onl::Status::Network: return tr(S::TrOnlineReasonNetwork);
-    case onl::Status::ServerError: return tr(S::TrOnlineReasonServer);
-    case onl::Status::Unsupported: return tr(S::TrOnlineReasonUnsupported);
-    default: return tr(S::TrOnlineReasonBad);
-    }
-}
-std::wstring storeErrorText(int e) {
-    switch (static_cast<onl::StoreError>(e)) {
-    case onl::StoreError::NoSettingsFolder: return tr(S::TrOnlineStoreNoFolder);
-    case onl::StoreError::WriteFailed: return tr(S::TrOnlineStoreWrite);
-    case onl::StoreError::EncryptFailed: return tr(S::TrOnlineStoreEncrypt);
-    case onl::StoreError::InvalidProvider: return tr(S::TrOnlineStoreProvider);
-    default: return {};
-    }
-}
-// TestResult.plan -> the product's own name (not translated).
-std::wstring planName(onl::Plan p) {
-    switch (p) {
-    case onl::Plan::DeepLFree: return L"DeepL API Free";
-    case onl::Plan::DeepLPro: return L"DeepL API Pro";
-    case onl::Plan::Azure: return onl::providerName(onl::Provider::Azure);
-    case onl::Plan::Google: return onl::providerName(onl::Provider::Google);
-    default: return {};
-    }
-}
-
-std::vector<Item> onlineItems() {
-    std::vector<Item> v;
-    auto add = [&](Kind k, std::wstring text, int id = 0) -> Item& {
-        Item it;
-        it.kind = k;
-        it.text = std::move(text);
-        it.id = id;
-        v.push_back(std::move(it));
-        return v.back();
-    };
-    const bool on = O.on;
-    const onl::Provider p = O.provider;
-    const bool azure = p == onl::Provider::Azure;
-    const bool google = p == onl::Provider::Google;
-    Item& en = add(Kind::Toggle, tr(S::TrOnlineEnable), OEnable);
-    en.on = on;
-    en.sub = tr(S::TrOnlineOffNote);
-    add(Kind::Rule, L"");
-    add(Kind::Heading, tr(S::TrOnlineProvider)).enabled = on;
-    for (onl::Provider x : {onl::Provider::DeepL, onl::Provider::Azure, onl::Provider::Google}) {
-        Item& r = add(Kind::Radio, onl::providerName(x), x == onl::Provider::DeepL ? ODeepL : x == onl::Provider::Azure ? OAzure : OGoogle);
-        r.on = p == x;
-        r.enabled = on && !O.testing;
-    }
-    add(Kind::Heading, tr(S::TrOnlineModeLabel)).enabled = on;
-    {
-        Item& a = add(Kind::Radio, tr(S::TrOnlineModeEscalate), OModeEscalate);
-        a.on = O.mode != onl::Mode::All;
-        a.enabled = on;
-        Item& b = add(Kind::Radio, tr(S::TrOnlineModeAll), OModeAll);
-        b.on = O.mode == onl::Mode::All;
-        b.enabled = on;
-    }
-    // Key (never read back: the hint 「已儲存 ••••3f9a」 only).
-    add(Kind::Heading, tr(S::TrOnlineKey)).enabled = on;
-    const bool stored = onl::hasKey(p);
-    if (stored) add(Kind::Note, fmt(S::TrOnlineKeySaved, {onl::keyHint(p)})).enabled = on;  // (else the box's cue says it)
-    {
-        Item& e = add(Kind::Edit, L"", OKey);
-        e.sub = stored ? tr(S::TrOnlineKeyCueNew) : tr(S::TrOnlineKeyHint);
-        e.password = !O.keyShown;
-        e.enabled = on;
-        Item& lk = add(Kind::Links, L"");
-        lk.buttons.push_back({OKeyShow, tr(O.keyShown ? S::TrOnlineKeyHide : S::TrOnlineKeyShow)});
-        lk.enabled = on;
-    }
-    if (azure) {
-        add(Kind::Heading, tr(S::TrOnlineRegion)).enabled = on;
-        Item& e = add(Kind::Edit, L"", ORegion);
-        e.sub = L"eastasia";
-        e.enabled = on;
-        add(Kind::Note, tr(S::TrOnlineRegionHint)).enabled = on;
-    }
-    // 測試連線 + its result.
-    {
-        Item& b = add(Kind::Buttons, L"");
-        b.buttons.push_back({OTest, tr(O.testing ? S::TrOnlineTesting : S::TrOnlineTest), false, false, !O.testing});
-        b.enabled = on;
-    }
-    if (O.hasTest && !O.testing) {
-        const onl::TestResult& t = O.test;
-        if (t.status == onl::Status::Ok) {
-            const std::wstring plan = planName(t.plan);
-            add(Kind::Status, plan.empty() ? std::wstring(tr(S::TrOnlineTestOkPlain)) : fmt(S::TrOnlineTestOk, {plan})).tone = 1;
-            if (t.used >= 0 && t.limit > 0) add(Kind::Note, fmt(S::TrOnlineTestUsage, {grouped(t.used), grouped(t.limit)}));
-            if (!t.sample.empty()) add(Kind::Note, fmt(S::TrOnlineTestSample, {t.sample}));
-        } else {
-            add(Kind::Status, statusText(t.status)).tone = 2;
-        }
-        if (!t.detail.empty()) {
-            Item& lk = add(Kind::Links, L"");
-            lk.buttons.push_back({ODetails, tr(S::TrOnlineErrDetails)});
-            if (O.detailShown) add(Kind::Code, t.detail + (t.http ? L" (HTTP " + std::to_wstring(t.http) + L")" : L""));
-        }
-    }
-    // Back-off: paused after a failure that hits every request; 重試 forgets it.
-    if (stored) {
-        int64_t ms = 0;
-        const onl::Status b = onl::blockedStatus(p, &ms);
-        if (b != onl::Status::Ok) {
-            const std::wstring why = b == onl::Status::BadKey || b == onl::Status::QuotaExceeded || b == onl::Status::ApiDisabled ? statusText(b) : shortReason(b);
-            add(Kind::Status, fmt(S::TrOnlineBlocked, {why})).tone = 2;
-            add(Kind::Note, ms < 0 ? std::wstring(tr(S::TrOnlineBlockedKey))
-                            : ms < 120000 ? fmt(S::TrOnlineBlockedWait, {std::to_wstring((ms + 999) / 1000)})
-                                          : fmt(S::TrOnlineBlockedWaitMin, {std::to_wstring((ms + 59999) / 60000)}));
-            Item& r = add(Kind::Buttons, L"");
-            r.buttons.push_back({ORetry, tr(S::TrOnlineRetry)});
-        }
-    }
-    add(Kind::Rule, L"");
-    // Privacy: one line always; the full note (闅辩娆婅鏄? and the key steps
-    // (濡備綍鍙栧緱閲戦懓) expand in place, so the panel fits a 768-px screen.
-    add(Kind::Heading, tr(S::TrOnlinePrivacyHead));
-    add(Kind::Note, fmt(S::TrOnlinePrivacyShort, {onl::providerName(p)}));
-    {
-        Item& lk = add(Kind::Links, L"");
-        lk.buttons.push_back({OTerms, tr(S::TrOnlineTermsLink)});
-        lk.buttons.push_back({OPrivacy, tr(S::TrOnlinePrivacyLink)});
-        lk.buttons.push_back({OGetKey, tr(S::TrOnlineGetKey)});
-    }
-    if (O.privacyShown) {
-        add(Kind::Note, fmt(google ? S::TrOnlinePrivacyGoogle : S::TrOnlinePrivacy, {onl::providerName(p)}));
-        Item& lk = add(Kind::Links, L"");
-        lk.buttons.push_back({OPrivacyUrl, fmt(S::TrOnlinePrivacyOpen, {onl::providerName(p)})});
-    }
-    if (O.helpShown) {
-        add(Kind::Note, tr(google ? S::TrOnlineHelpGoogle : azure ? S::TrOnlineHelpAzure : S::TrOnlineHelpDeepL));
-        add(Kind::Note, tr(google ? S::TrOnlineFreeGoogle : azure ? S::TrOnlineFreeAzure : S::TrOnlineFreeDeepL));
-        Item& lk = add(Kind::Links, L"");
-        lk.buttons.push_back({OSignup, tr(S::TrOnlineSignup)});
-    }
-    if (O.needKey) add(Kind::Status, tr(S::TrOnlineErrNotConfigured)).tone = 2;
-    if (O.storeError) add(Kind::Status, storeErrorText(O.storeError)).tone = 2;
-    // 移除金鑰並全部關閉 at the end of the content (not in the footer: on a small
-    // screen a second footer row would leave little room to scroll in).
-    const bool anything = onl::hasKey(onl::Provider::DeepL) || onl::hasKey(onl::Provider::Azure) || onl::hasKey(onl::Provider::Google) ||
-                         onl::loadSettings().mode != onl::Mode::Off;
-    if (anything) {
-        add(Kind::Rule, L"");
-        Item& fg = add(Kind::Buttons, L"");
-        fg.buttons.push_back({OForget, tr(S::TrOnlineForget), false, true});
-    }
-    Item& f = add(Kind::Buttons, L"");
-    f.footer = true;
-    f.buttons.push_back({OCancel, tr(S::Cancel)});
-    f.buttons.push_back({OSave, tr(S::TrOnlineSave), true});
-    return v;
-}
-
-void onlineRefresh() {
-    if (O.panel.isOpen()) O.panel.setItems(onlineItems());
-}
-
-void onlineDoSave(onl::Settings s) {
-    std::wstring key = trim(O.panel.editText(OKey));
-    onl::StoreError err = onl::StoreError::None;
-    if (!key.empty() && !onl::setKey(s.provider, key, &err)) {
-        wipe(key);
-        O.storeError = static_cast<int>(err);
-        logLine("warn", std::string("online key not saved: ") + onl::storeErrorId(err));
-        return onlineRefresh();
-    }
-    const bool newKey = !key.empty();
-    wipe(key);
-    O.panel.wipeEdit(OKey);
-    if (!onl::saveSettings(s, &err)) {
-        O.storeError = static_cast<int>(err);
-        logLine("warn", std::string("online settings not saved: ") + onl::storeErrorId(err));
-        return onlineRefresh();
-    }
-    O.storeError = 0;
-    logLine("info", std::string("online translation saved: ") + (s.enabled() ? "on" : "off") + ", " + onl::providerId(s.provider) +
-                        (s.mode == onl::Mode::All ? ", all" : s.mode == onl::Mode::Escalate ? ", escalate" : "") +
-                        (newKey ? ", new key" : ""));
-    if (host.onlineChanged) host.onlineChanged();
-    if (host.toast) host.toast(tr(S::TrOnlineSaved));
-    O.panel.close();
-}
-
-void onlineSave() {
-    onl::Settings s = onl::loadSettings();  // keeps the consents given before
-    s.provider = O.provider;
-    s.mode = O.on ? O.mode : onl::Mode::Off;
-    if (O.provider == onl::Provider::Azure) {
-        std::wstring r = trim(O.panel.editText(ORegion));
-        for (auto& c : r) c = static_cast<wchar_t>(towlower(c));
-        s.azureRegion = r;
-    }
-    O.needKey = false;
-    O.storeError = 0;
-    if (O.on && !onl::hasKey(O.provider) && trim(O.panel.editText(OKey)).empty()) {
-        O.needKey = true;
-        return onlineRefresh();
-    }
-    if (!s.needsConsent()) return onlineDoSave(s);
-    // Consent is given to a company: asked per provider (and again after kConsentVersion changes).
-    const onl::Provider p = s.provider;
-    AskPanel::Info a;
-    a.glyph = kIcoOnline;
-    a.title = tr(S::TrOnlineConsentTitle);
-    a.body = fmt(s.mode == onl::Mode::All ? S::TrOnlineConsentBodyAll : S::TrOnlineConsentBody, {onl::providerName(p)});
-    a.rows = {{tr(S::TrOnlineConsentSends), tr(S::TrOnlineConsentSendsVal)},
-              {tr(S::TrOnlineConsentTo), std::wstring(onl::providerName(p)) + L" (HTTPS)"},
-              {tr(S::TrOnlineTermsLink), onl::providerTermsUrl(p)}};
-    a.primary = tr(S::TrOnlineConsentYes);
-    a.secondary = tr(S::TrOnlineConsentNo);
-    a.done = [s](int choice) mutable {
-        logLine("info", std::string("online consent (") + onl::providerId(s.provider) + "): " + (choice == 1 ? "yes" : "no"));
-        if (choice != 1 || !O.panel.isOpen()) return;
-        s.setConsent(s.provider);
-        onlineDoSave(s);
-    };
-    logLine("info", std::string("online consent asked: ") + onl::providerId(p));
-    ask.open(O.panel.hwnd(), std::move(a));
-}
-
-void onlineTest() {
-    if (O.testing) return;
-    if (O.tester.joinable()) O.tester.join();
-    const onl::Provider p = O.provider;
-    std::wstring key = trim(O.panel.editText(OKey));
-    std::wstring region;
-    if (p == onl::Provider::Azure) {
-        region = trim(O.panel.editText(ORegion));
-        for (auto& c : region) c = static_cast<wchar_t>(towlower(c));
-    }
-    O.testing = true;
-    O.hasTest = false;
-    O.detailShown = false;
-    const bool fake = host.noNetwork;
-    logLine("info", std::string("online key test: ") + onl::providerId(p) + (key.empty() ? " (stored key)" : " (typed key)") +
-                        (fake ? " - test-no-network: fake, nothing sent" : ""));
-    O.tester = std::thread([p, key, region, fake]() mutable {
-        onl::TestResult r;
-        if (fake) {  // --dev --test-no-network: what a working free key reports
-            Sleep(400);
-            if (key.empty() && !onl::hasKey(p)) {
-                r.status = onl::Status::NotConfigured;
-            } else {
-                r.status = onl::Status::Ok;
-                r.plan = p == onl::Provider::DeepL ? onl::Plan::DeepLFree : p == onl::Provider::Google ? onl::Plan::Google : onl::Plan::Azure;
-                if (p == onl::Provider::DeepL) r.used = 12345, r.limit = 500000;
-                else r.sample = L"好的";
-            }
-        } else if (!key.empty()) {
-            r = onl::testKey(p, key, region);
-        } else {
-            r = onl::testStoredKey(p, region);  // NotConfigured (nothing sent) without a stored key
-        }
-        wipe(key);
-        postUi([r] {
-            if (O.tester.joinable()) O.tester.join();
-            O.testing = false;
-            O.hasTest = true;
-            O.test = r;
-            logLine(r.status == onl::Status::Ok ? "info" : "warn", std::string("online key test: ") + onl::statusId(r.status) +
-                                                                      ", plan " + onl::planId(r.plan));
-            onlineRefresh();
-        });
-    });
-    onlineRefresh();
-}
-
-void onlineAskForget() {
-    AskPanel::Info a;
-    a.glyph = 0xE74D;
-    a.title = tr(S::TrOnlineForget);
-    a.body = tr(S::TrOnlineForgetAsk);
-    a.primary = tr(S::TrDeleteBtn);
-    a.secondary = tr(S::Cancel);
-    a.danger = true;
-    a.done = [](int choice) {
-        if (choice != 1) return;
-        onl::forgetAll();
-        logLine("info", "online translation: keys removed, off");
-        O.on = false;
-        O.hasTest = false;
-        O.storeError = 0;
-        O.panel.wipeEdit(OKey);
-        if (host.onlineChanged) host.onlineChanged();
-        if (host.toast) host.toast(tr(S::TrOnlineForgotten));
-        onlineRefresh();
-    };
-    ask.open(O.panel.hwnd(), std::move(a));
-}
-
-void openUrl(const wchar_t* url) {
-    if (!url || !*url) return;
-    logLine("info", "open " + utf8(url));
-    if (host.openUrl) host.openUrl(url);
-}
-
-void onlineAction(int id) {
-    switch (id) {
-    case OEnable:
-        O.on = !O.on;
-        O.needKey = false;
-        break;
-    case ODeepL:
-    case OAzure:
-    case OGoogle: {
-        const onl::Provider np = id == ODeepL ? onl::Provider::DeepL : id == OGoogle ? onl::Provider::Google : onl::Provider::Azure;
-        if (np == O.provider) return;
-        O.provider = np;
-        O.hasTest = false;
-        O.panel.wipeEdit(OKey);  // a key belongs to one provider
-        // The region box is created empty when Azure is picked here (it only
-        // exists while Azure is selected): fill in the saved region, else
-        // 儲存 / 測試連線 would send "" and clear it.
-        onlineRefresh();
-        if (np == onl::Provider::Azure && trim(O.panel.editText(ORegion)).empty())
-            O.panel.setEditText(ORegion, onl::loadSettings().azureRegion);
-        return;
-    }
-    case OModeEscalate: O.mode = onl::Mode::Escalate; break;
-    case OModeAll: O.mode = onl::Mode::All; break;
-    case OKeyShow: O.keyShown = !O.keyShown; break;
-    case OTest: onlineTest(); return;
-    case ODetails: O.detailShown = !O.detailShown; break;
-    case ORetry:
-        onl::resetBackoff();
-        logLine("info", "online back-off reset (retry)");
-        break;
-    case OTerms: openUrl(onl::providerTermsUrl(O.provider)); return;
-    case OPrivacy: O.privacyShown = !O.privacyShown; break;
-    case OPrivacyUrl: openUrl(onl::providerPrivacyUrl(O.provider)); return;
-    case OGetKey: O.helpShown = !O.helpShown; break;
-    case OSignup: openUrl(onl::providerSignupUrl(O.provider)); return;
-    case OForget: onlineAskForget(); return;
-    case OCancel:
-        ask.close();
-        O.panel.wipeEdit(OKey);
-        O.panel.close();
-        return;
-    case OSave: onlineSave(); return;
-    default: return;
-    }
-    onlineRefresh();
-}
-
 }  // namespace
 
 // ===================================================================== public
@@ -988,7 +578,6 @@ void init(Host h) {
         RegisterClassW(&wc);
         msgWnd = CreateWindowExW(0, wc.lpszClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
     }
-    O.toasted = onl::Status::Ok;
 }
 
 // When quitting (UI still up: cancel, close, wait up to 2 s) and, last=true,
@@ -999,23 +588,20 @@ void init(Host h) {
 void shutdown(bool last) {
     ask.close();
     Ai.panel.close();
-    O.panel.close();
-    // Downloads stop at their next block (the partial file is kept); a key
-    // test cannot be cancelled but ends by itself (<= ~25 s).
+    // Downloads stop at their next block (the partial file is kept).
     if (Ai.downloading) Ai.cancel = true;
     if (Ai.ocrDownloading) Ai.ocrCancel = true;
-    // Their done messages (llmDownloadDone / ocrDownloadDone / the test
-    // result) join them on this thread.
-    for (int i = 0; i < 40 && (Ai.downloading || Ai.ocrDownloading || O.testing); ++i) {
+    // Their done messages (llmDownloadDone / ocrDownloadDone / the OCR
+    // download) join them on this thread.
+    for (int i = 0; i < 40 && (Ai.downloading || Ai.ocrDownloading ); ++i) {
         MSG m;
         while (msgWnd && PeekMessageW(&m, msgWnd, 0, 0, PM_REMOVE)) DispatchMessageW(&m);
-        if (Ai.downloading || Ai.ocrDownloading || O.testing) Sleep(50);
+        if (Ai.downloading || Ai.ocrDownloading) Sleep(50);
     }
     if (!last) return;
     if (msgWnd) DestroyWindow(msgWnd), msgWnd = nullptr;  // later results are dropped
     if (Ai.worker.joinable()) Ai.worker.join();
     if (Ai.ocrWorker.joinable()) Ai.ocrWorker.join();
-    if (O.tester.joinable()) O.tester.join();
 }
 
 void openLocalAi() {
@@ -1031,38 +617,8 @@ void openLocalAi() {
     Ai.panel.open(host.owner, tr(S::TrLlmTitle), kIcoLlm, llmItems(), std::move(cb));
 }
 
-void openOnline() {
-    if (O.panel.isOpen()) {
-        O.panel.open(host.owner, tr(S::TrOnlineTitle), kIcoOnline, onlineItems(), {onlineAction, nullptr, nullptr});
-        return;
-    }
-    const onl::Settings s = onl::loadSettings();
-    O.on = s.mode != onl::Mode::Off;
-    O.provider = s.provider == onl::Provider::None ? onl::Provider::DeepL : s.provider;
-    O.mode = s.mode == onl::Mode::All ? onl::Mode::All : onl::Mode::Escalate;
-    O.keyShown = O.helpShown = O.privacyShown = O.detailShown = false;
-    O.hasTest = O.needKey = false;
-    O.storeError = 0;
-    SettingsPanel::Callbacks cb;
-    cb.onAction = onlineAction;
-    cb.onClose = [] {
-        ask.close();
-        O.panel.wipeEdit(OKey);
-    };
-    cb.onEditChange = [](int id) {
-        if (id == OKey && O.needKey) {
-            O.needKey = false;
-            onlineRefresh();
-        }
-    };
-    logLine("info", std::string("online panel opened: ") + (s.enabled() ? "on" : "off") + ", " + onl::providerId(s.provider));
-    O.panel.open(host.owner, tr(S::TrOnlineTitle), kIcoOnline, onlineItems(), std::move(cb));
-    if (O.provider == onl::Provider::Azure) O.panel.setEditText(ORegion, s.azureRegion);
-}
-
 void retheme() {
     Ai.panel.retheme();
-    O.panel.retheme();
     ask.retheme();
 }
 
@@ -1072,45 +628,16 @@ void relabel() {
         Ai.panel.setTitle(tr(S::TrLlmTitle));
         llmRefresh(false);
     }
-    if (O.panel.isOpen()) {
-        O.panel.relabel();
-        O.panel.setTitle(tr(S::TrOnlineTitle));
-        onlineRefresh();
-    }
 }
 
 void warmUpLocalAi() { llm::warmUp(); }
 
 bool localAiOn() { return llm::status().usable(); }
 
-bool onlineEnabled() { return onl::loadSettings().enabled(); }
-
-std::wstring onlineToast() {
-    if (!onl::loadSettings().enabled()) {
-        O.toasted = onl::Status::Ok;
-        return {};
-    }
-    const onl::Status st = onl::lastStatus();
-    if (st == O.toasted) return {};  // once per new state
-    O.toasted = st;
-    switch (st) {
-    case onl::Status::Ok:
-    case onl::Status::NotConfigured: return {};
-    case onl::Status::QuotaExceeded: return tr(S::TrOnlineQuotaToast);
-    case onl::Status::BadKey: return tr(S::TrOnlineBadKeyToast);
-    default: return fmt(S::TrOnlineFailToast, {shortReason(st)});
-    }
-}
-
 int devShots(const std::wstring& dir, const std::wstring& suffix, bool view) {
     int n = 0;
     const std::wstring v = view ? L"_view" : L"";
     n += Ai.panel.renderPng(dir + L"\\llm" + v + suffix + L".png", view) ? 1 : 0;
-    n += O.panel.renderPng(dir + L"\\online" + v + suffix + L".png", view) ? 1 : 0;
-    if (O.panel.isOpen())
-        logLine("info", "online panel: dpi " + std::to_string(O.panel.dpi()) + ", window " +
-                            std::to_string(static_cast<int>(O.panel.height() * O.panel.dpi() / 96)) + " px, content " +
-                            std::to_string(static_cast<int>(O.panel.contentHeight())) + " DIP");
     if (view) return n;
     n += ask.renderPng(dir + L"\\trask" + suffix + L".png") ? 1 : 0;
     return n;
@@ -1118,26 +645,23 @@ int devShots(const std::wstring& dir, const std::wstring& suffix, bool view) {
 
 void devClick(int panel, int id) {
     if (panel == 0 && Ai.panel.isOpen()) llmAction(id);
-    if (panel == 1 && O.panel.isOpen()) onlineAction(id);
 }
 
 void devAnswer(int choice) {
     if (ask.isOpen()) ask.click(choice == 1 ? 1 : choice == 2 ? 2 : 0);
 }
 
-void devSetKey(const std::wstring& key) {
-    if (O.panel.isOpen()) O.panel.setEditText(OKey, key);
+void devScroll(int panel, float dips) {
+    if (panel == 0) Ai.panel.devScroll(dips);
 }
-
-void devScroll(int panel, float dips) { (panel == 0 ? Ai.panel : O.panel).devScroll(dips); }
-void devKey(int panel, UINT vk) { (panel == 0 ? Ai.panel : O.panel).devKey(vk); }
+void devKey(int panel, UINT vk) {
+    if (panel == 0) Ai.panel.devKey(vk);
+}
 void devDpiChanged(int dpi, bool stale) {
     Ai.panel.devDpiChanged(dpi, stale);
-    O.panel.devDpiChanged(dpi, stale);
 }
 void devSelfCheck() {
     if (Ai.panel.isOpen()) logLine("info", "self-check local AI panel: " + Ai.panel.selfCheck());
-    if (O.panel.isOpen()) logLine("info", "self-check online panel: " + O.panel.selfCheck());
 }
 void devScreen(int dpi, int workAreaPx) {
     SettingsPanel::testDpi = dpi;
@@ -1153,12 +677,9 @@ bool available() { return false; }
 void init(Host) {}
 void shutdown(bool) {}
 void openLocalAi() {}
-void openOnline() {}
 void retheme() {}
 void relabel() {}
 void warmUpLocalAi() {}
-bool onlineEnabled() { return false; }
-std::wstring onlineToast() { return {}; }
 int devShots(const std::wstring&, const std::wstring&, bool) { return 0; }
 void devScroll(int, float) {}
 void devKey(int, UINT) {}
@@ -1168,7 +689,6 @@ void devSelfCheck() {}
 bool localAiOn() { return false; }
 void devClick(int, int) {}
 void devAnswer(int) {}
-void devSetKey(const std::wstring&) {}
 }  // namespace pm::ui::trset
 
 #endif

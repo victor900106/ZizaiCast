@@ -1440,30 +1440,6 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             }
         if (failing.size() > 1) esc->prefetchClauses(failing);
     }
-    // Online translation (pm/online_translate.h; the mode read once per
-    // picture by Escalator::resetBudget), one batch call per call here:
-    //   All       every piece, taken where it passes the checks (Bergamot for the rest);
-    //   Escalate  the pieces whose Bergamot result fails a check, so that the
-    //             escalator's step 4 for each of them is a cache hit.
-    // The requests are Escalator::request() - what step 4 sends.
-    std::vector<std::wstring> onlineText(engineIn.size());
-    if (esc && fixes && esc->onlineMode() != Escalator::OnlineMode::Off) {
-        const bool all = esc->onlineMode() == Escalator::OnlineMode::All;
-        std::vector<TrRequest> rqs;
-        std::vector<size_t> slot;
-        std::vector<char> seen(engineIn.size(), 0);
-        for (const auto& parts : plan)
-            for (const auto& p : parts) {
-                if (p.eng == SIZE_MAX || seen[p.eng]) continue;
-                seen[p.eng] = 1;
-                if (!all && checkTranslation(p.plain, restore(p, res[p.eng]), src, tgt).empty()) continue;
-                rqs.push_back(Escalator::request(p.plain, src, tgt));
-                slot.push_back(p.eng);
-            }
-        std::vector<TrHypothesis> got;
-        if (esc->prefetchOnline(rqs, &got) || all)
-            for (size_t k = 0; k < slot.size() && k < got.size(); ++k) onlineText[slot[k]] = got[k].text;
-    }
     for (size_t i = 0; i < in.size(); ++i)
         for (auto& p : plan[i]) {
             if (p.eng == SIZE_MAX) continue;
@@ -1473,13 +1449,7 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
                 h.text = restore(p, res[p.eng]);
                 h.engine = "bergamot";
                 h.step = 1;
-                if (esc && fixes && esc->onlineMode() == Escalator::OnlineMode::All && !onlineText[p.eng].empty() &&
-                    checkTranslation(p.plain, onlineText[p.eng], src, tgt).empty()) {
-                    h.text = onlineText[p.eng];  // online first (mode All), it passed the checks
-                    h.engine = "online";
-                    h.step = 4;
-                    esc->remember(src, tgt, p.plain, h);
-                } else if (esc && fixes) {
+                if (esc && fixes) {
                     TrRequest rq;
                     rq.text = p.plain;
                     rq.src = src;
@@ -1525,7 +1495,6 @@ bool translateTextsEx(Engine& engine, Escalator* esc, Lang src, Lang tgt, const 
             if (info) {
                 TextInfo& ti = (*info)[i];
                 ti.step = std::max(ti.step, h.step);
-                ti.online |= h.engine.rfind("online", 0) == 0;
                 ti.flags.insert(ti.flags.end(), firstFlags[p.eng].begin(), firstFlags[p.eng].end());
                 if (h.uncertain) {
                     ti.uncertain = true;

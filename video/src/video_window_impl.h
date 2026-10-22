@@ -125,7 +125,6 @@ struct VideoWindow::Impl {
     bool viewChanged = false;
     int frozenReq = -1, originalReq = -1;
     std::optional<std::vector<video::Renderer::TextBox>> boxesReq;
-    std::optional<std::vector<std::wstring>> onlineReq;  // setTextOverlayOnline
     std::optional<std::wstring> busyReq;
     // Text overlay list panel / markers: requests (UI thread) and the
     // published hit rectangles (worker).
@@ -473,7 +472,7 @@ struct VideoWindow::Impl {
                frameReq >= 0 || recReq >= 0 || mascotHoverReq >= 0 || xformChanged || mascotClickReq || tapChanged ||
                bgraNew.load() || hintsReq || actionsReq || linkHoverReq != -2 || toolbarReq || toolActivityReq ||
                toolLeaveReq || toolHoverReq != -2 || viewChanged || frozenReq >= 0 || originalReq >= 0 || boxesReq ||
-               onlineReq || busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0 ||
+               busyReq || selChanged || motionReq >= 0 || pressReq != -2 || focusReq != -2 || flashReq || quietReq >= 0 ||
                inkBadgeReq || dropHintReq || pointerInReq >= 0 || toastHotReq >= 0 || frozenBadgeReq;
     }
 

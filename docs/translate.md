@@ -319,9 +319,7 @@ Original plan:
    * `MenuMagnifier` 放大鏡 ▸ `MenuZoomIn` 放大 (Ctrl+=), `MenuZoomOut` 縮小
      (Ctrl+-), `MenuZoomReset` 原始大小 (Ctrl+Shift+0) — greyed at the
      limits; `win.zoomStep(+1/-1)`, `win.resetMagnifier()`.
-   * `MenuFilter` 高對比 ▸ radio: `FilterNone` 原本的顏色, `FilterContrast`
-     加強對比, `FilterGray` 黑白（灰階）, `FilterInvert` 反轉顏色（黑白對調）,
-     `FilterYellow` 黃字黑底 → `win.setFilter(...)`; Ctrl+K cycles them.
+   * (`MenuFilter` 高對比 ▸ and Ctrl+K were removed in 0.8.4.)
    * `MenuFreeze` 凍結畫面 ✓ (Ctrl+P) → `win.setFrozen(!frozen)`.
    * `MenuTranslate` 翻譯畫面 (Ctrl+L), `MenuTranslateRegion` 翻譯框選範圍
      (Ctrl+Shift+L), and while `g_tr.active()`: `MenuTranslateOriginal`

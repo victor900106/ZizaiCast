@@ -265,8 +265,24 @@ bool H264Encoder::setBitrate(int kbps) {
     VariantInit(&var);
     var.vt = VT_UI4;
     var.ulVal = UINT32(kbps) * 1000;
+    // 0.8.4: the peak stays above the mean at every moment (a peak below the mean is refused): going up the
+    // peak first, going down the mean first
+    HRESULT hm = S_OK, hb = S_OK;
+    auto setPeak = [&] {
+        if (!opt_.vbr) return;
+        var.ulVal = UINT32(kbps) * 1500;  // peak-constrained VBR: the peak follows the mean (0.8.3.6 kept the first one)
+        hm = api->SetValue(&CODECAPI_AVEncCommonMaxBitRate, &var);
+    };
+    if (kbps > opt_.kbps) setPeak();
+    var.ulVal = UINT32(kbps) * 1000;
     const HRESULT hr = api->SetValue(&CODECAPI_AVEncCommonMeanBitRate, &var);
-    logf("encoder: bitrate -> %d kbps (%s)", kbps, SUCCEEDED(hr) ? "ok" : hresultText(hr).c_str());
+    if (kbps <= opt_.kbps) setPeak();
+    if (SUCCEEDED(hr) && opt_.vbvFrames > 0) {  // the buffer (the size of a key frame's burst) follows too
+        var.ulVal = UINT32(int64_t(kbps) * 1000 * opt_.vbvFrames / std::max(1, opt_.fps));
+        hb = api->SetValue(&CODECAPI_AVEncCommonBufferSize, &var);
+    }
+    logf("encoder: bitrate -> %d kbps (%s%s%s)", kbps, SUCCEEDED(hr) ? "ok" : hresultText(hr).c_str(),
+         opt_.vbr ? (SUCCEEDED(hm) ? ", peak ok" : ", peak kept") : "", opt_.vbvFrames > 0 ? (SUCCEEDED(hb) ? ", VBV ok" : ", VBV kept") : "");
     if (SUCCEEDED(hr)) opt_.kbps = kbps;
     return SUCCEEDED(hr);
 }

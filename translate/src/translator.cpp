@@ -1,8 +1,7 @@
 // The engines behind pm/translator.h and the escalation of a failed check
 // (ARCHITECTURE.md §3.7 / §3.8; owner decisions (5) and (7)): Bergamot first,
-// then the source split into clauses, a local LLM (if installed), online
-// translation (if the user turned it on), the high-risk templates, and at
-// last the checked key facts written out with the best translation.
+// then the source split into clauses, a local LLM (if installed), the
+// high-risk templates, and at last the checked key facts written out with the best translation.
 #include <windows.h>
 
 #include <algorithm>
@@ -19,26 +18,20 @@
 #include "pm/translator.h"
 #include "text_util.h"
 #include "tr_log.h"
-#ifdef PM_TRANSLATE_HAVE_ONLINE  // translate/CMakeLists.txt: online_engine*.cpp built in
-#include "pm/online_translate.h"
-#endif
 
-// Default factories: no LLM / online engine in this build.  An engine file
-// (llm_engine*.cpp / online_engine*.cpp) defining the real function wins:
+// Default factory: no LLM engine in this build.  An engine file
+// (llm_engine*.cpp) defining the real function wins:
 // MSVC uses an /alternatename only when the symbol is defined nowhere else.
 extern "C" pm::translate::ITranslator* pm_default_no_translator() { return nullptr; }
 #if defined(_M_X64) || defined(_M_ARM64)
 #pragma comment(linker, "/alternatename:pm_create_local_llm_translator=pm_default_no_translator")
-#pragma comment(linker, "/alternatename:pm_create_online_translator=pm_default_no_translator")
 #else
 #pragma comment(linker, "/alternatename:_pm_create_local_llm_translator=_pm_default_no_translator")
-#pragma comment(linker, "/alternatename:_pm_create_online_translator=_pm_default_no_translator")
 #endif
 
 namespace pm::translate {
 
 std::unique_ptr<ITranslator> createLocalLlmTranslator() { return std::unique_ptr<ITranslator>(pm_create_local_llm_translator()); }
-std::unique_ptr<ITranslator> createOnlineTranslator() { return std::unique_ptr<ITranslator>(pm_create_online_translator()); }
 
 namespace {
 
@@ -494,10 +487,9 @@ struct Escalator::Impl {
     Engine& engine;
     EscalationConfig cfg;
     BergamotTranslator bergamot;
-    std::unique_ptr<ITranslator> llm, online;
-    bool llmTried = false, onlineTried = false;
+    std::unique_ptr<ITranslator> llm;
+    bool llmTried = false;
     double llmMs = 0;
-    OnlineMode onlineMode = OnlineMode::Off;  // per picture (resetBudget)
     // Memory-only cache of checked translations (key: src, tgt, piece).
     std::unordered_map<std::wstring, TrHypothesis> cache;
     std::deque<std::wstring> order;
@@ -712,7 +704,7 @@ Escalator::Escalator(Engine& e, EscalationConfig cfg) : impl_(std::make_unique<I
 Escalator::~Escalator() = default;
 void Escalator::setConfig(const EscalationConfig& c) {
     // Other engines allowed: earlier results may no longer be the best.
-    if (c.localLlm != impl_->cfg.localLlm || c.online != impl_->cfg.online || c.splitClauses != impl_->cfg.splitClauses ||
+    if (c.localLlm != impl_->cfg.localLlm || c.splitClauses != impl_->cfg.splitClauses ||
         c.templates != impl_->cfg.templates)
         clearCache();
     impl_->cfg = c;
@@ -744,20 +736,7 @@ void Escalator::resetBudget() {
     impl_->llmMs = 0;
     impl_->pending.clear();
     impl_->clauseCache.clear();
-    // The online mode in effect for this picture (Off unless the user turned
-    // it on, gave a key and the provider is not backed off).
-#ifdef PM_TRANSLATE_HAVE_ONLINE
-    switch (online::activeMode()) {
-    case online::Mode::All: impl_->onlineMode = OnlineMode::All; break;
-    case online::Mode::Escalate: impl_->onlineMode = OnlineMode::Escalate; break;
-    default: impl_->onlineMode = OnlineMode::Off; break;
-    }
-#else
-    impl_->onlineMode = OnlineMode::Off;
-#endif
-    if (!impl_->cfg.online) impl_->onlineMode = OnlineMode::Off;
 }
-Escalator::OnlineMode Escalator::onlineMode() const { return impl_->onlineMode; }
 bool Escalator::llmTranslate(const std::vector<TrRequest>& in, std::vector<TrHypothesis>& out) {
     Impl& m = *impl_;
     out.assign(in.size(), {});
@@ -778,15 +757,6 @@ TrRequest Escalator::request(const std::wstring& text, Lang src, Lang tgt) {
     r.negation = negationCues(text, src).count > 0;
     for (const auto& h : dataGlossaryHits(text, src, tgt)) r.terms.push_back({text.substr(h.pos, h.len), h.zh});
     return r;
-}
-bool Escalator::prefetchOnline(const std::vector<TrRequest>& in, std::vector<TrHypothesis>* out) {
-    if (out) out->assign(in.size(), {});
-    if (in.empty() || impl_->onlineMode == OnlineMode::Off) return false;
-#ifdef PM_TRANSLATE_HAVE_ONLINE
-    return online::prefetch(in, out) == online::Status::Ok;
-#else
-    return false;
-#endif
 }
 
 // Step 2's engine requests for a piece: ALL-CAPS English in sentence case,
@@ -901,7 +871,7 @@ bool Escalator::escalate(const TrRequest& rq, const std::wstring& plainSrc, TrHy
             }
         }
     }
-    // 3) Local LLM, 4) online: only when present / allowed.
+    // 3) Local LLM: only when present / allowed.
     auto tryEngine = [&](std::unique_ptr<ITranslator>& e, bool& tried, std::unique_ptr<ITranslator> (*make)(), int step) {
         if (!tried) {
             tried = true;
@@ -911,7 +881,6 @@ bool Escalator::escalate(const TrRequest& rq, const std::wstring& plainSrc, TrHy
         if (step == 3 && m.llmMs > m.cfg.llmBudgetMs) return false;
         std::vector<TrHypothesis> out;
         std::wstring err;
-        // The same request as prefetchOnline's (the online cache key: text, langs, context, keep, terms).
         const TrRequest r = request(rq.text, rq.src, rq.tgt);
         const double t0 = nowMs();
         const bool ok = e->translate({r}, out, &err);
@@ -919,7 +888,6 @@ bool Escalator::escalate(const TrRequest& rq, const std::wstring& plainSrc, TrHy
         return ok && !out.empty() && accept(out[0].text, step, e->id());
     };
     if (m.cfg.localLlm && !m.cfg.deferLlm && tryEngine(m.llm, m.llmTried, &createLocalLlmTranslator, 3)) return true;
-    if (m.onlineMode != OnlineMode::Off && tryEngine(m.online, m.onlineTried, &createOnlineTranslator, 4)) return true;
     // 5) Templates.
     if (m.cfg.templates) {
         std::wstring t;

@@ -1,6 +1,6 @@
 // Offline tests for 傳到手機 (no phone, no LAN: everything on 127.0.0.1).
 //   pm_share_test                      run the checks
-//   pm_share_test --serve N [--en|--lang L] [--live] [--ttl S] FILE... [--later FILE]... [--every S]
+//   pm_share_test --serve N [--en|--lang L] [--ttl S] FILE... [--later FILE]... [--every S]
 //                                      serve FILEs for N s on
 //                                      127.0.0.1 and print the URL (page shots)
 #include <winsock2.h>
@@ -274,22 +274,16 @@ static void testServer(const fs::path& dir) {
             const std::string data = j == std::string::npos ? "" : r.body.substr(j, r.body.find("</script>", j) - j);
             check(!data.empty() && data.find('<') == std::string::npos && data.find("\"saveAll\"") != std::string::npos,
                   "page texts block: JSON with no raw '<' (cannot close the script)");
-            check(r.body.find("id=\"saveall\"") != std::string::npos && r.body.find("data-save=\"0\"") != std::string::npos &&
-                      r.body.find("data-live=\"0\"") != std::string::npos,
-                  "page: 全部儲存 bar (hidden until the script) + per-file save hooks, not live");
+            check(r.body.find("id=\"saveall\"") != std::string::npos && r.body.find("data-save=\"0\"") != std::string::npos,
+                  "page: 全部儲存 bar (hidden until the script) + per-file save hooks");
         }
         {
             Resp js = get(port, base + "app.js");
             check(js.status == 200 && js.header("Content-Type") == "text/javascript; charset=utf-8" &&
-                      js.body.find("navigator.share") != std::string::npos && js.body.find("list?n=") != std::string::npos,
-                  "app.js 200 text/javascript (navigator.share, live poll)");
-            Resp l = get(port, base + "list?n=0");  // not live: answered at once
-            check(l.status == 200 && l.header("Content-Type") == "application/json; charset=utf-8" &&
-                      l.body.find("\"live\":false,\"n\":2") != std::string::npos &&
-                      l.body.find("\"type\":\"video/mp4\"") != std::string::npos,
-                  "list: JSON of the 2 files (" + l.body.substr(0, 60) + "…)");
-            check(get(port, "/" + wrong + "/list").status == 404 && get(port, "/" + wrong + "/app.js").status == 404,
-                  "list / app.js need the token");
+                      js.body.find("navigator.share") != std::string::npos,
+                  "app.js 200 text/javascript (navigator.share)");
+            check(get(port, base + "list").status == 404, "no file-list endpoint (/list → 404)");
+            check(get(port, "/" + wrong + "/app.js").status == 404, "app.js needs the token");
         }
         Resp a = get(port, base, "User-Agent: Mozilla/5.0 (Linux; Android 14; Pixel 8)\r\n");
         check(a.body.find(u8(L"下載圖片")) != std::string::npos && a.body.find(u8(L"加入照片")) == std::string::npos,
@@ -419,10 +413,9 @@ static void testServer(const fs::path& dir) {
     }
 }
 
-// 自動傳到手機: a live share starts empty, files are added while it runs and a
-// waiting list?n=K answers as soon as file K+1 exists.
-static void testLive(const fs::path& dir) {
-    section("live share (自動傳到手機)");
+// addFile(): a file added to the running share is served and listed on the next page load.
+static void testAddFile(const fs::path& dir) {
+    section("addFile (a file added to a running share)");
     const fs::path a = dir / L"自在投影_20261008_120000.png", b = dir / L"自在投影_20261008_120100.mp4";
     std::ofstream(a, std::ios::binary) << std::string(5000, 'a');
     std::ofstream(b, std::ios::binary) << std::string(9000, 'b');
@@ -431,85 +424,33 @@ static void testLive(const fs::path& dir) {
     srv.onExpired = [&] { ++expiredCalls; };
     pm::share::Server::Options o;
     o.bindIp = "127.0.0.1";
-    o.live = true;
     o.ttlSeconds = 7;
     std::string err;
-    check(srv.start({}, o, &err) && srv.live() && srv.fileCount() == 0, "live share starts with no file (" + err + ")");
+    {
+        pm::share::Server none;
+        check(!none.start({}, o, &err), "a share without a file → start fails (" + err + ")");
+    }
+    check(srv.start({a.wstring()}, o) && srv.fileCount() == 1, "share starts with one file");
     const uint16_t port = srv.port();
     const std::string base = pathOf(srv.url());
-    {
-        Resp r = get(port, base, "User-Agent: Mozilla/5.0 (iPhone)\r\n");
-        check(r.status == 200 && r.body.find("data-live=\"1\" data-n=\"0\"") != std::string::npos &&
-                  r.body.find("id=\"empty\">") != std::string::npos && r.body.find(u8(L"即時更新")) != std::string::npos,
-              "empty live page: 即時更新 + waiting card");
-    }
-    // A waiting list?n=0 returns when the first file arrives (not before).
-    {
-        Resp res;
-        auto t0 = std::chrono::steady_clock::now();
-        std::thread t([&] { res = get(port, base + "list?n=0"); });
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-        const int idx = srv.addFile(a.wstring());
-        t.join();
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        check(idx == 0 && res.status == 200 && res.body.find("\"n\":1") != std::string::npos &&
-                  res.body.find(u8(L"自在投影_20261008_120000.png")) != std::string::npos,
-              "list?n=0 held until addFile, then the new file (" + std::to_string(ms) + " ms)");
-        check(ms >= 1400 && ms < 3500, "long poll: waited for the file, answered at once after it (" + std::to_string(ms) + " ms)");
-    }
     check(srv.addFile(a.wstring()) == 0, "same file again → same index");
     check(srv.addFile((dir / L"nope.png").wstring()) == -1, "missing file → -1");
     check(srv.addFile(b.wstring()) == 1 && srv.fileCount() == 2, "second file → index 1");
     {
-        Resp r = get(port, base + "list?n=1");  // already 2: at once
-        check(r.status == 200 && r.body.find("\"n\":2") != std::string::npos && r.body.find("\"video\":true") != std::string::npos,
-              "list?n=1 with 2 files → at once");
         Resp p = get(port, base, "User-Agent: Mozilla/5.0 (iPhone)\r\n");
         const size_t c1 = p.body.find("data-i=\"1\""), c0 = p.body.find("data-i=\"0\"");
-        check(c1 != std::string::npos && c0 != std::string::npos && c1 < c0 && p.body.find("id=\"empty\" hidden") != std::string::npos,
-              "live page: newest first, waiting card hidden");
+        check(c0 != std::string::npos && c1 != std::string::npos && c0 < c1, "page after a reload: both files, in order");
         check(get(port, base + "v/1").body == std::string(9000, 'b'), "added file served (v/1)");
     }
-    // Expiry wakes a waiting list request with 410 (the test client gives up after 5 s).
+    // After the deadline: 410, and no more files.
     {
-        while (srv.secondsLeft() > 2) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        Resp res;
-        auto t0 = std::chrono::steady_clock::now();
-        std::thread t([&] { res = get(port, base + "list?n=2"); });
-        t.join();
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        check(res.status == 410 && expiredCalls == 1 && ms < 4000,
-              "live cap reached: the waiting list request → 410 at the deadline (" + std::to_string(ms) + " ms)");
+        while (srv.secondsLeft() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         Resp e = get(port, base);
-        check(e.status == 410 && e.body.find(u8(L"自動傳送已經停止")) != std::string::npos, "expired live page text");
+        check(e.status == 410 && expiredCalls == 1, "expired share → 410 (status " + std::to_string(e.status) + ", calls " + std::to_string(expiredCalls.load()) + ")");
         check(srv.addFile(b.wstring()) == -1, "no addFile after expiry");
     }
-    // stop() releases a waiting list request at once.
-    {
-        o.ttlSeconds = 60;
-        srv.start({a.wstring()}, o);
-        const uint16_t p2 = srv.port();
-        const std::string base2 = pathOf(srv.url());
-        Resp res;
-        std::thread t([&] { res = get(p2, base2 + "list?n=1"); });
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        const auto t0 = std::chrono::steady_clock::now();
-        srv.stop();
-        t.join();
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        check(ms < 1500 && res.status != 200, "stop() with a list request waiting returns in " + std::to_string(ms) + " ms");
-    }
-    // A non-live share: addFile works too (the page shows it on reload), start without a file still fails.
-    {
-        pm::share::Server::Options s = o;
-        s.live = false;
-        std::string e2;
-        check(!srv.start({}, s, &e2), "non-live share without a file → start fails (" + e2 + ")");
-        check(srv.start({a.wstring()}, s) && srv.addFile(b.wstring()) == 1 &&
-                  get(srv.port(), pathOf(srv.url()) + "list").body.find("\"n\":2") != std::string::npos,
-              "non-live share: addFile → listed");
-        srv.stop();
-    }
+    srv.stop();
 }
 
 // ---- 全部下載（ZIP） ---------------------------------------------------------
@@ -597,8 +538,8 @@ static void testZip(const fs::path& dir) {
         check(an.body.find(u8(L"「解壓縮」")) != std::string::npos && an.body.find(u8(L"下載項目")) == std::string::npos,
               "Android page: the Extract hint only");
         Resp js = get(port, base + "app.js");
-        check(js.body.find("zip?from=") != std::string::npos && js.body.find("zipall") != std::string::npos,
-              "app.js keeps the ZIP button (count, zip?from=K)");
+        check(js.body.find("zipall") != std::string::npos,
+              "app.js keeps the ZIP button (zipall)");
     }
     {
         Resp z = get(port, base + "zip");
@@ -798,7 +739,6 @@ static int serve(int argc, wchar_t** argv) {
         else if (a == L"--every" && i + 1 < argc) every = _wtoi(argv[++i]);
         else if (a == L"--en") o.english = true;
         else if (a == L"--lang" && i + 1 < argc) o.lang = _wtoi(argv[++i]);  // 0 zh-TW, 1 en, 2 ja, 3 ko
-        else if (a == L"--live") o.live = true;
         else if (a == L"--ttl" && i + 1 < argc) o.ttlSeconds = _wtoi(argv[++i]);
         else if (a == L"--port" && i + 1 < argc) o.port = uint16_t(_wtoi(argv[++i]));
         else if (a == L"--light") {  // 奶茶-like light card
@@ -930,7 +870,7 @@ int wmain(int argc, wchar_t** argv) {
     const fs::path dir = tempDir();
     testPure();
     testServer(dir);
-    testLive(dir);
+    testAddFile(dir);
     testLimits(dir);
     testZip(dir);
     testQr(dir);

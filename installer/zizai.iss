@@ -13,7 +13,7 @@
 #define AppName "自在投影"
 ; /DAppVersion=x.y.z overrides it (fake newer installers for updater tests).
 #ifndef AppVersion
-  #define AppVersion "0.8.3.6"
+  #define AppVersion "0.8.4"
 #endif
 #define AppExe "自在投影.exe"
 #ifndef BuildDir
@@ -212,9 +212,8 @@ Source: "..\docs\licenses\onnxruntime\*"; DestDir: "{app}\程式\licenses\onnxru
 ; scrcpy-server (LICENSE-scrcpy.txt) and LICENSE-qrcodegen.txt, copied to
 ; <bin>\android-tools by app/CMakeLists.txt (android/third_party/fetch_tools.ps1).
 Source: "{#BuildDir}\android-tools\*"; DestDir: "{app}\程式\android-tools"; Flags: ignoreversion
-; 免安裝外網 (0.8.1): cloudflared (Cloudflare Tunnel client, Apache-2.0), an unmodified
-; official release run as a separate process; its LICENSE and VERSION.txt beside it.
-Source: "{#BuildDir}\cloudflared\*"; DestDir: "{app}\程式\cloudflared"; Flags: ignoreversion
+; 免安裝外網: cloudflared (Cloudflare Tunnel client, Apache-2.0, 52 MB) is NOT in the installer since 0.8.4: the app downloads
+; the unmodified official release the first time 臨時網址 needs it (app/remote/cloudflared_addon.cpp; SHA-256 pinned).
 ; User guide in both languages next to the exe (the app opens the one of its
 ; UI language, which can be switched any time) ...
 Source: "..\docs\tutorial\自在投影教學.html"; DestDir: "{app}\程式"; Flags: ignoreversion

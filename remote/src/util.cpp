@@ -148,8 +148,8 @@ GpuMeter::GpuMeter() {
         PdhCloseQuery(q);
         return;
     }
-    PdhCollectQueryData(q);
     query_ = q, counter_ = c;
+    sample();  // 0.8.3.7: the first raw values (the next call has something to compare with)
 }
 
 GpuMeter::~GpuMeter() {
@@ -159,30 +159,39 @@ GpuMeter::~GpuMeter() {
 std::string GpuMeter::sample() {
     if (!query_) return "n/a";
     if (PdhCollectQueryData(static_cast<PDH_HQUERY>(query_)) != ERROR_SUCCESS) return "n/a";
+    // 0.8.3.7: the RAW values, the percentages computed here (gpu_util.h: 0.8.3.6's formatted values with
+    // PDH_FMT_NOCAP100 logged "GPU 3D 36713195488442.6%" once a running time read lower than before).
     DWORD size = 0, count = 0;
-    PdhGetFormattedCounterArrayW(static_cast<PDH_HCOUNTER>(counter_), PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, &size, &count, nullptr);
-    if (!size) return "0";
-    std::vector<uint8_t> buf(size);
-    auto* items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(buf.data());
-    if (PdhGetFormattedCounterArrayW(static_cast<PDH_HCOUNTER>(counter_), PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, &size, &count,
-                                     items) != ERROR_SUCCESS)
-        return "n/a";
-    std::map<std::string, double> byType;
-    for (DWORD i = 0; i < count; ++i) {
-        const std::wstring name = items[i].szName;
-        const size_t p = name.find(L"engtype_");
-        const std::string type = p == std::wstring::npos ? "?" : narrow(name.substr(p + 8));
-        if (items[i].FmtValue.CStatus == PDH_CSTATUS_VALID_DATA || items[i].FmtValue.CStatus == PDH_CSTATUS_NEW_DATA)
-            byType[type] += items[i].FmtValue.doubleValue;
+    PdhGetRawCounterArrayW(static_cast<PDH_HCOUNTER>(counter_), &size, &count, nullptr);
+    std::map<std::wstring, GpuRaw> cur;
+    if (size) {
+        std::vector<uint8_t> buf(size);
+        auto* items = reinterpret_cast<PDH_RAW_COUNTER_ITEM_W*>(buf.data());
+        if (PdhGetRawCounterArrayW(static_cast<PDH_HCOUNTER>(counter_), &size, &count, items) != ERROR_SUCCESS) return "n/a";
+        for (DWORD i = 0; i < count; ++i) {
+            const std::wstring name = items[i].szName ? items[i].szName : L"";
+            const size_t p = name.find(L"engtype_");
+            GpuRaw r;
+            r.type = p == std::wstring::npos ? "?" : narrow(name.substr(p + 8));
+            r.run = items[i].RawValue.FirstValue, r.stamp = items[i].RawValue.SecondValue;
+            r.valid = items[i].RawValue.CStatus == PDH_CSTATUS_VALID_DATA || items[i].RawValue.CStatus == PDH_CSTATUS_NEW_DATA;
+            auto [it, fresh] = cur.emplace(name, r);
+            if (!fresh) it->second.valid = false;  // two instances with one name: cannot be paired, left out
+        }
     }
-    std::string out;
-    char b[64];
-    for (const auto& [t, v] : byType) {
-        if (v < 0.05) continue;
-        snprintf(b, sizeof(b), "%s%s %.1f%%", out.empty() ? "" : " ", t.c_str(), v);
-        out += b;
+    const GpuSample s = gpuPercent(prev_, cur);
+    prev_ = std::move(cur);
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto get = [&](const char* t) { auto it = s.pct.find(t); return it == s.pct.end() ? -1.0 : it->second; };
+        last3d_ = get("3D"), lastEnc_ = get("VideoEncode");
     }
-    return out.empty() ? "0" : out;
+    return gpuText(s);
+}
+
+void GpuMeter::last(double& d3, double& enc) const {
+    std::lock_guard<std::mutex> lk(mu_);
+    d3 = last3d_, enc = lastEnc_;
 }
 
 }  // namespace pm::remote

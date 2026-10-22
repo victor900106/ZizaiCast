@@ -116,7 +116,6 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     std::optional<video::Renderer::View> view;
     int frozenR = -1, originalR = -1;
     std::optional<std::vector<video::Renderer::TextBox>> boxes;
-    std::optional<std::vector<std::wstring>> onlineMarks;
     std::optional<std::wstring> busy;
     int ovHot = -2, ovSel = -2, ovMode = -1, ovDark = -1;
     bool ovReveal = false;
@@ -130,7 +129,6 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
         frozenR = std::exchange(frozenReq, -1);
         originalR = std::exchange(originalReq, -1);
         boxes = std::exchange(boxesReq, std::nullopt);
-        onlineMarks = std::exchange(onlineReq, std::nullopt);
         busy = std::exchange(busyReq, std::nullopt);
         ovHot = std::exchange(ovHotReq, -2);
         ovMode = std::exchange(ovModeReq, -1);
@@ -426,10 +424,6 @@ bool VideoWindow::Impl::take(std::deque<AccessUnit>& out, double waitMs) {
     if (boxes) {
         ren.setTextOverlay(std::move(*boxes));
         ren.liveBoxesSet();
-        paint = true;
-    }
-    if (onlineMarks) {
-        ren.setTextOverlayOnline(*onlineMarks);
         paint = true;
     }
     if (originalR >= 0) {

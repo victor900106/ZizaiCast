@@ -76,7 +76,10 @@ body.sheet-open #silent{display:none!important}
 #fileS .fl .st{flex:0 0 auto;opacity:.75;font-variant-numeric:tabular-nums}
 #fileS .fl a{color:var(--ac);text-decoration:none}
 #fileS .fl a.used{opacity:.45;pointer-events:none}
-#fileS progress{width:64px;height:6px}
+#fileS progress{width:64px;height:6px;-webkit-appearance:none;appearance:none;border:0;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.18);accent-color:var(--ac)}
+#fileS progress::-webkit-progress-bar{background:rgba(255,255,255,.18);border-radius:3px}
+#fileS progress::-webkit-progress-value{background:var(--ac);border-radius:3px}
+#fileS progress::-moz-progress-bar{background:var(--ac);border-radius:3px}
 #upIn{display:none}
 .ib.off{opacity:.4;border-style:dashed}  /* 0.8.3.5 files: this page may not send files (looks off; a tap says why) */
 /* "sound on" call to action, shown until used */
@@ -126,6 +129,11 @@ body.pcui #toast{top:calc(64px + var(--st))}
 /* 0.8.3.5 ②: the PC pointer in 觸控板 mode, big and high-contrast (the real one is ~3 px on a phone at 3440 wide) */
 #tcur{position:absolute;z-index:3;left:0;top:0;width:48px;height:48px;margin:-13px 0 0 -13px;pointer-events:none;display:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 #tcur svg{width:48px;height:48px;display:block}
+/* 0.8.4 游標: the PC pointer's own picture, drawn here (left out of the video). The inverting part (the I-beam)
+   is a sibling of the video's box, blended with it (difference = the screen inverted, as on the PC). */
+#pcurC,#pcurI{position:absolute;z-index:3;left:0;top:0;pointer-events:none;display:none;transform-origin:0 0;image-rendering:auto}
+#pcurC{filter:drop-shadow(0 0 1px rgba(0,0,0,.55)) drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+#pcurI{mix-blend-mode:difference}
 /* 0.8.3.5 ②: which mode the phone is in, said once (and again after taps far from the pointer) */
 #modeHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(96px + var(--sb));z-index:7;width:min(92vw,420px);background:var(--bg);
   border:1px solid var(--ac);border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);display:none}
@@ -154,6 +162,7 @@ body.sheet-open #cta{display:none!important}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);flex-wrap:wrap}
 .row>label,.row>.lbl{flex:1 1 140px;min-width:0}
 .sub{display:block;font-size:12px;opacity:.65;margin-top:2px}
+.sub.warnSub{opacity:.95;color:var(--ac)}  /* 0.8.3.7: 每秒畫面 capped by this screen: said in the accent colour */
 .seg{display:flex;border:1px solid rgba(255,255,255,.25);border-radius:10px;overflow:hidden;flex:0 1 auto;max-width:100%}
 .seg button{border:0;background:none;padding:7px 11px;font-size:14px;white-space:nowrap;min-width:0}
 .seg button.on{background:var(--ac);color:#2a1a1c;font-weight:600}
@@ -175,6 +184,46 @@ input[type=range]{flex:1 1 160px;accent-color:var(--ac);min-width:120px}
 #keys .sep{flex-basis:100%;height:0}
 #keys button.warnk{border-color:#e57373;color:#ffb3b3}
 #keys #bClip{border-color:var(--ac);color:var(--ac)}
+/* 0.8.4 自訂快捷鍵 (keyboard panel): the 主帳號's own buttons, kept on the PC. Self-contained block. */
+#keys button,#ck button{touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#keys button.rep,#ck button.rep{background:var(--ac);color:#2a1a1c}
+#ck{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12)}
+#ckHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#ckHead b{font-size:14px}
+#ckCnt{font-size:12px;opacity:.65;font-variant-numeric:tabular-nums}
+#ckHead .sp{flex:1 1 0}
+#ckHead button,#ckEd .ckb{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);color:var(--fg);border-radius:9px;padding:6px 11px;font-size:14px;white-space:nowrap;min-width:44px}
+#ckHead button.on,#ckEd .ckb.on{background:var(--ac);color:#2a1a1c;border-color:var(--ac);font-weight:600}
+#ckHead button:disabled{opacity:.4}
+#ckList{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ckc{display:flex;align-items:stretch;min-width:0;max-width:100%;border:1px solid rgba(245,167,167,.5);background:rgba(245,167,167,.1);border-radius:9px;overflow:hidden}
+.ckc .ck{border:0;background:none;color:var(--fg);padding:6px 10px;font-size:14px;line-height:1.2;text-align:center;min-width:44px;min-height:40px;max-width:100%;overflow:hidden}
+.ckc .ck .cn{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ckc .ck .cc{display:block;font:11px/1.2 ui-monospace,Consolas,monospace;opacity:.7;white-space:nowrap}
+.ckc .ckh,.ckc .ckx{display:none;border:0;background:rgba(255,255,255,.06);color:var(--ac);padding:0 8px;font-size:16px;min-width:32px}
+.ckc .ckh{touch-action:none;cursor:grab}
+#ck.edit .ckc .ckh,#ck.edit .ckc .ckx{display:block}
+.ckc.dropB{box-shadow:-3px 0 0 var(--ac)}.ckc.dropA{box-shadow:3px 0 0 var(--ac)}
+.ckc.drag{opacity:.55;transform:scale(1.04);box-shadow:0 4px 14px rgba(0,0,0,.5);position:relative;z-index:2}
+#ckNote{font-size:12px;opacity:.7;margin-top:6px}
+#ckEmpty{font-size:13px;opacity:.7;padding:6px 0}
+#ckEd{display:none;margin-top:10px;padding:10px;border:1px solid var(--ac);border-radius:12px;background:rgba(245,167,167,.06)}
+#ckEd .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+#ckEd .r:first-child{margin-top:0}
+#ckEd label.l{font-size:13px;opacity:.8;flex:0 0 auto}
+#ckEd input[type=text],#ckEd select{flex:1 1 120px;min-width:0;max-width:100%;font-size:16px;color:var(--fg);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22);border-radius:9px;padding:7px 9px}
+#ckEd select option,#ckEd select optgroup{background:#2a1c1f;color:var(--fg)}
+#kb #ckName{position:static;width:auto;height:auto;opacity:1;flex:1 1 120px;min-width:0;border:1px solid rgba(255,255,255,.22);padding:7px 9px}
+#ckPrev{font:600 14px ui-monospace,Consolas,monospace;color:var(--ac);min-height:20px;overflow-wrap:anywhere}
+#ckRecHint{font-size:12px;opacity:.75}
+#ckEd .ckb.rec{border-color:#e57373;color:#ffb3b3}
+#ckEd .btnrow{padding-top:10px}
+@media (max-height:500px){
+  #ck{margin-top:6px;padding-top:6px}#ckEd{padding:6px 8px}#ckEd .r{margin-top:5px}
+  #ckEd .btnrow{padding-top:6px}#ckRecHint{display:none}
+  .ckc .ck{min-height:34px;padding:4px 8px}
+}
+#ckSave{background:var(--ac);color:#2a1a1c;border-color:var(--ac);font-weight:600}
 textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;color:var(--fg);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22);
   border-radius:10px;padding:8px;resize:vertical;-webkit-user-select:text;user-select:text;touch-action:auto}
 /* predicted PC pointer (O7): shown while the PC has not caught up with the finger yet */
@@ -214,7 +263,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 #rowMutePc.off label{opacity:.55}
 #volV{font-variant-numeric:tabular-nums;opacity:.8;min-width:3.5em;text-align:right}
 /* phone sideways: tighter rows so the settings fit without scrolling */
-@media (max-height:500px){.sheet{padding-top:8px}.sheet h3{margin-bottom:2px}.row{padding:4px 0}.sub{display:none}.btnrow{padding-top:6px}.btn{padding:7px 12px}
+@media (max-height:500px){.sheet{padding-top:8px}.sheet h3{margin-bottom:2px}.row{padding:4px 0}.sub{display:none}.sub.warnSub{display:block}.btnrow{padding-top:6px}.btn{padding:7px 12px}
   #keys button{padding:6px 9px}#kbhint{display:none}#rowSens input{flex:1 1 200px}}
 </style>
 </head>
@@ -247,19 +296,20 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <div id="silent"></div>
 <div id="path"></div>
 <div id="cur"></div>
-<div id="tcur"><svg viewBox="-13 -13 48 48"><circle cx="0" cy="0" r="12" fill="rgba(245,167,167,.45)" stroke="#F5A7A7" stroke-width="1.5"/><path d="M0 0v24l6.5-6 4.5 10 4.6-2-4.5-9.9 8.9-.4z" fill="#fff" stroke="#1E1416" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="tcur"><svg viewBox="-13 -13 48 48"><circle cx="0" cy="0" r="12" fill="rgba(245,167,167,.45)" stroke="#F5A7A7" stroke-width="1.5"/><path id="tcurArrow" d="M0 0v24l6.5-6 4.5 10 4.6-2-4.5-9.9 8.9-.4z" fill="#fff" stroke="#1E1416" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<img id="pcurI" alt=""><img id="pcurC" alt="">
 <div id="modeHint"><div id="mhT"></div><div id="mhS"></div><div class="btnrow"><button class="btn alt" id="mhSwitch"></button><button class="btn" id="mhOk"></button></div></div>
 
 <div class="sheet" id="set">
   <h3><span id="setT"></span><button id="setClose"></button></h3>
   <div class="row"><span class="lbl"><span id="lMode"></span><span class="sub" id="lModeSub"></span></span><div class="seg" id="segMode"><button data-v="trackpad"></button><button data-v="direct"></button></div></div>
+  <div class="row" id="rowCmd" style="display:none"><label for="swCmd"><span id="lCmd"></span><span class="sub" id="lCmdSub"></span></label><input type="checkbox" class="sw" id="swCmd"></div>
   <div class="row" id="rowVol"><label for="vol"><span id="lVol"></span><span class="sub" id="lVolSub"></span></label><span id="volV"></span><input type="range" id="vol" min="0" max="400" step="5"></div>
   <div class="row" id="rowMutePc"><label for="swMutePc"><span id="lMutePc"></span><span class="sub" id="lMutePcSub"></span></label><input type="checkbox" class="sw" id="swMutePc"></div>
   <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
-  <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
+  <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="-1"></button><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
   <div class="row"><span class="lbl"><span id="lFps"></span><span class="sub" id="lFpsSub"></span></span><div class="seg" id="segFps"><button data-v="30">30</button><button data-v="60">60</button><button data-v="120">120</button></div></div>
   <div class="row"><label for="swPhoneRes"><span id="lPhoneRes"></span><span class="sub" id="lPhoneResSub"></span></label><input type="checkbox" class="sw" id="swPhoneRes"></div>
-  <div class="row"><label for="swAuto"><span id="lAuto"></span><span class="sub" id="lAutoSub"></span></label><input type="checkbox" class="sw" id="swAuto"></div>
   <div class="row" id="rowMon" style="display:none"><span class="lbl" id="lMon"></span><div class="seg" id="segMon"></div></div>
   <div class="row"><label for="swFill" id="lFill"></label><input type="checkbox" class="sw" id="swFill"></div>
   <div class="row"><label for="swLock"><span id="lLock"></span><span class="sub" id="lLockSub"></span></label><input type="checkbox" class="sw" id="swLock"></div>
@@ -325,6 +375,18 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
     <button data-c="Control+Shift+Escape" data-t="taskMgr" data-note="taskMgrNote"></button><button data-c="Alt+F4" data-t="closeWin" data-confirm="closeWinAsk" class="warnk"></button>
     <button id="bClip"></button>
   </div>
+  <div id="ck">
+    <div id="ckHead"><b id="ckT"></b><span id="ckCnt"></span><span class="sp"></span><button id="ckEditB"></button><button id="ckAdd" aria-label="+">＋</button></div>
+    <div id="ckList"></div>
+    <div id="ckNote"></div>
+    <div id="ckEd">
+      <div class="r"><label class="l" for="ckName" id="ckNameL"></label><input type="text" id="ckName" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="r"><button class="ckb" id="ckRec"></button><span id="ckRecHint"></span></div>
+      <div class="r"><button class="ckb" data-cm="Control">Ctrl</button><button class="ckb" data-cm="Alt">Alt</button><button class="ckb" data-cm="Shift">Shift</button><button class="ckb" data-cm="Meta">Win</button><select id="ckKey" aria-label="key"></select></div>
+      <div class="r"><span id="ckPrev"></span></div>
+      <div class="btnrow"><button class="btn" id="ckCancel"></button><button class="btn" id="ckSave"></button></div>
+    </div>
+  </div>
 </div>
 
 <div id="ask"><div id="askBox"><div id="askT"></div><div class="btnrow"><button class="btn" id="askNo"></button><button class="btn warn" id="askYes"></button></div></div></div>
@@ -338,42 +400,45 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
   <button class="btn" id="passGo"></button><div id="passErr"></div>
   <button class="lnk" id="modeLnk" style="display:none"></button></div>
 
-<!-- 0.8.3.6: the login page's little crowd (投投 and three friends). Pure front end: it looks at events (focus, empty / not empty, the show-password
-     button, the kind of the answer) and never at the password; it changes nothing the server says or counts. Self-contained: this style + this script. -->
+<!-- 0.8.3.7: the login page's little cast: 投投 (the cloud) with a phone, a monitor and a mouse. Their bodies act (drop in, squash, lean after the cursor, turn their
+     backs on the password, a phone bending like a banana to peek, a crowd that sulks, sleeps or cheers), each with its own face. Pure front end: it looks at events
+     (focus, empty / not empty, the show-password button, the pending request, the kind of the answer) and never at the password; it changes nothing the server
+     says or counts. Self-contained: this style + this script. One requestAnimationFrame loop exists only while something moves. -->
 <style id="palsCss">
-#pals{flex:0 0 auto;width:min(340px,86vw);margin:0 0 -2px;pointer-events:none;-webkit-user-select:none;user-select:none}
+#pals{flex:0 0 auto;width:min(92vw,43vh,560px);margin:0 0 6px;pointer-events:none;-webkit-user-select:none;user-select:none}
 #pals svg{display:block;width:100%;height:auto;overflow:visible}
-@media (max-width:640px) and (orientation:portrait){#pals{width:min(236px,62vw)}}
-@media (min-width:900px) and (min-height:720px){#pals{width:430px}}
-@media (max-height:640px){#pals{width:min(190px,50vw)}}
-@media (max-height:500px){#pals{width:min(150px,40vw)}}
-@media (max-height:400px){#pals{display:none}}
-#pals .ch,#pals .face,#pals .eyes{transition:transform .32s cubic-bezier(.3,1.3,.5,1)}
-#pals .ch{transform-box:fill-box;transform-origin:50% 100%}
-#pals .eyes{transition-duration:.16s;transition-timing-function:ease-out}
-#pals .up,#pals .dn,#pals .brow,#pals .m-flat,#pals .m-o,#pals .m-sad,#pals .m-happy,#pals .sweat,#pals .blush2{display:none}
-#pals .open,#pals .hl{transform-box:fill-box;transform-origin:50% 50%;transition:transform .07s}
-#pals.blink .open,#pals.blink .hl{transform:scaleY(.08)}
-/* leaning at the account box */
-#pals.st-user .ch.l{transform:rotate(5deg)}#pals.st-user .ch.r{transform:rotate(-5deg)}#pals.st-user .ch.m{transform:translateY(2px) rotate(2deg)}
-/* turning away from the password */
-#pals.st-pw .ch.l{transform:rotate(-6deg)}#pals.st-pw .ch.r{transform:rotate(6deg)}#pals.st-pw .ch.m{transform:rotate(-3deg)}
-#pals.st-pw .m-smile{display:none}#pals.st-pw .m-flat{display:inline}
-#pals.peek .ch.m{transform:rotate(7deg) translateY(1px)}
-#pals.peek .m .m-flat{display:none}#pals.peek .m .m-o{display:inline}#pals.peek .m .blush2{display:inline}
-/* wrong password / locked */
-#pals.st-sad .m-smile,#pals.st-lock .m-smile{display:none}#pals.st-sad .m-sad,#pals.st-lock .m-sad{display:inline}
-#pals.st-sad .brow,#pals.st-lock .brow{display:inline}
-#pals.st-sad .ch{transform:translateY(3px) scaleY(.96)}
-#pals.st-sad.shake .ch{animation:palsNo .9s ease-in-out 1}
-#pals.st-lock .open,#pals.st-lock .hl{display:none}#pals.st-lock .dn{display:inline}#pals.st-lock .sweat{display:inline}
-#pals.st-lock .ch{transform:translateY(5px) scaleY(.92)}
-/* success */
-#pals.st-happy .open,#pals.st-happy .hl{display:none}#pals.st-happy .up{display:inline}
-#pals.st-happy .m-smile{display:none}#pals.st-happy .m-happy{display:inline}
-#pals.st-happy .ch{animation:palsHop .3s ease-out 1}
-@keyframes palsNo{0%,100%{transform:translateY(3px) rotate(0)}18%{transform:translateY(3px) rotate(-7deg)}45%{transform:translateY(3px) rotate(6deg)}70%{transform:translateY(3px) rotate(-4deg)}}
-@keyframes palsHop{0%{transform:translateY(0)}45%{transform:translateY(-12px) scaleY(1.04)}100%{transform:translateY(0)}}
+/* wide window: the cast stands to the left of the form */
+@media (min-width:700px) and (orientation:landscape){#pals{position:absolute;right:calc(50% + 190px);top:50%;transform:translateY(-50%);margin:0;width:min(520px,calc(50vw - 205px),78vh)}}
+@media (max-height:640px) and (orientation:portrait){#pals{width:min(62vw,205px)}}
+@media (max-height:520px) and (orientation:portrait){#pals{width:min(40vw,118px)}}
+@media (max-height:400px) and (orientation:portrait){#pals{display:none}}
+@media (max-height:300px){#pals{display:none}}
+#pals .up,#pals .dn,#pals .sq,#pals .xx,#pals .lid,#pals .brow,#pals .m,#pals .sweat,#pals .zzz,#pals .note,#pals .blush2,#pals .tear,#pals .bk,#pals .wet{display:none}
+#pals .open,#pals .hl,#pals .sc{transform-box:fill-box;transform-origin:50% 50%;transition:transform .07s}
+#pals.blink .open,#pals.blink .hl,#pals.blink .sc{transform:scaleY(.08)!important}
+/* eyes */
+#pals .k-up .open,#pals .k-up .hl,#pals .k-up .sc,#pals .k-dn .open,#pals .k-dn .hl,#pals .k-dn .sc,#pals .k-sq .open,#pals .k-sq .hl,#pals .k-sq .sc,#pals .k-squint .open,#pals .k-squint .hl,#pals .k-squint .sc{display:none}
+#pals .k-up .up,#pals .k-squint .up{display:inline}#pals .k-squint .up{transform:scaleY(.55)}
+#pals .k-dn .dn{display:inline}#pals .k-sq .sq{display:inline}
+#pals .k-lid .lid{display:inline}
+#pals .k-wide .open,#pals .k-wide .sc{transform:scale(1.22)}
+#pals .k-dead .open{transform:scale(.5)}#pals .k-dead .hl{display:none}
+#pals .b-1 .brow{display:inline}
+/* mouths */
+#pals .e-smile .m-smile,#pals .e-flat .m-flat,#pals .e-o .m-o,#pals .e-sad .m-sad,#pals .e-happy .m-happy,#pals .e-grin .m-grin,#pals .e-whistle .m-o,#pals .e-pout .m-pout,#pals .e-bite .m-bite,#pals .e-smirk .m-smirk,#pals .e-wail .m-wail{display:inline}
+#pals .e-whistle .note{display:inline}
+#pals .x-sweat .sweat,#pals .x-z .zzz,#pals .x-blush .blush2,#pals .x-tear .tear,#pals .x-tear .wet{display:inline}
+#pals .back .face,#pals .back .scr,#pals .back .hand{display:none}#pals .back .bk{display:inline}
+#pals .x-off .scr{fill:#6A4752}
+/* little finite animations (they end by themselves) */
+#pals .tremble .sh{animation:palsTrem .07s linear 16 alternate}
+#pals .x-z .zzz{animation:palsZ 2.4s ease-in-out 7 both}
+#pals .x-tear .drop{animation:palsDrop 1s ease-in 6 both}
+#pals .note{animation:palsNote 1.1s ease-out 3 both}
+@keyframes palsTrem{from{transform:translateX(-1.6px)}to{transform:translateX(1.6px)}}
+@keyframes palsZ{0%{opacity:0;transform:translateY(4px)}30%{opacity:1}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes palsDrop{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(14px)}}
+@keyframes palsNote{0%{opacity:0;transform:translateY(4px)}25%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
 @keyframes palsShake{0%,100%{transform:translateX(0)}15%{transform:translateX(-9px)}35%{transform:translateX(8px)}55%{transform:translateX(-6px)}75%{transform:translateX(4px)}}
 #passIn.shake,#userIn.shake{animation:palsShake .42s ease-in-out 1;border-color:#ffb3b3}
 #pass.lock #passErr{font-size:15px;font-weight:600}
@@ -384,78 +449,353 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 </style>
 <script>
 'use strict';
-// PALS: the two hooks the login code calls (fail / happy). Everything else is its own business.
+// PALS: the hooks the login code calls (wait / fail / happy). Everything else is its own business.
 window.PALS = (() => {
   const $ = id => document.getElementById(id);
-  const pass = $('pass'), passIn = $('passIn'), userIn = $('userIn'), eye = $('pwEye');
+  const pass = $('pass'), passIn = $('passIn'), userIn = $('userIn'), eye = $('pwEye'), go_ = $('passGo');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  const INK = '#3A2830';
-  // a face: eyes (open / happy ^ / shut v, plus a sad brow) and mouths, all switched by the classes on #pals
-  const eyeSvg = (x, y, r, s, tall) => `<g class="eye" transform="translate(${x} ${y})">` +
-    (tall ? `<ellipse class="open" rx="7" ry="9.2" fill="${INK}"/>` : `<circle class="open" r="${r}" fill="${INK}"/>`) +
-    `<circle class="hl" cx="${-r * .3}" cy="${-r * .35}" r="${r * .32}" fill="#fff"/>` +
-    `<path class="up" d="M${-r * 1.2} ${r * .5}Q0 ${-r * 1.6} ${r * 1.2} ${r * .5}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
-    `<path class="dn" d="M${-r * 1.2} ${-r * .3}Q0 ${r * 1.3} ${r * 1.2} ${-r * .3}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
-    `<path class="brow" transform="scale(${s} 1)" d="M${-r * 1.4} ${-r * 1.7}L${r * 1.3} ${-r * 2.6}" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/></g>`;
-  const mouthSvg = (x, y, w) => `<g transform="translate(${x} ${y})"><path class="m-smile" d="M${-w} 0Q0 ${w * 1.1} ${w} 0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
-    `<path class="m-flat" d="M${-w * .7} 1.5H${w * .7}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
-    `<ellipse class="m-o" cy="1.5" rx="${w * .38}" ry="${w * .5}" fill="${INK}"/>` +
-    `<path class="m-sad" d="M${-w} 3Q0 ${-w * .9} ${w} 3" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
-    `<path class="m-happy" d="M${-w * 1.1} -1Q0 ${w * 1.9} ${w * 1.1} -1Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>`;
-  const friend = (cls, shape, ex, ey, gap, r) =>
-    `<g class="ch ${cls}">${shape}<g class="face"><g class="eyes" data-ax="${ex}" data-ay="${ey}" data-k="1">${eyeSvg(ex - gap, ey, r, 1)}${eyeSvg(ex + gap, ey, r, -1)}</g>${mouthSvg(ex, ey + 15, 6)}</g></g>`;
-  const markup =
-    `<svg viewBox="0 0 360 160" aria-hidden="true" focusable="false"><defs>` +
-    `<radialGradient id="palsCloud" gradientUnits="userSpaceOnUse" cx="118" cy="70" r="125"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#FBF7F8"/><stop offset="1" stop-color="#E3DAE6"/></radialGradient></defs>` +
-    `<ellipse cx="180" cy="154" rx="165" ry="5" fill="#F5A7A7" opacity=".18"/>` +
-    friend('l', `<rect x="22" y="44" width="52" height="110" rx="13" fill="#E8708A"/>`, 48, 82, 10, 4.3) +
-    // 投投: the shapes and the face of docs/mascot/toutou/svg/A_idle.svg, smaller, without the filters
-    `<g class="ch m"><g transform="translate(45 22) scale(.84)"><g fill="url(#palsCloud)"><circle cx="86" cy="112" r="30"/><circle cx="132" cy="90" r="40"/><circle cx="178" cy="114" r="26"/><rect x="54" y="108" width="158" height="58" rx="29"/></g>` +
-    `<ellipse cx="116" cy="66" rx="22" ry="12" transform="rotate(-24 116 66)" fill="#fff" opacity=".9"/>` +
-    `<g class="face"><ellipse cx="96" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55"/><ellipse cx="170" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55"/>` +
-    `<ellipse class="blush2" cx="96" cy="143" rx="12" ry="7.5" fill="#FF7A94" opacity=".7"/><ellipse class="blush2" cx="170" cy="143" rx="12" ry="7.5" fill="#FF7A94" opacity=".7"/>` +
-    `<g class="eyes" data-ax="${45 + 133 * .84}" data-ay="${22 + 131 * .84}" data-k="${1 / .84}">${eyeSvg(111, 131, 7.4, 1, true)}${eyeSvg(155, 131, 7.4, -1, true)}</g>` +
-    `${mouthSvg(133, 143, 7)}<path class="sweat" d="M176 70Q183 82 176 89Q169 82 176 70Z" fill="#BFE3F5" stroke="#8EC9EA" stroke-width="1.5"/></g></g></g>` +
-    friend('r', `<path d="M196 154A44 44 0 0 1 284 154Z" fill="#FF8F7A"/>`, 240, 124, 11, 4) +
-    friend('r', `<rect x="288" y="62" width="48" height="92" rx="24" fill="#FFC8A2"/>`, 312, 92, 9, 4) +
-    `</svg>`;
+  const INK = '#3A2830', GY = 282, W400 = 400;
+  const f1 = n => Math.round(n * 10) / 10, f2 = n => Math.round(n * 100) / 100;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // ---- faces: one eye style per character, one shared vocabulary of expressions ----
+  const eyeSvg = (c, sx) => {
+    const r = c.r, g = c.gap;
+    let open;
+    if (c.eye === 'sclera') open = `<circle class="sc" r="${r * 1.45}" fill="#fff" stroke="${INK}" stroke-width="2"/><g class="pg"><circle class="open" r="${r * .72}" fill="${INK}"/><circle class="hl" cx="${-r * .22}" cy="${-r * .25}" r="${r * .22}" fill="#fff"/></g>`;
+    else if (c.eye === 'oval') open = `<g class="pg"><ellipse class="open" rx="${r * .95}" ry="${r * 1.25}" fill="${INK}"/><circle class="hl" cx="${-r * .35}" cy="${-r * .5}" r="${r * .42}" fill="#fff"/><circle class="hl" cx="${r * .3}" cy="${r * .55}" r="${r * .2}" fill="#fff" opacity=".9"/></g><ellipse class="wet" rx="${r * 1.25}" ry="${r * 1.55}" fill="none" stroke="#fff" stroke-width="1.6" opacity=".8"/>`;
+    else open = `<g class="pg"><circle class="open" r="${r}" fill="${INK}"/><circle class="hl" cx="${-r * .3}" cy="${-r * .35}" r="${r * .3}" fill="#fff"/></g>`;
+    const e = c.eye === 'sclera' ? r * 1.45 : r * 1.2;
+    return `<g class="eye" transform="translate(${sx * g} 0)">${open}` +
+      (c.eye === 'dotlid' ? `<rect class="lid" x="${-r - 2}" y="${-r - 2}" width="${2 * r + 4}" height="${r + 2}" fill="${c.screen}"/><path class="lid" d="M${-r - 2} 0H${r + 2}" stroke="${INK}" stroke-width="2"/>` : '') +
+      `<path class="up" d="M${-e} ${e * .45}Q0 ${-e * 1.5} ${e} ${e * .45}" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linecap="round"/>` +
+      `<path class="dn" d="M${-e} ${-e * .25}Q0 ${e * 1.2} ${e} ${-e * .25}" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linecap="round"/>` +
+      `<path class="sq" d="M${-e} 0H${e}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+      `<path class="brow" transform="scale(${-sx} 1)" d="M${-e * 1.15} ${-e * 1.35}L${e * 1.1} ${-e * 2.1}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+      `<path class="tear" d="M${-e * .6} ${e * .95}Q${-e * .6} ${e * 2.1} 0 ${e * 2.1}" fill="none" stroke="#9FD4EE" stroke-width="3" stroke-linecap="round" opacity=".9"/><path class="tear drop" d="M${sx * 1} ${e * 1.2}Q${sx * 5} ${e * 2.2} ${sx * 1} ${e * 2.7}Q${sx * -3} ${e * 2.2} ${sx * 1} ${e * 1.2}Z" fill="#BFE3F5" stroke="#8EC9EA" stroke-width="1.2"/></g>`;
+  };
+  const mouthSvg = c => {
+    const w = c.mw, S = `fill="none" stroke="${INK}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"`;
+    return `<g transform="translate(0 ${c.my})">` +
+      `<path class="m m-smile" d="M${-w} 0Q0 ${w * 1.1} ${w} 0" ${S}/>` +
+      `<path class="m m-flat" d="M${-w * .75} 1H${w * .75}" ${S}/>` +
+      `<ellipse class="m m-o" cy="2" rx="${w * .4}" ry="${w * .52}" fill="${INK}"/>` +
+      `<path class="m m-sad" d="M${-w} 3Q0 ${-w * .9} ${w} 3" ${S}/>` +
+      `<path class="m m-pout" d="M${-w * .9} 3Q${-w * .45} -3 0 2Q${w * .45} 7 ${w * .9} 2" ${S}/>` +
+      `<path class="m m-smirk" d="M${-w * .8} 2Q${w * .2} 3 ${w * .85} -2.5" ${S}/>` +
+      `<path class="m m-bite" d="M${-w * .85} 1.5H${w * .85}" ${S}/><rect class="m m-bite" x="${-w * .6}" y="1.5" width="${w * .5}" height="${w * .55}" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.6"/>` +
+      `<path class="m m-happy" d="M${-w * 1.1} -1Q0 ${w * 1.9} ${w * 1.1} -1Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+      `<path class="m m-grin" d="M${-w * 1.35} -2Q0 ${w * 2.1} ${w * 1.35} -2Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path class="m m-grin" d="M${-w * .9} -1H${w * .9}" stroke="#fff" stroke-width="2.4"/>` +
+      `<path class="m m-wail" d="M${-w * 1.1} 6Q0 ${-w * 1.5} ${w * 1.1} 6Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+      `<g class="note" transform="translate(${w * 1.7} -2)"><path d="M0 0V-12L7 -9" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/><circle cx="-2.2" cy="0.5" r="2.6" fill="${INK}"/></g></g>`;
+  };
+  const faceSvg = c => `<g class="face">${c.cheeks ? `<ellipse cx="${-c.gap * 1.4}" cy="${c.my * .75}" rx="${c.r * 1.6}" ry="${c.r}" fill="#FF9AAE" opacity=".55"/><ellipse cx="${c.gap * 1.4}" cy="${c.my * .75}" rx="${c.r * 1.6}" ry="${c.r}" fill="#FF9AAE" opacity=".55"/>` : ''}` +
+    `<ellipse class="blush2" cx="${-c.gap * 1.4}" cy="${c.my * .75}" rx="${c.r * 1.9}" ry="${c.r * 1.2}" fill="#FF7A94" opacity=".7"/><ellipse class="blush2" cx="${c.gap * 1.4}" cy="${c.my * .75}" rx="${c.r * 1.9}" ry="${c.r * 1.2}" fill="#FF7A94" opacity=".7"/>` +
+    `<g class="eyes">${eyeSvg(c, -1)}${eyeSvg(c, 1)}</g>${mouthSvg(c)}` +
+    `<path class="sweat" transform="translate(${c.gap * 2} ${-c.r * 1.2})" d="M0 -9Q6 2 0 7Q-6 2 0 -9Z" fill="#BFE3F5" stroke="#8EC9EA" stroke-width="1.3"/>` +
+    `<g class="zzz" transform="translate(${c.gap * 1.5} ${-c.r * 2.2})"><path d="M0 0H8L0 9H8" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><path transform="translate(10 -9) scale(.7)" d="M0 0H8L0 9H8" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/></g></g>`;
+  const handSvg = c => `<ellipse class="hand" rx="${c.hr}" ry="${c.hr * .8}" fill="${c.handCol}"/>`;
+
+  // ---- the cast (viewBox 400 x 300, one ground line at y = 282; back row: phone, middle: monitor, front: 投投 and the mouse) ----
+  const C = {
+    phone:   {id: 'phone', cx: 165, w: 86, h: 208, tall: true, eye: 'sclera', r: 6.5, gap: 19, my: 17, mw: 8, lean: 9, stretch: 1.05, gmax: 3.6, tvl: 24, fx: 0, fy: 0, hands: false},
+    monitor: {id: 'monitor', cx: 262, w: 124, h: 122, eye: 'dotlid', r: 5.5, gap: 18, my: 14, mw: 7, lean: 5, stretch: 1.03, gmax: 3.2, tvl: 34, fx: 262, fy: 200, screen: '#FFF2E6', hands: false},
+    toutou:  {id: 'toutou', cx: 92, w: 118, h: 87, eye: 'oval', r: 6.2, gap: 15.8, my: 9, mw: 6.5, lean: 6, stretch: 1.0, gmax: 3.4, tvl: 30, fx: 92, fy: 256.8, cheeks: true, hands: true, hr: 10, handCol: '#FFB3C4'},
+    mouse:   {id: 'mouse', cx: 322, w: 96, h: 68, eye: 'dot', r: 5.2, gap: 15, my: 9, mw: 6, lean: 4, stretch: 1.04, gmax: 3.2, tvl: 28, fx: 322, fy: 257, hands: true, hr: 10, handCol: '#D9604A'},
+  };
+  const ORDER = [C.phone, C.monitor, C.toutou, C.mouse];
+  const bodySvg = {
+    phone: c => `<path class="body" fill="#E8708A"/><path class="scr" fill="#FFE6EA"/><path class="spk" fill="none" stroke="#B84A63" stroke-width="5" stroke-linecap="round"/>` +
+      `<g class="bk"><rect x="${c.cx - 32}" y="112" width="36" height="36" rx="10" fill="#D45A74"/><circle cx="${c.cx - 21}" cy="123" r="6" fill="#B84A63"/><circle cx="${c.cx - 21}" cy="138" r="6" fill="#B84A63"/><circle cx="${c.cx - 8}" cy="130" r="3.4" fill="#F5C2CC"/><circle cx="${c.cx}" cy="212" r="7" fill="#F5C2CC" opacity=".8"/></g>`,
+    monitor: () => `<rect x="254" y="250" width="16" height="26" fill="#F0A878"/><rect x="232" y="274" width="60" height="8" rx="4" fill="#F0A878"/><rect x="200" y="160" width="124" height="96" rx="12" fill="#FFC8A2"/><rect class="scr" x="208" y="168" width="108" height="76" rx="7" fill="#FFF2E6"/>` +
+      `<g class="bk"><circle cx="262" cy="208" r="9" fill="#F0A878"/><rect x="226" y="236" width="14" height="5" rx="2" fill="#F0A878"/><rect x="246" y="236" width="14" height="5" rx="2" fill="#F0A878"/></g>`,
+    toutou: () => `<g transform="translate(${92 - 133 * .72} ${GY - 166 * .72}) scale(.72)"><g fill="url(#palsCloud)"><circle cx="86" cy="112" r="30"/><circle cx="132" cy="90" r="40"/><circle cx="178" cy="114" r="26"/><rect x="54" y="108" width="158" height="58" rx="29"/></g><ellipse cx="116" cy="66" rx="22" ry="12" transform="rotate(-24 116 66)" fill="#fff" opacity=".9"/></g>`,
+    mouse: () => `<path d="M370 272C396 274 399 248 385 241" fill="none" stroke="#FF8F7A" stroke-width="5" stroke-linecap="round"/><rect x="316" y="203" width="12" height="24" rx="6" fill="#E5705C"/>` +
+      `<path d="M274 282V256C274 228 296 214 322 214C348 214 370 228 370 256V282Z" fill="#FF8F7A"/><path d="M322 226V244" stroke="#E5705C" stroke-width="3" stroke-linecap="round"/>`,
+  };
+  const markup = `<svg viewBox="0 0 ${W400} 300" aria-hidden="true" focusable="false"><defs><radialGradient id="palsCloud" gradientUnits="userSpaceOnUse" cx="118" cy="70" r="125"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#FBF7F8"/><stop offset="1" stop-color="#E3DAE6"/></radialGradient></defs>` +
+    `<ellipse cx="200" cy="284" rx="185" ry="5" fill="#F5A7A7" opacity=".18"/>` +
+    ORDER.map(c => `<g class="ch" data-c="${c.id}"><g class="sh">${bodySvg[c.id](c)}${faceSvg(c)}${c.hands ? handSvg(c) + handSvg(c) : ''}</g></g>`).join('') + `</svg>`;
   const box = document.createElement('div');
   box.id = 'pals'; box.innerHTML = markup;
   pass.insertBefore(box, pass.firstChild);
-  const eyes = [...box.querySelectorAll('.eyes')], faces = eyes.map(e => e.parentNode);
-  const MAX = [3.2, 3.4, 3.2, 3.2];
-
-  let active = false, st = 'idle', peek = false, ptr = null, rafId = 0, tBlink = 0, tHold = 0, tPeek = 0;
-  const cls = () => { box.className = 'st-' + st + (peek ? ' peek' : '') + (box._shake ? ' shake' : ''); };
-  function target(i) {  // where a friend looks, in page pixels (null = straight at you)
-    if (st === 'user') { const f = userIn.offsetParent !== null ? userIn : passIn, r = f.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
-    if (peek && i === 1) { const r = passIn.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
-    return st === 'idle' ? ptr : null;
+  const svg = box.firstChild;
+  const REST = {x: 0, y: 0, rot: 0, skew: 0, sx: 1, sy: 1, turn: 0, bend: 0, kink: 0, gx: 0, gy: 0, ft: 0, o: 1, ex: 0};
+  for (const c of ORDER) {
+    c.g = svg.querySelector(`.ch[data-c="${c.id}"]`);
+    c.face = c.g.querySelector('.face');
+    c.pgs = [...c.g.querySelectorAll('.pg')];
+    c.hs = [...c.g.querySelectorAll('.hand')];
+    c.p = Object.assign({h0x: 0, h0y: 0, ho0: 0, h1x: 0, h1y: 0, ho1: 0}, REST);
+    c.tw = {}; c.dirty = true; c.back = false; c.fp = {x: c.fx || c.cx, y: c.fy || 130};
+    c.exid = '';
+    if (c.tall) { c.bodyP = c.g.querySelector('.body'); c.scrP = c.g.querySelector('.scr'); c.spkP = c.g.querySelector('.spk'); }
   }
-  let frames = 0;
-  function apply() {  // one frame per change: no loop
+
+  // ---- the engine: tweens on numeric parameters, one requestAnimationFrame loop only while a tween is alive ----
+  const E = {
+    out: u => 1 - Math.pow(1 - u, 3), in: u => u * u, inout: u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2,
+    spring: u => 1 - Math.exp(-5.5 * u) * Math.cos(u * Math.PI * 2.4), spring2: u => 1 - Math.exp(-4 * u) * Math.cos(u * Math.PI * 3.2),
+    back: u => { const s = 2.2; return 1 + (s + 1) * Math.pow(u - 1, 3) + s * Math.pow(u - 1, 2); },
+  };
+  let rafId = 0, frames = 0;
+  function go(c, props, dur = 300, e = 'spring', delay = 0) {
+    for (const k in props) {
+      if (reduce.matches || (!dur && !delay)) { c.p[k] = props[k]; delete c.tw[k]; c.dirty = true; }
+      else c.tw[k] = {to: props[k], t0: performance.now() + delay, dur, e};
+    }
+    kick();
+  }
+  const kick = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
+  function tick(now) {
     rafId = 0; frames++;
-    if (!active) return;
-    const sr = box.firstChild.getBoundingClientRect(), sc = sr.width / 360;
-    eyes.forEach((g, i) => {
-      const ax = +g.dataset.ax, k = +g.dataset.k, side = ax < 180 ? -1 : 1;
-      let ox = 0, oy = 0, fx = 0;
-      if (st === 'pw' && !(peek && i === 1)) { ox = side * MAX[i] * 1.5; oy = -MAX[i] * .7; fx = side * 5; }
-      else if (st === 'sad') oy = MAX[i] * .9;
-      else if (!reduce.matches) {
-        const tg = target(i);
-        if (tg) {
-          const dx = tg[0] - (sr.left + ax * sc), dy = tg[1] - (sr.top + (+g.dataset.ay) * sc), d = Math.hypot(dx, dy);
-          if (d > 1) { const f = Math.min(1, d / 110); ox = MAX[i] * f * dx / d; oy = MAX[i] * f * dy / d; }
-        }
+    let busy = false;
+    for (const c of ORDER) {
+      for (const k in c.tw) {
+        const w = c.tw[k];
+        if (now < w.t0) { busy = true; continue; }
+        if (w.from === undefined) w.from = c.p[k];
+        const u = (now - w.t0) / w.dur;
+        if (u >= 1) { c.p[k] = w.to; delete c.tw[k]; } else { c.p[k] = w.from + (w.to - w.from) * E[w.e](u); busy = true; }
+        c.dirty = true;
       }
-      g.style.transform = `translate(${(ox * k).toFixed(2)}px,${(oy * k).toFixed(2)}px)`;
-      faces[i].style.transform = fx ? `translate(${(fx * k).toFixed(1)}px,0)` : '';
+      if (c.dirty) { c.dirty = false; render(c); }
+    }
+    if (busy) rafId = requestAnimationFrame(tick);
+  }
+  // the phone's body: a polygon along a centre line that can bend (banana) and kink; the screen follows it
+  function phoneGeom(c) {
+    const p = c.p, H = c.h, k = p.bend, q = p.kink;
+    const pt = t => [c.cx + k * H * .55 * t * t + q * 26 * Math.sin(t * Math.PI * 1.7) * t, GY - H * t * (1 - .2 * Math.abs(k) * t)];
+    const ang = t => { const a = pt(Math.min(1, t + .01)), b = pt(Math.max(0, t - .01)); return Math.atan2(a[0] - b[0], -(a[1] - b[1])); };
+    const edge = (t, hw, s) => { const [x, y] = pt(t), a = ang(t), w = hw * (1 - .22 * Math.abs(q) * Math.sin(Math.PI * t)); return [x + s * w * Math.cos(a), y + s * w * Math.sin(a)]; };
+    const poly = (hw, t0, t1, rt) => {
+      const n = 14, L = [], R = [];
+      for (let i = 0; i <= n; i++) { const t = t0 + (t1 - t0 - rt) * i / n; L.push(edge(t, hw, -1)); R.push(edge(t, hw, 1)); }
+      const lt = edge(t1, hw, -1), rtp = edge(t1, hw, 1), P = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+      const m = a => `${f1(a[0])} ${f1(a[1])}`;
+      let d = 'M' + m(L[0]);
+      for (let i = 1; i < L.length; i++) d += 'L' + m(L[i]);
+      d += `Q${m(lt)} ${m(P(lt, rtp, rt > .05 ? .2 : .12))}L${m(P(lt, rtp, rt > .05 ? .8 : .88))}Q${m(rtp)} ${m(R[R.length - 1])}`;
+      for (let i = R.length - 2; i >= 0; i--) d += 'L' + m(R[i]);
+      return d + 'Z';
+    };
+    return {pt, ang, poly};
+  }
+  function render(c) {
+    const p = c.p;
+    c.g.setAttribute('transform', `translate(${f1(c.cx + p.x)} ${f1(GY + p.y)}) rotate(${f1(p.rot)}) skewX(${f1(p.skew)}) scale(${f2(p.sx)} ${f2(p.sy)}) translate(${-c.cx} ${-GY})`);
+    c.g.style.opacity = p.o;
+    for (const g of c.pgs) g.setAttribute('transform', `translate(${f1(p.gx)} ${f1(p.gy)})`);
+    const ts = 1 - .8 * Math.abs(p.turn);
+    if (c.tall) {
+      const G = phoneGeom(c), H = c.h, t = .7;
+      c.bodyP.setAttribute('d', G.poly(c.w / 2, 0, 1, .07));
+      c.scrP.setAttribute('d', G.poly(35, .096, .923, .05));
+      const s0 = G.pt(.968), a0 = G.ang(.968), sc = Math.cos(a0), sn = Math.sin(a0);
+      c.spkP.setAttribute('d', `M${f1(s0[0] - 9 * sc)} ${f1(s0[1] - 9 * sn)}L${f1(s0[0] + 9 * sc)} ${f1(s0[1] + 9 * sn)}`);
+      const [x, y] = G.pt(t), a = G.ang(t);
+      c.fp.x = x; c.fp.y = y;
+      c.face.setAttribute('transform', `translate(${f1(x)} ${f1(y)}) rotate(${f1(a * 180 / Math.PI)}) translate(${f1(p.turn * c.tvl)} 0) scale(${f2(ts)} 1) rotate(${f1(p.ft)})`);
+    } else {
+      c.fp.x = c.fx + p.turn * c.tvl; c.fp.y = c.fy;
+      c.face.setAttribute('transform', `translate(${f1(c.fx + p.turn * c.tvl)} ${f1(c.fy)}) rotate(${f1(p.ft)}) scale(${f2(ts)} 1)`);
+    }
+    if (c.hs.length) c.hs.forEach((h, i) => { h.setAttribute('transform', `translate(${f1(p['h' + i + 'x'])} ${f1(p['h' + i + 'y'])})`); h.style.opacity = p['ho' + i]; });
+  }
+  // timeline helpers (everything pending is cancelled when the state changes)
+  ORDER.forEach(render);
+  let tms = [];
+  const after = (ms, f) => { if (reduce.matches) f(); else tms.push(setTimeout(f, ms)); };
+  const clearSeq = () => { tms.forEach(clearTimeout); tms = []; ORDER.forEach(c => c.g.classList.remove('tremble')); };
+  const hands = (c, mode, dur = 280) => {
+    if (!c.hands) return;
+    const x = c.fx, y = c.fy, g = c.gap, hw = c.w / 2;
+    const M = {hide: [x - g, y + 26, 0, x + g, y + 26, 0], cover: [x - g * .72, y + 1, 1, x + g * .72, y + 1, 1], fore: [x - g * .2, y - c.r * 3.2, 1, x + g, y + 26, 0],
+      shrug: [x - hw - 8, y + 12, 1, x + hw + 8, y + 12, 1], up: [x - hw - 4, y - 34, 1, x + hw + 4, y - 34, 1]}[mode];
+    go(c, {h0x: M[0], h0y: M[1], ho0: M[2], h1x: M[3], h1y: M[4], ho1: M[5]}, dur, 'spring');
+  };
+  // expressions: id -> [mouth, eyes, brow, extras]
+  const X = {
+    idle:  {toutou: ['smile', 'open', 0, ''], phone: ['smirk', 'open', 0, ''], monitor: ['flat', 'lid', 0, ''], mouse: ['smile', 'wide', 0, '']},
+    watch: {toutou: ['smile', 'open', 0, 'blush'], phone: ['o', 'open', 0, ''], monitor: ['flat', 'open', 0, ''], mouse: ['o', 'wide', 0, '']},
+    pw:    {toutou: ['flat', 'dn', 0, ''], phone: ['flat', 'sq', 0, 'sweat'], monitor: ['smirk', 'lid', 0, ''], mouse: ['smile', 'dn', 0, '']},
+    peek:  {toutou: ['flat', 'dn', 0, ''], phone: ['o', 'open', 0, ''], monitor: ['flat', 'lid', 1, ''], mouse: ['smile', 'dn', 0, '']},
+    pwdone: {phone: ['whistle', 'open', 0, 'sweat']},
+    show:  {toutou: ['pout', 'sq', 0, 'sweat'], phone: ['whistle', 'dn', 0, ''], monitor: ['flat', 'dn', 0, ''], mouse: ['smile', 'sq', 0, '']},
+    wait:  {toutou: ['pout', 'wide', 0, ''], phone: ['flat', 'open', 0, ''], monitor: ['flat', 'lid', 0, 'sweat'], mouse: ['bite', 'open', 0, 'sweat']},
+    sad:   {toutou: ['pout', 'open', 1, 'tear'], phone: ['smirk', 'open', 0, 'sweat'], monitor: ['flat', 'dead', 0, ''], mouse: ['sad', 'open', 1, '']},
+    sad3:  {toutou: ['wail', 'dn', 1, 'tear'], phone: ['smirk', 'open', 1, 'sweat'], monitor: ['flat', 'dead', 0, 'sweat'], mouse: ['sad', 'dn', 0, 'sweat']},
+    lock:  {toutou: ['pout', 'dn', 0, 'tear z'], phone: ['o', 'dn', 0, 'z'], monitor: ['flat', 'sq', 0, 'z off'], mouse: ['flat', 'dn', 0, 'z']},
+    happy: {toutou: ['happy', 'up', 0, 'blush'], phone: ['grin', 'up', 0, ''], monitor: ['smirk', 'lid', 1, ''], mouse: ['happy', 'squint', 0, '']},
+    cheer: {monitor: ['smirk', 'up', 0, '']},
+    glare: {monitor: ['flat', 'lid', 1, '']},
+  };
+  const setEx = (c, id, from) => {
+    const x = (X[id] && X[id][c.id]) || (X[from] && X[from][c.id]);
+    if (!x) return;
+    const keep = (c.back ? ' back' : '') + (c.g.classList.contains('tremble') ? ' tremble' : '');
+    c.g.setAttribute('class', `ch e-${x[0]} k-${x[1]}${x[2] ? ' b-1' : ''}${x[3] ? ' ' + x[3].split(' ').map(s => 'x-' + s).join(' ') : ''}${keep}`);
+    c.exid = `${x[0]} ${x[1]} ${x[2]} ${x[3]}`;
+  };
+  const exAll = id => ORDER.forEach(c => setEx(c, id, 'idle'));
+  const flip = (c, toBack) => {
+    if (c.back === toBack) return;
+    if (reduce.matches) { c.back = toBack; c.g.classList.toggle('back', toBack); go(c, {sx: 1}, 0); return; }
+    go(c, {sx: .05}, 150, 'in');
+    after(155, () => { c.back = toBack; c.g.classList.toggle('back', toBack); go(c, {sx: 1}, 420, 'spring'); });
+  };
+  const fpOf = c => c.fp;
+  const pageToVb = pt => { const r = svg.getBoundingClientRect(), s = r.width / W400; return {x: (pt.x - r.left) / s, y: (pt.y - r.top) / s}; };
+  const lookAt = (c, pt, dur = 150) => {
+    const f = fpOf(c), dx = pt.x - f.x, dy = pt.y - f.y, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 90);
+    go(c, {gx: c.gmax * k * dx / d, gy: c.gmax * k * dy / d}, dur, 'out');
+  };
+  const rest = (dur = 420, keepBack) => ORDER.forEach(c => { if (!keepBack && c.back) { c.back = false; c.g.classList.remove('back'); } go(c, REST, dur, 'spring'); hands(c, 'hide'); });
+  const fieldPt = () => { const f = userIn.offsetParent !== null && document.activeElement === userIn ? userIn : passIn, r = f.getBoundingClientRect(); return pageToVb({x: r.left + r.width / 2, y: r.top + r.height / 2}); };
+  const goPt = () => { const r = go_.getBoundingClientRect(); return pageToVb({x: r.left + r.width / 2, y: r.top + r.height / 2}); };
+  function aim(pt, near) {  // the whole body leans after a point (feet stay put), the eyes follow it
+    for (const c of ORDER) {
+      const l = clamp((pt.x - c.cx) / 220, -1, 1) * c.lean;
+      go(c, {rot: l, skew: -l * .3, sy: near ? c.stretch : 1}, 190, 'out');
+      lookAt(c, pt);
+    }
+  }
+
+  // ---- the state ----
+  let active = false, st = 'idle', ptr = null, tBlink = 0, tHold = 0, tTheater = 0, introRunning = false, introDone = false, fails = 0, peekDone = false, peekOn = false, lastMove = 0, tWait = 0;
+  const cls = () => { box.className = 'st-' + st + (peekOn ? ' peek' : ''); };
+  function enter(s) {  // a new state: cancel what was going on, then the pose
+    clearSeq(); clearTimeout(tHold); clearTimeout(tWait);
+    if (introRunning) { introRunning = false; ORDER.forEach(c => { c.p.y = 0; c.p.o = 1; c.p.sx = 1; c.p.sy = 1; c.tw = {}; c.dirty = true; }); }
+    if (s === 'user' || s === 'idle') peekDone = false;
+    st = s; peekOn = false; cls();
+  }
+  const base = () => {
+    const a = document.activeElement;
+    if (pass.classList.contains('pw') && passIn.type === 'text') return 'show';
+    if (a === userIn) return 'user';
+    if (a === passIn) return passIn.value ? 'pw' : 'user';
+    return 'idle';
+  };
+  function pose(s) {
+    if (s === 'idle') {
+      rest(); exAll('idle');
+      if (ptr && !reduce.matches) aim(pageToVb({x: ptr[0], y: ptr[1]}), false);
+      theater();
+    } else if (s === 'user') {
+      rest(); exAll('watch'); aim(fieldPt(), true);
+    } else if (s === 'pw') {
+      rest(); exAll('pw');
+      const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse;
+      hands(T, 'cover'); go(T, {rot: -4, sy: .98}, 360);
+      go(M, {turn: .75, rot: 4, gx: 3}, 420); go(S, {turn: 1, rot: 6}, 420);
+      go(P, {turn: -.45, rot: -3, ft: 0}, 420); P.g.classList.add('tremble');
+      if (!peekDone && !reduce.matches) { peekDone = true; after(1000, peek); }
+    } else if (s === 'show') {
+      rest(420, true); exAll('show');
+      const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse;
+      hands(T, 'cover'); go(T, {rot: -9, y: 2}, 400); go(S, {turn: 1, rot: 8}, 420);
+      go(P, {rot: -14}, 200); after(200, () => go(P, {rot: -2}, 500)); flip(P, true);
+      after(70, () => flip(M, true));
+      after(0, () => { T.g.classList.add('tremble'); });
+    }
+  }
+  function peek() {  // the phone bends over like a banana to look at the dots, the monitor glares, the phone springs back and whistles
+    if (st !== 'pw') return;
+    const P = C.phone, M = C.monitor;
+    peekOn = true; cls();
+    setEx(P, 'peek'); P.g.classList.remove('tremble');
+    go(P, {turn: 0, bend: -.9, rot: 0, ft: 28, gx: 0, gy: 3.4}, 640, 'back');
+    after(700, () => { setEx(M, 'glare'); go(M, {turn: 0, rot: -6, gx: -3.2}, 260, 'spring'); lookAt(M, fpOf(P)); });
+    after(1400, () => {
+      peekOn = false; cls();
+      setEx(P, 'pwdone'); go(P, {bend: 0, ft: 0, turn: -.45, rot: -3, gx: 3, gy: -3}, 560, 'spring2');
+      setEx(M, 'pw'); go(M, {turn: .75, rot: 4, gx: 3}, 420);
     });
   }
-  const aim = () => { if (!rafId && active) rafId = requestAnimationFrame(apply); };
-  function set(s) { clearTimeout(tHold); clearTimeout(tPeek); peek = false; box._shake = false; st = s; cls(); aim(); }
-  const base = () => { const a = document.activeElement; return a === userIn ? 'user' : a === passIn && passIn.value ? 'pw' : 'idle'; };
+  function wait() {  // the request is out and slow: everybody holds their breath
+    enter('wait'); box.className = 'st-wait';
+    const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse, pt = goPt();
+    rest(260); exAll('wait');
+    go(T, {sy: .82, sx: 1.1}, 420); T.g.classList.add('tremble');
+    go(P, {sy: 1.06, sx: .97}, 420); lookAt(P, pt);
+    lookAt(S, pt); go(S, {rot: -2}, 300);
+    let k = 0;
+    const dart = () => { go(M, {gx: k++ % 2 ? -4 : 4, gy: 0}, 120, 'out'); after(520, dart); };
+    dart();
+    const wob = () => { go(S, {rot: k % 2 ? 2.5 : -2.5}, 380, 'inout'); after(420, wob); };
+    wob();
+    const retre = () => { T.g.classList.remove('tremble'); void T.g.getBoundingClientRect(); T.g.classList.add('tremble'); after(2600, retre); };
+    after(2600, retre);
+  }
+  function sad(n) {
+    enter('sad');
+    const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse, m = Math.min(1.8, 1 + .3 * (n - 1)), big = n >= 3;
+    rest(220); exAll(big ? 'sad3' : 'sad');
+    go(P, {kink: 1 * m, rot: -6 * m, ft: 10 * m, sy: .95}, 520, 'spring2');
+    // the phone rolls its eyes, the monitor glances at it with dead eyes
+    [[-3, -3], [0, -3.6], [3, -3], [3.4, 1], [0, 2]].forEach((g, i) => after(160 + i * 130, () => go(P, {gx: g[0], gy: g[1]}, 110, 'out')));
+    go(M, {sy: .97, rot: 3}, 400); after(120, () => lookAt(M, fpOf(P), 220));
+    go(T, {sy: .92, y: 3, ft: -6}, 420, 'spring');
+    [-4, 4, -3, 2, 0].forEach((r, i) => after(250 + i * 160, () => go(T, {rot: r * m}, 150, 'inout')));
+    go(S, {sy: .78, sx: 1.12}, 520, 'spring'); after(1100, () => go(S, {sy: .86, sx: 1.07}, 700, 'out'));
+    if (big) { hands(T, 'cover'); T.g.classList.add('tremble'); hands(S, 'shrug'); go(S, {rot: -4}, 300); }
+    peekOn = false; cls();
+    tHold = setTimeout(() => { if (st === 'sad') enterBase(); }, 2500 + 300 * (n - 1));
+  }
+  function lock() {
+    enter('lock'); rest(200); exAll('lock');
+    const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse;
+    go(T, {sy: .7, sx: 1.18}, 600, 'spring'); go(P, {bend: .6, ft: 18, sy: .92}, 800, 'spring'); go(M, {sy: .82, sx: 1.04, rot: 3}, 600, 'spring'); go(S, {sy: .56, sx: 1.25}, 600, 'spring');
+  }
+  function happy() {
+    enter('happy'); exAll('happy');
+    const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse;
+    rest(160);
+    const jump = (c, d, h) => { go(c, {y: -h, sy: 1.12, sx: .92}, 200, 'out', d); after(d + 210, () => { go(c, {y: 0}, 300, 'in'); }); after(d + 500, () => { c.p.sx = 1.22; c.p.sy = .8; c.dirty = true; go(c, {sx: 1, sy: 1}, 480, 'spring'); kick(); }); };
+    // 投投: spins; the monitor first only raises one brow, then gets pulled in
+    jump(T, 0, 46); go(T, {rot: 360}, 560, 'out'); after(700, () => { T.p.rot = 0; T.dirty = true; });
+    jump(P, 40, 38); go(P, {bend: .05}, 300);
+    after(150, () => setEx(M, 'cheer')); jump(M, 170, 30);
+    jump(S, 80, 34);
+    after(210, () => { go(P, {x: 9}, 160, 'out'); go(M, {x: -9}, 160, 'out'); });
+    after(480, () => { go(P, {x: 0}, 300); go(M, {x: 0}, 300); });
+  }
+  function enterBase() { const b = base(); enter(b); pose(b); }
+  function intro() {  // everybody drops in from the top, one after the other, and squashes on landing
+    introRunning = true; kick();
+    [C.phone, C.monitor, C.toutou, C.mouse].forEach((c, i) => {
+      c.tw = {}; c.p.y = -320; c.p.o = 0; c.p.rot = (i % 2 ? 1 : -1) * 18; c.p.sy = 1.1; c.p.sx = .94; c.dirty = true;
+      const d = 160 * i + 40;
+      after(d, () => { c.p.o = 1; setEx(c, 'watch'); go(c, {y: 0, rot: 0}, 300, 'in'); });
+      after(d + 300, () => { c.p.sx = 1.3; c.p.sy = .66; c.dirty = true; setEx(c, 'idle'); go(c, {sx: 1, sy: 1}, 560, 'spring'); kick(); });
+    });
+    after(160 * 3 + 40 + 900, () => { introRunning = false; pose(st); });
+  }
+  // little shows while nothing happens
+  function theater() {
+    clearTimeout(tTheater);
+    if (!active || reduce.matches) return;
+    tTheater = setTimeout(() => {
+      if (!active || st !== 'idle' || introRunning || document.hidden) return theater();
+      const P = C.phone, M = C.monitor, T = C.toutou, S = C.mouse, pick = Math.floor(Math.random() * 5);
+      if (pick === 0) {  // two look at each other
+        const a = ORDER[Math.floor(Math.random() * 4)], b = ORDER[(ORDER.indexOf(a) + 1 + Math.floor(Math.random() * 3)) % 4];
+        lookAt(a, fpOf(b)); lookAt(b, fpOf(a)); go(a, {rot: (b.cx > a.cx ? 1 : -1) * 4}, 300); go(b, {rot: (a.cx > b.cx ? 1 : -1) * 4}, 300);
+        tms.push(setTimeout(() => { if (st === 'idle') { go(a, {rot: 0, gx: 0, gy: 0}, 400); go(b, {rot: 0, gx: 0, gy: 0}, 400); } }, 1300));
+      } else if (pick === 1) {  // the phone stretches
+        go(P, {sy: 1.14, sx: .92, bend: -.12}, 480, 'out'); setEx(P, 'watch', 'idle'); tms.push(setTimeout(() => { go(P, {sy: 1, sx: 1, bend: 0}, 700, 'spring2'); setEx(P, 'idle'); }, 700));
+      } else if (pick === 2) {  // 投投 floats up a little
+        go(T, {y: -20, sy: 1.04}, 560, 'inout'); tms.push(setTimeout(() => go(T, {y: 0, sy: 1}, 800, 'spring'), 700));
+      } else if (pick === 3) {  // the mouse hops
+        go(S, {y: -16, sy: 1.1, sx: .94}, 140, 'out'); tms.push(setTimeout(() => { go(S, {y: 0}, 360, 'spring'); S.p.sx = 1.15; S.p.sy = .86; S.dirty = true; go(S, {sx: 1, sy: 1}, 400, 'spring'); }, 150));
+      } else {  // the monitor whistles
+        setEx(M, 'idle'); M.g.classList.remove('e-flat'); M.g.classList.add('e-whistle'); go(M, {rot: -2}, 300, 'inout'); tms.push(setTimeout(() => { setEx(M, 'idle'); go(M, {rot: 0}, 300); }, 1500));
+      }
+      theater();
+    }, 3600 + Math.random() * 3600);
+  }
   function blinkLoop() {
     clearTimeout(tBlink);
     if (!active || reduce.matches || document.hidden) return;
@@ -467,51 +807,82 @@ window.PALS = (() => {
   function wake(on) {
     if (on === active) return;
     active = on;
-    if (on) { set(base()); blinkLoop(); } else { clearTimeout(tBlink); clearTimeout(tHold); clearTimeout(tPeek); }
+    if (on) {
+      st = base(); cls(); exAll('idle');
+      if (!introDone && !reduce.matches) { introDone = true; intro(); } else pose(st);
+      blinkLoop();
+    } else { clearTimeout(tBlink); clearTimeout(tHold); clearTimeout(tTheater); clearTimeout(tWait); clearSeq(); }
   }
   new MutationObserver(() => wake(pass.style.display === 'flex')).observe(pass, {attributes: true, attributeFilter: ['style']});
   document.addEventListener('visibilitychange', blinkLoop);
-  const move = e => { if (active) { ptr = [e.clientX, e.clientY]; if (st === 'idle') aim(); } };
+  const move = e => {
+    if (!active) return;
+    ptr = [e.clientX, e.clientY];
+    const now = performance.now();
+    if (st === 'idle' && !introRunning && !reduce.matches && now - lastMove > 40) { lastMove = now; aim(pageToVb({x: e.clientX, y: e.clientY}), false); }
+  };
   addEventListener('pointermove', move, {passive: true});
   addEventListener('pointerdown', move, {passive: true});
-  addEventListener('resize', aim);
-  const sticky = () => st === 'sad' || st === 'lock' || st === 'happy';
-  pass.addEventListener('focusin', () => { if (!sticky()) set(base()); });
-  pass.addEventListener('focusout', () => setTimeout(() => { if (active && !sticky()) set(base()); }, 0));
-  // typing: only "is there anything in it" is looked at (never what, never how many)
+  addEventListener('resize', () => { if (active && st === 'user') aim(fieldPt(), true); });
+  const sticky = () => st === 'sad' || st === 'lock' || st === 'happy' || st === 'wait';
+  pass.addEventListener('focusin', () => { if (introRunning) { st = base(); cls(); return; } if (!sticky()) { const b = base(); if (b !== st) { enter(b); pose(b); } else if (b === 'user') aim(fieldPt(), true); } });
+  pass.addEventListener('focusout', () => setTimeout(() => { if (introRunning) { st = base(); cls(); return; } if (active && !sticky()) { const b = base(); if (b !== st) { enter(b); pose(b); } } }, 0));
+  // each key: the cast reacts by its own way; only "is there anything in it" decides the state (never what, never how many)
+  function keyReact() {
+    const T = C.toutou, P = C.phone, M = C.monitor, S = C.mouse;
+    if (st === 'user') {
+      go(P, {sy: 1.1}, 80, 'out'); after(90, () => go(P, {sy: P.stretch}, 320, 'spring'));
+      go(M, {y: -3}, 70, 'out', 40); after(120, () => go(M, {y: 0}, 260, 'spring'));
+      go(T, {y: -6}, 80, 'out', 20); after(110, () => go(T, {y: 0}, 300, 'spring'));
+      go(S, {y: -10, sy: 1.08}, 90, 'out', 60); after(160, () => go(S, {y: 0, sy: S.stretch}, 320, 'spring'));
+    } else if (st === 'pw') {
+      go(S, {rot: 10}, 70, 'out'); after(80, () => go(S, {rot: 6}, 260, 'spring'));
+      go(T, {y: 2}, 70, 'out'); after(80, () => go(T, {y: 0}, 240, 'spring'));
+      if (!peekOn) { P.g.classList.remove('tremble'); void P.g.getBoundingClientRect(); P.g.classList.add('tremble'); }
+    }
+  }
   pass.addEventListener('input', e => {
     if (e.target !== passIn && e.target !== userIn) return;
-    set(e.target === passIn ? (passIn.value ? 'pw' : 'idle') : 'user');
     passIn.classList.remove('shake'); userIn.classList.remove('shake'); pass.classList.remove('lock');
+    if (sticky()) { clearTimeout(tWait); }
+    const b = e.target === userIn ? 'user' : base();
+    if (b !== st) { enter(b); pose(b); }
+    keyReact();
   });
-  // 顯示密碼: one of them peeks, then hurries to look away again (this runs after the page's own handler switched the type)
+  // 顯示密碼 / 隱藏密碼: runs after the page's own handler has switched the type
   eye.addEventListener('click', () => setTimeout(() => {
     if (!active) return;
-    if (passIn.type !== 'text') { set(base()); return; }
-    set('pw'); peek = true; cls(); aim();
-    tPeek = setTimeout(() => { peek = false; cls(); aim(); }, 780);
+    const b = base();
+    if (b === 'show') { enter('show'); pose('show'); }
+    else { const backs = ORDER.filter(c => c.back); enter(b); pose(b); backs.forEach(c => { c.back = true; c.g.classList.add('back'); flip(c, false); }); }
   }, 0));
   const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); el.addEventListener('animationend', () => el.classList.remove('shake'), {once: true}); };
   return {
-    state: () => st + (peek ? '+peek' : ''),
+    state: () => st + (peekOn ? '+peek' : ''),
     frames: () => frames,
+    busy: () => !!rafId,
+    faces: () => ORDER.map(c => c.exid),
+    faceCheck: () => ORDER.map(c => { const r = c.face.getBoundingClientRect(); return {id: c.id, x: r.left, y: r.top, w: r.width, h: r.height, eyes: [...c.g.querySelectorAll('.eye')].map(e => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })}; }),
+    // the request is out; if the answer is quick (under 150 ms) nothing is shown at all
+    wait() { if (!active) return; clearTimeout(tWait); tWait = setTimeout(() => { if (active && !sticky()) wait(); else if (active && st === 'wait') { /* already */ } }, 150); },
     // a wrong answer (j = the server's answer; only its kind is read)
     fail(j) {
+      clearTimeout(tWait);
       if (!active) return;
       const locked = !!(j && j.locked);
-      set(locked ? 'lock' : 'sad');
-      pass.classList.toggle('lock', locked);
-      if (!locked) {
-        box._shake = true; cls();
-        shake(passIn); if (userIn.offsetParent !== null) shake(userIn);
-        tHold = setTimeout(() => { if (st === 'sad') set(base()); }, 2400);
-      }
+      fails++;
+      if (locked) { lock(); pass.classList.add('lock'); return; }
+      pass.classList.remove('lock');
+      sad(fails);
+      shake(passIn); if (userIn.offsetParent !== null) shake(userIn);
     },
-    // success: a happy face for at most 180 ms, then the caller goes on
+    // success: the face and the jump for at most 200 ms, then the caller goes on
     happy() {
+      clearTimeout(tWait);
+      fails = 0;
       if (!active) return Promise.resolve();
-      set('happy'); pass.classList.remove('lock');
-      return new Promise(r => setTimeout(r, 180));
+      pass.classList.remove('lock'); happy();
+      return new Promise(r => setTimeout(r, reduce.matches ? 0 : 200));
     },
   };
 })();
@@ -622,8 +993,8 @@ const T = {
   sens: ['游標速度', 'Pointer speed', 'ポインターの速度', '포인터 속도'],
   sensSub: ['手指滑越快，游標跑越遠', 'Faster swipes move the pointer further', '速く動かすほど遠くへ移動します', '빠르게 밀수록 더 멀리 이동합니다'],
   quality: ['畫質', 'Picture', '画質', '화질'],
-  qSub: ['清晰＝電腦原解析度，約 10–16 Mbps', 'Sharp = the PC’s own resolution, about 10–16 Mbps', '高画質＝パソコンの解像度そのまま、約 10–16 Mbps', '선명하게 = PC 원래 해상도, 약 10–16 Mbps'],
   q0: ['流暢', 'Smooth', 'なめらか', '부드럽게'], q1: ['標準', 'Standard', '標準', '표준'], q2: ['清晰', 'Sharp', '高画質', '선명하게'],
+  qAuto: ['自動', 'Auto', '自動', '자동'],  // 0.8.4: the PC follows the network (starts low, climbs while it stays clean)
   monitor: ['螢幕', 'Screen', '画面', '화면'],
   primary: ['主', 'main', 'メイン', '주'],
   fill: ['填滿畫面（裁掉黑邊）', 'Fill the screen (crop the bars)', '画面いっぱい（黒帯をカット）', '화면 채우기(검은 띠 자르기)'],
@@ -678,8 +1049,6 @@ const T = {
   clipCopyFail: ['請長按文字選「拷貝」', 'Long-press the text and choose Copy', '文字を長押しして「コピー」を選んでください', '텍스트를 길게 눌러 복사를 선택하세요'],
   clipEmpty: ['（電腦剪貼簿沒有文字）', '(no text on the PC clipboard)', '（パソコンのクリップボードに文字はありません）', '(PC 클립보드에 텍스트 없음)'],
   // O1
-  auto: ['自動調整畫質', 'Adjust quality automatically', '画質を自動調整', '화질 자동 조정'],
-  autoSub: ['網路不穩時先降位元率，再降一段畫質；穩定後慢慢回升', 'On a shaky network: lower the bitrate, then one quality step; back up when stable', '不安定なときはビットレート、次に画質を下げ、安定したら戻します', '불안정하면 비트레이트, 다음 화질을 낮추고 안정되면 되돌립니다'],
   autoDown: ['網路不穩，畫質暫時降到「{0}」', 'Shaky network: quality lowered to “{0}” for now', '通信が不安定なため、画質を一時的に「{0}」にしました', '네트워크가 불안정해 화질을 잠시 “{0}”(으)로 낮췄습니다'],
   autoUp: ['網路穩定了，畫質回到「{0}」', 'Network is stable again: back to “{0}”', '通信が安定したので「{0}」に戻しました', '네트워크가 안정되어 “{0}”(으)로 돌아왔습니다'],
 
@@ -723,8 +1092,8 @@ const T = {
   lockNote: ['中斷後，電腦會自動鎖定（電腦設定：遠端斷線後自動鎖定電腦）', 'When you disconnect, the PC locks itself (PC setting: Lock the PC after remote control ends)', '切断すると、パソコンは自動でロックされます（パソコンの設定：リモート切断後に自動ロック）', '연결을 끊으면 PC가 자동으로 잠깁니다(PC 설정: 원격 연결이 끊기면 PC 잠그기)'],
   gNote: ['以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面無法從手機操作。', 'Windows running as administrator, UAC prompts and the lock screen can’t be controlled from the phone.', '管理者として実行中のウィンドウ、UAC の確認画面、ロック画面はスマホから操作できません。', '관리자 권한으로 실행 중인 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다.'],
   // ---- 0.8.3.5 input ----
-  // ③ UIPI: the click / key went to a window Windows protects from us ({app} = this program's name, {0} = that program)
-  uipiAdmin: ['這個視窗是系統管理員權限，遠端點不到；請用一般權限開，或用系統管理員權限開{app}', 'This window runs as administrator, so remote clicks can’t reach it. Open it normally, or run {app} as administrator.', 'このウィンドウは管理者権限で動いているため、リモートから操作できません。通常の権限で開くか、{app}を管理者として実行してください。', '이 창은 관리자 권한으로 실행 중이라 원격으로 조작할 수 없습니다. 일반 권한으로 열거나 {app}을(를) 관리자 권한으로 실행하세요.'],
+  // ③ UIPI: the click / key went to a window Windows protects from us ({0} = uipiApp with that program, or nothing). 0.8.4: once per window
+  uipiAdmin: ['這個視窗{0}是系統管理員權限，Windows 不讓遠端點它或打字。請在電腦前操作，或在電腦上用一般權限重新開它。（同一個視窗只提醒這一次）', 'This window{0} runs as administrator, so Windows won’t let remote clicks or typing reach it. Use it at the PC, or reopen it there without administrator rights. (Shown once per window.)', 'このウィンドウ{0}は管理者権限で動いているため、Windows がリモートからのクリックや入力を通しません。パソコンの前で操作するか、パソコンで通常の権限で開き直してください。（同じウィンドウでは一度だけ表示します）', '이 창{0}은 관리자 권한으로 실행 중이라 Windows가 원격 클릭과 입력을 막습니다. PC 앞에서 조작하거나 PC에서 일반 권한으로 다시 여세요. (같은 창은 한 번만 알려 드립니다)'],
   uipiApp: ['（{0}）', ' ({0})', '（{0}）', ' ({0})'],
   // ② the phone's mode, said at the first connection (and after taps far from the pointer in 觸控板)
   mhTrackT: ['目前是「觸控板」模式', 'You’re in Trackpad mode', '今は「トラックパッド」モードです', '지금은 ‘트랙패드’ 모드입니다'],
@@ -801,10 +1170,41 @@ const T = {
   fpsSub: ['120 要電腦螢幕 120 Hz 以上；畫面不動時自動少送', '120 needs a PC screen of 120 Hz or more; a still picture sends fewer frames', '120 はパソコンの画面が 120 Hz 以上のとき。止まった画面は自動で減らします', '120은 PC 화면이 120Hz 이상일 때. 멈춘 화면은 자동으로 줄입니다'],
   fpsCap: ['電腦螢幕是 {0} Hz，最多每秒 {0} 張', 'The PC screen runs at {0} Hz: {0} frames a second at most', 'パソコンの画面は {0} Hz のため、最大 {0} fps です', 'PC 화면이 {0}Hz라 최대 초당 {0}장입니다'],
   phoneRes: ['解析度跟手機一樣', 'Match the phone’s resolution', 'スマホの解像度に合わせる', '휴대폰 해상도에 맞추기'],
+  // ---- 0.8.3.7 remote: 畫質's line follows the choice; frames in three layers; this screen's real refresh rate; files over the direct path ----
+  // 0.8.4: a Mac (or an iPad with a keyboard) controls Windows the Mac way
+  cmdCtrl: ['Mac：Cmd 當 Ctrl', 'Mac: Cmd as Ctrl', 'Mac：Cmd を Ctrl として使う', 'Mac: Cmd를 Ctrl로'],
+  cmdCtrlSub: ['Mac／iPad 鍵盤：⌘+C、V、X、Z、A、S、F、T、W 這類「⌘+字母」送成 Windows 的 Ctrl+字母；只按 ⌘ 是 Win 鍵，Option 是 Alt',
+    'Mac / iPad keyboard: ⌘+a letter (⌘C, V, X, Z, A, S, F, T, W …) goes to Windows as Ctrl+that letter; ⌘ alone is the Win key, Option is Alt',
+    'Mac／iPad のキーボード：⌘+C・V・X・Z・A・S・F・T・W など「⌘+英字」を Windows の Ctrl+英字として送ります。⌘ だけは Win キー、Option は Alt',
+    'Mac/iPad 키보드: ⌘+C, V, X, Z, A, S, F, T, W 같은 “⌘+글자”를 Windows의 Ctrl+글자로 보냅니다. ⌘만 누르면 Win 키, Option은 Alt'],
+  qSub0: ['流暢＝縮成 1920 寬，約 6 Mbps；網路慢、用行動數據時選這個', 'Smooth = scaled to 1920 wide, about 6 Mbps: for a slow network or mobile data', 'なめらか＝幅 1920 に縮小、約 6 Mbps。遅い回線やモバイル通信向け', '부드럽게 = 가로 1920으로 축소, 약 6 Mbps. 느린 네트워크·모바일 데이터용'],
+  qSub1: ['標準＝縮成 2560 寬，約 10 Mbps；字清楚、又不太吃網路', 'Standard = scaled to 2560 wide, about 10 Mbps: clear text without much bandwidth', '標準＝幅 2560 に縮小、約 10 Mbps。文字がはっきり、回線もほどほど', '표준 = 가로 2560으로 축소, 약 10 Mbps. 글자가 선명하고 네트워크 부담이 적음'],
+  qSub2: ['清晰＝電腦原解析度，約 10–16 Mbps；同一個 Wi-Fi 最清楚', 'Sharp = the PC’s own resolution, about 10–16 Mbps: sharpest on the same Wi-Fi', '高画質＝パソコンの解像度そのまま、約 10–16 Mbps。同じ Wi-Fi で一番くっきり', '선명하게 = PC 원래 해상도, 약 10–16 Mbps. 같은 Wi-Fi에서 가장 선명'],
+  'qSub-1': ['自動＝電腦看網路狀況調整：從流暢起步，網路順就往上升、變慢就馬上降', 'Auto = the PC follows the network: starts at Smooth, climbs while the link is clean, drops at once when it slows', '自動＝パソコンが回線に合わせて調整。なめらかから始め、順調なら上げ、遅くなればすぐ下げます', '자동 = PC가 네트워크에 맞춰 조절. 부드럽게부터 시작해 원활하면 올리고 느려지면 바로 내림'],  // 0.8.4 merge: 自動's line under 畫質
+  qNow: ['現在 {0}，每秒 {1} 張', 'now {0}, {1} frames a second', '現在 {0}、毎秒 {1} 枚', '지금 {0}, 초당 {1}장'],
+  tiers: ['收到 {0} · 解碼 {1} · 顯示 {2} 張/秒', 'received {0} · decoded {1} · shown {2} /s', '受信 {0} · デコード {1} · 表示 {2} 枚/秒', '수신 {0} · 디코딩 {1} · 표시 {2} 장/초'],
+  tierOk: ['三層都跟得上', 'all three layers keep up', '3 層とも追いついています', '세 단계 모두 따라옴'],
+  tierNet: ['卡在網路：電腦送 {0}，只收到 {1}', 'held up by the network: the PC sends {0}, {1} arrive', 'ネットワークで詰まっています：送信 {0}、受信 {1}', '네트워크에서 막힘: PC가 {0} 보내고 {1} 도착'],
+  tierDec: ['卡在解碼：收到 {0}，只解出 {1}', 'held up by decoding: {0} arrive, {1} decoded', 'デコードで詰まっています：受信 {0}、デコード {1}', '디코딩에서 막힘: {0} 도착, {1} 디코딩'],
+  tierShow: ['卡在顯示：解出 {0}，畫面只顯示 {1}', 'held up by the display: {0} decoded, {1} shown', '表示で詰まっています：デコード {0}、表示 {1}', '표시에서 막힘: {0} 디코딩, {1} 표시'],
+  tierScreen: ['卡在顯示：這個瀏覽器每秒只畫 {0} 次', 'held up by the display: this browser draws {0} times a second', '表示で詰まっています：このブラウザーは毎秒 {0} 回しか描きません', '표시에서 막힘: 이 브라우저는 초당 {0}번만 그립니다'],
+  dispHz: ['螢幕更新 {0} Hz', 'screen {0} Hz', '画面 {0} Hz', '화면 {0} Hz'],
+  // 0.8.3.7: iPhone Safari draws web pages at most 60 times a second by default (ProMotion iPhones too):
+  // WebKit's feature flag "Prefer Page Rendering Updates near 60fps" (on by default; bugs.webkit.org 272226),
+  // and Low Power Mode limits ProMotion to 60 Hz (support.apple.com/guide/iphone/iphcab9aecd1).
+  fpsLow: ['這支手機的瀏覽器每秒只畫 {0} 次，已自動改成每秒送 {0} 張（多送也看不到，白花流量）', 'This phone’s browser draws {0} times a second, so the PC now sends {0} frames a second (more would not be seen, only use data)', 'このスマホのブラウザーは毎秒 {0} 回しか描かないため、送信を毎秒 {0} 枚にしました（それ以上は見えず、通信量だけ増えます）', '이 휴대폰 브라우저는 초당 {0}번만 그려서 PC가 초당 {0}장만 보내도록 바꿨습니다(더 보내도 보이지 않고 데이터만 씁니다)'],
+  fpsLowIos: ['iPhone 要 120：設定 › App › Safari › 進階 › 功能旗標（Feature Flags），關掉「Prefer Page Rendering Updates near 60fps」，再把 Safari 完全關掉重開；「低耗電模式」開著也會限 60。',
+    'For 120 on an iPhone: Settings › Apps › Safari › Advanced › Feature Flags, turn off “Prefer Page Rendering Updates near 60fps”, then quit Safari and open it again; Low Power Mode also limits it to 60.',
+    'iPhone で 120 にするには：設定 › アプリ › Safari › 詳細 › Feature Flags で「Prefer Page Rendering Updates near 60fps」をオフにし、Safari を完全に終了して開き直します。低電力モード中も 60 までです。',
+    'iPhone에서 120으로: 설정 › 앱 › Safari › 고급 › Feature Flags에서 “Prefer Page Rendering Updates near 60fps”를 끄고 Safari를 완전히 종료한 뒤 다시 여세요. 저전력 모드에서도 60으로 제한됩니다.'],
+  upVia: ['直連', 'direct', '直接', '직접'],
+  upViaHttp: ['經網址', 'via the address', 'アドレス経由', '주소 경유'],
+  upDoneIn: ['已傳到電腦（{0}，{1}）', 'On the PC ({0}, {1})', '送信済み（{0}、{1}）', '전송됨({0}, {1})'],
   phoneResSub: ['電腦畫面縮成這支手機的大小（{0}），兩邊都省力、更順', 'The PC picture is sized to this phone’s screen ({0}): less work on both sides, smoother', 'パソコンの画面をこのスマホのサイズ（{0}）に縮小。両方の負担が減り、なめらかに', 'PC 화면을 이 휴대폰 크기({0})로 줄여 양쪽 부담이 줄고 더 부드럽습니다'],
 };
 const t = k => (T[k] || [k])[LANG] || T[k][1];
 const tf = (k, a) => t(k).replace('{0}', a);
+const tfa = (k, ...a) => t(k).replace(/\{(\d)\}/g, (m, i) => a[+i] !== undefined ? a[+i] : m);  // 0.8.3.7: {0} {1} {2}, each as often as it appears
 document.title = PM.app + ' ' + t('title');
 
 // ---- state ----
@@ -827,7 +1227,9 @@ const prefs = {
   // A new key: 0.8.2 kept 'mode' = trackpad for everyone who opened the settings once.
   mode: store.get('mode083', 'direct'),
   sens: store.get('sens', 1.0),
-  q: store.get('q', PM.tailscale || TUN ? 0 : PM.quality),
+  // 0.8.4: -1 = 自動 (the default everywhere: the fixed / temporary address, Tailscale, the LAN); 0..2 = a preset
+  // chosen by hand, kept as it is (also one chosen before 0.8.4: the old key)
+  q: (() => { const q = store.get('q084', store.get('q', -1)); return [-1, 0, 1, 2].includes(q) ? q : -1; })(),
   mon: store.get('mon', 0),
   fill: store.get('fill', false),
   hud: store.get('hud', false),
@@ -839,7 +1241,6 @@ const prefs = {
   vol: (() => { const v = store.get('vol0834', null); return v === null ? 100 : Math.max(0, Math.min(400, +v || 0)); })(),
   gain: Math.max(0, Math.min(400, +store.get('gain0832', 100) || 0)),
   lock: store.get('lock', false),
-  auto: store.get('auto', true),
   // 0.8.3.6: frames a second asked for (30 / 60 / 120; the PC caps it at its screen's refresh rate) and
   // 解析度跟手機一樣 (the PC shrinks the picture to this screen's pixels: less to encode and to decode)
   fps: [30, 60, 120].includes(store.get('fps0836', 60)) ? store.get('fps0836', 60) : 60,
@@ -853,8 +1254,65 @@ function phoneFit() {
   const d = devicePixelRatio || 1, a = screen.width || innerWidth, b = screen.height || innerHeight;
   return [Math.round(Math.max(a, b) * d), Math.round(Math.min(a, b) * d)];
 }
-// O1: the quality actually asked for (auto may hold it below prefs.q for a while).
-let curQ = prefs.q;
+// ---- 0.8.3.7: this screen's real refresh rate, from requestAnimationFrame ----
+// The owner's iPhone 17 Pro Max at 120: the PC sent 120.0 a second, the page showed 60.8. iPhone Safari draws a
+// page at most ~60 times a second by default, ProMotion or not: WebKit's feature flag "Prefer Page Rendering
+// Updates near 60fps" is on by default on iPhone / iPad / MacBook Pro (https://bugs.webkit.org/show_bug.cgi?id=272226,
+// comment 4) and Low Power Mode limits ProMotion to 60 Hz (https://support.apple.com/guide/iphone/iphcab9aecd1/ios).
+// On a phone / tablet (a touch screen) the PC is then asked for no more frames than this screen draws (the rest
+// would cost bandwidth and the phone's decoder for nothing) and 每秒畫面 says why and how to get 120. A PC's
+// browser is never capped here. ?hz=N (tests) pretends the screen draws N times a second.
+const disp = {hz: 0, raw: 0, n: 0, busy: false};
+const HZ_STEPS = [24, 30, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 180, 240];
+function measureHz(ms) {
+  return new Promise(res => {
+    const ts = []; const t0 = performance.now();
+    const step = now => { ts.push(now); if (now - t0 < ms) requestAnimationFrame(step); else res(ts); };
+    requestAnimationFrame(step);
+  });
+}
+async function checkHz(why) {
+  if (disp.busy || document.hidden) return;
+  disp.busy = true;
+  try {
+    let hz;
+    if (Q.has('hz')) hz = +Q.get('hz') || 0;
+    else {
+      const ts = await measureHz(1000);
+      const iv = []; for (let i = 1; i < ts.length; i++) iv.push(ts[i] - ts[i - 1]);
+      if (iv.length < 10) return;
+      iv.sort((a, b) => a - b);
+      const med = iv[iv.length >> 1];  // the median interval: a busy frame or two do not count
+      disp.raw = 1000 / med;
+      hz = HZ_STEPS.reduce((a, b) => Math.abs(b - disp.raw) < Math.abs(a - disp.raw) ? b : a);
+      if (Math.abs(hz - disp.raw) > hz * 0.08) hz = Math.round(disp.raw);
+    }
+    if (document.hidden || !(hz > 0)) return;
+    disp.n++;
+    const before = fpsToAsk();
+    disp.hz = hz;
+    if (fpsToAsk() !== before) {  // the cap changed: tell the PC (inside this connection) and say why
+      diag('display-hz', {hz, raw: +disp.raw.toFixed(1), why, ask: fpsToAsk(), want: prefs.fps});
+      if (typeof syncSettings === 'function') syncSettings();
+      if (S.state === 'connected' || tun.media) applyStream('display-hz');
+      if (fpsToAsk() < prefs.fps && !store.get('fpsLowSaid0837', false)) { store.set('fpsLowSaid0837', true); toast(tf('fpsLow', fpsToAsk()), 7000); }
+    }
+  } finally { disp.busy = false; }
+}
+// Capped only on a touch screen (a phone / tablet); never above what was chosen; never below 30.
+const capByScreen = () => !Q.has('nohzcap') && (isIOS || matchMedia('(pointer: coarse)').matches);
+function fpsToAsk() {
+  const hz = disp.hz;
+  if (!hz || !capByScreen() || hz + 2 >= prefs.fps) return prefs.fps;
+  return Math.max(30, Math.min(prefs.fps, Math.round(hz)));
+}
+setTimeout(() => checkHz('load'), 300);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => checkHz('visible'), 500); });
+setInterval(() => checkHz('again'), 30000);  // Low Power Mode on / off, the flag changed and Safari reopened, ...
+
+// The preset of the picture now: prefs.q, or in 自動 the one the PC is on (its rung; RUNG_Q as auto_quality.h).
+const RUNG_Q = [0, 0, 0, 1, 2];
+let curQ = prefs.q < 0 ? 0 : prefs.q;
 
 let pc = null, dc = null, sessId = '', gen = 0, retryTimer = 0, retryN = 0;
 const S = {state: 'new', rtt: NaN, rttMin: Infinity, off: NaN, offRtt: Infinity, fps: 0, lat: [], latShow: NaN, latP95: NaN, srv: null,
@@ -1040,6 +1498,7 @@ function onMedia(buf) {
     tun.ackN = seq;
     if (!tun.ackTimer) tun.ackTimer = setTimeout(() => { tun.ackTimer = 0; wsSend({t: 'ack', n: tun.ackN}); }, 50);
     if (!tun.media) return;
+    tun.rx = (tun.rx || 0) + 1;  // 0.8.3.7: received (layer 1)
     if (!tun.dec || tun.dec.state === 'closed') newDecoder();
     const data = new Uint8Array(buf, 14);
     if (!tun.configured) {
@@ -1167,6 +1626,7 @@ async function submitPw() {
   if (LOGIN.guest && !user) return askPass(t('needUser'));
   if (!password || $('passGo').disabled) return;
   $('passGo').disabled = true;
+  PALS.wait();  // 0.8.3.7: 150 ms later (if no answer yet) everybody holds their breath
   let r = null, j = null;
   try { r = await fetch('/login', {method: 'POST', body: JSON.stringify({user, password}), cache: 'no-store'}); j = await r.json(); } catch {}
   $('passGo').disabled = false;
@@ -1213,6 +1673,7 @@ async function submitPass() {
   const code = $('passIn').value.replace(/\D/g, '').slice(0, 6);
   if (code.length !== 6 || $('passGo').disabled) return;
   $('passGo').disabled = true;
+  PALS.wait();
   let j = null;
   try { j = await (await post('pass', JSON.stringify({code}))).json(); } catch {}
   $('passGo').disabled = false;
@@ -1375,6 +1836,8 @@ function showMsg(title, sub, buttons, opts) {
 }
 const hideMsg = () => { msg.classList.add('hide'); S.msgKind = ''; };
 let toastTimer = 0;
+// 0.8.4: administrator-window notices already shown (why|window|program), kept for this tab
+const blockedSeen = new Set((() => { try { return JSON.parse(sessionStorage.getItem('pmBlockedSeen') || '[]'); } catch { return []; } })());
 function toast(text, ms, warn) {
   const el = $('toast'); el.textContent = text; el.style.display = 'block'; el.classList.toggle('warn', !!warn);
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.style.display = 'none'; }, ms || 4000);
@@ -1425,7 +1888,7 @@ async function recover(my, p, step) {
     recoverTimer = setTimeout(() => recover(my, p, 6), 3000);
   } else if (got > 0 && dec === 0 && curQ > 0) {
     diag('no-video-lower-q', {got, dec, q: curQ});
-    curQ = 0; adapt.reset(); connect('switch');  // this session only (prefs.q is kept)
+    curQ = 0; if (prefs.q < 0) S.autoRung = 0; adapt.reset(); connect('switch');  // this session only (prefs.q is kept)
   } else if (TUN && !tun.media) {
     diag('no-video-tunnel', {got, dec});
     setTunnelMedia(true, 'no picture over direct WebRTC');
@@ -1449,7 +1912,10 @@ async function connect(reason) {
   let r;
   try {
     mark('sess');
-    const sessP = post('session', JSON.stringify({device, q: curQ, m: prefs.mon, fps: prefs.fps, fit: phoneFit(), top: prefs.q}));
+    // 0.8.4: q -1 = 自動 (a reconnect for a change goes on at the rung it was on; a new start begins low)
+    const ask = {device, q: prefs.q < 0 ? -1 : curQ, m: prefs.mon, fps: fpsToAsk(), disp: disp.hz || 0, fit: phoneFit(), top: prefs.q < 0 ? 2 : prefs.q};
+    if (prefs.q < 0 && reason === 'switch' && S.autoRung >= 0) ask.rung = S.autoRung;
+    const sessP = post('session', JSON.stringify(ask));
     // Built while the request is out: the first RTCPeerConnection of a page
     // takes the browser a while (measured ~600 ms in Edge).
     warmPc();
@@ -1501,12 +1967,15 @@ async function connect(reason) {
   mark('offer');
   sessId = o.id;
   S.monitors = o.monitors || [];
+  if (o.auto) { S.autoRung = o.rung; curQ = RUNG_Q[o.rung] !== undefined ? RUNG_Q[o.rung] : curQ; }  // 0.8.4 自動畫質: where the PC starts
   S.viewOnly = !!o.viewOnly;
   S.unlockable = !!o.unlockable;  // 0.8.3: fixed link: 僅觀看 can be lifted with the password
   S.filesWhy = typeof o.filesWhy === 'string' ? o.filesWhy : '';  // 0.8.3.5: why files are off for this login ('' = on)
   S.upload = o.upload !== false; S.uploadMax = o.uploadMax || 2147483648;  // 0.8.3 files
+  S.fdc = !!o.fdc;  // 0.8.3.7: the PC takes files over a "files" DataChannel
   $('lockNote').style.display = o.lockAfter ? '' : 'none';  // 0.8.3: the PC locks itself when this ends
   S.audioOffered = o.audio !== false;
+  ckOnOffer(o);  // 0.8.4 自訂快捷鍵 (keyboard panel)
   S.mutePc = !!o.mutePc; S.mutePcOk = o.mutePcOk !== false; S.mutePcWhy = o.mutePcWhy || '';  // 0.8.3.4: 電腦喇叭靜音 (the PC's setting, and may this phone change it)
   syncMutePc();
   prefs.mon = o.monitor || 0;
@@ -1708,6 +2177,7 @@ $('bSet').setAttribute('aria-label', t('settings'));
 let pingId = 0;
 function onDc(e) {
   let m; try { m = JSON.parse(e.data); } catch { return; }
+  if (window.P84 && P84.onMsg(m)) return;  // 0.8.4 隱私黑屏 / 電腦的檔案 (p084.js)
   if (m.t === 'pong') {
     const now = performance.now(), rtt = now - m.c;
     S.rtt = rtt; S.rttMin = Math.min(S.rttMin, rtt);
@@ -1717,7 +2187,7 @@ function onDc(e) {
     if (m.id !== streamAskId) return;
     clearTimeout(streamTimer);
     if (!m.ok) { diag('stream-reconnect', {q: m.q, w: m.w, h: m.h, fps: m.fpsCap}); connect('switch'); return; }
-    if (adapt.level) send({t: 'bitrate', kbps: m.kbps});  // a lowered bitrate does not outlive the change
+    if (m.auto !== undefined) { S.autoRung = m.auto ? m.rung : -1; curQ = m.q; }  // 0.8.4
     adapt.reset();
     S.stream = m;
     if (tun.media) { tun.configured = false; tun.skip = true; }  // the tunnel's decoder: configured again at the next key frame
@@ -1733,8 +2203,14 @@ function onDc(e) {
       else if (!S.quiet) $('silent').style.display = 'none';
     } else { S.quiet = 0; $('silent').style.display = 'none'; }
     if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
+  } else if (m.t === 'auto') {  // 0.8.4 自動畫質: the PC stepped
+    onAutoStep(m);
   } else if (m.t === 'cur') {
     onCursor(m);
+  } else if (m.t === 'cshape') {  // 0.8.4 游標: a pointer shape's picture (once per shape)
+    onShape(m);
+  } else if (m.t === 'vsync') {   // 0.8.4: the video's RTP time at the session's start ("cur" c is on that clock)
+    curSync.rtp0 = m.rtp0 >>> 0; curSync.q = [];
   } else if (m.t === 'clip') {
     $('clipOut').value = m.s || '';
     $('clipOut').placeholder = t('clipEmpty');
@@ -1759,9 +2235,15 @@ function onDc(e) {
     toast(m.ok ? t('clipSent') : 'clipboard: failed', 3000);
   } else if (m.t === 'blocked') {  // 0.8.3.5 ③: Windows drops this click / key (UIPI, the secure desktop)
     const app = typeof m.app === 'string' ? m.app.slice(0, 60) : '';
-    const text = m.why === 'sas' ? t('sasNo') : m.why === 'secure' ? t('uipiSecure') : t('uipiAdmin').split('{app}').join(PM.app || '') + (app ? tf('uipiApp', app) : '');
+    // 0.8.4: once per window (the PC already says it once per window to this phone; a reconnect / reload
+    // of this tab does not say it again either). Ctrl+Alt+Del is the answer to a press: every time.
+    const key = m.why + '|' + (typeof m.win === 'string' ? m.win.slice(0, 32) : '') + '|' + app;
+    const once = m.why === 'admin';  // the secure desktop: the PC says it once per visit; SAS: per press
+    const seen = once && blockedSeen.has(key);
+    if (once && !seen) { blockedSeen.add(key); try { sessionStorage.setItem('pmBlockedSeen', JSON.stringify([...blockedSeen].slice(-64))); } catch {} }
+    const text = m.why === 'sas' ? t('sasNo') : m.why === 'secure' ? t('uipiSecure') : t('uipiAdmin').split('{0}').join(app ? tf('uipiApp', app) : '');
     S.blocked = (S.blocked || 0) + 1;
-    toast(text, 7000, true);
+    if (!seen) toast(text, m.why === 'sas' ? 7000 : 10000, true);
   } else if (m.t === 'notice') {
     if (m.what === 'pc-only') toast(t('pcOnly'), 5000);
   } else if (m.t === 'mode') {
@@ -1773,9 +2255,12 @@ function onDc(e) {
     if (typeof m.mutePc === 'boolean') S.mutePc = m.mutePc;  // 0.8.3.4: changed on the PC (or by this phone)
     if (typeof m.mutePcOk === 'boolean') S.mutePcOk = m.mutePcOk;
     if (typeof m.mutePcWhy === 'string') S.mutePcWhy = m.mutePcWhy;
+    if (typeof m.keysOk === 'boolean') ckOnMsg(m);  // 0.8.4
     if (typeof m.filesWhy === 'string') { S.filesWhy = m.filesWhy; syncFilesBtn(); }
     if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
     syncMutePc();
+  } else if (m.t === 'keys') {  // 0.8.4 自訂快捷鍵: the PC's list (after a save, or changed on the PC)
+    ckOnMsg(m);
   } else if (m.t === 'mutepc') {  // 0.8.3.4: the PC's answer to 電腦喇叭靜音
     S.mutePc = !!m.on;
     if (!m.ok) { S.mutePcOk = false; if (m.why) S.mutePcWhy = m.why; }
@@ -1840,6 +2325,7 @@ let fpsN = 0, fpsT = performance.now(), frameNo = 0;
 const rvfc = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 function onFrame(now, meta) {
   fpsN++; frameNo++;
+  curOnFrame(meta);  // 0.8.4 游標: the pointer goes with its picture
   if (TUN && tun.media && !v.paused && v.videoWidth > 16) setTunnelMedia(false, 'direct is playing');
   if (!S.ttff && !v.paused && v.videoWidth > 16) {  // not the 16x16 autoplay probe
     S.ttff = now; mark('frame'); setNeedTap(false);
@@ -1900,19 +2386,53 @@ async function pollStats() {
     S.w = inb.frameWidth || v.videoWidth; S.h = inb.frameHeight || v.videoHeight;
     if (!rvfc) S.fps = inb.framesPerSecond || 0;
   }
+  tierTick(inb);
 }
 setInterval(() => pollStats().catch(() => {}), 1000);
+// ---- 0.8.3.7: frames a second in three layers, so one look says where they get lost ----
+// 收到 (received: framesReceived = the network) -> 解碼 (framesDecoded = the phone's decoder) -> 顯示 (shown:
+// requestVideoFrameCallback = what the browser put on the screen). The owner's iPhone 17 Pro Max at 120: the PC
+// sent 120.0 a second, the page said 60.8 (shown), a PC's Chrome 94: this says which layer lost them.
+// Over the tunnel (WebCodecs): received = H.264 units in, decoded = shown = frames drawn on the canvas.
+const tiers = {prev: null, rx: NaN, dec: NaN, shown: NaN, sent: NaN, where: ''};
+function tierTick(inb) {
+  const now = performance.now();
+  const cur = tun.media ? {rx: tun.rx || 0, dec: tun.frames || 0, t: now, tun: true}
+            : inb ? {rx: inb.framesReceived || 0, dec: inb.framesDecoded || 0, t: now, tun: false} : null;
+  const p = tiers.prev; tiers.prev = cur;
+  if (!cur || !p || p.tun !== cur.tun || cur.rx < p.rx) { tiers.rx = tiers.dec = NaN; tiers.where = ''; return; }
+  const dt = (cur.t - p.t) / 1000;
+  if (dt <= 0.2) return;
+  tiers.rx = (cur.rx - p.rx) / dt; tiers.dec = (cur.dec - p.dec) / dt; tiers.shown = S.fps;
+  tiers.sent = S.srv && S.srv.fps > 0 ? S.srv.fps : NaN;
+  // the first layer that loses more than 10 % (and 3 frames) of the one before it
+  const lose = (a, b) => isFinite(a) && isFinite(b) && a - b > Math.max(3, a * 0.1);
+  const hz = disp.hz;
+  tiers.where = lose(tiers.sent, tiers.rx) ? 'net' : lose(tiers.rx, tiers.dec) ? 'dec'
+              : lose(tiers.dec, tiers.shown) ? (hz && Math.abs(tiers.shown - hz) <= Math.max(2, hz * 0.06) ? 'screen' : 'show') : 'ok';
+  window.__pmTiers = {rx: tiers.rx, dec: tiers.dec, shown: tiers.shown, sent: tiers.sent, where: tiers.where, hz};
+}
+function tierText() {
+  const r = f0(tiers.rx), d = f0(tiers.dec), sh = f0(tiers.shown);
+  const w = tiers.where === 'net' ? tfa('tierNet', f0(tiers.sent), r) : tiers.where === 'dec' ? tfa('tierDec', r, d)
+          : tiers.where === 'screen' ? tfa('tierScreen', f0(disp.hz)) : tiers.where === 'show' ? tfa('tierShow', d, sh) : tiers.where === 'ok' ? t('tierOk') : '';
+  return tfa('tiers', r, d, sh) + (w ? '\n→ ' + w : '');
+}
 
 // ---- HUD (connection info) + report to the PC log ----
 const f1 = x => isFinite(x) ? x.toFixed(1) : '-', f0 = x => isFinite(x) ? Math.round(x) : '-';
+// 0.8.3.7: the PC's GPU, only a sound 0..100 % (the PC leaves a figure out when its counter misread; 0.8.3.6 logged 36713195488442.6 %)
+const pct100 = x => typeof x === 'number' && x >= 0 && x <= 100 ? x.toFixed(1) + '%' : '';
+const gpuHud = s => (pct100(s.gpu3d) ? '  GPU ' + pct100(s.gpu3d) : '') + (pct100(s.gpuEnc) ? '  enc ' + pct100(s.gpuEnc) : '');
 setInterval(() => {
   if (!prefs.hud) return;
   const s = S.srv;
   hud.textContent =
+    tierText() + (disp.hz ? '  (' + tf('dispHz', f0(disp.hz)) + ')' : '') + '\n' +  // 0.8.3.7: received / decoded / shown
     S.state + '  ' + S.w + 'x' + S.h + '  ' + f1(S.fps) + ' fps  ' + f0(S.kbps) + ' kbps\n' +
     (s && s.fpsCap ? 'cap ' + s.fpsCap + '/' + s.fpsWant + ' fps' + (s.hz ? ' (' + s.hz + ' Hz)' : '') + '  base ' + f0(s.kbpsBase) + ' kbps' + (s.fit ? '  fit' : '') + (s.levelCut ? '  L5.2' : '') + '\n' : '') +
     'RTT ' + f1(S.rtt) + ' ms (min ' + f1(S.rttMin) + ')  lat ' + f0(S.latShow) + ' ms (p95 ' + f0(S.latP95) + ')  e2e ' + f0(S.e2e) + ' ms\n' +
-    (s ? 'PC ' + f1(s.c2s_avg) + ' ms  CPU ' + f1(s.cpu1) + '%  ' + s.encoder + (s.gpuPath ? '' : ' (CPU)') + '\n' : '') +
+    (s ? 'PC ' + f1(s.c2s_avg) + ' ms  CPU ' + f1(s.cpu1) + '%' + gpuHud(s) + '  ' + s.encoder + (s.gpuPath ? '' : ' (CPU)') + '\n' : '') +
     'dec ' + f1(S.dec) + ' ms  jb ' + f1(S.jb) + ' ms  lost ' + S.lost + (S.aud ? '  audio ' + S.aud.packets : '') + '\n' + S.pair +
     (s && s.aDev ? '\n♪ ' + s.aDev + '  ' + (s.aPeak || 0).toFixed(3) : '');
 }, 500);
@@ -1920,7 +2440,10 @@ setInterval(() => {
   const a = S.lat.slice().sort((x, y) => x - y);
   const pct = p => a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : null;
   send({t: 'report', ua: navigator.userAgent, state: S.state, rtt: S.rtt, rttMin: S.rttMin, fps: S.fps, lat_n: a.length, lat_p50: pct(.5),
-        lat_p95: pct(.95), e2e_ms: isFinite(S.e2e) ? Math.round(S.e2e) : null, e2e_p95: isFinite(S.e2eP95) ? Math.round(S.e2eP95) : null, dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
+        lat_p95: pct(.95),
+        // 0.8.3.7: the three layers (frames a second) and where they get lost; this screen's refresh rate; what was asked of the PC
+        fpsRecv: isFinite(tiers.rx) ? +tiers.rx.toFixed(1) : null, fpsDec: isFinite(tiers.dec) ? +tiers.dec.toFixed(1) : null,
+        fpsShown: isFinite(S.fps) ? +S.fps.toFixed(1) : null, fpsWhere: tiers.where, dispHz: disp.hz || null, fpsSent: fpsToAsk(), e2e_ms: isFinite(S.e2e) ? Math.round(S.e2e) : null, e2e_p95: isFinite(S.e2eP95) ? Math.round(S.e2eP95) : null, dec_ms: S.dec, jb_ms: S.jb, kbps: S.kbps, lost: S.lost, dropped: S.dropped, w: S.w, h: S.h, pair: S.pair,
         sent: S.sent, playErr: S.playErr, ttff_ms: S.ttff || null, aud: S.aud, muted: v.muted,
         rmsIn: S.rmsIn, rmsOut: S.rmsOut, vol: prefs.vol, gain: Math.round(pmVolume.map(prefs.vol).gain * 1000) / 1000, boost: pmVolume.map(prefs.vol).boost,
         gainPath: snd.elementFallback ? 'element' : snd.srcStream || tun.media ? 'webaudio' : '', mode: prefs.mode, sens: prefs.sens,
@@ -1928,7 +2451,7 @@ setInterval(() => {
         aSession: navigator.audioSession ? String(navigator.audioSession.type) : 'n/a', aSessionSet: S.aSession || '',
         actx: snd.ctx ? {state: snd.ctx.state, rate: snd.ctx.sampleRate, base: snd.ctx.baseLatency, outLat: snd.ctx.outputLatency} : null,
         outRoute: S.outRoute || 'unknown', gum: !!S.gumCalled,
-        q: prefs.q, fps: prefs.fps, phoneRes: prefs.phoneRes, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
+        q: prefs.q, fpsAsk: prefs.fps, phoneRes: prefs.phoneRes,  // 0.8.3.7: was a second "fps" (the 30/60/120 choice hid the measured one in the PC log) fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
         vw: innerWidth, vh: innerHeight});
   S.lat = [];
 }, 5000);
@@ -2146,6 +2669,7 @@ window.addEventListener('keydown', e => {
   if (!keysToPc()) return;
   if (e.isComposing || e.keyCode === 229) { focusIme(); return; }  // this PC's input method is composing
   if (!e.code || e.code === 'Unidentified') return;
+  if (prefs.cmdCtrl && macKey(e)) return;  // 0.8.4: ⌘ + a letter = Ctrl + that letter on the PC
   if (pageHotkey(e)) return;  // #6 Ctrl+Alt+Shift+Q / M / S: the page's own, never sent
   if (pasteKey(e)) return;  // (d) Ctrl+V / Shift+Insert: this PC's clipboard first
   e.preventDefault();
@@ -2160,12 +2684,67 @@ window.addEventListener('keydown', e => {
   act();
 }, true);
 window.addEventListener('keyup', e => {
+  if (cmd.held && isMetaCode(e.code)) { e.preventDefault(); cmdUp(); return; }  // 0.8.4
+  // 0.8.4: a Mac with the switch off: ⌘ is Win, and macOS sent no keyup for the keys pressed with it: let them go too
+  if (appleKb && isMetaCode(e.code)) for (const c of [...keysDown]) if (!isMetaCode(c) && !/^(Shift|Control|Alt)(Left|Right)$/.test(c)) { send({t: 'ku', k: c}); keysDown.delete(c); }
   if (!keysDown.has(e.code)) return;
   e.preventDefault();
   keysDown.delete(e.code);
   send({t: 'ku', k: e.code});
 }, true);
-function releaseKeys() { for (const c of keysDown) send({t: 'ku', k: c}); keysDown.clear(); }
+function releaseKeys() { for (const c of keysDown) send({t: 'ku', k: c}); keysDown.clear(); cmd.held = ''; cmd.during.clear(); }
+// ---- 0.8.4: a Mac controls Windows the Mac way (also an iPad / iPhone with a keyboard: iPadOS's ⌘) ----
+// With 「Mac：Cmd 當 Ctrl」 (on by default on a Mac / iPad / iPhone): ⌘ + a letter goes to the PC as Ctrl + that letter
+// (⌘C / ⌘V / ⌘X / ⌘Z / ⌘A / ⌘S / ⌘F / ⌘T / ⌘W ... -> Ctrl+C ...); ⌘ pressed and let go alone is the Win key (Start);
+// ⌘ + anything else is Win + it (⌘Tab stays the Mac's own); Option is Alt already (its place is Alt's: e.code AltLeft).
+// macOS sends no keyup for a key pressed while ⌘ is down: the letter goes as a tap (down + up at once; a held key
+// repeats as taps), and every key still down is let go on the PC when ⌘ comes up. ⌘V keeps the paste path (this
+// computer's clipboard first). A Mac browser keeps ⌘Q / ⌘W / ⌘T / ⌘N / ⌘H for itself unless the page is full screen
+// with the keyboard lock (the PC bar's buttons send Ctrl+W, ...).
+const appleKb = (() => {
+  const p = navigator.userAgentData && navigator.userAgentData.platform || '';
+  return /mac|ios|ipad|iphone/i.test(p) || /Macintosh|Mac OS X|iPad|iPhone/.test(navigator.userAgent) || isIOS;
+})();
+prefs.cmdCtrl = store.get('cmdCtrl084', appleKb);
+const cmd = {held: '', ctrl: false, win: false, used: false, during: new Set()};
+const isMetaCode = c => c === 'MetaLeft' || c === 'MetaRight' || c === 'OSLeft' || c === 'OSRight';
+function macKey(e) {
+  if (isMetaCode(e.code)) {
+    e.preventDefault(); e.stopPropagation();
+    if (!cmd.held) { cmd.held = e.code; cmd.ctrl = cmd.win = cmd.used = false; cmd.during.clear(); }
+    focusIme();
+    return true;
+  }
+  if (!cmd.held) return false;
+  if (!e.metaKey) { cmdUp(); return false; }  // ⌘'s keyup went elsewhere (the focus moved): let it go first
+  if (/^(Shift|Control|Alt)(Left|Right)$/.test(e.code)) { cmd.used = true; return false; }  // ⌘⇧S / ⌘⌥…: the modifier as it is (no Win yet; ⌘ no longer alone)
+  cmd.used = true;
+  if (/^Key[A-Z]$/.test(e.code)) {
+    if (!cmd.ctrl) {
+      if (cmd.win) { send({t: 'ku', k: 'MetaLeft'}); keysDown.delete('MetaLeft'); cmd.win = false; }
+      flush(); send({t: 'kd', k: 'ControlLeft'}); keysDown.add('ControlLeft'); cmd.ctrl = true;
+    }
+    S.cmdMapped = (S.cmdMapped || 0) + 1;
+    if (pasteKey(e)) { cmd.during.add(e.code); return true; }  // ⌘V: this computer's clipboard first, then Ctrl+V on the PC
+    e.preventDefault(); e.stopPropagation();
+    focusIme(); markEv(e);
+    send({t: 'kd', k: e.code}); send({t: 'ku', k: e.code});
+    act();
+    return true;
+  }
+  if (!cmd.ctrl && !cmd.win) { flush(); send({t: 'kd', k: 'MetaLeft'}); keysDown.add('MetaLeft'); cmd.win = true; }
+  cmd.during.add(e.code);
+  return false;  // the key itself goes the usual way (with Win held on the PC)
+}
+function cmdUp() {
+  // ⌘V let go before the paste event / its 80 ms wait: the V goes now, while Ctrl is still down on the PC
+  if (pastePending && cmd.during.has(pastePending.code)) { const c = pastePending.code; pastePending = null; send({t: 'kd', k: c}); }
+  for (const c of cmd.during) if (keysDown.has(c)) { send({t: 'ku', k: c}); keysDown.delete(c); }
+  if (cmd.ctrl) { send({t: 'ku', k: 'ControlLeft'}); keysDown.delete('ControlLeft'); }
+  if (cmd.win) { send({t: 'ku', k: 'MetaLeft'}); keysDown.delete('MetaLeft'); }
+  else if (!cmd.used && !cmd.ctrl) { send({t: 'kd', k: 'MetaLeft'}); send({t: 'ku', k: 'MetaLeft'}); S.cmdWin = (S.cmdWin || 0) + 1; }  // ⌘ alone: Win
+  cmd.held = ''; cmd.ctrl = cmd.win = cmd.used = false; cmd.during.clear();
+}
 window.addEventListener('blur', releaseKeys);
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseKeys(); });
 window.addEventListener('pagehide', releaseKeys);
@@ -2203,13 +2782,15 @@ function syncCursorMode() {
   const local = !!S.mouseUsed && !locked();
   if (local === cursorSent) return;
   cursorSent = local;
-  send({t: 'cursor', local});
+  send({t: 'cursor', local, overlay: true});  // 0.8.4 游標: this page draws the PC pointer itself (out of the picture)
 }
 const CSS_CURSOR = {arrow: 'default', ibeam: 'text', wait: 'wait', cross: 'crosshair', uparrow: 'default', nwse: 'nwse-resize', nesw: 'nesw-resize',
   we: 'ew-resize', ns: 'ns-resize', all: 'move', no: 'not-allowed', hand: 'pointer', busy: 'progress', help: 'help', custom: 'default'};
 function pcCursorShape(m) {
   if (!S.mouseUsed) return;
-  pad.style.cursor = m.v === false || m.k === 'none' ? 'none' : CSS_CURSOR[m.k] || 'default';
+  // 0.8.4: an application's own pointer (no standard kind): its picture (the standard ones stay the browser's own)
+  const sh = m.k === 'custom' && m.s !== undefined ? shapes.get(m.s) : null;
+  pad.style.cursor = m.v === false || m.k === 'none' ? 'none' : sh ? `url(${sh.url}) ${sh.hx} ${sh.hy}, default` : CSS_CURSOR[m.k] || 'default';
 }
 function setGameMode(on) {
   if (on && !locked()) {
@@ -2284,32 +2865,109 @@ function normToClient(c) {
   return {x: cxp - b.w * z / 2 + c.x * b.w * z, y: cyp - b.h * z / 2 + c.y * b.h * z};
 }
 function cursorClient() { const c = cursorNorm(); return c ? normToClient(c) : null; }
-function onCursor(m) {
-  srvCur = {x: m.x, y: m.y, n: m.n, v: m.v};
+// ---- 0.8.4 游標: the PC pointer drawn here, over the video, in its own shape (arrow, I-beam, hand, busy,
+// an application's own), at a size a finger can see; the PC leaves it out of the picture ({"t":"cursor",
+// "overlay":true}): no blur, no frame to encode when only the pointer moves. Its shape comes once
+// ({"t":"cshape"}: PNG + hot spot), its place with every "cur", stamped with the time of the picture it
+// belongs to ("c": ms on the video's RTP clock, {"t":"vsync"}): it is shown with that picture
+// (requestVideoFrameCallback's rtpTimestamp), not ahead of it. No picture comes for a while (a still
+// screen: nothing to encode) -> it is shown after the delay the pictures have had (curSync.lag).
+const shapes = new Map();  // id -> {w, h, hx, hy, url, inv}
+const curSync = {rtp0: null, q: [], lag: 40, viaFrame: 0, viaTimer: 0, frameMs: NaN};
+S.curSync = curSync;
+function onShape(m) {
+  if (typeof m.png !== 'string') return;
+  shapes.set(m.id, {w: m.w, h: m.h, hx: m.hx, hy: m.hy, k: m.k, url: 'data:image/png;base64,' + m.png, inv: m.inv ? 'data:image/png;base64,' + m.inv : ''});
+  drawCursor();
+}
+function applyCur(m) {
+  srvCur = {x: m.x, y: m.y, n: m.n, v: m.v, s: m.s, k: m.k};
   pcCursorShape(m);
   while (pendingMoves.length && pendingMoves[0].n <= m.n) pendingMoves.shift();
   drawCursor();
 }
+function onCursor(m) {
+  if (typeof m.c === 'number' && curSync.rtp0 !== null && rvfc && !tun.media) {
+    curSync.q.push({m, at: performance.now()});
+    if (curSync.q.length > 240) curSync.q.shift();
+    curTimer();
+    return;
+  }
+  applyCur(m);
+}
+// A picture is shown: every pointer place up to its time goes with it.
+function curOnFrame(meta) {
+  if (!meta || meta.rtpTimestamp === undefined || curSync.rtp0 === null) return;
+  const fms = ((meta.rtpTimestamp - curSync.rtp0) >>> 0) / 90;
+  curSync.frameMs = fms;
+  let last = null;
+  while (curSync.q.length && curSync.q[0].m.c <= fms + 1) {
+    const e = curSync.q.shift();
+    curSync.lag = Math.min(250, Math.max(0, curSync.lag * 0.9 + (performance.now() - e.at) * 0.1));
+    last = e;
+  }
+  if (last) { curSync.viaFrame++; applyCur(last.m); }
+}
+// No picture to go with: after the pictures' own delay
+let curTimerId = 0;
+function curTimer() {
+  if (curTimerId) return;
+  curTimerId = setTimeout(() => {
+    curTimerId = 0;
+    const now = performance.now();
+    let last = null;
+    while (curSync.q.length && now - curSync.q[0].at >= curSync.lag + 20) last = curSync.q.shift();
+    if (last) { curSync.viaTimer++; applyCur(last.m); }
+    if (curSync.q.length) curTimer();
+  }, Math.max(8, Math.round(curSync.lag + 20)));
+}
+// Where the hot spot of the drawn pointer is (tests).
+function pcurHot() { const e = $('pcurC'); return e.style.display === 'none' || !e._hot ? null : e._hot; }
 function drawCursor() {
-  const el = $('cur');
-  const c = trackpad.mode === 'trackpad' && !S.mouseUsed && srvCur && srvCur.v !== false ? cursorClient() : null;
-  if (!c) { el.style.display = 'none'; $('tcur').style.display = 'none'; return; }
+  const el = $('cur'), tcur = $('tcur'), pc1 = $('pcurC'), pc2 = $('pcurI');
+  el.style.display = 'none';
+  const hide = () => { tcur.style.display = 'none'; pc1.style.display = 'none'; pc2.style.display = 'none'; };
+  if (!srvCur || srvCur.v === false) return hide();
+  const tp = trackpad.mode === 'trackpad' && !S.mouseUsed;
+  // 0.8.4: the PC draws no pointer into the picture ("s" in its "cur"): this page draws it, in every mode
+  // but a PC browser's mouse (its own pointer, shaped like the PC's: pcCursorShape)
+  const sh = srvCur.s !== undefined ? shapes.get(srvCur.s) : null;
+  const overlay = srvCur.s !== undefined && (!S.mouseUsed || locked());
+  if (!tp && !overlay) return hide();
+  const c = tp ? cursorClient() : normToClient({x: srvCur.x, y: srvCur.y});
+  if (!c) return hide();
   // Zoomed in: keep the pointer on screen (the picture follows it).
-  if (trackpad.zoom > 1.01 && !prefs.lock && performance.now() - lastLocalMove < 300) {
+  if (tp && trackpad.zoom > 1.01 && !prefs.lock && performance.now() - lastLocalMove < 300) {
     const r = pad.getBoundingClientRect(), m = 40;
     let dx = 0, dy = 0;
     if (c.x < r.left + m) dx = r.left + m - c.x; else if (c.x > r.right - m) dx = r.right - m - c.x;
     if (c.y < r.top + m) dy = r.top + m - c.y; else if (c.y > r.bottom - m) dy = r.bottom - m - c.y;
     if (dx || dy) { trackpad.panX += dx; trackpad.panY += dy; trackpad._applyZoom(); }
   }
-  const p = cursorClient();
-  // 0.8.3.5 ②: 觸控板 = a big arrow with a pink ring, always, where the PC pointer is (with the moves
-  // the PC has not applied yet: it never lags behind the finger). The picture's own pointer is a few
-  // pixels on a phone (3440 px wide on 390): the owner clicked dozens of times at it without seeing it.
-  // The small 0.8.0 ring is not needed any more.
-  el.style.display = 'none';
-  const tcur = $('tcur'); tcur.style.display = 'block';
-  tcur.style.transform = `translate(${p.x}px, ${p.y}px)`;
+  const p = tp ? cursorClient() : normToClient({x: srvCur.x, y: srvCur.y});
+  // 0.8.3.5 ②: 觸控板 = a pink ring where the PC pointer is (with the moves the PC has not applied yet: it
+  // never lags behind the finger). 0.8.4: inside it the PC pointer's own shape (0.8.3.5: always an arrow);
+  // the arrow stays for a PC that sends no shapes.
+  if (tp) {
+    tcur.style.display = 'block';
+    tcur.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    $('tcurArrow').style.display = sh ? 'none' : '';
+  } else tcur.style.display = 'none';
+  if (!sh || !overlay) { pc1.style.display = 'none'; pc2.style.display = 'none'; return; }
+  // The size: the picture's own scale, but never smaller than a finger can see (a 32 px pointer of a
+  // 3440 px screen is ~8 CSS px on a phone): 26 CSS px (觸控板, in its ring: 30), at most its own size x 1.5.
+  const b = videoBox(), pic = b.w * trackpad.zoom / deskW();
+  const want = (tp ? 30 : 26) / Math.max(16, Math.max(sh.w, sh.h));
+  const k = Math.max(pic, Math.min(1.5, want));
+  const put = (e, src) => {
+    if (e._src !== src) { e._src = src; e.src = src; }
+    e.style.width = sh.w * k + 'px'; e.style.height = sh.h * k + 'px';
+    e.style.transform = `translate(${p.x - sh.hx * k}px, ${p.y - sh.hy * k}px)`;
+    e.style.display = 'block';
+  };
+  put(pc1, sh.url);
+  if (sh.inv) put(pc2, sh.inv); else pc2.style.display = 'none';
+  pc1._hot = {x: +p.x.toFixed(1), y: +p.y.toFixed(1), k: +k.toFixed(3)};
 }
 
 
@@ -2397,6 +3055,302 @@ function askConfirm(text, yesLabel, yes) {
 
 vk.onModsChange = mods => { for (const b of document.querySelectorAll('#keys button[data-m]')) b.classList.toggle('on', mods.has(b.dataset.m)); };
 
+// ---- 0.8.4 自訂快捷鍵 (keyboard panel) ----
+// The 主帳號's own buttons, kept on the PC (settings.ini; the PC checks every list: at most 12, only keys of the
+// injector's table) and sent here with the offer ({keys, keysOk}) and {"t":"keys"}. A 臨時帳號 uses them but cannot
+// change them (keysOk false). Two ways to make one: press the combination on a PC keyboard (recorded), or tick
+// Ctrl / Alt / Shift / Win and pick one key (a phone). Drag the handle to reorder, ✕ deletes. Every button of the
+// panel repeats while it is held (arrows, volume ...).
+Object.assign(T, {
+  ckT: ['自訂快捷鍵', 'Custom shortcuts', 'カスタムショートカット', '사용자 단축키'],
+  ckEdit: ['編輯', 'Edit', '編集', '편집'], ckDone: ['完成', 'Done', '完了', '완료'],
+  ckAddTip: ['新增快捷鍵', 'Add a shortcut', 'ショートカットを追加', '단축키 추가'],
+  ckEmpty: ['還沒有自訂按鈕，按「＋」新增。', 'No custom buttons yet. Tap ＋ to add one.', 'カスタムボタンはまだありません。＋で追加できます。', '사용자 버튼이 없습니다. ＋를 눌러 추가하세요.'],
+  ckHold: ['長按任何按鈕都會連發（方向鍵、音量鍵…）。', 'Hold any button to repeat it (arrows, volume …).', 'ボタンを長押しすると連打できます（矢印キー、音量など）。', '버튼을 길게 누르면 반복 입력됩니다(방향키, 볼륨 등).'],
+  ckEditHint: ['拖曳 ⠿ 排序，✕ 刪除，點按鈕可修改。', 'Drag ⠿ to reorder, ✕ to delete, tap a button to change it.', '⠿ をドラッグで並べ替え、✕ で削除、ボタンをタップで変更。', '⠿를 끌어 순서 변경, ✕로 삭제, 버튼을 눌러 수정.'],
+  ckNoGuest: ['臨時帳號可以使用這些按鈕，但不能新增或修改（只有電腦主人可以）。', 'A temporary account can use these buttons but not change them (only the PC’s owner can).', '一時アカウントはこのボタンを使えますが、追加や変更はできません（持ち主のみ）。', '임시 계정은 이 버튼을 사용할 수만 있고 변경할 수 없습니다(PC 주인만 가능).'],
+  ckNoView: ['「僅觀看」時不能使用或修改快捷鍵。', 'Shortcuts can’t be used or changed in “View only”.', '「表示のみ」の間はショートカットを使用・変更できません。', '“보기 전용”에서는 단축키를 사용하거나 변경할 수 없습니다.'],
+  ckBad: ['電腦沒有接受這份清單，已還原。', 'The PC did not accept the list; it was restored.', 'パソコンがこの一覧を受け付けなかったため元に戻しました。', 'PC가 이 목록을 받아들이지 않아 되돌렸습니다.'],
+  ckFull: ['最多 12 個，請先刪除一個。', 'At most 12. Delete one first.', '最大12個です。先に1つ削除してください。', '최대 12개입니다. 먼저 하나를 삭제하세요.'],
+  ckNeedKey: ['請先錄下組合鍵，或勾選修飾鍵並選一個按鍵。', 'Record a combination, or tick modifiers and pick a key first.', '先にキーの組み合わせを記録するか、修飾キーとキーを選んでください。', '먼저 조합키를 기록하거나 수정키와 키를 선택하세요.'],
+  ckNameL: ['名稱', 'Name', '名前', '이름'], ckNameHint: ['可不填', 'optional', '省略可', '선택'],
+  ckRec: ['錄下組合鍵', 'Record keys', 'キーを記録', '키 기록'],
+  ckRecOn: ['請在電腦鍵盤按下組合鍵…（再按此鈕取消）', 'Press the keys on a PC keyboard … (tap again to cancel)', 'パソコンのキーボードで押してください…（もう一度押すと中止）', 'PC 키보드로 누르세요… (다시 누르면 취소)'],
+  ckRecHint: ['沒有實體鍵盤？勾選下面的修飾鍵並選一個按鍵。', 'No physical keyboard? Tick the modifiers below and pick a key.', '物理キーボードがない場合は、下の修飾キーを選んでキーを選択。', '물리 키보드가 없다면 아래 수정키를 선택하고 키를 고르세요.'],
+  ckRecBad: ['這個按鍵不能用，請改用下面的選單。', 'That key can’t be used. Use the list below.', 'このキーは使えません。下の一覧から選んでください。', '이 키는 사용할 수 없습니다. 아래 목록을 사용하세요.'],
+  ckPick: ['選一個按鍵…', 'Pick a key …', 'キーを選択…', '키 선택…'], ckSave: ['儲存', 'Save', '保存', '저장'],
+  ckNone: ['（未選）', '(none)', '（未選択）', '(선택 안 함)'],
+  ckDrag: ['拖曳排序', 'Drag to reorder', 'ドラッグで並べ替え', '끌어서 순서 변경'], ckDel: ['刪除', 'Delete', '削除', '삭제'],
+  ckGLet: ['字母', 'Letters', '英字', '문자'], ckGDig: ['數字', 'Digits', '数字', '숫자'], ckGF: ['功能鍵', 'Function keys', 'ファンクションキー', '기능 키'],
+  ckGNav: ['方向與編輯', 'Arrows and editing', '矢印と編集', '방향 및 편집'], ckGMedia: ['媒體與音量', 'Media and volume', 'メディアと音量', '미디어 및 볼륨'],
+  ckGSym: ['符號', 'Symbols', '記号', '기호'],
+  dClip: ['剪貼簿歷史', 'Clipboard history', 'クリップボード履歴', '클립보드 기록'], dReopen: ['重開分頁', 'Reopen tab', 'タブを再度開く', '탭 다시 열기'], dLock: ['鎖定電腦', 'Lock the PC', 'PCをロック', 'PC 잠금'],
+  kVolUp: ['音量＋', 'Volume up', '音量＋', '볼륨 +'], kVolDown: ['音量－', 'Volume down', '音量－', '볼륨 −'], kMute: ['靜音', 'Mute', 'ミュート', '음소거'],
+  kPlay: ['播放／暫停', 'Play / Pause', '再生／一時停止', '재생/일시정지'], kNext: ['下一首', 'Next track', '次の曲', '다음 곡'], kPrev: ['上一首', 'Previous track', '前の曲', '이전 곡'], kStop: ['停止播放', 'Stop', '停止', '정지'],
+});
+const CK_MAX = 12, CK_MODS = ['Control', 'Alt', 'Shift', 'Meta'];
+const CK_KEYNAME = {Control: 'Ctrl', Meta: 'Win', Escape: 'Esc', Delete: 'Del', ArrowLeft: '←', ArrowUp: '↑', ArrowDown: '↓', ArrowRight: '→', Backspace: '⌫',
+  PageUp: 'PgUp', PageDown: 'PgDn', ' ': 'Space', ContextMenu: 'Menu', PrintScreen: 'PrtSc', CapsLock: 'Caps', NumLock: 'NumLk', ScrollLock: 'ScrLk'};
+const CK_MEDIA = {AudioVolumeUp: 'kVolUp', AudioVolumeDown: 'kVolDown', AudioVolumeMute: 'kMute', MediaPlayPause: 'kPlay', MediaTrackNext: 'kNext', MediaTrackPrevious: 'kPrev', MediaStop: 'kStop'};
+const ckKeyLabel = k => CK_MEDIA[k] ? t(CK_MEDIA[k]) : CK_KEYNAME[k] || k;
+const ckCombo = c => c.map(ckKeyLabel).join('+');
+// The groups of the key list (names are the PC's table, input.cpp keyVk)
+const CK_GROUPS = [
+  ['ckGLet', Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i))],
+  ['ckGDig', Array.from({length: 10}, (_, i) => String(i))],
+  ['ckGF', Array.from({length: 24}, (_, i) => 'F' + (i + 1))],
+  ['ckGNav', ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Backspace', 'Enter', 'Tab', 'Escape', 'Space',
+    'PrintScreen', 'ContextMenu', 'CapsLock', 'NumLock', 'ScrollLock', 'Pause']],
+  ['ckGMedia', Object.keys(CK_MEDIA)],
+  ['ckGSym', ['-', '=', '[', ']', '\\', ';', "'", '`', ',', '.', '/']],
+];
+const CK_ALLKEYS = new Set(CK_GROUPS.flatMap(g => g[1]));
+S.keys = []; S.keysOk = true; S.keysWhy = '';
+const ckNorm = l => (Array.isArray(l) ? l : []).filter(x => x && Array.isArray(x.c) && x.c.length && x.c.length <= 5 && x.c.every(k => typeof k === 'string'))
+  .slice(0, CK_MAX).map(x => ({n: typeof x.n === 'string' ? x.n : '', c: x.c.slice(), ...(typeof x.t === 'string' && T[x.t] ? {t: x.t} : {})}));
+const ckLabel = x => x.n || (x.t ? t(x.t) : '');
+const ckBytes = s => new TextEncoder().encode(s).length;
+let ckEdit = false, ckIdx = -2;  // ckIdx: -2 editor closed, -1 a new button, n = the button being changed
+const ckMods = new Set();
+let ckKey = '';
+
+// Holding a button repeats it (after 0.42 s, every 85 ms): arrows, volume, Backspace ... A pointer press fires at once,
+// the click that follows is ignored; a keyboard activation (click without a pointer) fires once. Stops when the finger /
+// mouse goes up or leaves, the page hides or loses the focus, or after 30 s.
+const ckHolds = new Set();
+function ckStopHolds() { for (const f of [...ckHolds]) f(); }
+window.addEventListener('blur', ckStopHolds);
+window.addEventListener('pagehide', ckStopHolds);
+document.addEventListener('visibilitychange', () => { if (document.hidden) ckStopHolds(); });
+function holdRepeat(b, fire, repeat) {
+  let timer = 0, iv = 0, byPtr = false, until = 0;
+  const stop = () => { clearTimeout(timer); clearInterval(iv); timer = iv = 0; b.classList.remove('rep'); ckHolds.delete(stop); };
+  b.addEventListener('pointerdown', e => {
+    if (e.button) return;
+    byPtr = true;
+    stop();
+    fire();
+    if (!(typeof repeat === 'function' ? repeat() : repeat)) return;
+    ckHolds.add(stop);
+    until = performance.now() + 30000;
+    timer = setTimeout(() => {
+      b.classList.add('rep');
+      iv = setInterval(() => { if (performance.now() > until || S.viewOnly) stop(); else fire(); }, 85);
+    }, 420);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'lostpointercapture']) b.addEventListener(ev, stop);
+  b.addEventListener('pointercancel', () => { byPtr = false; stop(); });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  b.addEventListener('click', e => { e.stopImmediatePropagation(); if (byPtr) { byPtr = false; return; } fire(); });
+}
+const ckFire = c => { if (!S.viewOnly) send({t: 'combo', keys: c.slice()}); };
+
+function ckSave(list) {
+  S.keys = ckNorm(list);
+  ckRender();
+  send({t: 'keys-set', list: S.keys});
+}
+function ckRender() {
+  const box = $('ck'), listEl = $('ckList');
+  box.classList.toggle('edit', ckEdit && S.keysOk);
+  $('ckT').textContent = t('ckT');
+  $('ckCnt').textContent = S.keys.length + '/' + CK_MAX;
+  $('ckEditB').style.display = $('ckAdd').style.display = S.keysOk ? '' : 'none';
+  $('ckEditB').textContent = t(ckEdit ? 'ckDone' : 'ckEdit');
+  $('ckEditB').classList.toggle('on', ckEdit);
+  $('ckAdd').title = t('ckAddTip');
+  $('ckAdd').disabled = S.keys.length >= CK_MAX;
+  $('ckNote').textContent = !S.keysOk ? t(S.keysWhy === 'guest' ? 'ckNoGuest' : 'ckNoView') : t(ckEdit ? 'ckEditHint' : 'ckHold');
+  listEl.textContent = '';
+  if (!S.keys.length) { const d = document.createElement('div'); d.id = 'ckEmpty'; d.textContent = t('ckEmpty'); listEl.appendChild(d); }
+  S.keys.forEach((x, i) => {
+    const w = document.createElement('div'); w.className = 'ckc'; w.dataset.i = i;
+    const h = document.createElement('button'); h.className = 'ckh'; h.textContent = '⠿'; h.title = t('ckDrag'); h.setAttribute('aria-label', t('ckDrag'));
+    const b = document.createElement('button'); b.className = 'ck'; b.dataset.c = x.c.join('+');
+    const lab = ckLabel(x);
+    const n = document.createElement('span'); n.className = 'cn'; n.textContent = lab || ckCombo(x.c); b.appendChild(n);
+    if (lab) { const c = document.createElement('span'); c.className = 'cc'; c.textContent = ckCombo(x.c); b.appendChild(c); }
+    const d = document.createElement('button'); d.className = 'ckx'; d.textContent = '✕'; d.title = t('ckDel'); d.setAttribute('aria-label', t('ckDel'));
+    w.append(h, b, d);
+    listEl.appendChild(w);
+    holdRepeat(b, () => { if (ckEdit && S.keysOk) { ckOpenEd(+w.dataset.i); } else ckFire(x.c); }, () => !(ckEdit && S.keysOk));
+    d.onclick = e => { e.stopPropagation(); ckSave(S.keys.filter((_, j) => j !== +w.dataset.i)); if (ckIdx !== -2) ckCloseEd(); };
+    ckDrag(h, w);
+  });
+}
+// Dragging by the handle (touch-action none on it): nothing moves in the DOM during the drag (that would drop the pointer capture), the
+// target button shows a bar on the side the drag will land, the new order is saved on release.
+function ckDrag(h, w) {
+  h.addEventListener('pointerdown', e => {
+    if (e.button) return;
+    e.preventDefault(); e.stopPropagation();
+    try { h.setPointerCapture(e.pointerId); } catch {}
+    w.classList.add('drag');
+    let tgt = null, after = false;
+    const clear = () => { for (const x of $('ckList').querySelectorAll('.dropB,.dropA')) x.classList.remove('dropB', 'dropA'); };
+    const move = ev => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const over = el && el.closest ? el.closest('.ckc') : null;
+      if (!over || over === w || over.parentNode !== w.parentNode) return;
+      const r = over.getBoundingClientRect();
+      after = Math.abs(ev.clientY - (r.top + r.height / 2)) < r.height / 2 ? ev.clientX > r.left + r.width / 2 : ev.clientY > r.top + r.height / 2;
+      tgt = over;
+      clear();
+      over.classList.add(after ? 'dropA' : 'dropB');
+    };
+    const up = () => {
+      h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+      w.classList.remove('drag');
+      clear();
+      if (tgt) {
+        const from = +w.dataset.i, to = +tgt.dataset.i;
+        const list = S.keys.slice(), [item] = list.splice(from, 1);
+        const at = list.findIndex((_, i) => i === (to > from ? to - 1 : to)) + (after ? 1 : 0);
+        list.splice(at, 0, item);
+        if (list.some((x, i) => x !== S.keys[i])) { ckSave(list); return; }
+      }
+      ckRender();
+    };
+    h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+  });
+}
+
+// ---- the editor: a name, then a recorded or a ticked combination ----
+function ckBuildSelect() {
+  const sel = $('ckKey');
+  if (sel.options.length) return;
+  const o0 = document.createElement('option'); o0.value = ''; o0.textContent = t('ckPick'); sel.appendChild(o0);
+  for (const [g, ks] of CK_GROUPS) {
+    const og = document.createElement('optgroup'); og.label = t(g);
+    for (const k of ks) { const o = document.createElement('option'); o.value = k; o.textContent = ckKeyLabel(k); og.appendChild(o); }
+    sel.appendChild(og);
+  }
+}
+function ckSyncEd() {
+  for (const b of $('ckEd').querySelectorAll('[data-cm]')) b.classList.toggle('on', ckMods.has(b.dataset.cm));
+  $('ckKey').value = ckKey;
+  const c = CK_MODS.filter(m => ckMods.has(m)).concat(ckKey ? [ckKey] : []);
+  $('ckPrev').textContent = c.length ? ckCombo(c) : t('ckNone');
+}
+function ckOpenEd(idx) {
+  ckStopRec();
+  ckBuildSelect();
+  ckIdx = idx;
+  const x = idx >= 0 ? S.keys[idx] : null;
+  ckMods.clear();
+  ckKey = '';
+  if (x) for (const k of x.c) { if (CK_MODS.includes(k)) ckMods.add(k); else ckKey = k === ' ' ? 'Space' : k; }
+  $('ckName').value = x ? x.n || (x.t ? t(x.t) : '') : '';
+  $('ckEd').style.display = 'block';
+  ckSyncEd();
+  $('ckEd').scrollIntoView({block: 'nearest'});
+}
+function ckCloseEd() { ckStopRec(); ckIdx = -2; $('ckEd').style.display = 'none'; }
+function ckEdSave() {
+  const c = CK_MODS.filter(m => ckMods.has(m)).concat(ckKey ? [ckKey] : []);
+  if (!c.length) { toast(t('ckNeedKey'), 3000); return; }
+  let name = $('ckName').value.trim();
+  while (ckBytes(name) > 40) name = name.slice(0, -1);
+  const old = ckIdx >= 0 ? S.keys[ckIdx] : null;
+  const item = {n: name, c};
+  // a built-in name (剪貼簿歷史 ...) stays only while nothing was changed
+  if (old && old.t && old.c.join('+') === c.join('+') && (name === '' || name === t(old.t))) { item.t = old.t; item.n = ''; }
+  const list = S.keys.slice();
+  if (ckIdx >= 0) list[ckIdx] = item;
+  else { if (list.length >= CK_MAX) { toast(t('ckFull'), 3000); return; } list.push(item); }
+  ckCloseEd();
+  ckSave(list);
+}
+// Recording on a PC keyboard: the first non-modifier key (with the modifiers held) ends it; modifiers only (Win) end when they are let go.
+const CK_CODE = {Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Backquote: '`', Comma: ',', Period: '.', Slash: '/',
+  VolumeUp: 'AudioVolumeUp', VolumeDown: 'AudioVolumeDown', VolumeMute: 'AudioVolumeMute'};
+function ckKeyOfEvent(e) {
+  const c = e.code || '';
+  let m;
+  if ((m = /^Key([A-Z])$/.exec(c))) return m[1];
+  if ((m = /^Digit(\d)$/.exec(c))) return m[1];
+  if (CK_CODE[c]) return CK_CODE[c];
+  return CK_ALLKEYS.has(c) ? c : '';
+}
+let ckRecOn = false, ckRecMods = new Set();
+function ckStopRec() {
+  if (!ckRecOn) return;
+  ckRecOn = false;
+  window.removeEventListener('keydown', ckRecDown, true);
+  window.removeEventListener('keyup', ckRecUp, true);
+  $('ckRec').classList.remove('rec');
+  $('ckRec').textContent = t('ckRec');
+  $('ckRecHint').textContent = t('ckRecHint');
+}
+const ckModOf = e => e.key === 'OS' ? 'Meta' : CK_MODS.includes(e.key) ? e.key : '';
+function ckRecDown(e) {
+  e.preventDefault(); e.stopPropagation();
+  if (e.repeat) return;
+  const mod = ckModOf(e);
+  if (mod) { ckRecMods.add(mod); return; }
+  const k = ckKeyOfEvent(e);
+  if (!k) { toast(t('ckRecBad'), 3000); return; }
+  ckMods.clear();
+  for (const [flag, m] of [[e.ctrlKey, 'Control'], [e.altKey, 'Alt'], [e.shiftKey, 'Shift'], [e.metaKey, 'Meta']]) if (flag || ckRecMods.has(m)) ckMods.add(m);
+  ckKey = k;
+  ckStopRec();
+  ckSyncEd();
+}
+function ckRecUp(e) {
+  e.preventDefault(); e.stopPropagation();
+  // only modifiers were pressed (e.g. just Win): done when the first of them is let go
+  if (ckModOf(e) && ckRecMods.size) { ckMods.clear(); for (const m of ckRecMods) ckMods.add(m); ckKey = ''; ckStopRec(); ckSyncEd(); }
+}
+function ckStartRec() {
+  if (ckRecOn) { ckStopRec(); return; }
+  ckRecOn = true;
+  ckRecMods = new Set();
+  vk.hide();
+  try { document.activeElement && document.activeElement.blur(); } catch {}
+  window.addEventListener('keydown', ckRecDown, true);
+  window.addEventListener('keyup', ckRecUp, true);
+  $('ckRec').classList.add('rec');
+  $('ckRec').textContent = t('ckRecOn');
+  $('ckRecHint').textContent = '';
+}
+
+// hooks: the offer and the DataChannel messages
+function ckOnOffer(o) {
+  S.keysOk = o.keysOk !== false; S.keysWhy = o.keysWhy || '';
+  S.keys = ckNorm(o.keys);
+  ckRender();
+}
+function ckOnMsg(m) {
+  if (typeof m.keysOk === 'boolean') { S.keysOk = m.keysOk; S.keysWhy = m.keysWhy || ''; if (!m.keysOk && ckIdx !== -2) ckCloseEd(); }
+  if (m.t === 'keys') {
+    if (Array.isArray(m.list)) S.keys = ckNorm(m.list);
+    if (m.ok === false) toast(t(m.why === 'bad' ? 'ckBad' : m.why === 'guest' ? 'ckNoGuest' : 'ckNoView'), 4000);
+  }
+  ckRender();
+}
+{
+  $('ckT').textContent = t('ckT');
+  $('ckNameL').textContent = t('ckNameL'); $('ckName').placeholder = t('ckNameHint');
+  $('ckRec').textContent = t('ckRec'); $('ckRecHint').textContent = t('ckRecHint');
+  $('ckSave').textContent = t('ckSave'); $('ckCancel').textContent = t('cancel');
+  $('ckEditB').onclick = () => { ckEdit = !ckEdit; if (!ckEdit) ckCloseEd(); ckRender(); };
+  $('ckAdd').onclick = () => { if (S.keys.length >= CK_MAX) { toast(t('ckFull'), 3000); return; } ckOpenEd(-1); };
+  $('ckRec').onclick = ckStartRec;
+  $('ckCancel').onclick = ckCloseEd;
+  $('ckSave').onclick = ckEdSave;
+  $('ckKey').onchange = () => { ckKey = $('ckKey').value; ckSyncEd(); };
+  for (const b of $('ckEd').querySelectorAll('[data-cm]')) b.onclick = () => { ckMods.has(b.dataset.cm) ? ckMods.delete(b.dataset.cm) : ckMods.add(b.dataset.cm); ckSyncEd(); };
+  $('ckName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ckEdSave(); } e.stopPropagation(); });
+  // the fixed buttons repeat while held too (not Alt+F4's ask, not the ones with a note)
+  for (const b of document.querySelectorAll('#keys button[data-c], #keys button[data-k]')) {
+    const act = b.onclick;
+    if (!act) continue;
+    b.onclick = null;
+    holdRepeat(b, () => act.call(b), !b.dataset.confirm && !b.dataset.note);
+  }
+  ckRender();
+}
+
 // ---- settings sheet ----
 function closeSheets() {
   for (const id of ['set', 'help', 'unl', 'fileS']) $(id).style.display = 'none';
@@ -2459,22 +3413,135 @@ function showFiles(list) {
     li.append(a, st); ul.appendChild(li);
   }
 }
-const upStat = {bytes: 0, ms: 0, files: 0, errors: 0};
+const upStat = {bytes: 0, ms: 0, files: 0, errors: 0, list: []};
 window.__pmUp = upStat;
+const upFailText = j => j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && j.noFiles ? t('filesNoGuest') : j && j.viewOnly ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
+const secsText = ms => (ms < 10000 ? (ms / 1000).toFixed(1) : Math.round(ms / 1000)) + ' s';
+const rateText = (bytes, ms) => (bytes / 1048576 / Math.max(0.001, ms / 1000)).toFixed(1) + ' MB/s';
+// ---- 0.8.3.7: files over the direct path. The owner's log (2026-10-22, iPhone, fixed link): the picture came
+// straight over the Wi-Fi (WebRTC, host candidates), the two photos went as HTTPS pieces through Tailscale Funnel's
+// relay (~0.4 MB/s). With a direct WebRTC connection the page now opens a "files" DataChannel on it (reliable,
+// ordered) and sends the file there in 64 KB messages, at most 1 MB waiting in the browser (bufferedAmount; it
+// goes on at bufferedAmountLowThreshold = 256 KB), so a big file never fills the phone's memory and the input /
+// picture channels are not starved. No direct path (the tunnel, an older PC without "fdc", the channel did not
+// open in 3 s, it closed half way): the file goes as HTTP pieces as before. ?nofdc (tests) = always HTTP.
+// Only where the page's own address is relayed (固定網址: Tailscale Funnel; 臨時網址: the cloudflared tunnel): on the
+// same Wi-Fi / Tailscale address the HTTP pieces already go straight to the PC, and measured on this PC they are
+// faster there (loopback, 60 MB: HTTP 4 MB pieces ~270 MB/s, the DataChannel ~69 MB/s). ?fdc (tests) = the
+// channel on any address.
+const FDC_WANTED = (FIXED || TUN || Q.has('fdc')) && !Q.has('nofdc');
+// A speed limit for the files channel (MB/s, 0 = none). Measured (remote0837_bench.mjs rate / httprate, loopback,
+// 200 MB while the picture runs at 60 fps, twice each): no limit 18-27 MB/s with the picture's frames presented
+// 59.4-60.1 a second, 8 MB/s 59.6-60.0, HTTP at 8 MB/s 60.0 -- a limit buys nothing measurable, so none.
+const FDC_RATE = 0;
+// Sizes in KB; ?fdcHigh= ?fdcLow= ?fdcPiece= (tests).
+// rate: MB/s at most (0 = as fast as it goes); ?fdcRate= (tests)
+const FDC = {high: (+Q.get('fdcHigh') || 1024) * 1024, low: (+Q.get('fdcLow') || 256) * 1024, piece: (+Q.get('fdcPiece') || 64) * 1024,
+             rate: Q.has('fdcRate') ? +Q.get('fdcRate') : FDC_RATE};
+const fch = {ch: null, pc: null, opening: null, cur: null};
+function filesChannel() {
+  if (!FDC_WANTED || !S.fdc || !pc || pc.connectionState !== 'connected' || tun.media) return Promise.resolve(null);
+  if (fch.ch && fch.pc === pc && fch.ch.readyState === 'open') return Promise.resolve(fch.ch);
+  if (fch.opening && fch.pc === pc) return fch.opening;
+  const p = pc;
+  fch.pc = p; fch.ch = null;
+  fch.opening = new Promise(res => {
+    let ch;
+    try { ch = p.createDataChannel('files', {ordered: true, priority: 'very-low'}); } catch { res(null); return; }
+    ch.binaryType = 'arraybuffer';
+    ch.bufferedAmountLowThreshold = FDC.low;
+    const tm = setTimeout(() => { diag('files-channel', {open: false}); res(null); }, 3000);
+    ch.onopen = () => { clearTimeout(tm); fch.ch = ch; res(ch); };
+    ch.onclose = () => { if (fch.ch === ch) fch.ch = null; if (fch.pc === p) fch.opening = null; if (fch.cur) fch.cur({t: 'closed'}); };
+    ch.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch { return; } if (fch.cur) fch.cur(m); };
+  }).then(ch => { if (!ch && fch.pc === p) fch.opening = null; return ch; });
+  return fch.opening;
+}
+// One file over the channel: {done, name} / {refused: answer} / {fallback: true} (then HTTP pieces).
+async function uploadDc(f, ch, fid, show) {
+  let started = null, done = null, fail = null, acked = 0, wake = null;
+  const nudge = () => { if (wake) { const w = wake; wake = null; w(); } };
+  const nap = ms => new Promise(r => { wake = r; setTimeout(r, ms); });
+  // ?fdcTrace (tests): a timeline of this file (window.__fdcTrace: ms, what, value)
+  const T0 = performance.now(), tr = Q.has('fdcTrace') ? (window.__fdcTrace = []) : null;
+  const mark2 = (k, x) => { if (tr) tr.push([Math.round(performance.now() - T0), k, x]); };
+  fch.cur = m => {
+    mark2('msg', m.t + ':' + (m.got || '') + (m.done ? ':done' : ''));
+    if (m.t === 'closed') fail = fail || {closed: true};
+    else if (m.f !== fid) return;
+    else if (m.t === 'up') started = m;
+    else if (m.t === 'up-got') { if (m.ok === false) fail = m; else { acked = Math.max(acked, m.got || 0); if (m.done) done = m; } }
+    nudge();
+  };
+  try {
+    ch.send(JSON.stringify({t: 'up', f: fid, n: f.name, s: f.size}));
+    const tAsk = performance.now();
+    while (!started && !fail && performance.now() - tAsk < 5000) await nap(500);
+    if (!started || fail) return {fallback: true};
+    if (!started.ok) return started.noSession ? {fallback: true} : {refused: started};
+    const max = pc && pc.sctp && pc.sctp.maxMessageSize > 0 ? pc.sctp.maxMessageSize : 65536;
+    const piece = Math.min(FDC.piece, max), HIGH = FDC.high;
+    let off = 0;
+    while (off < f.size && !fail) {
+      if (S.viewOnly) { try { ch.send(JSON.stringify({t: 'up-cancel', f: fid})); } catch {} throw new Error('viewOnly'); }
+      const blk = await f.slice(off, Math.min(f.size, off + (1 << 20))).arrayBuffer();  // read 1 MB, send it in 64 KB
+      for (let i = 0; i < blk.byteLength && !fail; i += piece) {
+        while (ch.bufferedAmount > HIGH && ch.readyState === 'open' && !fail)
+          { mark2('wait', ch.bufferedAmount); await new Promise(r => { ch.onbufferedamountlow = () => { ch.onbufferedamountlow = null; r(); }; setTimeout(r, 500); }); mark2('woke', ch.bufferedAmount); }
+        if (ch.readyState !== 'open') { fail = fail || {closed: true}; break; }
+        ch.send(new Uint8Array(blk, i, Math.min(piece, blk.byteLength - i)));
+      }
+      off += blk.byteLength;
+      if (FDC.rate > 0) { const ahead = off / (FDC.rate * 1048576) * 1000 - (performance.now() - T0); if (ahead > 4) await new Promise(r => setTimeout(r, ahead)); }
+      mark2('block', off + '/' + ch.bufferedAmount);
+      show(Math.max(acked, off - ch.bufferedAmount), off);
+    }
+    let last = performance.now(), lastAck = acked;
+    while (!done && !fail && ch.readyState === 'open') {
+      await nap(400);
+      show(Math.max(acked, f.size - ch.bufferedAmount), f.size);
+      if (acked !== lastAck) { lastAck = acked; last = performance.now(); }
+      else if (performance.now() - last > 20000) fail = {stalled: true};
+    }
+    if (done) return {done: true, name: done.name};
+    if (fail && fail.ok === false) return {refused: fail};
+    return {fallback: true};  // the channel closed / stalled: the whole file again as HTTP pieces
+  } finally { fch.cur = null; }
+}
 async function uploadFile(f) {
   const li = document.createElement('li'), nm = document.createElement('span'), pr = document.createElement('progress'), st = document.createElement('span');
   nm.className = 'nm'; nm.textContent = f.name; st.className = 'st'; pr.max = 1; pr.value = 0;
   li.append(nm, pr, st); $('upList').prepend(li);
   if (f.size > (S.uploadMax || 2147483648)) { pr.remove(); st.textContent = tf('upTooBig', mb(S.uploadMax)); upStat.errors++; return; }
-  // Pieces: 4 MB on the LAN, 1 MB through a tunnel / the fixed link / Tailscale (slower links, smaller retries).
-  const piece = TUN || FIXED || PM.tailscale ? 1 << 20 : 4 << 20;
   const fid = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
   const t0 = performance.now();
+  const show = (got, sent) => {
+    pr.value = f.size ? got / f.size : 1;
+    st.textContent = Math.round(got * 100 / Math.max(1, f.size)) + '% · ' + rateText(got, performance.now() - t0);
+  };
+  const finish = (via, name) => {
+    const ms = performance.now() - t0;
+    pr.remove(); upStat.bytes += f.size; upStat.ms += ms; upStat.files++;
+    upStat.list.push({name: name || f.name, size: f.size, ms: Math.round(ms), via});
+    nm.textContent = name || f.name;
+    st.textContent = tfa('upDoneIn', t(via === 'dc' ? 'upVia' : 'upViaHttp'), secsText(ms) + ' · ' + rateText(f.size, ms));
+  };
+  // 0.8.3.7: the direct path first
+  const ch = await filesChannel();
+  if (ch) {
+    const r = await uploadDc(f, ch, fid, show);
+    if (r.done) return finish('dc', r.name);
+    if (r.refused) { st.textContent = upFailText(r.refused); pr.remove(); upStat.errors++; return; }
+    diag('files-fallback', {size: f.size});
+  }
+  // HTTP pieces: 4 MB on the LAN, 1 MB through a tunnel / the fixed link / Tailscale (slower links, smaller retries).
+  const piece = TUN || FIXED || PM.tailscale ? 1 << 20 : 4 << 20;
+  const hfid = ch ? fid.split('').reverse().join('') : fid;  // a fresh id if the channel had started this one
   let off = 0, done = false, fails = 0;
   while (!done) {
     if (S.viewOnly) throw new Error('viewOnly');
     const end = Math.min(f.size, off + piece);
-    const q = 'up?id=' + encodeURIComponent(sessId) + '&f=' + fid + '&n=' + encodeURIComponent(f.name) + '&o=' + off + '&t=' + f.size;
+    const q = 'up?id=' + encodeURIComponent(sessId) + '&f=' + hfid + '&n=' + encodeURIComponent(f.name) + '&o=' + off + '&t=' + f.size;
     let r = null, j = null;
     try { r = await post(q, f.slice(off, end)); j = await r.json(); } catch { r = null; }
     if (!r || (r.status >= 500 && r.status !== 507)) {  // a dropped piece: again from where the PC is
@@ -2483,15 +3550,10 @@ async function uploadFile(f) {
       continue;
     }
     if (r.status === 409 && j && typeof j.got === 'number' && !j.noSession) { off = j.got; continue; }
-    if (!r.ok || !j || !j.ok) {
-      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && j.noFiles ? t('filesNoGuest') : j && j.viewOnly ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
-      pr.remove(); upStat.errors++; return;
-    }
+    if (!r.ok || !j || !j.ok) { st.textContent = upFailText(j); pr.remove(); upStat.errors++; return; }
     fails = 0; off = j.got; done = !!j.done;
-    pr.value = f.size ? off / f.size : 1;
-    const ms = performance.now() - t0;
-    st.textContent = done ? t('upDone') : Math.round(off * 100 / Math.max(1, f.size)) + '% · ' + (off / 1048576 / Math.max(0.001, ms / 1000)).toFixed(1) + ' MB/s';
-    if (done) { pr.remove(); upStat.bytes += f.size; upStat.ms += ms; upStat.files++; nm.textContent = j.name || f.name; }
+    if (done) finish('http', j.name);
+    else show(off, off);
   }
 }
 $('upIn').onchange = async () => {
@@ -2564,7 +3626,7 @@ function wakeBar() { $('bar').classList.remove('dim'); clearTimeout(dimTimer); d
 $('bar').addEventListener('touchstart', wakeBar, {passive: true});
 $('bar').addEventListener('click', wakeBar);
 wakeBar();
-$('bSet').onclick = () => { const open = $('set').style.display === 'block'; closeSheets(); showKb(false); if (!open) { $('set').style.display = 'block'; $('bSet').classList.add('on'); } syncSheetFlag(); };
+$('bSet').onclick = () => { const open = $('set').style.display === 'block'; closeSheets(); showKb(false); if (!open) { syncSettings(); $('set').style.display = 'block'; $('bSet').classList.add('on'); } syncSheetFlag(); };  // 0.8.4: synced as it opens (the Mac row follows a mouse seen meanwhile)
 $('setT').textContent = t('settings');
 $('setClose').textContent = t('close');
 $('setClose').onclick = closeSheets;
@@ -2576,11 +3638,14 @@ $('swMutePc').onchange = () => {
   send({t: 'mutepc', on: sw.checked});  // the PC answers ({"t":"mutepc"}) and keeps it
 };
 syncMutePc();
-$('lModeSub').textContent = t('modeSub');  // 0.8.3.3: what 直接點 and 觸控板 do
+$('lModeSub').textContent = t('modeSub');
+// 0.8.4: 「Mac：Cmd 當 Ctrl」: shown on a Mac / iPad / iPhone, and in any browser with a mouse (a PC)
+$('lCmd').textContent = t('cmdCtrl'); $('lCmdSub').textContent = t('cmdCtrlSub');
+$('swCmd').onchange = () => { prefs.cmdCtrl = $('swCmd').checked; store.set('cmdCtrl084', prefs.cmdCtrl); if (cmd.held) cmdUp(); };  // 0.8.3.3: what 直接點 and 觸控板 do
 $('lSens').textContent = t('sens');
 $('lSensSub').textContent = t('sensSub');
 $('lQ').textContent = t('quality');
-$('lQSub').textContent = t('qSub');
+$('lQSub').textContent = t('qSub' + prefs.q);  // 0.8.3.7: follows the choice (syncStreamNotes)
 $('lFps').textContent = t('fps');
 $('lPhoneRes').textContent = t('phoneRes');
 $('lMon').textContent = t('monitor');
@@ -2589,8 +3654,6 @@ $('lFs').textContent = t('fullscreen');
 $('lLock').textContent = t('lock');
 $('lLockSub').textContent = t('lockSub');
 $('lHud').textContent = t('hud');
-$('lAuto').textContent = t('auto');
-$('lAutoSub').textContent = t('autoSub');
 $('lHudSub').textContent = t('hudSub');
 $('lVol').textContent = t('vol');
 $('lVolSub').textContent = t('volSub');
@@ -2615,10 +3678,10 @@ $('bBye').textContent = t('disconnect');
 $('app').textContent = PM.app;
 const segMode = $('segMode'), segQ = $('segQ');
 segMode.children[0].textContent = t('trackpad'); segMode.children[1].textContent = t('direct');
-for (let i = 0; i < 3; i++) segQ.children[i].textContent = t('q' + i);
+for (const b of segQ.children) b.textContent = t(+b.dataset.v < 0 ? 'qAuto' : 'q' + b.dataset.v);
 function syncSettings() {
   for (const b of segMode.children) b.classList.toggle('on', b.dataset.v === prefs.mode);
-  for (const b of segQ.children) b.classList.toggle('on', +b.dataset.v === prefs.q);
+  for (const b of segQ.children) b.classList.toggle('on', +b.dataset.v === prefs.q);  // -1: 自動
   for (const b of $('segFps').children) b.classList.toggle('on', +b.dataset.v === prefs.fps);
   $('swPhoneRes').checked = prefs.phoneRes;
   syncStreamNotes();
@@ -2630,15 +3693,17 @@ function syncSettings() {
   trackpad.zoomLocked = prefs.lock;
   syncZoomBtn();
   $('swHud').checked = prefs.hud;
-  $('swAuto').checked = prefs.auto;
+  $('swCmd').checked = !!prefs.cmdCtrl;
+  $('rowCmd').style.display = appleKb || document.body.classList.contains('pcui') ? '' : 'none';
   hud.style.display = prefs.hud ? 'block' : 'none';
 }
 function setMode(m) { prefs.mode = m; store.set('mode083', m); trackpad.mode = m; syncSettings(); return true; }
 function setQuality(q) {
-  q = Math.max(0, Math.min(2, q | 0));
-  if (q === prefs.q && q === curQ) return true;
-  prefs.q = q; store.set('q', q); syncSettings();
-  curQ = q; adapt.reset();
+  q = Math.max(-1, Math.min(2, q | 0));  // 0.8.4: -1 = 自動
+  if (q === prefs.q && (q < 0 || q === curQ)) return true;
+  prefs.q = q; store.set('q084', q); syncSettings();
+  if (q >= 0) { curQ = q; S.autoRung = -1; }
+  adapt.reset();
   applyStream('quality');  // 0.8.3.6: inside this connection (a new session only beyond its H.264 level)
   return true;
 }
@@ -2660,8 +3725,16 @@ function setPhoneRes(on) {
 // Under 每秒畫面: the PC screen's refresh rate when it caps the choice; under 解析度跟手機一樣: this screen's pixels.
 function syncStreamNotes() {
   const s = S.stream || S.srv, hz = s && s.hz;
-  const fpsTxt = hz && hz < prefs.fps ? t('fpsCap').split('{0}').join(hz) : t('fpsSub');
+  // 0.8.3.7: this phone's own screen first (it draws fewer than chosen: the PC sends only that many), then the PC's
+  const low = fpsToAsk() < prefs.fps;
+  const fpsTxt = low ? tf('fpsLow', fpsToAsk()).split('{0}').join(fpsToAsk()) + (isIOS ? ' ' + t('fpsLowIos') : '')
+               : hz && hz < prefs.fps ? t('fpsCap').split('{0}').join(hz) : t('fpsSub');
   if ($('lFpsSub').textContent !== fpsTxt) $('lFpsSub').textContent = fpsTxt;
+  $('lFpsSub').classList.toggle('warnSub', low);
+  // 0.8.3.7: 畫質's line says what the chosen one is (0.8.3.6 always described 清晰), and what is sent now
+  const qNow = s && s.w && s.h && (S.state === 'connected' || tun.media) ? ' · ' + tfa('qNow', s.w + '×' + s.h, s.fpsCap || s.fpsNow || prefs.fps) : '';
+  const qTxt = t('qSub' + prefs.q) + qNow;
+  if ($('lQSub').textContent !== qTxt) $('lQSub').textContent = qTxt;
   const f = phoneFit() || (() => { const d = devicePixelRatio || 1, a = screen.width || innerWidth, b = screen.height || innerHeight;
     return [Math.round(Math.max(a, b) * d), Math.round(Math.min(a, b) * d)]; })();
   const resTxt = tf('phoneResSub', f[0] + '×' + f[1]);
@@ -2678,28 +3751,21 @@ function applyStream(why) {
   const id = ++streamAskId;
   clearTimeout(streamTimer);
   streamTimer = setTimeout(() => { if (id === streamAskId) { diag('stream-no-answer', {why}); connect('switch'); } }, 3000);
-  send({t: 'quality', id, why, q: curQ, m: prefs.mon, fps: prefs.fps, fit: phoneFit(), top: prefs.q});
+  send({t: 'quality', id, why, q: prefs.q < 0 ? -1 : curQ, m: prefs.mon, fps: fpsToAsk(), disp: disp.hz || 0, fit: phoneFit(), top: prefs.q < 0 ? 2 : prefs.q});
 }
 for (const b of $('segFps').children) b.onclick = () => setFps(+b.dataset.v);
 $('swPhoneRes').onchange = () => setPhoneRes($('swPhoneRes').checked);
-$('swAuto').onchange = () => { prefs.auto = $('swAuto').checked; store.set('auto', prefs.auto); if (!prefs.auto) adapt.restore(); };
 
-// ---- O1: weak-network adaptation. Every 2 s from the browser's own receive
-// statistics: bad = packet loss > 4 %, RTT > 300 ms, or far fewer frames
-// shown than the PC sends (> 35 % short). Two bad windows in a row: first the
-// bitrate goes down (70 %, then 45 % of the preset), then one quality step
-// (0.8.3.6: inside this connection; 0.8.3.5 opened a new session). Up again only after a long good stretch (bitrate
-// after 10 s, quality after 30 s), never above the user's choice.
+// ---- 0.8.4 自動畫質: the PC moves the picture along its ladder from the network's state (the phone's
+// receiver reports, its own queues: auto_quality.h); it starts low (the first picture sooner) and climbs
+// while the link stays clean. 0.8.3.6 did this here, and only ever downwards from the preset chosen: under a
+// clogged downlink this page's own messages were stuck behind the video (measured 16 s), the PC never heard.
+// The page adds what only it knows: it shows far fewer frames than the PC sends (a phone that cannot decode
+// that much), 2 s in a row -> {"t":"rx","short":true}. A preset chosen by hand is kept as it is.
+S.autoRung = -1;
 const adapt = {
-  last: null, bad: 0, good: 0, level: 0, kbps: 0, log: [],
-  reset() { this.last = null; this.bad = this.good = 0; this.level = 0; this.kbps = 0; },
-  // 0.8.3.6: the PC's own bitrate for the stream now (it depends on the size and frame rate too)
-  preset(q) { const s = S.stream && S.stream.q === q ? S.stream : S.srv && S.srv.quality === q ? S.srv : null;
-    return (s && (s.kbps && s === S.stream ? s.kbps : s.kbpsBase)) || [6000, 10000, 14000][q] || 14000; },
-  restore() {
-    if (this.level) { this.level = 0; send({t: 'bitrate', kbps: this.preset(curQ)}); }
-    if (curQ !== prefs.q) { curQ = prefs.q; applyStream('auto-restore'); }
-  },
+  last: null, short: 0,
+  reset() { this.last = null; this.short = 0; },
   async tick() {
     if (!pc || S.state !== 'connected' || document.hidden) { this.last = null; return; }
     let inb = null;
@@ -2713,38 +3779,23 @@ const adapt = {
     const shown = (now.frames - prev.frames) * 1000 / (now.t - prev.t);
     const sent = S.srv ? S.srv.fps : 0;
     const short = sent > 5 && shown < sent * 0.65;
-    const simLoss = +(Q.get('simloss') || 0) / 100;  // tests: pretend this much loss
-    const bad = loss > 0.04 || simLoss > 0.04 || (isFinite(S.rtt) && S.rtt > 300) || short;
-    S.adapt = {loss: +(Math.max(loss, simLoss) * 100).toFixed(1), shown: +shown.toFixed(1), sent: +(sent || 0).toFixed(1), rtt: S.rtt, level: this.level, q: curQ};
-    if (!prefs.auto) return;
-    if (bad) { this.bad++; this.good = 0; } else { this.good++; this.bad = 0; }
-    if (this.bad >= 2) {
-      this.bad = 0;
-      if (this.level < 2) {
-        this.level++;
-        this.kbps = Math.round(this.preset(curQ) * (this.level === 1 ? 0.7 : 0.45));
-        send({t: 'bitrate', kbps: this.kbps});
-        diag('adapt-down', {to: 'bitrate', kbps: this.kbps, why: S.adapt});
-      } else if (curQ > 0) {
-        curQ--; this.level = 0;
-        diag('adapt-down', {to: 'quality', q: curQ, why: S.adapt});
-        toast(tf('autoDown', t('q' + curQ)), 4000);
-        applyStream('auto-down');
-      }
-    } else if (this.good >= 5 && this.level > 0) {  // 10 s good: bitrate back up a step
-      this.good = 0; this.level--;
-      this.kbps = this.level ? Math.round(this.preset(curQ) * 0.7) : this.preset(curQ);
-      send({t: 'bitrate', kbps: this.kbps});
-      diag('adapt-up', {to: 'bitrate', kbps: this.kbps});
-    } else if (this.good >= 15 && curQ < prefs.q) {  // 30 s good at full bitrate: one quality step up
-      this.good = 0; curQ++;
-      diag('adapt-up', {to: 'quality', q: curQ});
-      toast(tf('autoUp', t('q' + curQ)), 3000);
-      applyStream('auto-up');
-    }
+    S.adapt = {loss: +(loss * 100).toFixed(1), shown: +shown.toFixed(1), sent: +(sent || 0).toFixed(1), rtt: S.rtt, rung: S.autoRung, q: curQ,
+               rttPc: S.srv && S.srv.rttPc, lossPc: S.srv && S.srv.lossPc};
+    this.short = short ? this.short + 1 : 0;
+    if (prefs.q < 0 && this.short >= 2) { this.short = 0; send({t: 'rx', short: true, shown: S.adapt.shown, sent: S.adapt.sent}); }
   },
 };
-setInterval(() => adapt.tick(), 2000);
+setInterval(() => adapt.tick(), 1000);
+// The PC's step ({"t":"auto"}): the preset now; a step to a smaller preset is said once (a climb back only
+// after one: the first climbs right after the start are what 自動 is for, not news).
+function onAutoStep(m) {
+  if (prefs.q >= 0) return;
+  const fromQ = RUNG_Q[m.from] !== undefined ? RUNG_Q[m.from] : curQ;
+  S.autoRung = m.rung; curQ = m.q;
+  diag(m.rung < m.from ? 'auto-down' : 'auto-up', {from: m.from, to: m.rung, q: m.q, kbps: m.kbps, why: m.why, adapt: S.adapt});
+  if (m.q < fromQ) { S.autoWentDown = true; toast(tf('autoDown', t('q' + m.q)), 4000); }
+  else if (m.q > fromQ && S.autoWentDown) toast(tf('autoUp', t('q' + m.q)), 3000);
+}
 
 for (const b of segMode.children) b.onclick = () => { const was = prefs.mode; setMode(b.dataset.v); if (was !== prefs.mode && touchFirst()) { modeToastAt = performance.now(); toast(t(prefs.mode === 'trackpad' ? 'mhNowTrack' : 'mhNowDirect'), 8000); } };
 for (const b of segQ.children) b.onclick = () => setQuality(+b.dataset.v);
@@ -3039,5 +4090,6 @@ setInterval(() => { if (S.mouseUsed && (S.state === 'connected' || tun.media)) w
 
 if (FIXED) startFixed(); else if (TUN && !PM.verified) askPass(); else connect();
 </script>
+<script src="p084.js"></script><!-- 0.8.4 隱私黑屏 / 電腦的檔案 (feat-084-privacy) -->
 </body>
 </html>

@@ -480,13 +480,17 @@ void HttpServer::serve(SOCKET s, const std::string& peer, const Listener& l) {
                                  "\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n";
         bool ok = sendAll(s, hdr.data(), hdr.size());
         std::vector<char> chunk(1 << 20);
+        uint64_t sent = 0;
         for (int64_t left = size.QuadPart; ok && left > 0 && !stop_ && req.method != "HEAD";) {
             DWORD got = 0;
             if (!ReadFile(f, chunk.data(), DWORD(std::min<int64_t>(left, int64_t(chunk.size()))), &got, nullptr) || got == 0) break;
             ok = sendAll(s, chunk.data(), got);
             left -= got;
+            if (ok) sent += got;
+            if (r.progress && ok && left > 0) r.progress(sent, uint64_t(size.QuadPart), false);  // 0.8.4
         }
         CloseHandle(f);
+        if (r.progress) r.progress(sent, uint64_t(size.QuadPart), true);
         return;
     }
     if (r.websocket) {

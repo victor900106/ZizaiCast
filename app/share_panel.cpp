@@ -278,12 +278,6 @@ void SharePanel::setShare(const std::string& url, const std::vector<uint8_t>& qr
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
-void SharePanel::setLive(bool live, int sent) {
-    live_ = live;
-    liveSent_ = sent;
-    if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
-}
-
 void SharePanel::setExpired() {
     expired_ = true;
     status_.clear();
@@ -339,13 +333,6 @@ SharePanel::Hit SharePanel::hitTest(POINT pt) const {
 void SharePanel::click(Hit h) {
     switch (h) {
     case HitClose:
-        if (live_ && !expired_ && cb_.onHide) {  // live: the phone keeps getting new captures
-            auto cb = cb_.onHide;
-            close();
-            cb();
-            break;
-        }
-        [[fallthrough]];
     case HitSecondary: {  // ×, 關閉 (expired)
         auto cb = cb_.onStop;
         close();
@@ -479,11 +466,10 @@ void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
         text(l, f.link.Get(), rc(kPad, kCopyY, kW - 2 * kPad, kLinkH), animMix(t.accent, t.fg, ch));
         b->SetColor(withA(t.accent, 0.45f + 0.45f * ch));
         rt->DrawLine({kW / 2 - copyW_ / 2, kCopyY + kLinkH - 2}, {kW / 2 + copyW_ / 2, kCopyY + kLinkH - 2}, b, 1);
-        text(live_ ? pm::i18n::fmt(S::SharePanelLive, {std::to_wstring(liveSent_)}) : countdownText(), f.count.Get(),
+        text(countdownText(), f.count.Get(),
              rc(kPad, kCountY, kW - 2 * kPad, 24), t.accent);
     }
     if (!status_.empty()) text(status_, f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, 40), t.fg);
-    else if (live_ && !expired_) text(tr(S::SharePanelLiveHint), f.status.Get(), rc(kPad, kStatusY, kW - 2 * kPad, 54), t.dim);
 
     auto button = [&](D2D1_RECT_F r, const wchar_t* label, bool primary, Hit id) {
         const float hot = hl(id);
@@ -505,8 +491,7 @@ void SharePanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, ID2D1Bitma
         button(rc(kPad, kBtnY, bw, kBtnH), tr(S::AboutClose), false, HitSecondary);
         button(rc(kPad + bw + 12, kBtnY, bw, kBtnH), tr(S::SharePanelAgain), true, HitPrimary);
     } else {
-        button(rc(kPad, kBtnY, kW - 2 * kPad, kBtnH), tr(live_ ? S::SharePanelLiveStop : S::SharePanelStop), false,
-               HitPrimary);
+        button(rc(kPad, kBtnY, kW - 2 * kPad, kBtnH), tr(S::SharePanelStop), false, HitPrimary);
     }
 }
 

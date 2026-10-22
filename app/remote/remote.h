@@ -19,7 +19,12 @@ enum RemoteEvent : WPARAM {
     RemFixedWait,  // 0.8.3.1: 常駐外網 waits for Tailscale to finish starting (after a reboot)
     RemGuestLogin,  // 0.8.3.2: a 臨時帳號 login try
     RemFixedProbe,  // 0.8.3.3: the fixed address's TLS check ("1:<ms>:<detail>" ok, "0:..." not yet, "2:..." gave up)
-    RemMutePc       // 0.8.3.4: the phone's 電腦喇叭靜音 switch ("1" / "0"; the host checked the session may)
+    RemMutePc,      // 0.8.3.4: the phone's 電腦喇叭靜音 switch ("1" / "0"; the host checked the session may)
+    RemKeys,        // 0.8.4: the phone saved its 自訂快捷鍵 (why = the list, JSON; the host checked it and the session)
+    RemPrivacy,     // 0.8.4 隱私黑屏 on / off ("1:<why>" / "0:<why>": phone / pc / local / ended / failed)
+    RemDownload,    // 0.8.4 a download started ("<kind>\t<what>\t<bytes>"; kind pc / clip): 連線紀錄
+    RemCfProgress,  // 0.8.4: cloudflared add-on download: "p:<percent>:<total bytes>" / "v:..." (checking the SHA-256)
+    RemCfDone       // 0.8.4: ... finished: "ok" / "err:<reason>" ("cancelled")
 };
 
 bool remoteAvailable();
@@ -66,5 +71,11 @@ void remoteDevGuest(int which, LPARAM lp);
 // --dev DevCommand 988 (0.8.3.4): as if a phone's 電腦喇叭靜音 switch arrived (lp 1 on, 0 off), through the same
 // message the host's onMutePcRequest posts (who may: tested against the host in remote/tools/mutepc_test.mjs).
 void remoteDevMutePc(int on);
+// 0.8.4 (feat-084-privacy): this process is the 隱私黑屏 cover (or renders it): main() returns that code first; -1 = no.
+int remotePrivacyChild();
+// --dev DevCommand 8401: 1 隱私黑屏 on from the PC menu, 0 off; 8402: add the folder in PM_TEST_PCFILES_ADD (no dialog) to
+// 電腦的檔案 允許清單; 8403: remove extra folder lp; 8404: 電腦的檔案 on / off (lp 1 / 0); 8406: 臨時帳號 may browse (lp 1 / 0); 8405: the 遠端操控 menu and its 電腦的檔案 ▸
+// as %TEMP%\pmshots\remote_menu_084.png / pcfiles_menu_084.png.
+void remoteDevPrivacy(int which, LPARAM lp);
 
 }  // namespace pm_app

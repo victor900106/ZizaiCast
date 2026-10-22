@@ -77,12 +77,7 @@ header{display:flex;align-items:center;gap:12px;margin:6px 4px 18px}
 .logo svg{width:26px;height:26px}
 h1{font-size:21px;line-height:1.25;margin:0;font-weight:700}
 .sub{color:var(--dim);font-size:13.5px;margin:3px 0 0}
-.live{display:flex;align-items:center;gap:7px;color:var(--ac);font-size:12.5px;font-weight:600;margin:4px 0 0}
-.live i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--ac);animation:blink 1.6s ease-in-out infinite}
-@keyframes blink{50%{opacity:.25}}
 .card{background:linear-gradient(180deg,var(--c1),var(--c2));border:1px solid var(--line);border-radius:20px;padding:12px;margin:0 0 18px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
-.card.new{animation:pop 1.2s ease-out}
-@keyframes pop{0%{transform:scale(.97);box-shadow:0 0 0 3px var(--ac),0 10px 28px rgba(0,0,0,.28)}100%{transform:none}}
 .media{display:block;width:100%;height:auto;max-height:78vh;object-fit:contain;border-radius:13px;background:rgba(0,0,0,.35)}
 img.media{-webkit-touch-callout:default}
 .meta{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--dim);margin:9px 4px 0;word-break:break-all}
@@ -272,17 +267,16 @@ std::string sizeText(uint64_t b) {
 
 std::string sharePage(int lang, const std::wstring& appName, const PagePalette& pal,
                       const std::vector<PageFile>& files, const std::string& kind, const std::string& untilHHMM,
-                      int ttlSeconds, bool live, const PageExtra* extra) {
+                      int ttlSeconds, const PageExtra* extra) {
     const T t{static_cast<Lang>(lang)};
     const PageExtra ex = extra ? *extra : PageExtra{};
     const bool ios = kind == "ios", android = kind == "android";
     std::string h = head(lang, t(S::PgTitle), pal);
-    h += std::string(" data-live=\"") + (live ? "1" : "0") + "\" data-n=\"" + std::to_string(files.size()) + "\">";
+    h += ">";
     const std::wstring app = appName;
     std::wstring count = std::to_wstring(files.size());
     h += "<header>" + logo(pal) + "<div><h1>" + t(S::PgTitle) + "</h1><p class=\"sub\" id=\"sub\">" +
          (files.size() == 1 ? t(S::PgSubOne, {app}) : t(S::PgSubMany, {app, count})) + "</p>";
-    if (live) h += "<p class=\"live\" id=\"live\"><i></i>" + t(S::PgLive) + "</p>";
     h += "</div></header>";
     // 0.8.3 電腦剪貼簿: the PC's copied text + 複製 (only while the owner shares; the script refreshes it).
     if (ex.clip) {
@@ -304,24 +298,14 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
     if (!android) h += "<p class=\"hint\" id=\"sharehint\" hidden>" + t(S::PgSaveAllHint) + "</p>";
     h += "</div><div class=\"ziphint\" id=\"ziphint\"" + noFiles + ">" + zipTips(t, kind) + "</div>";
     h += "<p class=\"note\" id=\"note\" hidden></p>";
-    if (live)
-        h += std::string("<section class=\"card empty\" id=\"empty\"") + (files.empty() ? "" : " hidden") + ">" +
-             t(S::PgWaiting) + "</section>";
     h += "<div id=\"list\">";
-    if (live)  // the newest first: new ones appear at the top
-        for (auto it = files.rbegin(); it != files.rend(); ++it) h += card(t, *it, kind, ex, pal);
-    else
-        for (const PageFile& f : files) h += card(t, f, kind, ex, pal);
+    for (const PageFile& f : files) h += card(t, f, kind, ex, pal);
     h += "</div>";
-    if (live)
-        h += "<footer>" + t(S::PgLiveFooter, {std::to_wstring((ttlSeconds + 1799) / 3600)}) + "</footer>";
-    else
-        h += "<footer>" + t(S::PgFooter, {std::wstring(untilHHMM.begin(), untilHHMM.end()),
-                                          std::to_wstring((ttlSeconds + 59) / 60)}) + "</footer>";
+    h += "<footer>" + t(S::PgFooter, {std::wstring(untilHHMM.begin(), untilHHMM.end()),
+                                      std::to_wstring((ttlSeconds + 59) / 60)}) + "</footer>";
     // Texts for the script (a data block: not executed, allowed by the CSP).
     std::string j = "{";
-    jsonField(j, "kind", ios ? "ios" : android ? "android" : "other", true);
-    jsonField(j, "app", u8(appName));
+    jsonField(j, "app", u8(appName), true);
     jsonField(j, "subOne", u8(pm::i18n::tr(S::PgSubOne, t.lang)));
     jsonField(j, "subMany", u8(pm::i18n::tr(S::PgSubMany, t.lang)));
     jsonField(j, "save", t(S::PgSave));
@@ -330,17 +314,7 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
     jsonField(j, "allSaved", t(S::PgAllSaved));
     jsonField(j, "preparing", u8(pm::i18n::tr(S::PgPreparing, t.lang)));
     jsonField(j, "zipAll", u8(pm::i18n::tr(S::PgZipAll, t.lang)));
-    jsonField(j, "zipNew", u8(pm::i18n::tr(S::PgZipNew, t.lang)));
-    jsonField(j, "download", t(S::PgDownload));
-    jsonField(j, "downloadVideo", t(S::PgDownloadVideo));
-    jsonField(j, "imgTips", imgTips(t, kind));
-    jsonField(j, "vidTips", vidTips(t, kind));
-    jsonField(j, "ended", t(S::PgEnded));
-    jsonField(j, "offline", t(S::PgOffline));
     jsonField(j, "shareFail", t(S::PgShareFail));
-    jsonField(j, "downloadFile", ex.downloadFile);
-    jsonField(j, "fileTip", htmlEscape(ex.fileTip));
-    jsonField(j, "fileIcon", fileIcon(pal));
     jsonField(j, "clipCopy", ex.clipCopy);
     jsonField(j, "clipCopied", ex.clipCopied);
     jsonField(j, "clipFail", ex.clipFail);
@@ -350,11 +324,11 @@ std::string sharePage(int lang, const std::wstring& appName, const PagePalette& 
     return h;
 }
 
-std::string expiredPage(int lang, const std::wstring& appName, const PagePalette& pal, bool live) {
+std::string expiredPage(int lang, const std::wstring& appName, const PagePalette& pal) {
     const T t{static_cast<Lang>(lang)};
     std::string h = head(lang, t(S::PgExpiredTitle), pal);
     h += "><section class=\"card gone\">" + logo(pal) + "<h1>" + t(S::PgExpiredTitle) + "</h1><p>" +
-         t(live ? S::PgExpiredLiveText : S::PgExpiredText, {appName}) + "</p></section></main></body></html>\n";
+         t(S::PgExpiredText, {appName}) + "</p></section></main></body></html>\n";
     // the logo is a block; centre it
     const std::string from = "<section class=\"card gone\"><div class=\"logo\"";
     if (const size_t p = h.find(from); p != std::string::npos)
@@ -368,46 +342,24 @@ std::string clipJson(const std::string& textUtf8) {
     return j + "}";
 }
 
-std::string listJson(const std::vector<PageFile>& files, bool live) {
-    std::string j = std::string("{\"live\":") + (live ? "true" : "false") + ",\"n\":" + std::to_string(files.size()) +
-                    ",\"files\":[";
-    for (size_t k = 0; k < files.size(); ++k) {
-        const PageFile& f = files[k];
-        if (k) j += ',';
-        j += "{\"i\":" + std::to_string(f.index);
-        jsonField(j, "name", f.name);
-        j += std::string(",\"video\":") + (f.video ? "true" : "false") + ",\"size\":" + std::to_string(f.size);
-        jsonField(j, "sizeText", sizeText(f.size));
-        jsonField(j, "type", f.type);
-        j += "}";
-    }
-    j += "]}";
-    return j;
-}
-
 // The page's script. Progressive: without it the page works as before.
 //  * 全部下載（ZIP）: the server-rendered link (zip = every file as one
 //    stored ZIP). Web Share exists only in a secure context (https /
 //    localhost), so on the phone's http LAN page this is the way to get all
-//    at once. The script keeps its count current, and after a tap on a live
-//    page offers 「下載新的 N 個」 (zip?from=K) once new files arrive.
+//    at once. The script keeps its count current.
 //  * 全部儲存 / 儲存 (only where navigator.canShare({files}) holds, i.e. not
 //    over http; replaces the ZIP button): navigator.share({files}) with File objects built from
 //    blobs fetched ahead (the share must start inside the tap: iOS refuses
 //    it after an await), so the button reads 「準備中…」 until every unsaved
 //    file (≤ 200 MB each) is in memory. Shared ones are marked 已儲存.
-//  * live: GET list?n=K is held by the server until file K+1 exists (or
-//    20 s); new cards are added at the top. 410 → 分享已結束 (the cards and
-//    their saves keep working); network errors → 「暫時連不到電腦」 + retry.
 const std::string& shareScript() {
     static const std::string js = R"JS((function () {
 'use strict';
 var T = JSON.parse(document.getElementById('pm-t').textContent);
-var main = document.querySelector('main'), list = document.getElementById('list');
+var list = document.getElementById('list');
 var bar = document.getElementById('bar'), btn = document.getElementById('saveall');
-var sub = document.getElementById('sub'), note = document.getElementById('note'), empty = document.getElementById('empty');
-var live = main.getAttribute('data-live') === '1', known = +main.getAttribute('data-n') || 0;
-var CAP = 200 * 1024 * 1024, items = [], byI = {}, ended = false, fails = 0, fetching = false;
+var sub = document.getElementById('sub'), note = document.getElementById('note');
+var CAP = 200 * 1024 * 1024, items = [], fetching = false;
 function fill(s, a) { return s.replace(/\{(\d)\}/g, function (m, k) { return a[+k] !== undefined ? String(a[+k]) : m; }); }
 var canFiles = false;
 try {
@@ -415,22 +367,18 @@ try {
     navigator.canShare({ files: [new File(['x'], 'x.png', { type: 'image/png' })] }));
 } catch (e) { canFiles = false; }
 var zipA = document.getElementById('zipall'), zipHint = document.getElementById('ziphint');
-var shareHint = document.getElementById('sharehint'), zipFrom = 0;
+var shareHint = document.getElementById('sharehint');
 if (canFiles) {  // 全部儲存 replaces the ZIP (straight into Photos)
   zipA.hidden = true; zipHint.hidden = true; btn.hidden = false;
   if (shareHint) shareHint.hidden = false;
 }
-zipA.addEventListener('click', function () {  // the link itself downloads; remember what it covered
-  zipFrom = items.reduce(function (m, x) { return Math.max(m, x.i + 1); }, 0);
-});
-function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function say(s) { note.textContent = s || ''; note.hidden = !s; }
 function adopt(c) {
   var it = { i: +c.getAttribute('data-i'), name: c.getAttribute('data-name'), type: c.getAttribute('data-type'),
     size: +c.getAttribute('data-size'), video: c.getAttribute('data-video') === '1', card: c,
     blob: null, failed: false, saved: false, btn: c.querySelector('[data-save]'),
     file: c.getAttribute('data-file') === '1' };
-  items.push(it); byI[it.i] = it;
+  items.push(it);
   if (canFiles && it.btn && it.size <= CAP && !it.file) {
     it.btn.textContent = T.save;
     it.btn.classList.remove('ghost');  // the share sheet saves to Photos: now the main way
@@ -440,45 +388,13 @@ function adopt(c) {
   }
   return it;
 }
-function card(f) {
-  if (!f.video && String(f.type).indexOf('image/') !== 0) {  // 0.8.3: a document / other file
-    var fc = el('section', 'card file new'), fi = String(f.i);
-    fc.setAttribute('data-i', fi); fc.setAttribute('data-name', f.name); fc.setAttribute('data-type', f.type);
-    fc.setAttribute('data-size', String(f.size)); fc.setAttribute('data-video', '0'); fc.setAttribute('data-file', '1');
-    fc.insertAdjacentHTML('beforeend', T.fileIcon);
-    var fm = el('div', 'meta'); fm.appendChild(el('span', null, f.name)); fm.appendChild(el('span', null, f.sizeText));
-    fc.appendChild(fm);
-    fc.insertAdjacentHTML('beforeend', '<div class="tip">' + T.fileTip + '</div>');
-    var fa = el('a', 'btn', T.downloadFile); fa.href = 'd/' + fi; fa.setAttribute('download', ''); fa.setAttribute('data-save', fi);
-    fc.appendChild(fa);
-    return fc;
-  }
-  var c = el('section', 'card new'), i = String(f.i), m;
-  c.setAttribute('data-i', i); c.setAttribute('data-name', f.name); c.setAttribute('data-type', f.type);
-  c.setAttribute('data-size', String(f.size)); c.setAttribute('data-video', f.video ? '1' : '0');
-  if (f.video) {
-    m = el('video', 'media'); m.src = 'v/' + i + '#t=0.1'; m.controls = true; m.preload = 'metadata';
-    m.setAttribute('playsinline', '');
-  } else { m = el('img', 'media'); m.src = 'v/' + i; m.alt = f.name; }
-  c.appendChild(m);
-  var meta = el('div', 'meta'); meta.appendChild(el('span', null, f.name)); meta.appendChild(el('span', null, f.sizeText));
-  c.appendChild(meta);
-  var a = el('a', 'btn' + (!f.video && T.kind === 'ios' ? ' ghost' : ''), f.video ? T.downloadVideo : T.download);
-  a.href = 'd/' + i; a.setAttribute('download', ''); a.setAttribute('data-save', i);
-  if (f.video) { c.appendChild(a); c.insertAdjacentHTML('beforeend', T.vidTips); }
-  else { c.insertAdjacentHTML('beforeend', T.imgTips); c.appendChild(a); }
-  return c;
-}
 function pending() { return items.filter(function (x) { return !x.saved && !x.failed && x.size <= CAP && !x.file; }); }
 function update() {
   sub.textContent = items.length === 1 ? fill(T.subOne, [T.app]) : fill(T.subMany, [T.app, items.length]);
-  if (empty) empty.hidden = items.length > 0;
   bar.hidden = items.length === 0;
   if (!canFiles) {
     zipHint.hidden = items.length === 0;
-    var fresh = zipFrom ? items.filter(function (x) { return x.i >= zipFrom; }).length : 0;
-    zipA.textContent = fresh ? fill(T.zipNew, [fresh]) : fill(T.zipAll, [items.length]);
-    zipA.setAttribute('href', fresh ? 'zip?from=' + zipFrom : 'zip');
+    zipA.textContent = fill(T.zipAll, [items.length]);
     return;
   }
   var todo = pending(), ready = todo.filter(function (x) { return x.blob; });
@@ -506,33 +422,6 @@ function prefetch() {
   fetch('v/' + x.i, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
     .then(function (b) { x.blob = b; }, function () { x.failed = true; })
     .then(function () { fetching = false; update(); prefetch(); });
-}
-function end() {
-  ended = true; say(T.ended);
-  var lv = document.getElementById('live'); if (lv) lv.hidden = true;
-}
-function poll() {
-  if (!live || ended) return;
-  fetch('list?n=' + known, { cache: 'no-store' }).then(function (r) {
-    if (r.status === 410 || r.status === 404) { end(); return null; }
-    if (!r.ok) throw new Error(r.status);
-    return r.json();
-  }).then(function (j) {
-    if (!j) return;
-    if (fails) say('');
-    fails = 0;
-    (j.files || []).forEach(function (f) {
-      if (byI[f.i]) return;
-      var c = card(f); list.insertBefore(c, list.firstChild); adopt(c);
-    });
-    known = j.n;
-    update(); prefetch();
-    setTimeout(poll, 30);
-  }, function () {
-    fails++;
-    if (fails >= 2) say(T.offline);
-    setTimeout(poll, Math.min(10000, 1500 * fails));
-  });
 }
 // 0.8.3 電腦剪貼簿: refresh / copy (http page: no async clipboard API -> a selected textarea + execCommand)
 var clip = document.getElementById('clip');
@@ -567,7 +456,7 @@ if (clip) {
 }
 var cards = list.querySelectorAll('.card[data-i]');
 for (var k = 0; k < cards.length; k++) adopt(cards[k]);
-update(); prefetch(); poll();
+update(); prefetch();
 })();
 )JS";
     return js;

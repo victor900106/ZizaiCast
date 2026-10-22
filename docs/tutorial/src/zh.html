@@ -101,7 +101,7 @@
 <!-- ============ Miracast ============ -->
 <section id="miracast">
 <h2><span class="num">2</span>Android 投放（Miracast）</h2>
-<p class="goal"><b>你要做什麼</b>把 Android 手機畫面放到電腦上，<strong>只看、不操作</strong>。不用設定，但電腦要有支援「無線顯示器」的 Wi-Fi 網卡（大部分筆電可以）。</p>
+<p class="goal"><b>你要做什麼</b>把 Android 手機畫面放到電腦上，<strong>只看、不操作</strong>。不用設定，但電腦要有支援「無線顯示器」的 Wi-Fi 網卡（大部分筆電可以）。這一項需要電腦支援無線顯示；不支援的電腦，自在投影裡不會出現 Miracast 的選項，請改用「Android 用電腦操控」。</p>
 {{fig:cast}}
 <ol class="steps">
   <li>電腦開著自在投影，<strong>電腦的 Wi-Fi 要開著</strong>（就算用網路線上網也要開）。</li>
@@ -267,7 +267,7 @@
   <li>只想翻一小塊：右鍵選單 → 翻譯 → <span class="ui">翻譯框選範圍</span>（<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>），拖出一個框。</li>
 </ul></div>
 <h3 id="magnifier">放大鏡：字太小</h3>
-<p>工具列的<span class="ui">放大</span>點一下 2 倍、再點 4 倍、再點回原樣；<kbd>Ctrl</kbd>＋滾輪在滑鼠位置放大。右鍵選單 → <span class="ui">放大鏡</span>還有<span class="ui">加強對比</span>、<span class="ui">黃字黑底</span>等顏色（<kbd>Ctrl</kbd><kbd>K</kbd> 切換），和<span class="ui">凍結畫面</span>（<kbd>Ctrl</kbd><kbd>P</kbd>）。</p>
+<p>工具列的<span class="ui">放大</span>點一下 2 倍、再點 4 倍、再點回原樣；<kbd>Ctrl</kbd>＋滾輪在滑鼠位置放大。右鍵選單 → <span class="ui">放大鏡</span>還有<span class="ui">凍結畫面</span>（<kbd>Ctrl</kbd><kbd>P</kbd>）。</p>
 <h3 id="update">更新</h3>
 <p>有新版本時會跳出「自在投影有新版本」，按<span class="ui">立即更新</span>就好：程式會先關掉，裝好後自己打開。不想現在更新就按<span class="ui">稍後提醒</span>。也可以在右鍵選單 → <span class="ui">說明</span> → <span class="ui">檢查更新</span>。</p>
 {{img:update|「有新版本」視窗（示範用的假版本）|420}}
@@ -391,7 +391,7 @@
 <h4 id="remote-nolink">方法 B：臨時網址（不用開固定網址）</h4>
 <ol class="steps">
   <li>電腦：沒有固定網址時，<span class="ui">允許遠端控制</span>區塊按<span class="ui">產生臨時網址</span>；有固定網址時，<span class="ui">進階設定</span> → <span class="ui">臨時網址（手機不用裝 App，用行動網路也能連）</span>。約 10～20 秒後出現 QR 碼和 6 位數<span class="ui">通行碼</span>（小視窗的<span class="ui">臨時網址</span>分頁也有；小視窗的分頁依序是<span class="ui">同一個 Wi-Fi</span>、<span class="ui">固定網址</span>、<span class="ui">Tailscale</span>、<span class="ui">臨時網址</span>，和主畫面一樣）。</li>
-  <li>按<span class="ui">複製網址</span>把網址傳給朋友，通行碼另外告訴他。<strong>網址只能用一次</strong>，10 分鐘內有效。</li>
+  <li>按<span class="ui">複製網址</span>把網址傳給朋友，通行碼另外告訴他。<strong>網址只能用一次</strong>，10 分鐘內有效。第一次產生臨時網址時，自在投影會先下載一個約 52 MB 的小元件（只下載一次，需要連上網路，畫面上會顯示進度）。</li>
   <li>朋友打開網址、輸入通行碼，你的電腦跳出「有手機想要操控這台電腦」，<strong>你要在電腦前按「允許」</strong>。</li>
   <li>用完按<span class="ui">停止臨時網址</span>，或直接把遠端控制關掉。</li>
 </ol>
@@ -430,6 +430,15 @@
   <li>Ctrl+Alt+Del 送不出去：這是 Windows 的安全鍵，任何程式都送不出去；要開工作管理員按工具列的<span class="ui">工作管理員</span>。</li>
   <li>工具列的<span class="ui">檔案</span>是灰的：滑鼠停在上面會說原因（僅觀看，或臨時帳號沒開傳檔）。</li>
 </ul></div>
+
+<h3 id="remote-mac">用 Mac 遠端操控 Windows</h3>
+<p>在 Mac（或接了鍵盤的 iPad）的 Safari、Chrome 打開同樣的網址，就能照 Mac 的習慣按快速鍵：</p>
+<ul>
+  <li>⌘ + 字母會送成 Windows 的 Ctrl + 字母：⌘C 複製、⌘V 貼上、⌘X 剪下、⌘Z 復原、⌘A 全選、⌘S 存檔、⌘F 尋找、⌘T、⌘W……</li>
+  <li>只按一下 ⌘ 是 Windows 的 Win 鍵（開始功能表）；⌘ + 方向鍵是 Win + 方向鍵；Option 就是 Alt（Option+F4 關視窗）。</li>
+  <li>手機頁的<span class="ui">設定</span>裡有<span class="ui">Mac：Cmd 當 Ctrl</span>，偵測到 Mac／iPad 時自動打開；關掉後 ⌘ 一律當 Win 鍵。</li>
+  <li>⌘Q、⌘W、⌘Tab 這些鍵 Mac 或瀏覽器會先用掉；要送到 Windows 請按<span class="ui">全螢幕</span>，或用上方工具列的按鈕（例如 Ctrl+W）。</li>
+</ul>
 
 <h3 id="remote-approve">連線時要不要允許</h3>
 <p>電腦：<span class="ui">遠端控制</span>分頁 → <span class="ui">進階設定</span> → <span class="ui">連線時要不要允許</span>。主帳號（固定網址＋你的密碼）、臨時帳號、臨時網址可以各自選：</p>

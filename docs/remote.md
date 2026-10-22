@@ -46,7 +46,7 @@ remote menu are simply left out.
   Ctrl+D 中斷連線 for AirPlay waits until it ends). The PC does not sleep while connected.
 - 僅觀看 drops every input message on the PC side. Idle (no touch) for 30 minutes (setting)
   ends the session. Every request is logged with the peer IP.
-- Not possible (UIPI): elevated windows, UAC, lock screen, Ctrl+Alt+Del.
+- Not possible (UIPI): elevated windows, UAC, lock screen, Ctrl+Alt+Del (0.8.4: the phone is told once per window; why no elevated helper: "0.8.4 系統管理員視窗" below).
 
 ## Protocol (page <-> PC)
 
@@ -537,7 +537,7 @@ phone stays 直接點. A 統計 button on the phone bar.
 
 Before a click / key the PC checks the target (window under the pointer / foreground window) integrity level
 against its own, and the input desktop; the page says 「這個視窗是系統管理員權限，遠端點不到；請用一般權限開，或用
-系統管理員權限開自在投影」 (`blocked{why: admin|secure|sas, app}`, once per 3 s per program).
+系統管理員權限開自在投影」 (`blocked{why: admin|secure|sas, app}`, once per 3 s per program; 0.8.4: once per window, new words, see "0.8.4 系統管理員視窗").
 
 ### Protocol added
 
@@ -624,3 +624,34 @@ password; `remote_fixed_approval` is still written (= not 只用密碼) for olde
 - Tests: the old app end-to-end tests (`app_remote_test`, `app_guest_test`, `app083_test`, `app0832_test`,
   `app0833_test`) now use chrome-headless-shell (quiet_browser.mjs) with `PM_REMOTE_SYNTHAUDIO=quiet`;
   `auth0836_test` follows a quality change inside the connection with `connect('switch')` (the path it checks).
+
+## 0.8.4 系統管理員視窗 (feat-084-uipi)
+
+Evidence: the owner's log has 248 `SendInput failed (blocked by UIPI?` lines, all 0.7.12, 2026-10-20 22:57:46 to
+22:58:00 (an iPhone through the 免安裝外網 link), one per refused pointer move; then ten taps at the same point
+within 5 s and the page went to the background. 0.7.12 did not log which window; 0.8.3.5+ sessions since have
+no refusals.
+
+- Once per window: `InputInjector::notice` keys a notice by program + pid + top-level window for the same phone
+  (`resetNotices(device)`: a new phone hears them afresh, the same phone reconnecting does not); the secure
+  desktop once per visit; Ctrl+Alt+Del on every press. A SendInput refused with ERROR_ACCESS_DENIED looks up the
+  foreground window and goes through the same notice; the log keeps the first line of a run + "N more".
+- `blocked{why, app, win}`; the page keeps `why|win|app` for the tab (sessionStorage). `uipiAdmin` (4 languages)
+  names the program, says Windows blocks remote clicks and typing, and what to do at the PC.
+- Not built: 「允許操控系統管理員視窗」 (an elevated input helper started by a 以最高權限執行 scheduled task,
+  commanded over a named pipe). 自在投影 installs per user (`PrivilegesRequired=lowest`, in a folder the user can
+  write) and unsigned, so "only this program may send" cannot be checked: any program of the same user can
+  replace / patch / inject into ZizaiCast.exe and then drive any administrator window through the helper (for
+  example Task Manager, which starts elevated without a prompt, ▸ 執行新工作 ▸ 以系統管理員權限建立) = a silent
+  UAC bypass while the switch is on, also for a remote login whose password leaked. A safe version needs the
+  privileged side to authenticate the remote peer itself (a per-machine, signed service or a signed uiAccess
+  binary in Program Files). Ctrl+Alt+Del needs `SendSAS` from a SYSTEM service or a uiAccess process plus the
+  SoftwareSASGeneration policy, and the Winlogon desktop it opens cannot be captured from the user's session:
+  an elevated helper would not solve it either.
+- Tests: `pm_input_test` (45: once per window, second window, secure desktop again, same / new phone, 248
+  stub-refused moves -> 1 notice + 1 log line, the real look-up from a LOW-integrity copy of the test against the
+  test's own never-shown WS_EX_TOOLWINDOW window); `node remote/tools/pcmouse0835_test.mjs <spike> <out> --only uipi
+  --inject-stub-elevated regedit.exe [--shots <dir>] [--lang N]` (the stubbed program has two windows: left / right
+  half of the screen).
+- Not verified: a real administrator window at medium integrity on the owner's PC (needs a UAC prompt), a real
+  phone.
