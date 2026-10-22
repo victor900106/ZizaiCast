@@ -12,8 +12,9 @@
 // (own throw-away profile) as the phone, through the LAN address. Checks the
 // whole flow: turn on -> QR panel -> new phone asks -> 允許 + 記住 -> picture ->
 // banner -> 僅觀看 -> 中斷 (kick) -> asks again -> 拒絕 -> off -> on again ->
-// the remembered phone goes straight in -> quit. Closes only what it started.
+// 0.8.3.6: 中斷 / 拒絕 took the phone off the 記住 list: it asks again -> 允許 -> quit. Closes only what it started.
 import {spawn, execFileSync} from 'node:child_process';
+import {headlessShell} from './quiet_browser.mjs';  // rel-0836: chrome-headless-shell (no window, no Alt+Tab entry), not Edge / Chrome --headless=new
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -40,7 +41,7 @@ const appLog = path.join(dataDir, 'phonemirror.log');
 const readLog = () => { try { return fs.readFileSync(appLog, 'utf8'); } catch { return ''; } };
 
 const app = spawn(exe, ['--dev', '--test-offscreen', '--test-no-network'], {
-  stdio: 'ignore', env: {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote081', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: noTs || loopback ? '1' : '0', PM_REMOTE_LOOPBACK: loopback ? '1' : '0'}});
+  stdio: 'ignore', env: {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote081', PM_REMOTE_DRYRUN: '1', PM_REMOTE_SYNTHAUDIO: 'quiet', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: noTs || loopback ? '1' : '0', PM_REMOTE_LOOPBACK: loopback ? '1' : '0'}});
 log('app pid', app.pid);
 const dev = (cmd, lp = 0, wait = 600) => {
   try { execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', devCmdPs1, '-ProcessId', String(app.pid), '-Cmd', String(cmd), '-Lp', String(lp), '-Wait', String(wait)], {stdio: 'pipe'}); }
@@ -74,9 +75,9 @@ try {
 
   // ---- the phone (headless Edge, own profile) ----
   const cdpPort = 9400 + Math.floor(Math.random() * 400);
-  edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run', '--no-default-browser-check', '--disable-extensions',
-     ...(loopback ? ['--allow-loopback-in-peer-connection'] : []), '--headless=new', 'about:blank'], {stdio: 'ignore'});
+  edge = spawn(headlessShell(),
+    ['--mute-audio', `--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run', '--no-default-browser-check', '--disable-extensions',
+     ...(loopback ? ['--allow-loopback-in-peer-connection'] : []), 'about:blank'], {stdio: 'ignore', windowsHide: true});
   let ver;
   for (let i = 0; i < 50 && !ver; i++) { await sleep(200); try { ver = await (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).json(); } catch {} }
   ws = new WebSocket(ver.webSocketDebuggerUrl);
@@ -157,13 +158,15 @@ try {
   // turn off: the page is told
   dev(330, 0, 1500);
   results.offLogged = await waitLog(/remote: off/);
-  // on again: the remembered phone goes straight in (no dialog)
-  const asksBefore = (readLog().match(/asks to connect/g) || []).length;
+  // on again: 0.8.3.6: 中斷 and 拒絕 took it off the 記住 list (remote_devices.txt), so it asks again; 允許
+  const asksBefore = (readLog().match(/\[info\] remote: .* asks to connect/g) || []).length;
+  results.forgottenOnKick = /remote: 中斷 on the PC: \S+ no longer remembered/.test(readLog()) && !fs.existsSync(path.join(dataDir, 'remote_devices.txt'));
   dev(330, 0, 2000);
   await sleep(500);
   await evalJs('retry()');
+  results.askedAfterForget = await until(async () => (await state()) === 'pending', 10000) && (readLog().match(/\[info\] remote: .* asks to connect/g) || []).length === asksBefore + 1;
+  dev(961, 1, 800);
   results.rememberedStraightIn = await until(playing, 20000);
-  results.noNewAsk = (readLog().match(/asks to connect/g) || []).length === asksBefore;
   await shot('phone-6-remembered.png');
   results.panelClosedAgain = (readLog().match(/QR panel closed \(a phone is connected\)/g) || []).length >= 2;
   dev(960, 0, 1000);
@@ -228,7 +231,7 @@ for (let i = 0; i < 100 && app.exitCode === null; i++) await sleep(100);
 results.appExited = app.exitCode !== null;
 for (const p of [edge, app]) if (p && p.exitCode === null) { try { execFileSync('taskkill', ['/PID', String(p.pid), '/T', '/F'], {stdio: 'ignore'}); log('killed own', p.pid); } catch {} }
 const mine = () => { try { return execFileSync('powershell', ['-NoProfile', '-Command',
-  `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -and (Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue | Where-Object { -not $_.HasExited }) -and $_.CommandLine.Contains('${profileDir}') } | ForEach-Object { $_.ProcessId }`],
+  `Get-CimInstance Win32_Process -Filter "Name='chrome-headless-shell.exe'" | Where-Object { $_.CommandLine -and (Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue | Where-Object { -not $_.HasExited }) -and $_.CommandLine.Contains('${profileDir}') } | ForEach-Object { $_.ProcessId }`],
   {encoding: 'utf8'}).split(/\s+/).filter(Boolean).map(Number); } catch { return []; } };
 let left = mine();
 for (let i = 0; i < 20 && left.length; i++) { await sleep(1000); left = mine(); }
@@ -250,7 +253,8 @@ const checks = [
   ['after 中斷 the phone is asked again', results.askedAgain === true],
   ['拒絕 shown on the phone', results.deniedOnPhone === true],
   ['turned off', results.offLogged === true],
-  ['remembered phone goes straight in after on again', results.rememberedStraightIn === true && results.noNewAsk === true],
+  ['0.8.3.6 中斷 took the phone off the 記住 list (remote_devices.txt gone)', results.forgottenOnKick === true],
+  ['0.8.3.6 ... so after on again it asks 允許 again, then plays', results.askedAfterForget === true && results.rememberedStraightIn === true],
   ['0.8.1 QR panel closes when the phone connects (both times)', results.panelClosed === true && results.panelClosedAgain === true],
   ['0.8.1 menu 關閉 right after a phone click: refused', results.menuAfterClickRefused === true],
   ['0.8.1 phone-tagged clicks refused: banner 中斷/僅觀看, menu, QR panel 關閉遠端操控',

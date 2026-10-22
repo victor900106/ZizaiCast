@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.3.5)
+set(PM_APP_VERSION 0.8.3.6)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -231,6 +231,13 @@ target_compile_definitions(pm_update_test PRIVATE UNICODE _UNICODE)
 add_executable(pm_lock_default_test tools/pm_lock_default_test.cpp core/base/settings.h remote/lock_policy.h)
 target_link_libraries(pm_lock_default_test PRIVATE pm_app_config)
 target_compile_options(pm_lock_default_test PRIVATE /utf-8)
+
+# pm_auth_policy_test (0.8.3.6): 連線時要不要允許 -- settings.ini (old / new / every combination), the 記住 list
+# (remembered_devices.h: scopes, every clearing rule) and where remote_actions.cpp uses them; no window / network.
+add_executable(pm_auth_policy_test tools/pm_auth_policy_test.cpp core/base/settings.h remote/remembered_devices.h)
+target_link_libraries(pm_auth_policy_test PRIVATE pm_app_config)
+target_compile_definitions(pm_auth_policy_test PRIVATE PM_APP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_options(pm_auth_policy_test PRIVATE /utf-8)
 
 # pm_panel_anim_test: the panels' open / close fades, hover / press and the
 # QR reveal (ui_anim.h), off the desktop; frame PNGs + PASS / FAIL.

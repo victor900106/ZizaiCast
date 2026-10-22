@@ -554,3 +554,73 @@ Page: `kd{k} ku{k} kh rel{dx,dy} cursor{local}`, `down/up{b: 0-4}`, optional `ts
 
 Not verified: a real elevated window (UAC), a real browser on another PC / a real phone, Safari / Firefox
 (keyboard lock absent: simulated), IMEs other than the CDP composition (注音 / Japanese simulated).
+## 0.8.3.6 連線時要不要允許 (feat-0836-auth)
+
+進階設定 ▸ 連線時要不要允許 (also in 遠端操控 ▸; replaces 外面的新手機也要電腦按允許 ✓): one choice for each way in
+from outside. LAN / Tailscale are unchanged (允許, with 記住這支手機).
+
+| | 每次問 | 記住這台裝置 | 只用密碼 |
+|---|---|---|---|
+| 主帳號 (fixed address + password) | 允許 the first time this run | + 記住 box; remembered = straight in | default (as before) |
+| 臨時帳號 | default | + 記住 box for that account only | the account's password is enough |
+| 臨時網址 | default | + 記住 box for the temporary address | link + 通行碼 are enough |
+
+Every column keeps 0.8.3.5's "the same phone with the same login goes back in while this run lasts" (切換畫質 /
+切換螢幕 / reconnects). 中斷 always asks once more, whatever the policy. A 0.8.3.5 settings.ini: the 主帳號 follows
+`remote_fixed_approval` (on = 記住這台裝置, off = 只用密碼); `remote_policy_fixed / _guest / _temp` = ask | remember |
+password; `remote_fixed_approval` is still written (= not 只用密碼) for older versions.
+
+- Host: `ApprovalPolicies` (Options::policies, `Host::setApprovalPolicies`), one rule `admitWithoutAsking`
+  (`remote/src/approval_memory.h`); the 記住 list is asked per scope (`approvalScope`: `lan`, `fixed`, `guest:<id>`,
+  `temp`) and only where it counts; `Peer::policy` / `Peer::admit` (allowed, allowed-remember, same-login, this-run,
+  remembered, password) go into the 連線紀錄 (6th column, shown as 「每次問 · 你按了允許」 etc.).
+- App: `app/remote/remembered_devices.h` = `remote_devices.txt` "<device id>\t<label>\t<date>\t<scope>" (old lines =
+  `lan`; `lan` and `fixed` count for each other). The device id is the page's own random id (16 crypto-random bytes
+  in that browser's storage), never an IP address. Cleared: 拒絕 and 中斷 (that device, every scope), a 臨時帳號
+  重設密碼 / deleted / expired / used up (its scope), the 主帳號 password changed (`fixed`), one row / 全部忘記 in
+  已記住的手機 ▸ (each row says where it was remembered).
+- Tests: `pm_approval_test` (defaults = 0.8.3.5 in all 120 fact combinations; 3 ways x 3 policies),
+  `pm_auth_policy_test`, `node tools/app_auth0836_test.mjs <app> <out>`, `node remote/tools/auth0836_test.mjs
+  <spike> <out>`, pictures: `node tools/shots_0836_auth.mjs <app> <out> before|after`.
+
+## 0.8.3.6 影像 (feat-0836-video), 登入頁 (feat-0836-login), rel-0836
+
+### 影像
+- 每秒畫面 30 / 60 / 120 (phone settings, `fps0836`, default 60); the PC caps it at its screen's refresh rate
+  (EnumDisplaySettings) and says so in the row; H.264 up to level 5.2 (3440x1440 at 120 is shrunk to 3234x1352);
+  bitrate x1.5 at 120, x0.75 at 30.
+- 解析度跟手機一樣 (`phoneRes0836`): the page sends its screen in pixels (long side first, `fit`), the PC shrinks the
+  picture to fit (never above the chosen preset), bitrate by the square root of the pixel count. rel-0836 (owner):
+  **on by default on a touch screen** (`(pointer: coarse)`: phones / tablets), off in a PC browser; a choice made by
+  hand is kept (measured on the synthetic desktop, 3440x1440 to an emulated iPhone: 47 -> 55 fps shown, p95
+  capture -> shown 26 -> 17 ms, -27 % bitrate).
+- Inside the same connection: `{"t":"quality"}` (DataChannel / tunnel WebSocket) for 畫質, 每秒畫面, 解析度跟手機一樣,
+  the screen and the automatic steps; a new size rebuilds only the scaler + encoder (gap 417-483 -> 67 ms). Beyond
+  the offer's level the PC answers `reconnect` and the page uses `connect('switch')` (no 允許 again: 0.8.3.5); no
+  answer in 3 s (an older PC) does the same. 臨時降畫質 (picture received but not decoded) still reconnects.
+- Pacing: frames on a fixed beat, waits on `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` (Windows 11 ignores
+  `timeBeginPeriod(1)` for a process without a visible window: `Sleep(1)` was 15.6 ms, the cause of iPhone's 42-47
+  fps). Stats: `pace / beat late / submit`, `cap N/M fps (H Hz)`.
+- Tools: `remote/tools/video0836_bench.mjs <spike> <out.json> [--set after] [--only ...] [--secs N]` (synthetic
+  desktop, loopback, one chrome-headless-shell), `phone_shots_0836v.mjs`.
+
+### 登入頁
+- `remote/web/index.html`: a self-contained `<style id="palsCss">` + script before `window.PM` (投投 + three pink
+  friends, inline SVG, nothing loaded): eyes follow the pointer / touch, look away while the password is typed, peek
+  at 顯示密碼, sad + shake on a wrong password, a face for a lock, happy on success; reduced-motion = faces only; no
+  loop when idle; reads only whether a field is empty. Three hooks: `PALS.happy()` / `PALS.fail(j)` in submitPw and
+  the 6-digit passcode path. Test: `node remote/tools/login_pals_test.mjs <out> after`.
+
+### rel-0836 merge and small fixes
+- Merged video -> auth -> login without conflicts (git's own merge); kept both: the session request notes the
+  picture wishes (`noteStreamAsk`) right before the policy check (`admitWithoutAsking`); a reload while 允許 is open
+  now also carries fps / fit / top to the pending session (glue).
+- 改用觸控板 / 改用直接點 (the mode card, 設定 ▸ 操作方式) is followed by how the new mode works (`mhNowTrack` /
+  `mhNowDirect`); the one-time hints (Tailscale, 加入主畫面, 把手機橫放) wait while the card or that toast is shown.
+- 允許 dialog: 記住這台裝置，下次不用再問 (was 記住這支手機; a PC browser sees it too), ja この端末を記憶…, ko 이 기기를 기억….
+- 固定網址 phone default quality stays 流暢 (q0): there is no 自動 preset; 自動調整畫質 only steps down from the chosen
+  preset and back up to it (never above), and it starts at that preset's full bitrate, so a higher default would
+  start at full bandwidth on a phone's mobile data.
+- Tests: the old app end-to-end tests (`app_remote_test`, `app_guest_test`, `app083_test`, `app0832_test`,
+  `app0833_test`) now use chrome-headless-shell (quiet_browser.mjs) with `PM_REMOTE_SYNTHAUDIO=quiet`;
+  `auth0836_test` follows a quality change inside the connection with `connect('switch')` (the path it checks).

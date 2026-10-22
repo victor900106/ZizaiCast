@@ -8,6 +8,7 @@
 // "TEST STUB"). A headless Edge (own throw-away profile) is the phone. Nothing is shown,
 // played or typed; only the processes started here are closed.
 import {spawn, execFileSync} from 'node:child_process';
+import {headlessShell} from './quiet_browser.mjs';  // rel-0836: chrome-headless-shell (no window, no Alt+Tab entry), not Edge / Chrome --headless=new
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -35,7 +36,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.ini'),
 fs.writeFileSync(path.join(dataDir, 'remote_connections.log'), ('2026-01-01 00:00:00\tlan\t10.0.*.*\told phone\tok\n').repeat(1500));
 const appLog = path.join(dataDir, 'phonemirror.log');
 const readLog = () => { try { return fs.readFileSync(appLog, 'utf8'); } catch { return ''; } };
-const env = {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote083app', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: '1',
+const env = {...process.env, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'remote083app', PM_REMOTE_DRYRUN: '1', PM_REMOTE_SYNTHAUDIO: 'quiet', PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: '1', PM_REMOTE_LOOPBACK: '1',
              PM_REMOTE_FUNNELFAKE: 'https://example-pc.example-tailnet.ts.net:8443/'};
 let app = null;
 const dev = (cmd, lp = 0, wait = 600) => { try { execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', devCmdPs1, '-ProcessId', String(app.pid), '-Cmd', String(cmd), '-Lp', String(lp), '-Wait', String(wait)], {stdio: 'pipe'}); } catch {} };
@@ -68,8 +69,8 @@ let edge = null, ws = null, nextId = 1;
 const pend = new Map();
 const cdp = (method, params = {}, sessionId) => new Promise(r => { const i = nextId++; pend.set(i, r); ws.send(JSON.stringify({id: i, method, params, ...(sessionId ? {sessionId} : {})})); });
 async function startEdge() {
-  edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run',
-    '--headless=new', '--mute-audio', 'about:blank'], {stdio: 'ignore'});
+  edge = spawn(headlessShell(), ['--mute-audio', `--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run',
+    '--allow-loopback-in-peer-connection', 'about:blank'], {stdio: 'ignore', windowsHide: true});
   let ver;
   for (let i = 0; i < 60 && !ver; i++) { await sleep(200); try { ver = await (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).json(); } catch {} }
   ws = new WebSocket(ver.webSocketDebuggerUrl);

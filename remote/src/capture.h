@@ -32,6 +32,7 @@ struct MonitorDesc {
     std::wstring device;  // \\.\DISPLAY2
     RECT rect{};
     bool primary = false;
+    int hz = 0;  // 0.8.3.6: its refresh rate now (EnumDisplaySettings; 0 = unknown)
 };
 std::vector<MonitorDesc> enumMonitors();
 
@@ -39,18 +40,26 @@ class DesktopCapture {
 public:
     // Test scenes (reproducible measurements, independent of what is on the
     // owner's screen): Static = the first desktop image frozen; Motion = the
-    // frozen image panned every frame (whole-frame motion, like scrolling).
-    enum class Scene { Desktop, Static, Motion };
+    // frozen image panned every frame (whole-frame motion, like scrolling); Synth (0.8.3.6) = a
+    // made-up desktop (windows, text, a photo; never this PC's screen) panned like Motion.
+    enum class Scene { Desktop, Static, Motion, Synth };
     struct Options {
         int maxWidth = 1280, maxHeight = 720;  // output fits inside, aspect kept, even sizes
         bool drawCursor = true;
         Scene scene = Scene::Desktop;
         int poolSize = 6;
         int monitor = 0;  // index into enumMonitors() (0 = primary); out of range = primary
+        // 0.8.3.6: the exact stream size (even, at most the desktop's); 0 = fit inside maxWidth x maxHeight.
+        // The host plans it (picture preset, 解析度跟手機一樣, the H.264 level at the frame rate).
+        int outWidth = 0, outHeight = 0;
     };
     ~DesktopCapture();
     bool open(const Options& o);
     void close();
+    // 0.8.3.6: a new stream size on the same monitor: only the scaler and its pool textures are made
+    // again (the device, the duplication and the pointer shaders stay; measured 350 -> a few ms).
+    // The encoder holds pool textures: close it first. False: open() again.
+    bool setOutputSize(int w, int h);
 
     // Waits up to timeoutMs for a desktop update. changed = new image or
     // pointer moved / changed shape since the last render(). False only on a
@@ -76,6 +85,12 @@ public:
     std::string adapterName() const { return adapter_; }
     int busySlots() const;
     bool stampOnGpu() const { return stampGpu_; }  // false: caller draws the stamp after readback
+    // 0.8.3.6: the waits between polls: a high-resolution waitable timer (true) or Sleep(1) (false, A / B).
+    // Windows 11 ignores timeBeginPeriod(1) for a process without a visible window (the app in the tray,
+    // the spike): Sleep(1) then lasts up to 15.6 ms and frames leave up to a whole slot late.
+    void setPreciseWait(bool on) { preciseWait_ = on; }
+    // Sleeps about us microseconds (the high-resolution timer when there is one).
+    void waitUs(int64_t us);
     // 0.8.3.5: a PC browser draws the pointer itself (no lag, no double pointer): leave it out of
     // the picture while set. Any thread.
     void setHideCursor(bool hide) { hideCursor_ = hide; }
@@ -122,6 +137,8 @@ private:
     int ptrX_ = 0, ptrY_ = 0;
     bool ptrVisible_ = false;
     std::atomic<bool> hideCursor_{false};
+    HANDLE waitTimer_ = nullptr;  // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION (0.8.3.6)
+    bool preciseWait_ = true;
     bool hideApplied_ = false;  // capture thread
     std::vector<uint8_t> shapeBuf_;
 

@@ -95,7 +95,7 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   At home (same Wi-Fi):
     1. Turn it on in the "Remote control" tab and open the "Same Wi-Fi" page: a QR code appears.
     2. Phone on the same Wi-Fi: scan the QR code with the camera.
-    3. The PC asks "A phone wants to control this PC" -> click "Allow" only for your own phone (tick "Remember this phone" to skip it next time).
+    3. The PC asks "A phone wants to control this PC" -> click "Allow" only for your own phone (tick "Remember this device" to skip it next time).
     4. Tap "Tap for sound" on the phone (or the speaker labelled "Sound on" at the bottom right) to hear the PC.
 
   Away (for you): fixed address + a password you choose (the address never changes; nothing on the phone; Tailscale on the PC)
@@ -116,7 +116,7 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
        iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "⋮" -> "Add to Home screen".
     5 wrong passwords in a row lock sign-in for 15 minutes. With HTTPS on, the PC's name appears in public certificate logs: rename it first if it is your real name.
   Away (Tailscale on the phone too): same account on both, scan the QR code on the "Away: Tailscale" card; no password, no Funnel.
-  Lend it to a friend (both ways alike: the first time your friend connects after signing in, someone at the PC clicks "Allow"; it can't
+  Lend it to a friend (both ways alike: the first time your friend connects after signing in, someone at the PC clicks "Allow"; by default it can't
   be remembered. Then the same phone with the same account or address is not asked again for a quality / screen switch, a reconnect
   or a reload; after "Deny", "End", or once the account expires or is deleted, it is asked again):
     - Temporary account (recommended; the fixed address must be on): "Allow remote control" -> "Add a temporary account", pick
@@ -126,12 +126,20 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
     - Temporary address: without a fixed address "Create a temporary address"; with one, "More settings" -> "Temporary address (no app
       on the phone ...)". After 10-20 s a QR code and a 6-digit passcode appear. "Copy address" and send it (works once, within
       10 minutes), tell the passcode separately. "Stop the temporary address" when done.
+  Ask before someone connects ("More settings"): your account, guest accounts and the temporary address each get "Ask every time",
+    "Remember this device" or "Password only" (defaults: your account unchanged, guest accounts and the temporary address ask every time).
+    Memories are kept per place (home / fixed address / each guest account / temporary address); Deny, End, a deleted or expired
+    guest account, a password reset or a new main password forget them. "Remembered phones" removes one or all.
+    Home Wi-Fi and Tailscale always need Allow (you can tick Remember).
 
   Control on the phone (Settings -> Control):
     - Direct (default): your finger clicks where it touches; hold half a second = right click; hold and move = drag.
     - Trackpad: slide to move the pointer, tap = left click, two-finger tap = right click, two fingers = scroll.
     Pinch = zoom, three-finger tap = keyboard. In Trackpad mode a big arrow (pink ring) shows where the PC pointer is.
     The bottom-right buttons: Sound on, Zoom, Files (grey when files are off: a tap says why), Keyboard, Stats, Settings.
+    Picture rows in Settings: Picture (Smooth / Standard / Sharp), Frame rate (30 / 60 / 120, 60 by default, at most the PC screen's
+    refresh rate), Match the phone's resolution (on by default on phones and tablets, off in a computer's browser). They change
+    inside the same connection: no black flash.
 
   From another computer's browser (same address): every mouse button, the wheel and dragging work, a click lands where you point;
     you type with that computer's input method, shortcuts go to the remote PC. Mouse to the top = the bar: Full screen (hold Esc to

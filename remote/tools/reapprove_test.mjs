@@ -72,16 +72,21 @@ async function run(tag, extra, guests, body) {
     return !!(await waitFor(() => t.ev('window.__pmFirstFrame ? 1 : 0'), 25000));
   }
   // The picture again after a new session: a new session id, connected, and whether it waited for 允許.
+  // 0.8.3.6: or, for a picture change (applyStream), the PC's answer inside the same connection.
   async function again(t, action, ms = 20000) {
     const before = await t.ev('sessId');
-    let waited = false;
+    const askBefore = await t.ev(`typeof streamAskId === 'number' ? streamAskId : 0`);
+    let waited = false, how = '';
     await t.ev(`(() => { ${action}; return 1; })()`);
     const ok = await waitFor(async () => {
-      const st = await t.ev(`({id: sessId, st: S.state, pc: pc ? pc.connectionState : ''})`);
+      const st = await t.ev(`({id: sessId, st: S.state, pc: pc ? pc.connectionState : '', ask: typeof streamAskId === 'number' ? streamAskId : 0,
+        ans: S.stream ? S.stream.id : 0, ansOk: !!(S.stream && S.stream.ok)})`);
       if (st && st.st === 'pending') waited = true;
-      return st && st.id && st.id !== before && st.pc === 'connected';
+      if (st && st.id && st.id !== before && st.pc === 'connected') { how = 'new session'; return true; }
+      if (st && st.id === before && st.ask > askBefore && st.ans === st.ask && st.ansOk && st.pc === 'connected') { how = 'same connection'; return true; }
+      return false;
     }, ms);
-    return {ok: !!ok, waited};
+    return {ok: !!ok, waited, how};
   }
   // The login form (again): the password, then the picture; whether it waited for 允許 on the way.
   async function relogin(t, pw, ms = 25000) {
@@ -122,7 +127,7 @@ await run('switches', [], [`g-ctl:${GC}:3600:control`], async ({login, again, re
   ];
   for (const [name, js] of steps) {
     const r = await again(t, js);
-    check(`臨時帳號 ${name}: connected again without 允許`, r.ok && !r.waited && requests() === 1, `connected ${r.ok}, waited ${r.waited}, requests ${requests()}`);
+    check(`臨時帳號 ${name}: connected again without 允許`, r.ok && !r.waited && requests() === 1, `connected ${r.ok} (${r.how}), waited ${r.waited}, requests ${requests()}`);
   }
   // rel-0835: the PC bar's 檔案 for a 臨時帳號 without 傳檔: greyed, its tooltip and a click say why, no sheet
   const pf = await t.ev(`(() => { syncPcbar(); return {off: $('pbFile').classList.contains('off'), dis: $('pbFile').getAttribute('aria-disabled'), title: $('pbFile').title, want: t('filesNoGuest'), phoneOff: $('bFile').classList.contains('off')}; })()`);

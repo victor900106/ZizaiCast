@@ -48,6 +48,8 @@ try {
       const {targetId} = await C.cdp('Target.createTarget', {url: 'about:blank'});
       const {sessionId} = await C.cdp('Target.attachToTarget', {targetId, flatten: true});
       await C.cdp('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 3, mobile: true}, sessionId);
+      // rel-0836: a touch screen, as a phone is ((pointer: coarse): 解析度跟手機一樣 shows its phone default, on)
+      await C.cdp('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5}, sessionId);
       await C.cdp('Page.navigate', {url: 'file:///' + path.join(dir, 'index.html').replace(/\\/g, '/')}, sessionId);
       await sleep(2000);
       // the settings sheet over whatever the page shows without a PC, scrolled to the sound rows; after:

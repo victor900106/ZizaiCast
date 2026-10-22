@@ -8,6 +8,7 @@
 // 連線紀錄 names the account; the 用一次 account is gone after its session; 刪除 on the PC ends the other
 // one's session at once; no window on any monitor.
 import {spawn, execFileSync} from 'node:child_process';
+import {headlessShell} from './quiet_browser.mjs';  // rel-0836: chrome-headless-shell (no window, no Alt+Tab entry), not Edge / Chrome --headless=new
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -35,7 +36,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.ini'),
   `[settings]\nlanguage=zh-TW\nremote_port=${port}\ntutorial_shown=1\ntray_hint_shown=1\nclose_hint_shown=1\ntoolbar_hint_shown=1\n` +
   `whats_new_seen=0.8.3\nidle_tab=remote\nremote_persistent=1\nremote_pw_hash=${pwHash}\nremote_fixed_secret=${crypto.randomBytes(32).toString('hex')}\n`);
 const copyFile = path.join(tmpDir, 'copy.txt');
-const env = {...process.env, TEMP: tmpDir, TMP: tmpDir, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'guest0832app', PM_REMOTE_DRYRUN: '1', PM_REMOTE_TESTCLIP: '1',
+const env = {...process.env, TEMP: tmpDir, TMP: tmpDir, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'guest0832app', PM_REMOTE_DRYRUN: '1', PM_REMOTE_SYNTHAUDIO: 'quiet', PM_REMOTE_TESTCLIP: '1',
   PM_REMOTE_NOTS: '1', PM_REMOTE_LOOPBACK: '1', PM_REMOTE_FUNNELFAKE: 'https://example-pc.example.ts.net:8443/', PM_TEST_GUEST_OUT: copyFile};
 const readLog = () => { try { return fs.readFileSync(path.join(dataDir, 'phonemirror.log'), 'utf8'); } catch { return ''; } };
 const waitLog = async (re, ms) => { const end = Date.now() + ms; while (Date.now() < end) { const m = readLog().match(re); if (m) return m; await sleep(150); } return null; };
@@ -67,7 +68,7 @@ async function makeGuest(lp) {
   try { fs.rmSync(copyFile); } catch {}
   dev(C.GuestNew, 0, 1000); dev(981, lp | 16, 1500); dev(983, 0, 600); dev(984, 0, 600);
   const t = fs.existsSync(copyFile) ? fs.readFileSync(copyFile, 'utf8') : '';
-  const name = (t.match(/帳號：(\S+)/) || [])[1], pw = (t.match(/密碼：(\S+)/) || [])[1];
+  const name = (t.match(/帳號：([^\s（(]+)/) || [])[1], pw = (t.match(/密碼：([^\s（(]+)/) || [])[1];  // rel-0836: 0.8.3.3+ adds （打開網址就已填好）
   return {name, pw};
 }
 
@@ -78,8 +79,8 @@ let edge = null, ws = null, nextId = 1;
 const pend = new Map();
 const cdp = (method, params = {}, sessionId) => new Promise(r => { const i = nextId++; pend.set(i, r); ws.send(JSON.stringify({id: i, method, params, ...(sessionId ? {sessionId} : {})})); });
 async function startEdge() {
-  edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [`--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run',
-    '--headless=new', '--mute-audio', '--allow-loopback-in-peer-connection', 'about:blank'], {stdio: 'ignore', windowsHide: true});
+  edge = spawn(headlessShell(), ['--mute-audio', `--user-data-dir=${profileDir}`, `--remote-debugging-port=${cdpPort}`, '--no-first-run',
+    '--allow-loopback-in-peer-connection', 'about:blank'], {stdio: 'ignore', windowsHide: true});
   let ver;
   for (let i = 0; i < 60 && !ver; i++) { await sleep(200); try { ver = await (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).json(); } catch {} }
   ws = new WebSocket(ver.webSocketDebuggerUrl);
@@ -98,7 +99,8 @@ const waitFor = async (fn, ms) => { for (let t = 0; t < ms; t += 200) { const v 
 // The phone logs in with the account; the PC answers 允許 (how: 1 allow, 3 allow + 記住) when asked.
 async function guestSession(g, how) {
   await cdp('Storage.clearDataForOrigin', {origin: `http://127.0.0.2:${port}`, storageTypes: 'local_storage'});
-  const t = await tab(`http://127.0.0.2:${port}/`);
+  // rel-0836: since 0.8.3.3 the account comes with the address (#u=, as 複製全部 gives it); the user box alone is not read
+  const t = await tab(`http://127.0.0.2:${port}/#u=${encodeURIComponent(g.name)}`);
   await waitFor(() => t.ev(`$('pass').style.display === 'flex'`), 8000);
   await t.ev(`(() => { $('userIn').value = ${JSON.stringify(g.name)}; $('passIn').value = ${JSON.stringify(g.pw)}; submitPass(); return 1; })()`);
   const asked = await waitLog(new RegExp(`asks to connect`), 10000);

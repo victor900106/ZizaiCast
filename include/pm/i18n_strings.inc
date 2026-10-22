@@ -857,7 +857,7 @@ PM_STR(RemoteAskViaTs, L"{0}（Tailscale，外面）", L"{0} (Tailscale, outside
 PM_STR(RemoteAskViaLan, L"{0}（同一個 Wi-Fi）", L"{0} (same Wi-Fi)")
 PM_STR(RemoteAllow, L"允許", L"Allow")
 PM_STR(RemoteDeny, L"拒絕", L"Deny")
-PM_STR(RemoteRemember, L"記住這支手機，下次不用再問", L"Remember this phone, don't ask again")
+PM_STR(RemoteRemember, L"記住這台裝置，下次不用再問", L"Remember this device, don't ask again")  // 0.8.3.6: the same words as 記住這台裝置 (a PC browser sees it too)
 PM_STR(RemoteBanner, L"正在被遠端控制 · {0}", L"Remote control in progress · {0}")
 PM_STR(RemoteBannerView, L"正在被遠端觀看 · {0}", L"Being viewed remotely · {0}")
 PM_STR(RemoteBannerViewOnly, L"僅觀看", L"View only")
@@ -1201,3 +1201,37 @@ PM_STR(MenuRemoteFixedOn, L"固定網址（在外面也能連）", L"Fixed addre
 PM_STR(RemoteGuestFilesCan0835, L"可以傳檔（手機和電腦互傳）", L"Can transfer files (phone and PC, both ways)")
 PM_STR(RemoteGuestFilesViewOff0835, L"僅觀看時不能傳檔", L"No file transfer in View only")
 // ---- end 0.8.3.5 files ----
+
+// ---- 0.8.3.6 auth ----
+// 連線時要不要允許 ▸ (遠端操控 ▸ / 進階設定): per way in from outside; LAN / Tailscale unchanged
+PM_STR(MenuRemotePolicy0836, L"連線時要不要允許", L"Ask before someone connects")
+PM_STR(RemotePolicyHint0836, L"別人從外面連進來時，電腦要不要先問你", L"When someone connects from outside, should the PC ask you first?")
+PM_STR(RemotePolicyWayFixed0836, L"主帳號（固定網址＋你的密碼）", L"Your account (fixed address + your password)")
+PM_STR(RemotePolicyWayGuest0836, L"臨時帳號", L"Guest accounts")
+PM_STR(RemotePolicyWayTemp0836, L"臨時網址", L"Temporary address")
+PM_STR(RemotePolicyAsk0836, L"每次問", L"Ask every time")
+PM_STR(RemotePolicyRemember0836, L"記住這台裝置（允許時可勾「記住」）", L"Remember this device (tick “Remember” when you allow)")
+PM_STR(RemotePolicyPassword0836, L"只用密碼（密碼對就直接連）", L"Password only (right password = straight in)")
+PM_STR(RemotePolicyPasscode0836, L"只用通行碼（網址和通行碼對就直接連）", L"Passcode only (right link and passcode = straight in)")
+PM_STR(RemotePolicyLanNote0836, L"在家 Wi-Fi 和 Tailscale：一律要按允許（可勾記住）", L"Home Wi-Fi and Tailscale: always Allow (you can tick Remember)")
+PM_STR(RemotePolicyToast0836, L"{0}：改成「{1}」", L"{0}: now “{1}”")
+PM_STR(RemotePolicyAskShort0836, L"每次問", L"Ask")
+PM_STR(RemotePolicyRememberShort0836, L"記住這台裝置", L"Remember device")
+PM_STR(RemotePolicyPasswordShort0836, L"只用密碼", L"Password only")
+// 允許 dialog: 記住 for a 臨時帳號 / the temporary address (only with 記住這台裝置)
+PM_STR(RemoteRememberGuest0836, L"記住這台裝置，這個臨時帳號下次不用再問", L"Remember this device: don't ask again for this guest account")
+PM_STR(RemoteRememberTemp0836, L"記住這台裝置，下次用臨時網址不用再問", L"Remember this device: don't ask again on a temporary address")
+// 已記住的手機 ▸ each row says where it was remembered
+PM_STR(RemoteScopeLan0836, L"在家／Tailscale", L"Home / Tailscale")
+PM_STR(RemoteScopeFixed0836, L"固定網址", L"Fixed address")
+PM_STR(RemoteScopeGuest0836, L"臨時帳號 {0}", L"Guest {0}")
+PM_STR(RemoteScopeTemp0836, L"臨時網址", L"Temporary address")
+// 連線紀錄: what let it in
+PM_STR(RemoteLogHowAllowed0836, L"你按了允許", L"you clicked Allow")
+PM_STR(RemoteLogHowAllowedRemember0836, L"你按了允許並記住", L"you clicked Allow and Remember")
+PM_STR(RemoteLogHowSameLogin0836, L"同一次登入剛允許過", L"allowed earlier, same login")
+PM_STR(RemoteLogHowThisRun0836, L"這台裝置剛允許過", L"this device was allowed earlier")
+PM_STR(RemoteLogHowRemembered0836, L"記住的裝置", L"remembered device")
+PM_STR(RemoteLogHowPassword0836, L"密碼對，不用允許", L"right password, no Allow needed")
+PM_STR(RemoteLogHowPasscode0836, L"網址和通行碼對，不用允許", L"right link and passcode, no Allow needed")
+// ---- end 0.8.3.6 auth ----

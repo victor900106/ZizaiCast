@@ -45,6 +45,53 @@ ComPtr<ID3DBlob> compile(const char* entry, const char* target) {
 // epoch ms (MSB first), 8-bit checksum ((sum of the 4 bytes) & 0xFF) ^ 0x5A.
 constexpr int kStampBlocks = 42;
 
+// 0.8.3.6 benchmarks: a made-up desktop (nothing of this PC's screen), the same on every run:
+// a soft background, windows with title bars and lines of "text" (random glyph-like dots: the
+// high-frequency detail an encoder finds hard on a real desktop), and a smooth "photo" area.
+std::vector<uint32_t> synthDesktop(int w, int h) {
+    std::vector<uint32_t> px(size_t(w) * size_t(h));
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const int r = 0xF0 - (y * 0x30 / std::max(1, h)), g = 0xD8 - (x * 0x28 / std::max(1, w)), b = 0xDC;
+            px[size_t(y) * size_t(w) + size_t(x)] = 0xFF000000u | uint32_t(r) << 16 | uint32_t(g) << 8 | uint32_t(b);
+        }
+    uint32_t seed = 0x5EED0836u;
+    auto rnd = [&seed] { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
+    auto fill = [&](int x0, int y0, int x1, int y1, uint32_t c) {
+        for (int y = std::max(0, y0); y < std::min(h, y1); ++y)
+            for (int x = std::max(0, x0); x < std::min(w, x1); ++x) px[size_t(y) * size_t(w) + size_t(x)] = c;
+    };
+    const int cols = 3, rows = 2, mw = w / cols, mh = h / rows;
+    for (int wy = 0; wy < rows; ++wy)
+        for (int wx = 0; wx < cols; ++wx) {
+            const int x0 = wx * mw + mw / 24, y0 = wy * mh + mh / 16, x1 = (wx + 1) * mw - mw / 24, y1 = (wy + 1) * mh - mh / 16;
+            fill(x0, y0, x1, y1, 0xFFFBF7F8u);
+            fill(x0, y0, x1, y0 + 30, 0xFFE8A0A8u);  // title bar
+            if ((wx + wy) % 3 == 1) {  // a "photo"
+                for (int y = y0 + 40; y < y1 - 10 && y < h; ++y)
+                    for (int x = x0 + 10; x < x1 - 10 && x < w; ++x) {
+                        const double fx = (x - x0) / 90.0, fy = (y - y0) / 70.0;
+                        const int r = int(128 + 100 * std::sin(fx) * std::cos(fy)), g = int(128 + 90 * std::sin(fx * 0.7 + fy)),
+                                  b = int(128 + 80 * std::cos(fx * 1.3 - fy * 0.5));
+                        px[size_t(y) * size_t(w) + size_t(x)] = 0xFF000000u | uint32_t(r) << 16 | uint32_t(g) << 8 | uint32_t(b);
+                    }
+                continue;
+            }
+            for (int ly = y0 + 44; ly + 14 < y1; ly += 22) {  // lines of text: 7x12 glyph cells
+                const int len = int((x1 - x0 - 30) * int(40 + rnd() % 60) / 100);
+                for (int gx = x0 + 14; gx + 7 < x0 + 14 + len; gx += 8) {
+                    if (rnd() % 7 == 0) continue;  // a space
+                    const uint32_t bits = rnd();
+                    for (int yy = 0; yy < 12; ++yy)
+                        for (int xx = 0; xx < 6; ++xx)
+                            if (((bits >> ((yy * 6 + xx) % 23)) & 1) && (yy % 11) && ly + yy < h && gx + xx < w)
+                                px[size_t(ly + yy) * size_t(w) + size_t(gx + xx)] = 0xFF302428u;
+                }
+            }
+        }
+    return px;
+}
+
 }  // namespace
 
 int stampBlockSize(int h) { return std::max(8, h / 60); }
@@ -83,6 +130,10 @@ std::vector<MonitorDesc> enumMonitors() {
                 d.device = mi.szDevice;
                 d.rect = mi.rcMonitor;
                 d.primary = (mi.dwFlags & MONITORINFOF_PRIMARY) != 0;
+                DEVMODEW dm{};
+                dm.dmSize = sizeof(dm);
+                if (EnumDisplaySettingsW(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency > 1)
+                    d.hz = int(dm.dmDisplayFrequency);  // 0 / 1 = "the hardware's default": unknown
                 reinterpret_cast<std::vector<MonitorDesc>*>(lp)->push_back(d);
             }
             return TRUE;
@@ -96,7 +147,25 @@ std::vector<MonitorDesc> enumMonitors() {
     return v;
 }
 
-DesktopCapture::~DesktopCapture() { close(); }
+DesktopCapture::~DesktopCapture() {
+    close();
+    if (waitTimer_) CloseHandle(waitTimer_);
+}
+
+void DesktopCapture::waitUs(int64_t us) {
+    if (us <= 0) return;
+    if (preciseWait_ && !waitTimer_)
+        waitTimer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (preciseWait_ && waitTimer_) {
+        LARGE_INTEGER due;
+        due.QuadPart = -us * 10;  // relative, 100 ns units
+        if (SetWaitableTimer(waitTimer_, &due, 0, nullptr, nullptr, FALSE)) {
+            WaitForSingleObject(waitTimer_, DWORD(us / 1000 + 50));
+            return;
+        }
+    }
+    Sleep(DWORD(std::max<int64_t>(1, us / 1000)));
+}
 
 void DesktopCapture::close() {
     pool_.clear();
@@ -166,7 +235,20 @@ bool DesktopCapture::open(const Options& o) {
     if (!createPipeline()) return false;
     logf("capture: monitor %d at %ld,%ld, %s, desktop %dx%d -> stream %dx%d, %d pool textures, stamp %s, scene %s",
          monIndex_, rect_.left, rect_.top, adapter_.c_str(), deskW_, deskH_, outW_, outH_, int(pool_.size()), stampGpu_ ? "on GPU (ClearView)" : "CPU fallback",
-         opt_.scene == Scene::Static ? "static" : opt_.scene == Scene::Motion ? "motion" : "desktop");
+         opt_.scene == Scene::Static ? "static" : opt_.scene == Scene::Motion ? "motion" : opt_.scene == Scene::Synth ? "synth" : "desktop");
+    return true;
+}
+
+bool DesktopCapture::setOutputSize(int w, int h) {
+    if (!dev_ || !desk_ || !comp_) return false;
+    opt_.outWidth = w, opt_.outHeight = h;
+    if (mt_) mt_->Enter();
+    pool_.clear();
+    vpIn_.Reset(), vp_.Reset(), vpEnum_.Reset(), staging_.Reset();
+    if (mt_) mt_->Leave();
+    needCompose_ = changed_ = true;
+    if (!createPipeline()) return false;
+    logf("capture: monitor %d, stream now %dx%d (same capture)", monIndex_, outW_, outH_);
     return true;
 }
 
@@ -226,7 +308,11 @@ bool DesktopCapture::createDuplication() {
             FAILED(dev_->CreateRenderTargetView(comp_.Get(), nullptr, &compRtv_)))
             return logf("capture: desktop textures failed"), false;
         ComPtr<ID3D11RenderTargetView> rtv;
-        if (SUCCEEDED(dev_->CreateRenderTargetView(desk_.Get(), nullptr, &rtv))) {
+        if (opt_.scene == Scene::Synth) {  // 0.8.3.6 benchmarks: the made-up desktop, never this PC's screen
+            const std::vector<uint32_t> px = synthDesktop(w, h);
+            ctx_->UpdateSubresource(desk_.Get(), 0, nullptr, px.data(), UINT(w) * 4, 0);
+            frozen_ = true;
+        } else if (SUCCEEDED(dev_->CreateRenderTargetView(desk_.Get(), nullptr, &rtv))) {
             const float black[4] = {0, 0, 0, 1};
             ctx_->ClearRenderTargetView(rtv.Get(), black);  // until the first image arrives
         }
@@ -238,9 +324,14 @@ bool DesktopCapture::createDuplication() {
 
 bool DesktopCapture::createPipeline() {
     if (vp_) return true;
-    const double sc = std::min({1.0, double(opt_.maxWidth) / deskW_, double(opt_.maxHeight) / deskH_});
-    outW_ = std::max(16, int(deskW_ * sc) & ~1);
-    outH_ = std::max(16, int(deskH_ * sc) & ~1);
+    if (opt_.outWidth > 0 && opt_.outHeight > 0) {  // 0.8.3.6: the size the host planned
+        outW_ = std::max(16, std::min(opt_.outWidth, deskW_) & ~1);
+        outH_ = std::max(16, std::min(opt_.outHeight, deskH_) & ~1);
+    } else {
+        const double sc = std::min({1.0, double(opt_.maxWidth) / deskW_, double(opt_.maxHeight) / deskH_});
+        outW_ = std::max(16, int(deskW_ * sc) & ~1);
+        outH_ = std::max(16, int(deskH_ * sc) & ~1);
+    }
     if (FAILED(dev_.As(&vdev_)) || FAILED(ctx_.As(&vctx_))) return logf("capture: no D3D11 video device"), false;
     D3D11_VIDEO_PROCESSOR_CONTENT_DESC cd{};
     cd.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
@@ -372,10 +463,11 @@ bool DesktopCapture::poll(int timeoutMs, bool& changed) {
     const int64_t until = nowUs() + int64_t(std::max(timeoutMs, 0)) * 1000;
     for (;;) {
         hr = dupl_->AcquireNextFrame(0, &fi, &res);
-        if (hr != DXGI_ERROR_WAIT_TIMEOUT || nowUs() >= until) break;
-        Sleep(1);
+        const int64_t left = until - nowUs();
+        if (hr != DXGI_ERROR_WAIT_TIMEOUT || left <= 0) break;
+        waitUs(std::min<int64_t>(left, 1000));  // 0.8.3.6: 1 ms really (see setPreciseWait)
     }
-    auto pending = [&] { return opt_.scene == Scene::Motion || (changed_ && (!frozen_ || frameNo_ == 0)); };
+    auto pending = [&] { return opt_.scene == Scene::Motion || opt_.scene == Scene::Synth || (changed_ && (!frozen_ || frameNo_ == 0)); };
     if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
         changed = pending();
         return true;
@@ -462,7 +554,7 @@ int DesktopCapture::render(bool stamp, uint32_t stampMs) {
     }
     // Source rect: whole desktop, or a panning 80% window in the Motion scene.
     RECT src{0, 0, deskW_, deskH_};
-    if (opt_.scene == Scene::Motion) {
+    if (opt_.scene == Scene::Motion || opt_.scene == Scene::Synth) {
         const double ph = 0.5 + 0.5 * std::sin(double(frameNo_) * 0.05);
         const int ww = deskW_ * 8 / 10 & ~1, wh = deskH_ * 8 / 10 & ~1;
         const int x = int((deskW_ - ww) * ph) & ~1, y = int((deskH_ - wh) * (1 - ph)) & ~1;

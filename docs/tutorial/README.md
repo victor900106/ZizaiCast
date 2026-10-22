@@ -32,7 +32,7 @@ Anchors (all four guides have exactly the same ids; the ones the app or the phon
 * `#remote`*, `#remote-open`, `#remote-home`, `#remote-outside` (fixed address), `#remote-tailscale`*
   (Tailscale from zero), `#remote-funnel` (allow Funnel + HTTPS with `tailscale funnel --bg --https=8443 http://127.0.0.2:8091`),
   `#remote-pwa`, `#remote-friend` with `#remote-guest` (臨時帳號: the address carries the account) and `#remote-nolink`
-  (temporary address), `#remote-gestures`, `#remote-pc` (another computer's browser, 0.8.3.5), `#remote-safety`, `#remote-limits`
+  (temporary address), `#remote-gestures`, `#remote-pc` (another computer's browser, 0.8.3.5), `#remote-approve` (連線時要不要允許, 0.8.3.6), `#remote-safety`, `#remote-limits`
 * `#sound` with `#remote-audio`
 * `#faq`, `#faq-notfound`, `#faq-audio`, `#faq-lag`, `#faq-blur`, `#faq-takeover`, `#faq-fw`, `#faq-vpn`,
   `#faq-miracast`*, `#faq-adb`, `#faq-disconnect`, `#faq-translate`, `#remote-trouble`*, `#faq-funnel`,

@@ -1590,8 +1590,8 @@ PM_JAKO(RemoteAllow, L"許可",
         L"허용")
 PM_JAKO(RemoteDeny, L"拒否",
         L"거부")
-PM_JAKO(RemoteRemember, L"このスマホを記憶して次から確認しない",
-        L"이 휴대폰을 기억하고 다음부터 묻지 않기")
+PM_JAKO(RemoteRemember, L"この端末を記憶して次から確認しない",
+        L"이 기기를 기억하고 다음부터 묻지 않기")
 PM_JAKO(RemoteBanner, L"リモート操作中 · {0}",
         L"원격 제어 중 · {0}")
 PM_JAKO(RemoteBannerView, L"リモートで表示中 · {0}",
@@ -2153,3 +2153,60 @@ PM_JAKO(RemoteGuestFilesCan0835, L"ファイル転送ができる（スマホと
 PM_JAKO(RemoteGuestFilesViewOff0835, L"「表示のみ」ではファイル転送できません",
         L"“보기만”에서는 파일 전송을 할 수 없습니다")
 // ---- end 0.8.3.5 files ----
+
+// ---- 0.8.3.6 auth ----
+PM_JAKO(MenuRemotePolicy0836, L"接続のときに確認するか",
+        L"연결할 때 허용을 물을지")
+PM_JAKO(RemotePolicyHint0836, L"外から接続されたとき、先に PC であなたに確認するか",
+        L"밖에서 누군가 연결할 때 PC가 먼저 물어볼지")
+PM_JAKO(RemotePolicyWayFixed0836, L"メインアカウント（固定アドレス＋あなたのパスワード）",
+        L"기본 계정(고정 주소 + 내 비밀번호)")
+PM_JAKO(RemotePolicyWayGuest0836, L"一時アカウント",
+        L"임시 계정")
+PM_JAKO(RemotePolicyWayTemp0836, L"一時アドレス",
+        L"임시 주소")
+PM_JAKO(RemotePolicyAsk0836, L"毎回確認する",
+        L"매번 묻기")
+PM_JAKO(RemotePolicyRemember0836, L"この端末を記憶（許可のとき「記憶」にチェック）",
+        L"이 기기 기억(허용할 때 “기억” 체크)")
+PM_JAKO(RemotePolicyPassword0836, L"パスワードだけ（正しければそのまま接続）",
+        L"비밀번호만(맞으면 바로 연결)")
+PM_JAKO(RemotePolicyPasscode0836, L"パスコードだけ（アドレスとパスコードが正しければそのまま接続）",
+        L"통행 코드만(주소와 통행 코드가 맞으면 바로 연결)")
+PM_JAKO(RemotePolicyLanNote0836, L"自宅の Wi-Fi と Tailscale：いつも許可が必要（記憶にチェック可）",
+        L"집 Wi-Fi와 Tailscale: 항상 허용 필요(기억 체크 가능)")
+PM_JAKO(RemotePolicyToast0836, L"{0}：「{1}」にしました",
+        L"{0}: “{1}”(으)로 바꿨습니다")
+PM_JAKO(RemotePolicyAskShort0836, L"毎回確認",
+        L"매번 묻기")
+PM_JAKO(RemotePolicyRememberShort0836, L"端末を記憶",
+        L"기기 기억")
+PM_JAKO(RemotePolicyPasswordShort0836, L"パスワードだけ",
+        L"비밀번호만")
+PM_JAKO(RemoteRememberGuest0836, L"この端末を記憶して、この一時アカウントでは次から確認しない",
+        L"이 기기를 기억하고 이 임시 계정은 다음부터 묻지 않기")
+PM_JAKO(RemoteRememberTemp0836, L"この端末を記憶して、一時アドレスでは次から確認しない",
+        L"이 기기를 기억하고 임시 주소로는 다음부터 묻지 않기")
+PM_JAKO(RemoteScopeLan0836, L"自宅／Tailscale",
+        L"집/Tailscale")
+PM_JAKO(RemoteScopeFixed0836, L"固定アドレス",
+        L"고정 주소")
+PM_JAKO(RemoteScopeGuest0836, L"一時アカウント {0}",
+        L"임시 계정 {0}")
+PM_JAKO(RemoteScopeTemp0836, L"一時アドレス",
+        L"임시 주소")
+PM_JAKO(RemoteLogHowAllowed0836, L"あなたが許可",
+        L"내가 허용함")
+PM_JAKO(RemoteLogHowAllowedRemember0836, L"あなたが許可して記憶",
+        L"내가 허용하고 기억함")
+PM_JAKO(RemoteLogHowSameLogin0836, L"同じログインで許可済み",
+        L"같은 로그인으로 이미 허용됨")
+PM_JAKO(RemoteLogHowThisRun0836, L"この端末は許可済み",
+        L"이 기기는 이미 허용됨")
+PM_JAKO(RemoteLogHowRemembered0836, L"記憶した端末",
+        L"기억한 기기")
+PM_JAKO(RemoteLogHowPassword0836, L"パスワードが正しいので許可不要",
+        L"비밀번호가 맞아 허용 불필요")
+PM_JAKO(RemoteLogHowPasscode0836, L"アドレスとパスコードが正しいので許可不要",
+        L"주소와 통행 코드가 맞아 허용 불필요")
+// ---- end 0.8.3.6 auth ----

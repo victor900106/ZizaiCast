@@ -257,6 +257,8 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
   <div class="row" id="rowMutePc"><label for="swMutePc"><span id="lMutePc"></span><span class="sub" id="lMutePcSub"></span></label><input type="checkbox" class="sw" id="swMutePc"></div>
   <div class="row" id="rowSens"><label for="sens"><span id="lSens"></span><span class="sub" id="lSensSub"></span></label><input type="range" id="sens" min="0.3" max="2.5" step="0.1"></div>
   <div class="row"><span class="lbl"><span id="lQ"></span><span class="sub" id="lQSub"></span></span><div class="seg" id="segQ"><button data-v="0"></button><button data-v="1"></button><button data-v="2"></button></div></div>
+  <div class="row"><span class="lbl"><span id="lFps"></span><span class="sub" id="lFpsSub"></span></span><div class="seg" id="segFps"><button data-v="30">30</button><button data-v="60">60</button><button data-v="120">120</button></div></div>
+  <div class="row"><label for="swPhoneRes"><span id="lPhoneRes"></span><span class="sub" id="lPhoneResSub"></span></label><input type="checkbox" class="sw" id="swPhoneRes"></div>
   <div class="row"><label for="swAuto"><span id="lAuto"></span><span class="sub" id="lAutoSub"></span></label><input type="checkbox" class="sw" id="swAuto"></div>
   <div class="row" id="rowMon" style="display:none"><span class="lbl" id="lMon"></span><div class="seg" id="segMon"></div></div>
   <div class="row"><label for="swFill" id="lFill"></label><input type="checkbox" class="sw" id="swFill"></div>
@@ -336,6 +338,184 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
   <button class="btn" id="passGo"></button><div id="passErr"></div>
   <button class="lnk" id="modeLnk" style="display:none"></button></div>
 
+<!-- 0.8.3.6: the login page's little crowd (投投 and three friends). Pure front end: it looks at events (focus, empty / not empty, the show-password
+     button, the kind of the answer) and never at the password; it changes nothing the server says or counts. Self-contained: this style + this script. -->
+<style id="palsCss">
+#pals{flex:0 0 auto;width:min(340px,86vw);margin:0 0 -2px;pointer-events:none;-webkit-user-select:none;user-select:none}
+#pals svg{display:block;width:100%;height:auto;overflow:visible}
+@media (max-width:640px) and (orientation:portrait){#pals{width:min(236px,62vw)}}
+@media (min-width:900px) and (min-height:720px){#pals{width:430px}}
+@media (max-height:640px){#pals{width:min(190px,50vw)}}
+@media (max-height:500px){#pals{width:min(150px,40vw)}}
+@media (max-height:400px){#pals{display:none}}
+#pals .ch,#pals .face,#pals .eyes{transition:transform .32s cubic-bezier(.3,1.3,.5,1)}
+#pals .ch{transform-box:fill-box;transform-origin:50% 100%}
+#pals .eyes{transition-duration:.16s;transition-timing-function:ease-out}
+#pals .up,#pals .dn,#pals .brow,#pals .m-flat,#pals .m-o,#pals .m-sad,#pals .m-happy,#pals .sweat,#pals .blush2{display:none}
+#pals .open,#pals .hl{transform-box:fill-box;transform-origin:50% 50%;transition:transform .07s}
+#pals.blink .open,#pals.blink .hl{transform:scaleY(.08)}
+/* leaning at the account box */
+#pals.st-user .ch.l{transform:rotate(5deg)}#pals.st-user .ch.r{transform:rotate(-5deg)}#pals.st-user .ch.m{transform:translateY(2px) rotate(2deg)}
+/* turning away from the password */
+#pals.st-pw .ch.l{transform:rotate(-6deg)}#pals.st-pw .ch.r{transform:rotate(6deg)}#pals.st-pw .ch.m{transform:rotate(-3deg)}
+#pals.st-pw .m-smile{display:none}#pals.st-pw .m-flat{display:inline}
+#pals.peek .ch.m{transform:rotate(7deg) translateY(1px)}
+#pals.peek .m .m-flat{display:none}#pals.peek .m .m-o{display:inline}#pals.peek .m .blush2{display:inline}
+/* wrong password / locked */
+#pals.st-sad .m-smile,#pals.st-lock .m-smile{display:none}#pals.st-sad .m-sad,#pals.st-lock .m-sad{display:inline}
+#pals.st-sad .brow,#pals.st-lock .brow{display:inline}
+#pals.st-sad .ch{transform:translateY(3px) scaleY(.96)}
+#pals.st-sad.shake .ch{animation:palsNo .9s ease-in-out 1}
+#pals.st-lock .open,#pals.st-lock .hl{display:none}#pals.st-lock .dn{display:inline}#pals.st-lock .sweat{display:inline}
+#pals.st-lock .ch{transform:translateY(5px) scaleY(.92)}
+/* success */
+#pals.st-happy .open,#pals.st-happy .hl{display:none}#pals.st-happy .up{display:inline}
+#pals.st-happy .m-smile{display:none}#pals.st-happy .m-happy{display:inline}
+#pals.st-happy .ch{animation:palsHop .3s ease-out 1}
+@keyframes palsNo{0%,100%{transform:translateY(3px) rotate(0)}18%{transform:translateY(3px) rotate(-7deg)}45%{transform:translateY(3px) rotate(6deg)}70%{transform:translateY(3px) rotate(-4deg)}}
+@keyframes palsHop{0%{transform:translateY(0)}45%{transform:translateY(-12px) scaleY(1.04)}100%{transform:translateY(0)}}
+@keyframes palsShake{0%,100%{transform:translateX(0)}15%{transform:translateX(-9px)}35%{transform:translateX(8px)}55%{transform:translateX(-6px)}75%{transform:translateX(4px)}}
+#passIn.shake,#userIn.shake{animation:palsShake .42s ease-in-out 1;border-color:#ffb3b3}
+#pass.lock #passErr{font-size:15px;font-weight:600}
+@media (prefers-reduced-motion:reduce){
+  #pals *{transition:none!important;animation:none!important}
+  #passIn.shake,#userIn.shake{animation:none!important}
+}
+</style>
+<script>
+'use strict';
+// PALS: the two hooks the login code calls (fail / happy). Everything else is its own business.
+window.PALS = (() => {
+  const $ = id => document.getElementById(id);
+  const pass = $('pass'), passIn = $('passIn'), userIn = $('userIn'), eye = $('pwEye');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const INK = '#3A2830';
+  // a face: eyes (open / happy ^ / shut v, plus a sad brow) and mouths, all switched by the classes on #pals
+  const eyeSvg = (x, y, r, s, tall) => `<g class="eye" transform="translate(${x} ${y})">` +
+    (tall ? `<ellipse class="open" rx="7" ry="9.2" fill="${INK}"/>` : `<circle class="open" r="${r}" fill="${INK}"/>`) +
+    `<circle class="hl" cx="${-r * .3}" cy="${-r * .35}" r="${r * .32}" fill="#fff"/>` +
+    `<path class="up" d="M${-r * 1.2} ${r * .5}Q0 ${-r * 1.6} ${r * 1.2} ${r * .5}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<path class="dn" d="M${-r * 1.2} ${-r * .3}Q0 ${r * 1.3} ${r * 1.2} ${-r * .3}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<path class="brow" transform="scale(${s} 1)" d="M${-r * 1.4} ${-r * 1.7}L${r * 1.3} ${-r * 2.6}" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/></g>`;
+  const mouthSvg = (x, y, w) => `<g transform="translate(${x} ${y})"><path class="m-smile" d="M${-w} 0Q0 ${w * 1.1} ${w} 0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<path class="m-flat" d="M${-w * .7} 1.5H${w * .7}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<ellipse class="m-o" cy="1.5" rx="${w * .38}" ry="${w * .5}" fill="${INK}"/>` +
+    `<path class="m-sad" d="M${-w} 3Q0 ${-w * .9} ${w} 3" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<path class="m-happy" d="M${-w * 1.1} -1Q0 ${w * 1.9} ${w * 1.1} -1Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>`;
+  const friend = (cls, shape, ex, ey, gap, r) =>
+    `<g class="ch ${cls}">${shape}<g class="face"><g class="eyes" data-ax="${ex}" data-ay="${ey}" data-k="1">${eyeSvg(ex - gap, ey, r, 1)}${eyeSvg(ex + gap, ey, r, -1)}</g>${mouthSvg(ex, ey + 15, 6)}</g></g>`;
+  const markup =
+    `<svg viewBox="0 0 360 160" aria-hidden="true" focusable="false"><defs>` +
+    `<radialGradient id="palsCloud" gradientUnits="userSpaceOnUse" cx="118" cy="70" r="125"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#FBF7F8"/><stop offset="1" stop-color="#E3DAE6"/></radialGradient></defs>` +
+    `<ellipse cx="180" cy="154" rx="165" ry="5" fill="#F5A7A7" opacity=".18"/>` +
+    friend('l', `<rect x="22" y="44" width="52" height="110" rx="13" fill="#E8708A"/>`, 48, 82, 10, 4.3) +
+    // 投投: the shapes and the face of docs/mascot/toutou/svg/A_idle.svg, smaller, without the filters
+    `<g class="ch m"><g transform="translate(45 22) scale(.84)"><g fill="url(#palsCloud)"><circle cx="86" cy="112" r="30"/><circle cx="132" cy="90" r="40"/><circle cx="178" cy="114" r="26"/><rect x="54" y="108" width="158" height="58" rx="29"/></g>` +
+    `<ellipse cx="116" cy="66" rx="22" ry="12" transform="rotate(-24 116 66)" fill="#fff" opacity=".9"/>` +
+    `<g class="face"><ellipse cx="96" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55"/><ellipse cx="170" cy="143" rx="10" ry="6" fill="#FF9AAE" opacity=".55"/>` +
+    `<ellipse class="blush2" cx="96" cy="143" rx="12" ry="7.5" fill="#FF7A94" opacity=".7"/><ellipse class="blush2" cx="170" cy="143" rx="12" ry="7.5" fill="#FF7A94" opacity=".7"/>` +
+    `<g class="eyes" data-ax="${45 + 133 * .84}" data-ay="${22 + 131 * .84}" data-k="${1 / .84}">${eyeSvg(111, 131, 7.4, 1, true)}${eyeSvg(155, 131, 7.4, -1, true)}</g>` +
+    `${mouthSvg(133, 143, 7)}<path class="sweat" d="M176 70Q183 82 176 89Q169 82 176 70Z" fill="#BFE3F5" stroke="#8EC9EA" stroke-width="1.5"/></g></g></g>` +
+    friend('r', `<path d="M196 154A44 44 0 0 1 284 154Z" fill="#FF8F7A"/>`, 240, 124, 11, 4) +
+    friend('r', `<rect x="288" y="62" width="48" height="92" rx="24" fill="#FFC8A2"/>`, 312, 92, 9, 4) +
+    `</svg>`;
+  const box = document.createElement('div');
+  box.id = 'pals'; box.innerHTML = markup;
+  pass.insertBefore(box, pass.firstChild);
+  const eyes = [...box.querySelectorAll('.eyes')], faces = eyes.map(e => e.parentNode);
+  const MAX = [3.2, 3.4, 3.2, 3.2];
+
+  let active = false, st = 'idle', peek = false, ptr = null, rafId = 0, tBlink = 0, tHold = 0, tPeek = 0;
+  const cls = () => { box.className = 'st-' + st + (peek ? ' peek' : '') + (box._shake ? ' shake' : ''); };
+  function target(i) {  // where a friend looks, in page pixels (null = straight at you)
+    if (st === 'user') { const f = userIn.offsetParent !== null ? userIn : passIn, r = f.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+    if (peek && i === 1) { const r = passIn.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+    return st === 'idle' ? ptr : null;
+  }
+  let frames = 0;
+  function apply() {  // one frame per change: no loop
+    rafId = 0; frames++;
+    if (!active) return;
+    const sr = box.firstChild.getBoundingClientRect(), sc = sr.width / 360;
+    eyes.forEach((g, i) => {
+      const ax = +g.dataset.ax, k = +g.dataset.k, side = ax < 180 ? -1 : 1;
+      let ox = 0, oy = 0, fx = 0;
+      if (st === 'pw' && !(peek && i === 1)) { ox = side * MAX[i] * 1.5; oy = -MAX[i] * .7; fx = side * 5; }
+      else if (st === 'sad') oy = MAX[i] * .9;
+      else if (!reduce.matches) {
+        const tg = target(i);
+        if (tg) {
+          const dx = tg[0] - (sr.left + ax * sc), dy = tg[1] - (sr.top + (+g.dataset.ay) * sc), d = Math.hypot(dx, dy);
+          if (d > 1) { const f = Math.min(1, d / 110); ox = MAX[i] * f * dx / d; oy = MAX[i] * f * dy / d; }
+        }
+      }
+      g.style.transform = `translate(${(ox * k).toFixed(2)}px,${(oy * k).toFixed(2)}px)`;
+      faces[i].style.transform = fx ? `translate(${(fx * k).toFixed(1)}px,0)` : '';
+    });
+  }
+  const aim = () => { if (!rafId && active) rafId = requestAnimationFrame(apply); };
+  function set(s) { clearTimeout(tHold); clearTimeout(tPeek); peek = false; box._shake = false; st = s; cls(); aim(); }
+  const base = () => { const a = document.activeElement; return a === userIn ? 'user' : a === passIn && passIn.value ? 'pw' : 'idle'; };
+  function blinkLoop() {
+    clearTimeout(tBlink);
+    if (!active || reduce.matches || document.hidden) return;
+    tBlink = setTimeout(() => {
+      if (st !== 'happy' && st !== 'lock') { box.classList.add('blink'); setTimeout(() => box.classList.remove('blink'), 130); }
+      blinkLoop();
+    }, 2200 + Math.random() * 3300);
+  }
+  function wake(on) {
+    if (on === active) return;
+    active = on;
+    if (on) { set(base()); blinkLoop(); } else { clearTimeout(tBlink); clearTimeout(tHold); clearTimeout(tPeek); }
+  }
+  new MutationObserver(() => wake(pass.style.display === 'flex')).observe(pass, {attributes: true, attributeFilter: ['style']});
+  document.addEventListener('visibilitychange', blinkLoop);
+  const move = e => { if (active) { ptr = [e.clientX, e.clientY]; if (st === 'idle') aim(); } };
+  addEventListener('pointermove', move, {passive: true});
+  addEventListener('pointerdown', move, {passive: true});
+  addEventListener('resize', aim);
+  const sticky = () => st === 'sad' || st === 'lock' || st === 'happy';
+  pass.addEventListener('focusin', () => { if (!sticky()) set(base()); });
+  pass.addEventListener('focusout', () => setTimeout(() => { if (active && !sticky()) set(base()); }, 0));
+  // typing: only "is there anything in it" is looked at (never what, never how many)
+  pass.addEventListener('input', e => {
+    if (e.target !== passIn && e.target !== userIn) return;
+    set(e.target === passIn ? (passIn.value ? 'pw' : 'idle') : 'user');
+    passIn.classList.remove('shake'); userIn.classList.remove('shake'); pass.classList.remove('lock');
+  });
+  // 顯示密碼: one of them peeks, then hurries to look away again (this runs after the page's own handler switched the type)
+  eye.addEventListener('click', () => setTimeout(() => {
+    if (!active) return;
+    if (passIn.type !== 'text') { set(base()); return; }
+    set('pw'); peek = true; cls(); aim();
+    tPeek = setTimeout(() => { peek = false; cls(); aim(); }, 780);
+  }, 0));
+  const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); el.addEventListener('animationend', () => el.classList.remove('shake'), {once: true}); };
+  return {
+    state: () => st + (peek ? '+peek' : ''),
+    frames: () => frames,
+    // a wrong answer (j = the server's answer; only its kind is read)
+    fail(j) {
+      if (!active) return;
+      const locked = !!(j && j.locked);
+      set(locked ? 'lock' : 'sad');
+      pass.classList.toggle('lock', locked);
+      if (!locked) {
+        box._shake = true; cls();
+        shake(passIn); if (userIn.offsetParent !== null) shake(userIn);
+        tHold = setTimeout(() => { if (st === 'sad') set(base()); }, 2400);
+      }
+    },
+    // success: a happy face for at most 180 ms, then the caller goes on
+    happy() {
+      if (!active) return Promise.resolve();
+      set('happy'); pass.classList.remove('lock');
+      return new Promise(r => setTimeout(r, 180));
+    },
+  };
+})();
+</script>
 <script>window.PM = /*PM_CONFIG*/{};</script>
 <script src="trackpad.js"></script>
 <script src="vkbd.js"></script>
@@ -565,6 +745,15 @@ const T = {
   mhToDirect: ['改用直接點', 'Use Direct', '直接タップにする', '직접 터치로 바꾸기'],
   mhToTrack: ['改用觸控板', 'Use Trackpad', 'トラックパッドにする', '트랙패드로 바꾸기'],
   mhOk: ['知道了', 'Got it', 'OK', '알겠습니다'],
+  // 0.8.3.6: said right after 改用觸控板 / 改用直接點 (the card's button, 設定 ▸ 操作方式): how the new mode works
+  mhNowTrack: ['已改成觸控板：手指滑動會移動電腦上的箭頭（粉紅圈），點一下是點在箭頭的位置；兩指點一下是右鍵，兩指滑動是捲動，按住不動再拖是拖曳。',
+    'Trackpad is on: slide a finger to move the arrow (pink ring) on the PC; a tap clicks where the arrow is. Two-finger tap = right click, two-finger slide = scroll, hold still then move = drag.',
+    'トラックパッドにしました：指を滑らせるとパソコンの矢印（ピンクの円）が動き、タップは矢印の位置をクリックします。2 本指タップで右クリック、2 本指で滑らせるとスクロール、長押ししてから動かすとドラッグです。',
+    '트랙패드로 바꿨습니다: 손가락을 밀면 PC의 화살표(분홍색 원)가 움직이고, 탭하면 화살표 위치를 클릭합니다. 두 손가락 탭은 오른쪽 클릭, 두 손가락으로 밀면 스크롤, 길게 누른 뒤 움직이면 드래그입니다.'],
+  mhNowDirect: ['已改成直接點：手指點哪裡，電腦就點哪裡；按住半秒是右鍵，按住拖曳可以選取或搬移。',
+    'Direct is on: the PC clicks where you tap; hold for half a second for a right click, touch and move to drag.',
+    '直接タップにしました：触れた場所をパソコンがクリックします。半秒長押しで右クリック、触れたまま動かすとドラッグです。',
+    '직접 터치로 바꿨습니다: 누른 곳을 PC가 클릭합니다. 0.5초 길게 누르면 오른쪽 클릭, 누른 채 움직이면 드래그입니다.'],
   // (b) a PC's keyboard
   // (c) 遊戲模式 (pointer lock)
   gameMode: ['遊戲模式', 'Game mode', 'ゲームモード', '게임 모드'],
@@ -607,6 +796,12 @@ const T = {
     'Ctrl+Alt+Del は Windows のセキュリティ キーで、どのプログラムからも送れません。タスク マネージャーは「タスク マネージャー」（Ctrl+Shift+Esc）を、ロックはパソコンの前で Win+L を押してください。',
     'Ctrl+Alt+Del은 Windows 보안 키라서 어떤 프로그램도 보낼 수 없습니다. 작업 관리자는 ‘작업 관리자’(Ctrl+Shift+Esc)를, 잠금은 PC 앞에서 Win+L을 누르세요.'],
   uipiSecure: ['電腦正在顯示「使用者帳戶控制」確認視窗或鎖定畫面，遠端點不到；請在電腦前處理', 'The PC shows a User Account Control prompt or the lock screen, which remote clicks can’t reach. Deal with it at the PC.', 'パソコンに「ユーザー アカウント制御」の確認画面かロック画面が出ていて、リモートからは操作できません。パソコンの前で操作してください。', 'PC에 사용자 계정 컨트롤 확인 창이나 잠금 화면이 떠 있어 원격으로 조작할 수 없습니다. PC 앞에서 처리하세요.'],
+  // ---- 0.8.3.6 video ----
+  fps: ['每秒畫面', 'Frame rate', 'フレームレート', '프레임 속도'],
+  fpsSub: ['120 要電腦螢幕 120 Hz 以上；畫面不動時自動少送', '120 needs a PC screen of 120 Hz or more; a still picture sends fewer frames', '120 はパソコンの画面が 120 Hz 以上のとき。止まった画面は自動で減らします', '120은 PC 화면이 120Hz 이상일 때. 멈춘 화면은 자동으로 줄입니다'],
+  fpsCap: ['電腦螢幕是 {0} Hz，最多每秒 {0} 張', 'The PC screen runs at {0} Hz: {0} frames a second at most', 'パソコンの画面は {0} Hz のため、最大 {0} fps です', 'PC 화면이 {0}Hz라 최대 초당 {0}장입니다'],
+  phoneRes: ['解析度跟手機一樣', 'Match the phone’s resolution', 'スマホの解像度に合わせる', '휴대폰 해상도에 맞추기'],
+  phoneResSub: ['電腦畫面縮成這支手機的大小（{0}），兩邊都省力、更順', 'The PC picture is sized to this phone’s screen ({0}): less work on both sides, smoother', 'パソコンの画面をこのスマホのサイズ（{0}）に縮小。両方の負担が減り、なめらかに', 'PC 화면을 이 휴대폰 크기({0})로 줄여 양쪽 부담이 줄고 더 부드럽습니다'],
 };
 const t = k => (T[k] || [k])[LANG] || T[k][1];
 const tf = (k, a) => t(k).replace('{0}', a);
@@ -645,7 +840,19 @@ const prefs = {
   gain: Math.max(0, Math.min(400, +store.get('gain0832', 100) || 0)),
   lock: store.get('lock', false),
   auto: store.get('auto', true),
+  // 0.8.3.6: frames a second asked for (30 / 60 / 120; the PC caps it at its screen's refresh rate) and
+  // 解析度跟手機一樣 (the PC shrinks the picture to this screen's pixels: less to encode and to decode)
+  fps: [30, 60, 120].includes(store.get('fps0836', 60)) ? store.get('fps0836', 60) : 60,
+  // 0.8.3.6 (owner): on by default on a touch screen (a phone / tablet: 3440x1440 to an iPhone measured
+  // 47 -> 55 fps shown, p95 26 -> 17 ms, bitrate -27 %), off on a PC browser; a choice made by hand is kept.
+  phoneRes: store.get('phoneRes0836', matchMedia('(pointer: coarse)').matches),
 };
+// 0.8.3.6: this screen in pixels, the long side first (the PC's picture is landscape; turning the phone changes nothing)
+function phoneFit() {
+  if (!prefs.phoneRes) return null;
+  const d = devicePixelRatio || 1, a = screen.width || innerWidth, b = screen.height || innerHeight;
+  return [Math.round(Math.max(a, b) * d), Math.round(Math.min(a, b) * d)];
+}
 // O1: the quality actually asked for (auto may hold it below prefs.q for a while).
 let curQ = prefs.q;
 
@@ -971,8 +1178,10 @@ async function submitPw() {
     $('userIn').value = '';
     LOGIN.show = false;
     BASE = '/k/' + j.token + '/';
+    await PALS.happy();  // 0.8.3.6: a happy face for 180 ms
     $('pass').style.display = 'none'; PM.verified = true; diag('password-ok'); connect(); return;
   }
+  PALS.fail(j);  // 0.8.3.6: the little crowd's face (reads the kind of the answer only)
   if (j && j.noPassword) return askPass(t('pwNone'));
   if (j && j.locked) return askPass(tf('pwLocked', Math.max(1, Math.ceil((j.retryAfter || 900) / 60))));
   // 0.8.3.3: an account that is gone is named only with its right password (nothing is told about an unknown one)
@@ -1008,8 +1217,9 @@ async function submitPass() {
   try { j = await (await post('pass', JSON.stringify({code}))).json(); } catch {}
   $('passGo').disabled = false;
   $('passIn').value = '';
-  if (j && j.ok) { $('pass').style.display = 'none'; PM.verified = true; diag('passcode-ok'); connect(); return; }
+  if (j && j.ok) { await PALS.happy(); $('pass').style.display = 'none'; PM.verified = true; diag('passcode-ok'); connect(); return; }
   if (!j || j.dead || j.blocked) { $('pass').style.display = 'none'; S.state = 'expired'; showMsg(t('passDead'), t('passDeadSub')); return; }
+  PALS.fail(j);
   askPass(tf('passWrong', j.left));
 }
 $('passGo').onclick = submitPass;
@@ -1227,7 +1437,7 @@ async function connect(reason) {
   clearTimeout(stuckTimer); clearTimeout(recoverTimer);
   stuckTimer = setTimeout(() => stuckCheck(my), kStuckMs);
   stopPc();
-  S.bye = '';
+  S.bye = ''; S.stream = null;  // 0.8.3.6: the PC's answer to the last applyStream() (this connection only)
   if (typeof RTCPeerConnection === 'undefined') {
     S.state = 'unsupported';
     showMsg(t('noRtc'), t('noRtcSub'));
@@ -1239,7 +1449,7 @@ async function connect(reason) {
   let r;
   try {
     mark('sess');
-    const sessP = post('session', JSON.stringify({device, q: curQ, m: prefs.mon}));
+    const sessP = post('session', JSON.stringify({device, q: curQ, m: prefs.mon, fps: prefs.fps, fit: phoneFit(), top: prefs.q}));
     // Built while the request is out: the first RTCPeerConnection of a page
     // takes the browser a while (measured ~600 ms in Edge).
     warmPc();
@@ -1503,8 +1713,18 @@ function onDc(e) {
     S.rtt = rtt; S.rttMin = Math.min(S.rttMin, rtt);
     S.offRtt *= 1.01;
     if (rtt <= S.offRtt) { S.offRtt = rtt; S.off = m.s - (performance.timeOrigin + m.c + rtt / 2); }
+  } else if (m.t === 'quality') {  // 0.8.3.6: the PC's answer to applyStream()
+    if (m.id !== streamAskId) return;
+    clearTimeout(streamTimer);
+    if (!m.ok) { diag('stream-reconnect', {q: m.q, w: m.w, h: m.h, fps: m.fpsCap}); connect('switch'); return; }
+    if (adapt.level) send({t: 'bitrate', kbps: m.kbps});  // a lowered bitrate does not outlive the change
+    adapt.reset();
+    S.stream = m;
+    if (tun.media) { tun.configured = false; tun.skip = true; }  // the tunnel's decoder: configured again at the next key frame
+    syncStreamNotes();
   } else if (m.t === 'stats') {
     S.srv = m;
+    syncStreamNotes();
     // Sound on, but the PC plays nothing for 6 s in a row: say so (0.8.0 left
     // the owner guessing at a near-silent stream). aPeak = the PC's own level.
     if (S.sound && m.aOn && typeof m.aPeak === 'number') {
@@ -1690,6 +1910,7 @@ setInterval(() => {
   const s = S.srv;
   hud.textContent =
     S.state + '  ' + S.w + 'x' + S.h + '  ' + f1(S.fps) + ' fps  ' + f0(S.kbps) + ' kbps\n' +
+    (s && s.fpsCap ? 'cap ' + s.fpsCap + '/' + s.fpsWant + ' fps' + (s.hz ? ' (' + s.hz + ' Hz)' : '') + '  base ' + f0(s.kbpsBase) + ' kbps' + (s.fit ? '  fit' : '') + (s.levelCut ? '  L5.2' : '') + '\n' : '') +
     'RTT ' + f1(S.rtt) + ' ms (min ' + f1(S.rttMin) + ')  lat ' + f0(S.latShow) + ' ms (p95 ' + f0(S.latP95) + ')  e2e ' + f0(S.e2e) + ' ms\n' +
     (s ? 'PC ' + f1(s.c2s_avg) + ' ms  CPU ' + f1(s.cpu1) + '%  ' + s.encoder + (s.gpuPath ? '' : ' (CPU)') + '\n' : '') +
     'dec ' + f1(S.dec) + ' ms  jb ' + f1(S.jb) + ' ms  lost ' + S.lost + (S.aud ? '  audio ' + S.aud.packets : '') + '\n' + S.pair +
@@ -1707,7 +1928,7 @@ setInterval(() => {
         aSession: navigator.audioSession ? String(navigator.audioSession.type) : 'n/a', aSessionSet: S.aSession || '',
         actx: snd.ctx ? {state: snd.ctx.state, rate: snd.ctx.sampleRate, base: snd.ctx.baseLatency, outLat: snd.ctx.outputLatency} : null,
         outRoute: S.outRoute || 'unknown', gum: !!S.gumCalled,
-        q: prefs.q, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
+        q: prefs.q, fps: prefs.fps, phoneRes: prefs.phoneRes, fill: prefs.fill, standalone, reconnects: S.reconnects, touchMoves: S.touchMoves || 0, moveMsgs: S.moveMsgs || 0,
         vw: innerWidth, vh: innerHeight});
   S.lat = [];
 }, 5000);
@@ -2099,7 +2320,7 @@ function drawCursor() {
 // in the owner's log: dozens of "left click at 1744,804"). A saved choice is kept; the card says
 // which mode it is and switches in one tap.
 const touchFirst = () => matchMedia('(pointer: coarse)').matches;
-let hintWhy = '', missTaps = [];
+let hintWhy = '', missTaps = [], modeToastAt = -1e9;  // 0.8.3.6: the mode's how-to toast is not covered by a one-time hint
 function showModeHint(why) {
   hintWhy = why;
   const tp = prefs.mode === 'trackpad';
@@ -2113,7 +2334,7 @@ function showModeHint(why) {
 }
 function hideModeHint() { $('modeHint').style.display = 'none'; document.body.classList.remove('hint-open'); store.set('modeHint0835', 1); }
 $('mhOk').onclick = e => { e.stopPropagation(); hideModeHint(); };
-$('mhSwitch').onclick = e => { e.stopPropagation(); setMode(prefs.mode === 'trackpad' ? 'direct' : 'trackpad'); hideModeHint(); toast(t(prefs.mode === 'trackpad' ? 'mhTrackT' : 'mhDirectT'), 2500); };
+$('mhSwitch').onclick = e => { e.stopPropagation(); setMode(prefs.mode === 'trackpad' ? 'direct' : 'trackpad'); hideModeHint(); modeToastAt = performance.now(); toast(t(prefs.mode === 'trackpad' ? 'mhNowTrack' : 'mhNowDirect'), 8000); };
 for (const ev of ['touchstart', 'touchend', 'pointerdown']) $('modeHint').addEventListener(ev, e => e.stopPropagation(), {passive: true});
 function maybeModeHint() {  // the first picture of this phone
   if (store.get('modeHint0835', 0) || !touchFirst() || S.viewOnly) return;
@@ -2360,6 +2581,8 @@ $('lSens').textContent = t('sens');
 $('lSensSub').textContent = t('sensSub');
 $('lQ').textContent = t('quality');
 $('lQSub').textContent = t('qSub');
+$('lFps').textContent = t('fps');
+$('lPhoneRes').textContent = t('phoneRes');
 $('lMon').textContent = t('monitor');
 $('lFill').textContent = t('fill');
 $('lFs').textContent = t('fullscreen');
@@ -2396,6 +2619,9 @@ for (let i = 0; i < 3; i++) segQ.children[i].textContent = t('q' + i);
 function syncSettings() {
   for (const b of segMode.children) b.classList.toggle('on', b.dataset.v === prefs.mode);
   for (const b of segQ.children) b.classList.toggle('on', +b.dataset.v === prefs.q);
+  for (const b of $('segFps').children) b.classList.toggle('on', +b.dataset.v === prefs.fps);
+  $('swPhoneRes').checked = prefs.phoneRes;
+  syncStreamNotes();
   for (const b of $('segMon').children) b.classList.toggle('on', +b.dataset.v === prefs.mon);
   $('rowSens').style.display = prefs.mode === 'trackpad' ? '' : 'none';
   $('sens').value = prefs.sens;
@@ -2413,24 +2639,66 @@ function setQuality(q) {
   if (q === prefs.q && q === curQ) return true;
   prefs.q = q; store.set('q', q); syncSettings();
   curQ = q; adapt.reset();
-  connect('switch');  // a new stream size: new session (same phone, no new 允許)
+  applyStream('quality');  // 0.8.3.6: inside this connection (a new session only beyond its H.264 level)
   return true;
 }
+// 0.8.3.6: 每秒畫面 (30 / 60 / 120) and 解析度跟手機一樣, both inside this connection
+function setFps(f) {
+  f = [30, 60, 120].reduce((a, b) => Math.abs(b - f) < Math.abs(a - f) ? b : a, 60);
+  if (f === prefs.fps) return true;
+  prefs.fps = f; store.set('fps0836', f); syncSettings();
+  applyStream('fps');
+  return true;
+}
+function setPhoneRes(on) {
+  on = !!on;
+  if (on === prefs.phoneRes) return true;
+  prefs.phoneRes = on; store.set('phoneRes0836', on); syncSettings();
+  applyStream('phone-resolution');
+  return true;
+}
+// Under 每秒畫面: the PC screen's refresh rate when it caps the choice; under 解析度跟手機一樣: this screen's pixels.
+function syncStreamNotes() {
+  const s = S.stream || S.srv, hz = s && s.hz;
+  const fpsTxt = hz && hz < prefs.fps ? t('fpsCap').split('{0}').join(hz) : t('fpsSub');
+  if ($('lFpsSub').textContent !== fpsTxt) $('lFpsSub').textContent = fpsTxt;
+  const f = phoneFit() || (() => { const d = devicePixelRatio || 1, a = screen.width || innerWidth, b = screen.height || innerHeight;
+    return [Math.round(Math.max(a, b) * d), Math.round(Math.min(a, b) * d)]; })();
+  const resTxt = tf('phoneResSub', f[0] + '×' + f[1]);
+  if ($('lPhoneResSub').textContent !== resTxt) $('lPhoneResSub').textContent = resTxt;
+}
+// 0.8.3.6: 畫質 / 每秒畫面 / 解析度跟手機一樣 / 螢幕 and the automatic steps change the picture inside this
+// connection: the PC applies it and answers {"t":"quality"} (onDc). Beyond what this connection was set up
+// for (its H.264 level) the PC says so and the page reconnects (as 0.8.3.5 always did; same phone: no new 允許);
+// no answer in 3 s (an older PC) also reconnects. Not connected yet: the next connection asks for it anyway.
+let streamAskId = 0, streamTimer = 0;
+function applyStream(why) {
+  const open = (dc && dc.readyState === 'open') || (tun.ws && tun.ws.readyState === 1);
+  if (!open || !(S.state === 'connected' || tun.media)) { connect('switch'); return; }
+  const id = ++streamAskId;
+  clearTimeout(streamTimer);
+  streamTimer = setTimeout(() => { if (id === streamAskId) { diag('stream-no-answer', {why}); connect('switch'); } }, 3000);
+  send({t: 'quality', id, why, q: curQ, m: prefs.mon, fps: prefs.fps, fit: phoneFit(), top: prefs.q});
+}
+for (const b of $('segFps').children) b.onclick = () => setFps(+b.dataset.v);
+$('swPhoneRes').onchange = () => setPhoneRes($('swPhoneRes').checked);
 $('swAuto').onchange = () => { prefs.auto = $('swAuto').checked; store.set('auto', prefs.auto); if (!prefs.auto) adapt.restore(); };
 
 // ---- O1: weak-network adaptation. Every 2 s from the browser's own receive
 // statistics: bad = packet loss > 4 %, RTT > 300 ms, or far fewer frames
 // shown than the PC sends (> 35 % short). Two bad windows in a row: first the
 // bitrate goes down (70 %, then 45 % of the preset), then one quality step
-// (new session, same phone). Up again only after a long good stretch (bitrate
+// (0.8.3.6: inside this connection; 0.8.3.5 opened a new session). Up again only after a long good stretch (bitrate
 // after 10 s, quality after 30 s), never above the user's choice.
 const adapt = {
   last: null, bad: 0, good: 0, level: 0, kbps: 0, log: [],
   reset() { this.last = null; this.bad = this.good = 0; this.level = 0; this.kbps = 0; },
-  preset(q) { return [6000, 10000, 14000][q] || 14000; },
+  // 0.8.3.6: the PC's own bitrate for the stream now (it depends on the size and frame rate too)
+  preset(q) { const s = S.stream && S.stream.q === q ? S.stream : S.srv && S.srv.quality === q ? S.srv : null;
+    return (s && (s.kbps && s === S.stream ? s.kbps : s.kbpsBase)) || [6000, 10000, 14000][q] || 14000; },
   restore() {
     if (this.level) { this.level = 0; send({t: 'bitrate', kbps: this.preset(curQ)}); }
-    if (curQ !== prefs.q) { curQ = prefs.q; connect('switch'); }
+    if (curQ !== prefs.q) { curQ = prefs.q; applyStream('auto-restore'); }
   },
   async tick() {
     if (!pc || S.state !== 'connected' || document.hidden) { this.last = null; return; }
@@ -2461,7 +2729,7 @@ const adapt = {
         curQ--; this.level = 0;
         diag('adapt-down', {to: 'quality', q: curQ, why: S.adapt});
         toast(tf('autoDown', t('q' + curQ)), 4000);
-        connect('switch');
+        applyStream('auto-down');
       }
     } else if (this.good >= 5 && this.level > 0) {  // 10 s good: bitrate back up a step
       this.good = 0; this.level--;
@@ -2472,13 +2740,13 @@ const adapt = {
       this.good = 0; curQ++;
       diag('adapt-up', {to: 'quality', q: curQ});
       toast(tf('autoUp', t('q' + curQ)), 3000);
-      connect('switch');
+      applyStream('auto-up');
     }
   },
 };
 setInterval(() => adapt.tick(), 2000);
 
-for (const b of segMode.children) b.onclick = () => { const was = prefs.mode; setMode(b.dataset.v); if (was !== prefs.mode && touchFirst()) toast(t(prefs.mode === 'trackpad' ? 'mhTrackS' : 'mhDirectS'), 6000); };
+for (const b of segMode.children) b.onclick = () => { const was = prefs.mode; setMode(b.dataset.v); if (was !== prefs.mode && touchFirst()) { modeToastAt = performance.now(); toast(t(prefs.mode === 'trackpad' ? 'mhNowTrack' : 'mhNowDirect'), 8000); } };
 for (const b of segQ.children) b.onclick = () => setQuality(+b.dataset.v);
 $('sens').oninput = () => { prefs.sens = +$('sens').value; store.set('sens', prefs.sens); };
 $('swHud').onchange = () => { prefs.hud = $('swHud').checked; store.set('hud', prefs.hud); send({t: 'stamp', on: prefs.hud}); syncSettings(); };
@@ -2488,7 +2756,7 @@ function buildMonitorSeg() {
   S.monitors.forEach((m, i) => {
     const b = document.createElement('button'); b.dataset.v = i;
     b.textContent = (i + 1) + (m.primary ? ' (' + t('primary') + ')' : '');
-    b.onclick = () => { if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); connect('switch'); } };
+    b.onclick = () => { if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); applyStream('monitor'); } };
     seg.appendChild(b);
   });
   syncSettings();
@@ -2575,8 +2843,10 @@ syncSettings();
 setSound(false, true);
 
 // ---- one-time hints: add to Home Screen (iPhone), turn sideways, Tailscale data use ----
-setTimeout(() => {
+// 0.8.3.6: never over the mode card or its how-to toast (改用觸控板 was followed by 把手機橫放 after 4 s): wait.
+setTimeout(function oneTimeHint() {
   if (S.state !== 'connected') return;
+  if ($('modeHint').style.display === 'block' || performance.now() - modeToastAt < 8500) return setTimeout(oneTimeHint, 2000);
   if (PM.tailscale && !store.get('tsHint', false)) { store.set('tsHint', true); toast(t('tsData'), 8000); return; }
   if (isIOS && !standalone && !store.get('a2hsHint', false)) { store.set('a2hsHint', true); toast(t('a2hs'), 9000); return; }
   if (innerHeight > innerWidth && !store.get('rotHint', false)) { store.set('rotHint', true); toast(t('rotate'), 4000); }
@@ -2650,7 +2920,7 @@ function nextMonitor() {
   if (S.monitors.length < 2) { toast(t('monOnly'), 2000); return; }
   prefs.mon = (prefs.mon + 1) % S.monitors.length; store.set('mon', prefs.mon); syncSettings();
   toast(tf('monNext', prefs.mon + 1), 2000);
-  connect('switch');
+  applyStream('monitor');
 }
 pageHotkey = function (e) {
   if (!(e.ctrlKey && e.altKey && e.shiftKey) || !['KeyQ', 'KeyM', 'KeyS'].includes(e.code)) return false;
@@ -2705,7 +2975,7 @@ buildMonitorSeg = function () {
     b.appendChild(document.createTextNode(String(i + 1) + (m.primary ? ' ' : '')));
     if (m.primary) { const p = document.createElement('span'); p.className = 'pl'; p.textContent = t('primary'); b.appendChild(p); }  // rel-0835: 主 goes with the labels
     b.title = tf('pbMonTip', i + 1) + (m.w ? ` (${m.w}x${m.h})` : '');
-    b.onclick = e => { e.stopPropagation(); b.blur(); if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); connect('switch'); } };
+    b.onclick = e => { e.stopPropagation(); b.blur(); if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); applyStream('monitor'); } };
     box.appendChild(b);
   });
   syncPcbar();

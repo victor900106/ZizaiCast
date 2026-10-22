@@ -16,6 +16,8 @@
 #include <set>
 #include <string>
 
+#include "pm/remote.h"  // ApprovalPolicy (0.8.3.6)
+
 namespace pm::remote {
 
 class ApprovalMemory {
@@ -55,19 +57,47 @@ private:
 };
 
 // Host::Impl::sessionRequest's question: does this new session go in without 允許 on the PC?
+// 0.8.3.6: and why (連線紀錄 says which policy let it in). The policy is the one of its way in
+// (Options::policies: 主帳號 on the fixed address / 臨時帳號 / 臨時網址); LAN / Tailscale has none (as before:
+// allowed this run, or on the 記住 list).
 struct AskFacts {
-    bool guest = false;           // a 臨時帳號 login (always asked the first time)
-    bool viaTempLink = false;     // the temporary address (cloudflared): always asked the first time
-    bool passwordIn = false;      // 常駐外網: the right password, 允許 not asked for (fixedNeedApproval off), not kicked, not a guest
+    bool guest = false;           // a 臨時帳號 login (on the fixed address)
+    bool viaTempLink = false;     // the temporary address (cloudflared)
+    bool fixedMain = false;       // 主帳號 on the fixed address: came in with the owner's password (not a guest)
+    ApprovalPolicy policy = ApprovalPolicy::Ask;  // of guest / viaTempLink / fixedMain (unused for LAN / Tailscale)
     bool requireApproval = true;  // Options::requireApproval (false: tests / the spike only)
     bool allowedDevice = false;   // allowed while this host runs (LAN / Tailscale / fixed link; device id)
-    bool remembered = false;      // 記住 (the 30-day list on the PC)
-    bool kicked = false;          // 中斷 / kicked on the PC: asks again whatever it remembers
+    bool remembered = false;      // on the PC's 記住 list for this way in (approvalScope)
+    bool kicked = false;          // 中斷 / kicked on the PC: asks again whatever it remembers, whatever the policy
     bool loginAllowed = false;    // 0.8.3.5: ApprovalMemory::allows(device, cred)
 };
-inline bool letInWithoutAsking(const AskFacts& f) {
-    if ((f.guest || f.viaTempLink) && !f.kicked && f.loginAllowed) return true;  // 0.8.3.5: the same login, allowed before
-    return !f.guest && (!f.requireApproval || (!f.viaTempLink && (f.allowedDevice || (!f.kicked && f.remembered))) || f.passwordIn);
+enum class Admit { No, NoApproval, SameLogin, ThisRun, Remembered, Password };
+inline const char* admitName(Admit a) {
+    switch (a) {
+    case Admit::NoApproval: return "open";
+    case Admit::SameLogin: return "same-login";
+    case Admit::ThisRun: return "this-run";
+    case Admit::Remembered: return "remembered";
+    case Admit::Password: return "password";
+    default: return "";
+    }
 }
+inline Admit admitWithoutAsking(const AskFacts& f) {
+    if (!f.guest && !f.requireApproval) return Admit::NoApproval;
+    if (f.kicked) return Admit::No;  // 中斷 on the PC: 允許 once more (0.8.3: also with the password)
+    if (f.guest || f.viaTempLink) {
+        if (f.policy == ApprovalPolicy::PasswordOnly) return Admit::Password;  // the password / link + 通行碼 were right
+        if (f.loginAllowed) return Admit::SameLogin;                           // 0.8.3.5: the same login, allowed before
+        if (f.policy == ApprovalPolicy::Remember && f.remembered) return Admit::Remembered;
+        return Admit::No;  // a 臨時帳號 / the temporary address is never let in by its device alone
+    }
+    if (f.fixedMain && f.policy == ApprovalPolicy::PasswordOnly) return Admit::Password;  // 常駐外網 as before 0.8.3.6
+    if (f.allowedDevice) return Admit::ThisRun;
+    if ((!f.fixedMain || f.policy == ApprovalPolicy::Remember) && f.remembered) return Admit::Remembered;
+    return Admit::No;
+}
+inline bool letInWithoutAsking(const AskFacts& f) { return admitWithoutAsking(f) != Admit::No; }
+// Where the 記住 list counts (the host asks the app only then; the 允許 dialog offers 記住 only then).
+inline bool listCounts(bool lan, ApprovalPolicy policy) { return lan || policy == ApprovalPolicy::Remember; }
 
 }  // namespace pm::remote

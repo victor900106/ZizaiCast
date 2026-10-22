@@ -270,6 +270,19 @@ std::vector<Monitor> monitors() {
     return v;
 }
 
+// 0.8.3.6: the H.264 level a stream needs (macroblocks a frame / a second); 5.2 at most.
+struct H264Level {
+    int idc, maxFs, maxMbps;
+};
+static H264Level h264LevelFor(int w, int h, int fps) {
+    static const H264Level kLevels[] = {{31, 3600, 108000},  {32, 5120, 216000},  {40, 8192, 245760}, {42, 8704, 522240},
+                                        {50, 22080, 589824}, {51, 36864, 983040}, {52, 36864, 2073600}};
+    const int mbs = ((w + 15) / 16) * ((h + 15) / 16);
+    for (const H264Level& l : kLevels)
+        if (mbs <= l.maxFs && int64_t(mbs) * std::max(1, fps) <= l.maxMbps) return l;
+    return kLevels[std::size(kLevels) - 1];
+}
+
 Quality qualityPreset(int level) {
     switch (std::clamp(level, 0, kQualityLevels - 1)) {
     case 0: return {1920, 1080, 60, 6000};    // 流暢: phones on a busy Wi-Fi / mobile data
@@ -456,6 +469,11 @@ struct Session {
     std::atomic<bool> clipWatch{false};  // the page's clipboard panel is open: push PC clipboard changes
     std::atomic<int64_t> moveSeq{0};     // last applied "move" (the page's cursor prediction)
     std::atomic<bool> localCursor{false};  // 0.8.3.5: a PC browser draws the pointer itself (left out of the picture)
+    // 0.8.3.6 影像: what the page asked for besides the preset; changed inside the session ({"t":"quality"}).
+    std::atomic<int> fpsWant{kDefaultFps};  // 30 / 60 / 120 (capped at the monitor's refresh rate)
+    std::atomic<int> fitW{0}, fitH{0};      // 解析度跟手機一樣: the phone's screen in pixels (0 = off)
+    std::atomic<int> topQuality{-1};        // the user's own preset (auto may run below it): the offer's level covers it
+    int lvIdc = 52, lvMaxFs = 36864, lvMaxMbps = 2073600;  // the H.264 level of this session's offer
     std::shared_ptr<rtc::PeerConnection> pc;
     std::shared_ptr<rtc::Track> video, audio;
     std::shared_ptr<rtc::DataChannel> dc;
@@ -479,7 +497,13 @@ struct Session {
     bool guest() const { return !guestId.empty(); }
     bool filesOk() const { return !guest() || guestFiles; }
 
-    Peer toPeer() const { return Peer{id, device, peer, label, tailscale, viaTunnel && !viaFixed, viaFixed, guestName, guestId}; }
+    std::string policy, admit;            // 0.8.3.6: its way in's policy, and what let it in (Peer::policy / admit)
+
+    Peer toPeer() const {
+        Peer p{id, device, peer, label, tailscale, viaTunnel && !viaFixed, viaFixed, guestName, guestId};
+        p.policy = policy, p.admit = admit;
+        return p;
+    }
 };
 
 struct Host::Impl {
@@ -564,6 +588,7 @@ struct Host::Impl {
     std::thread sendThread;
     // stats
     Samples c2s, c2e, encMs, renderMs;
+    Samples lateMs, submitMs;  // 0.8.3.6: how late a frame left its beat, and how long the encoder took to take it
     std::atomic<int64_t> bytes{0}, framesSent{0}, idrs{0}, maxAu{0}, queueDrops{0};
     int64_t winFrames = 0, winBytes = 0, winMaxAu = 0, winIdrs = 0, winQDrops = 0;
     std::vector<Samples::Summary> winC2s, winC2e, winEnc, winRender;
@@ -618,6 +643,7 @@ struct Host::Impl {
     std::atomic<bool> fixedOn{false};
     std::string fixedHash, fixedSecret;  // guarded by tunMu
     bool fixedApproval = false;          // guarded by tunMu
+    ApprovalPolicies policies;           // 0.8.3.6 連線時要不要允許, guarded by tunMu
     // 0.8.3.2 臨時帳號 (guarded by tunMu): the accounts, the spent 用一次 ones, and the guest logins
     // (token nonce "g..." -> account id): a token is only good while its account is.
     std::vector<GuestAccount> guests;
@@ -773,6 +799,65 @@ struct Host::Impl {
         if (opt.kbps > 0) p.kbps = opt.kbps;
         return p;
     }
+    // 0.8.3.6: the stream a session gets: the preset's box, 解析度跟手機一樣 (never larger than the
+    // preset), the frame rate asked for capped at the monitor's refresh rate, and at most H.264 level 5.2
+    // (36,864 macroblocks a frame, 2,073,600 a second: 3440x1440 at 120 fps is shrunk to ~3250x1360).
+    struct Plan {
+        int quality = 2, monitor = 0, w = 0, h = 0, fps = kDefaultFps, fpsWant = kDefaultFps, kbps = 0, hz = 0;
+        bool fit = false, levelCut = false;
+    };
+    Plan plan(int quality, int monitor, int fpsWant, int fitW, int fitH) const {
+        Plan P;
+        P.quality = std::clamp(quality, 0, kQualityLevels - 1);
+        const auto mons = enumMonitors();
+        P.monitor = std::clamp(monitor, 0, std::max(0, int(mons.size()) - 1));
+        int dw = 1920, dh = 1080;
+        if (!mons.empty()) {
+            const MonitorDesc& m = mons[size_t(P.monitor)];
+            dw = m.rect.right - m.rect.left, dh = m.rect.bottom - m.rect.top, P.hz = m.hz;
+        }
+        const Quality p = effective(P.quality);
+        P.fpsWant = std::clamp(fpsWant > 0 ? fpsWant : kDefaultFps, 10, kMaxFps);
+        int fps = opt.fps > 0 ? p.fps : P.fpsWant;  // opt.fps: a test override wins
+        if (P.hz >= 20 && fps > P.hz) fps = P.hz;   // the monitor shows no more frames than its refresh rate
+        P.fps = fps;
+        const double presetSc = std::min({1.0, double(p.maxWidth) / dw, double(p.maxHeight) / dh});
+        double sc = presetSc;
+        if (fitW > 0 && fitH > 0) P.fit = true, sc = std::min({sc, double(fitW) / dw, double(fitH) / dh});
+        auto even = [](double v) { return std::max(16, int(v) & ~1); };
+        auto mbs = [&](double k) { return double((even(dw * k) + 15) / 16) * double((even(dh * k) + 15) / 16); };
+        const double lim = std::min(36864.0, 2073600.0 / std::max(1, fps));
+        if (mbs(sc) > lim) {
+            P.levelCut = true;
+            sc *= std::sqrt(lim / mbs(sc));
+            while (sc > 0.05 && mbs(sc) > lim) sc *= 0.995;
+        }
+        P.w = even(dw * sc), P.h = even(dh * sc);
+        // Bitrate: the preset's is for its own size at 60 fps. Fewer pixels need fewer bits (square root:
+        // what is left is denser), more frames a bit more (each carries less change); a test override stays.
+        double k = p.kbps;
+        if (opt.kbps <= 0) {
+            const double px = double(P.w) * P.h, px0 = double(even(dw * presetSc)) * even(dh * presetSc);
+            k *= std::clamp(std::sqrt(px / std::max(1.0, px0)), 0.5, 1.0);
+            k *= fps >= 100 ? 1.5 : fps <= 40 ? 0.75 : 1.0;
+        }
+        P.kbps = int(k);
+        return P;
+    }
+    std::atomic<int> curKbps{0}, curHz{0}, curFpsCap{0}, curFpsWant{kDefaultFps};  // 0.8.3.6: the stream now (stats)
+    std::atomic<bool> curFit{false}, curLevelCut{false};
+    int hintFps = kDefaultFps, hintFitW = 0, hintFitH = 0;  // guarded by capMu (with hintQuality)
+    // The session request's own picture wishes (0.8.3.6: fps / fit / top), noted for the capture that opens now.
+    void noteStreamAsk(const std::shared_ptr<Session>& s, const json& body) {
+        if (body.contains("fps") && body["fps"].is_number_integer()) s->fpsWant = std::clamp(body["fps"].get<int>(), 10, kMaxFps);
+        if (body.contains("fit") && body["fit"].is_array() && body["fit"].size() == 2 && body["fit"][0].is_number_integer() &&
+            body["fit"][1].is_number_integer())
+            s->fitW = std::clamp(body["fit"][0].get<int>(), 0, 16384), s->fitH = std::clamp(body["fit"][1].get<int>(), 0, 16384);
+        if (body.contains("top") && body["top"].is_number_integer()) s->topQuality = std::clamp(body["top"].get<int>(), 0, kQualityLevels - 1);
+        std::lock_guard<std::mutex> lk(capMu);
+        hintFps = s->fpsWant, hintFitW = s->fitW, hintFitH = s->fitH;
+    }
+    void streamAsk(const std::shared_ptr<Session>& s, const json& j);
     std::shared_ptr<Session> current() {
         std::lock_guard<std::mutex> lk(smu);
         return session;
@@ -945,6 +1030,7 @@ bool Host::start(const Options& o) {
         std::lock_guard<std::mutex> lk(d.tunMu);
         d.tunnelOn = false, d.creds.clear(), d.passcode.clear(), d.otk.clear();
         d.fixedHash = o.fixedPasswordHash, d.fixedSecret = o.fixedSecret, d.fixedApproval = o.fixedNeedApproval;
+        d.policies = o.policies;  // 0.8.3.6
         d.guests = o.guests, d.guestTokens.clear(), d.spentGuests.clear();
         d.fixedOn = false;
         d.tunnelKbps = 0;
@@ -1040,6 +1126,7 @@ void Host::approve(const std::string& session, bool allow, bool remember) {
         s = d.pending;
         if (allow) {
             s->state = Session::State::Allowed;
+            s->admit = remember ? "allowed-remember" : "allowed";  // 0.8.3.6 (連線紀錄)
             if (!s->guest()) d.allowedDevices.insert(s->device);  // 0.8.3.2: a guest is never "allowed" by its device alone
             // 0.8.3.5: ... but this login of it is (and the temporary address's path): its next sessions
             // (切換畫質 / 切換螢幕 / reconnects) go straight in while the login is valid.
@@ -1053,7 +1140,7 @@ void Host::approve(const std::string& session, bool allow, bool remember) {
         }
     }
     logf("host: %s %s (%s)%s%s%s", allow ? "ALLOWED" : "DENIED", s->label.c_str(), s->peer.c_str(),
-         allow && remember && !s->guest() ? ", remembered" : "", s->guest() ? ", 臨時帳號 " : "", s->guestName.c_str());
+         allow && remember ? ", remembered" : "", s->guest() ? ", 臨時帳號 " : "", s->guestName.c_str());
     d.pcv.notify_all();
     if (!allow) d.notifyEnded(s, "denied");
 }
@@ -1298,10 +1385,14 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
     const bool viaFixedReq = cred.rfind("fixed:", 0) == 0;
     s->viaFixed = viaFixedReq;
     bool fixedNeedsOk = false;
+    ApprovalPolicies pol;
     {
         std::lock_guard<std::mutex> lk(tunMu);
         fixedNeedsOk = fixedApproval;
+        pol = policies;
     }
+    // 0.8.3.6: 外面的新手機也要電腦按允許 (Options::fixedNeedApproval, the spike's --fixed-approval) = 記住這台裝置.
+    if (fixedNeedsOk && pol.fixed == ApprovalPolicy::PasswordOnly) pol.fixed = ApprovalPolicy::Remember;
     if (viaFixedReq) s->jti = tokenId(cred.substr(6));
     if (GuestAccount ga; viaFixedReq && guestToken(cred.substr(6))) {
         if (!guestFor(cred.substr(6), ga)) return {401, "application/json", json{{"needLogin", true}, {"guestGone", true}}.dump()};
@@ -1312,6 +1403,7 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         const json& m = body.contains("m") && body["m"].is_number_integer() ? body["m"] : json(0);
         s->quality = std::clamp(q.get<int>(), 0, kQualityLevels - 1);
         s->monitor = std::clamp(m.get<int>(), 0, std::max(0, int(enumMonitors().size()) - 1));
+        noteStreamAsk(s, body);  // 0.8.3.6: frame rate, 解析度跟手機一樣
     }
     s->lastPollUs = nowUs();
     // 0.8.3: the capture + encoder open now, for this session's screen and quality,
@@ -1329,28 +1421,35 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
                 return {403, "application/json", json{{"denied", true}}.dump()};
             }
         const bool kicked = kickedDevices.count(device) > 0;
-        // 常駐外網: the right password lets a phone in without 允許 (unless the owner asked
-        // for it: fixedNeedApproval), never one that was just 中斷'd.
-        const bool passwordIn = viaFixedReq && !fixedNeedsOk && !kicked && !s->guest();
-        // 0.8.3.2: a guest always waits for 允許 (never "allowed before" / remembered).
-        // 0.8.3.3: so does the temporary address (cloudflared, 臨時網址): it is for lending the PC to
-        // someone, and someone at the PC answers every time (no remembered phone goes straight in).
+        // 0.8.3.2 / 0.8.3.3: a 臨時帳號 and the temporary address (cloudflared, 臨時網址: for lending the PC
+        // to someone) are never let in by the phone alone. 0.8.3.5: the same phone with the same login (the
+        // guest login token / the temporary address's own path; a 臨時帳號: the account, ApprovalMemory::loginOf),
+        // allowed before while it is valid (a guest login that expired, was used up or deleted is refused
+        // above: guestFor), goes straight back in: the page opens a new session for every 切換畫質 / 切換螢幕 /
+        // automatic quality step / reconnect / reload. 0.8.3.6: each way in from outside has its policy
+        // (連線時要不要允許: 每次問 / 記住這台裝置 / 只用密碼, admitWithoutAsking); never one just 中斷'd.
         const bool viaTempLink = r.tunnel && !viaFixedReq;
-        // 0.8.3.5: ... the first time. The same phone with the same login (the guest login token /
-        // the temporary address's own path; a 臨時帳號: the account, ApprovalMemory::loginOf), allowed before while it is valid (a guest login that
-        // expired, was used up or deleted is refused above: guestFor), goes straight back in: the page
-        // opens a new session for every 切換畫質 / 切換螢幕 / automatic quality step / reconnect / reload.
         AskFacts f;
-        f.guest = s->guest(), f.viaTempLink = viaTempLink, f.passwordIn = passwordIn, f.requireApproval = opt.requireApproval;
+        f.guest = s->guest(), f.viaTempLink = viaTempLink, f.fixedMain = viaFixedReq && !s->guest(), f.requireApproval = opt.requireApproval;
+        f.policy = f.guest ? pol.guest : viaTempLink ? pol.temp : pol.fixed;
+        const bool lan = !f.guest && !viaTempLink && !f.fixedMain;
+        s->policy = lan ? "lan" : policyName(f.policy);
         f.allowedDevice = allowedDevices.count(device) > 0, f.kicked = kicked;
-        f.remembered = !kicked && !f.allowedDevice && opt.remembered && opt.remembered(device);
+        const std::string scope = approvalScope(viaFixedReq, r.tunnel, s->guestId);
+        f.remembered = !kicked && !f.allowedDevice && listCounts(lan, f.policy) && opt.remembered && opt.remembered(device, scope);
         f.loginAllowed = okLogins.allows(device, ApprovalMemory::loginOf(s->guestId, cred));
-        const bool ok = letInWithoutAsking(f);
-        if (ok && (f.guest || viaTempLink) && f.loginAllowed)
+        const Admit admit = admitWithoutAsking(f);
+        const bool ok = admit != Admit::No;
+        s->admit = admitName(admit);
+        if (admit == Admit::SameLogin)
             logf("host: %s from %s: the same %s as before, allowed on the PC already -> no 允許 again", s->label.c_str(), r.peer.c_str(),
                  f.guest ? "臨時帳號 login" : "temporary-address link");
-        if (passwordIn && !allowedDevices.count(device))
-            logf("host: %s from %s came in with the password (fixed link): no 允許 needed", s->label.c_str(), r.peer.c_str());
+        if (admit == Admit::Password)
+            logf("host: %s from %s came in with the %s: no 允許 needed (只用密碼)", s->label.c_str(), r.peer.c_str(),
+                 f.guest ? "臨時帳號's password" : viaTempLink ? "temporary address's link and 通行碼" : "password (fixed link)");
+        if (admit == Admit::Remembered)
+            logf("host: %s from %s is on the 記住 list (%s): no 允許 needed", s->label.c_str(), r.peer.c_str(),
+                 f.guest ? "this 臨時帳號" : scope.c_str());
         if (ok) {
             s->state = Session::State::Allowed;
             if (!s->guest()) allowedDevices.insert(device);  // 0.8.3.5: a guest's device is never "allowed" by itself
@@ -1363,6 +1462,8 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
                 pending->guestId = s->guestId, pending->guestName = s->guestName;
                 pending->guestViewOnly = s->guestViewOnly, pending->guestFiles = s->guestFiles;
                 pending->quality = s->quality, pending->monitor = s->monitor;
+                pending->fpsWant = s->fpsWant.load(), pending->fitW = s->fitW.load(), pending->fitH = s->fitH.load(), pending->topQuality = s->topQuality.load();  // 0.8.3.6 video
+                pending->policy = s->policy;  // 0.8.3.6
                 return {202, "application/json", json{{"id", pending->id}, {"pending", true}}.dump()};
             }
             if (pending) replacedPending = pending, pending->state = Session::State::Ended;
@@ -1484,34 +1585,23 @@ bool Host::Impl::buildPeerConnection(const std::shared_ptr<Session>& s, std::str
             sp->gcv.notify_all();
         });
 
-        // The stream size this session will get (for the SDP level).
-        const Quality q = effective(s->quality);
-        const auto mons = enumMonitors();
-        int dw = 1920, dh = 1080;
-        if (!mons.empty()) {
-            const RECT& rc = mons[size_t(s->monitor < int(mons.size()) ? s->monitor : 0)].rect;
-            dw = rc.right - rc.left, dh = rc.bottom - rc.top;
-        }
-        const double sc = std::min({1.0, double(q.maxWidth) / dw, double(q.maxHeight) / dh});
-        const int ow = std::max(16, int(dw * sc) & ~1), oh = std::max(16, int(dh * sc) & ~1);
+        // The stream size this session will get (for the SDP level). 0.8.3.6: the level also covers the
+        // user's own preset at up to the monitor's refresh rate (120 at most), so that 切換畫質 / 幀率 and the
+        // automatic steps stay inside this connection ({"t":"quality"}); a change beyond it reconnects.
+        const Plan sp = plan(s->quality, s->monitor, s->fpsWant, s->fitW, s->fitH);
+        const Plan top = plan(std::max(s->quality, s->topQuality.load()), s->monitor, kMaxFps, 0, 0);
+        const Quality q{sp.w, sp.h, sp.fps, sp.kbps};
+        const int ow = sp.w, oh = sp.h;
 
         // Video: H.264 constrained baseline, packetization-mode 1, at the
         // level the stream needs (3.1 for 720p30 ... 5.2 for 4K60).
         const uint32_t ssrcV = randomU32() | 1;
         const int ptV = 96;
         rtc::Description::Video vmedia("video", rtc::Description::Direction::SendOnly);
-        const int mbs = ((ow + 15) / 16) * ((oh + 15) / 16);
-        struct Lvl {
-            int idc, maxFs, maxMbps;
-        };
-        static const Lvl kLevels[] = {{31, 3600, 108000},  {32, 5120, 216000},  {40, 8192, 245760}, {42, 8704, 522240},
-                                      {50, 22080, 589824}, {51, 36864, 983040}, {52, 36864, 2073600}};
-        int level = 52;
-        for (const Lvl& l : kLevels)
-            if (mbs <= l.maxFs && mbs * std::max(1, q.fps) <= l.maxMbps) {
-                level = l.idc;
-                break;
-            }
+        H264Level lv = h264LevelFor(ow, oh, q.fps);
+        if (const H264Level t = h264LevelFor(top.w, top.h, top.fps); t.idc > lv.idc) lv = t;
+        const int level = lv.idc;
+        s->lvIdc = lv.idc, s->lvMaxFs = lv.maxFs, s->lvMaxMbps = lv.maxMbps;
         char fmtp[96];
         snprintf(fmtp, sizeof(fmtp), "profile-level-id=42e0%02x;packetization-mode=1;level-asymmetry-allowed=1", level);
         vmedia.addH264Codec(ptV, fmtp);
@@ -2575,6 +2665,13 @@ void Host::setFixedOptions(const std::string& passwordHash, const std::string& s
     std::lock_guard<std::mutex> lk(d_->tunMu);
     d_->fixedHash = passwordHash, d_->fixedSecret = secret, d_->fixedApproval = needApproval;
 }
+void Host::setApprovalPolicies(const ApprovalPolicies& p) {
+    {
+        std::lock_guard<std::mutex> lk(d_->tunMu);
+        d_->policies = p;
+    }
+    logf("host: 連線時要不要允許: 主帳號 (fixed address) %s, 臨時帳號 %s, 臨時網址 %s", policyName(p.fixed), policyName(p.guest), policyName(p.temp));
+}
 std::string Host::fixedOrigin() const { return "http://127.0.0.2:" + std::to_string(d_->http.port()); }
 void Host::setLockAfterSession(bool outside, bool lan) {
     d_->lockOutside = outside, d_->lockLan = lan;
@@ -2784,6 +2881,10 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         enc.setBitrate(j.value("kbps", 0));
         return;
     }
+    if (t == "quality") {  // 0.8.3.6: 畫質 / 幀率 / 解析度跟手機一樣 / 螢幕 inside this connection
+        streamAsk(s, j);
+        return;
+    }
     if (t == "idr") {
         // 0.8.3.1: the page asks when it has no picture yet / starts playing after a tap (with a
         // reason, logged); at most one every 300 ms whatever a page sends.
@@ -2983,6 +3084,42 @@ void Host::Impl::sendFrame(Encoded&& f) {
     }
 }
 
+// 0.8.3.6: the page changes the picture inside the session: {"t":"quality", "id", "q", "m", "fps",
+// "fit": [w, h] | null, "top"}. Within the H.264 level of this session's offer (or over the tunnel's
+// WebSocket, which has none) it is applied here and the capture loop follows within a frame: no new
+// connection, no 允許. Beyond it the page is told to reconnect (the old path, still without 允許).
+void Host::Impl::streamAsk(const std::shared_ptr<Session>& s, const json& j) {
+    int q = s->quality, m = s->monitor, fps = s->fpsWant, fw = s->fitW, fh = s->fitH;
+    if (j.contains("q") && j["q"].is_number_integer()) q = std::clamp(j["q"].get<int>(), 0, kQualityLevels - 1);
+    if (j.contains("m") && j["m"].is_number_integer()) m = std::clamp(j["m"].get<int>(), 0, std::max(0, int(enumMonitors().size()) - 1));
+    if (j.contains("fps") && j["fps"].is_number_integer()) fps = std::clamp(j["fps"].get<int>(), 10, kMaxFps);
+    if (j.contains("fit")) {
+        const json& f = j["fit"];
+        if (f.is_array() && f.size() == 2 && f[0].is_number_integer() && f[1].is_number_integer())
+            fw = std::clamp(f[0].get<int>(), 0, 16384), fh = std::clamp(f[1].get<int>(), 0, 16384);
+        else
+            fw = fh = 0;
+    }
+    if (j.contains("top") && j["top"].is_number_integer()) s->topQuality = std::clamp(j["top"].get<int>(), 0, kQualityLevels - 1);
+    const Plan np = plan(q, m, fps, fw, fh);
+    const int mbs = ((np.w + 15) / 16) * ((np.h + 15) / 16);
+    const bool fits = wsMedia(s) || (mbs <= s->lvMaxFs && int64_t(mbs) * np.fps <= s->lvMaxMbps);
+    json a{{"t", "quality"}, {"id", j.value("id", 0)}, {"q", np.quality}, {"m", np.monitor}, {"fps", np.fpsWant},
+           {"fpsCap", np.fps}, {"hz", np.hz},          {"w", np.w},       {"h", np.h},        {"kbps", np.kbps},
+           {"fit", np.fit},  {"levelCut", np.levelCut}, {"ok", fits}};
+    if (!fits) {
+        a["reconnect"] = true;
+        logf("page %s: picture -> quality %d, monitor %d, %dx%d @%d fps: beyond this connection's H.264 level %d.%d -> the page reconnects",
+             s->peer.c_str(), np.quality, np.monitor, np.w, np.h, np.fps, s->lvIdc / 10, s->lvIdc % 10);
+        sendDc(s, a);
+        return;
+    }
+    s->quality = np.quality, s->monitor = np.monitor, s->fpsWant = np.fpsWant, s->fitW = fw, s->fitH = fh;
+    logf("page %s: picture -> quality %d, monitor %d, %dx%d @%d fps (asked %d, monitor %d Hz), %d kbps%s: in this session (no new connection)",
+         s->peer.c_str(), np.quality, np.monitor, np.w, np.h, np.fps, np.fpsWant, np.hz, np.kbps, np.fit ? ", fit to the phone" : "");
+    sendDc(s, a);
+}
+
 // 外網連結 full: ask for a key frame (at most once a second) and lower the
 // bitrate (70 %, at most every 2 s, not below 800 kbps).
 void Host::Impl::tunnelFull(int64_t now, bool wantKey) {
@@ -2990,7 +3127,7 @@ void Host::Impl::tunnelFull(int64_t now, bool wantKey) {
     if (wantKey && now - lastKeyAskUs > 1000000) lastKeyAskUs = now, enc.forceKeyFrame();
     if (now - lastCutUs < 2000000) return;
     lastCutUs = now;
-    const int base = effective(curQuality).kbps;
+    const int base = curKbps > 0 ? int(curKbps) : effective(curQuality).kbps;
     const int from = tunnelKbps ? tunnelKbps : base;
     tunnelKbps = std::max(800, from * 7 / 10);
     enc.setBitrate(tunnelKbps);
@@ -3000,7 +3137,7 @@ void Host::Impl::tunnelFull(int64_t now, bool wantKey) {
 void Host::Impl::tunnelOk(int64_t now) {
     if (!tunnelKbps || now - lastDropUs < 8000000 || now - lastRaiseUs < 4000000) return;
     lastRaiseUs = now;
-    const int base = effective(curQuality).kbps;
+    const int base = curKbps > 0 ? int(curKbps) : effective(curQuality).kbps;
     tunnelKbps = tunnelKbps * 115 / 100;
     if (tunnelKbps >= base) tunnelKbps = 0;
     enc.setBitrate(tunnelKbps ? tunnelKbps : base);
@@ -3134,18 +3271,28 @@ void Host::Impl::captureLoop() {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
     timeBeginPeriod(1);
     DesktopCapture cap;
+    cap.setPreciseWait(opt.preciseWait);
     DesktopCapture::Options co;
     co.drawCursor = opt.drawCursor;
     co.scene = opt.scene == "static"   ? DesktopCapture::Scene::Static
                : opt.scene == "motion" ? DesktopCapture::Scene::Motion
+               : opt.scene == "synth"  ? DesktopCapture::Scene::Synth
                                        : DesktopCapture::Scene::Desktop;
     std::vector<uint8_t> nv12;
     int64_t nextDue = 0, lastEncode = 0, lastStats = nowUs(), lastLog = nowUs();
     bool open = false, encOpen = false;
     int openQuality = -1, openMonitor = -1, encFps = 0, encKbps = 0;
+    // 0.8.3.6: what the open capture / encoder were planned for (preset, monitor, fps asked, fit)
+    struct StreamKey {
+        int q = -1, m = -1, fps = 0, fitW = 0, fitH = 0;
+        bool operator==(const StreamKey&) const = default;
+    } openKey;
+    Plan P = plan(curQuality, curMonitor, kDefaultFps, 0, 0);
     int64_t poolFull = 0, skippedStatic = 0;
+    int64_t paceN = 0, paceEarly = 0, paceLate = 0;  // 0.8.3.6: frame spacing (stats line)
+    int64_t lastFrameUs = 0;
     int tailLeft = 0;  // follow-up frames after a lone change (see below)
-    Quality q = effective(curQuality);
+    Quality q{P.w, P.h, P.fps, P.kbps};
     GpuMeter gpu;
     bool awake = false;  // SetThreadExecutionState held (F1)
     int tierFps = 0;     // frame rate in use (O5 / O6)
@@ -3159,21 +3306,26 @@ void Host::Impl::captureLoop() {
         // 0.8.3: capture + encoder only while a phone is there (or on its way: a session
         // request woke us), released 30 s after the last one; until then this thread sleeps.
         {
-            int hq = -1, hm = 0;
+            int hq = -1, hm = 0, hf = kDefaultFps, hfw = 0, hfh = 0;
             int64_t hus = 0;
             {
                 std::lock_guard<std::mutex> lk(capMu);
-                hq = hintQuality, hm = hintMonitor, hus = hintUs;
+                hq = hintQuality, hm = hintMonitor, hus = hintUs, hf = hintFps, hfw = hintFitW, hfh = hintFitH;
             }
             const int64_t t = nowUs();
             const bool hinted = hq >= 0 && t - hus < 30000000;
             if (s || hinted) lastWantUs = t;
-            if (!s && hinted && !open) curQuality = hq, curMonitor = hm;  // open it for the session on its way
+            if (!s && hinted && !open && StreamKey{hq, hm, hf, hfw, hfh} != openKey) {  // open it for the session on its way
+                openKey = StreamKey{hq, hm, hf, hfw, hfh};
+                P = plan(hq, hm, hf, hfw, hfh);
+                curQuality = P.quality, curMonitor = P.monitor;
+            }
             if (!s && !hinted && (open || encOpen) && t - lastWantUs > 30000000) {
                 enc.close();  // the encoder first (it holds pool textures of the capture)
                 cap.close();
                 open = encOpen = false;
                 openQuality = openMonitor = -1;
+                openKey = StreamKey{};
                 capOpen = false;
                 logf("host: no phone for 30 s -> screen capture and video encoder released");
             }
@@ -3184,15 +3336,39 @@ void Host::Impl::captureLoop() {
                 continue;
             }
         }
-        // The session decides the monitor and the quality; reopen on a change.
-        if (s && (s->quality != openQuality || s->monitor != openMonitor)) {
-            if (open) logf("host: switching to monitor %d, quality %d", s->monitor, s->quality);
-            open = false;  // reopened below (encoder first: it holds pool textures)
-            curQuality = s->quality, curMonitor = s->monitor;
+        // The session decides the monitor, the preset, the frame rate and 解析度跟手機一樣; 0.8.3.6: each
+        // may change inside the session ({"t":"quality"}). A new size or monitor reopens the capture (and
+        // the encoder: a key frame with the new size follows), a new frame rate / bitrate only the encoder
+        // (below). The WebRTC connection stays either way.
+        if (s) {
+            const StreamKey k{s->quality, s->monitor, s->fpsWant.load(), s->fitW.load(), s->fitH.load()};
+            if (k != openKey) {
+                const Plan np = plan(k.q, k.m, k.fps, k.fitW, k.fitH);
+                if (open && np.monitor == P.monitor && (np.w != P.w || np.h != P.h)) {
+                    // the same screen, another size: only the scaler is made again (encoder first: it holds pool textures)
+                    const int64_t t0 = nowUs();
+                    enc.close();
+                    encOpen = false;
+                    if (!cap.setOutputSize(np.w, np.h)) open = false;
+                    logf("host: quality %d: %dx%d @%d fps, %d kbps (same connection, scaler %.1f ms)", np.quality, np.w, np.h, np.fps, np.kbps,
+                         (nowUs() - t0) / 1000.0);
+                } else if (open && np.monitor != P.monitor) {
+                    logf("host: switching to monitor %d, quality %d: %dx%d @%d fps, %d kbps (same connection)", np.monitor, np.quality, np.w,
+                         np.h, np.fps, np.kbps);
+                    open = false;  // reopened below (encoder first: it holds pool textures)
+                } else if (open && (np.fps != P.fps || np.kbps != P.kbps)) {
+                    logf("host: frame rate %d fps (asked %d, monitor %d Hz), %d kbps (same connection, same size)", np.fps, np.fpsWant, np.hz,
+                         np.kbps);
+                }
+                openKey = k, P = np;
+                q = Quality{P.w, P.h, P.fps, P.kbps};
+                curQuality = P.quality, curMonitor = P.monitor;
+            }
         }
+        curKbps = P.kbps, curHz = P.hz, curFpsCap = P.fps, curFpsWant = P.fpsWant, curFit = P.fit, curLevelCut = P.levelCut;
         if (!open) {
-            q = effective(curQuality);
-            co.maxWidth = q.maxWidth, co.maxHeight = q.maxHeight, co.monitor = curMonitor;
+            q = Quality{P.w, P.h, P.fps, P.kbps};
+            co.maxWidth = P.w, co.maxHeight = P.h, co.outWidth = P.w, co.outHeight = P.h, co.monitor = curMonitor;
             // the encoder holds pool textures of the old capture: close it first
             enc.close();
             encOpen = false;
@@ -3218,7 +3394,9 @@ void Host::Impl::captureLoop() {
                       : opt.encoder == "sw" ? H264Encoder::Kind::Software
                                             : H264Encoder::Kind::Auto;
             if (!opt.cpuPath) eo.device = cap.device(), eo.adapterLuid = cap.adapterLuid();
+            const int64_t te = nowUs();
             encOpen = enc.open(eo, [this](std::vector<uint8_t>&& au, int64_t c, bool idr) { onEncoded(std::move(au), c, idr); });
+            logf("host: encoder opened in %.1f ms", (nowUs() - te) / 1000.0);
             outW = cap.width(), outH = cap.height(), encFps = q.fps, encKbps = q.kbps;
             deskW = cap.desktopWidth(), deskH = cap.desktopHeight();
             if (!encOpen) {
@@ -3288,6 +3466,10 @@ void Host::Impl::captureLoop() {
 
         if (!active) nextDue = now;
         bool changed = false;
+        // 0.8.3.6: while the picture moves the next frame leaves on the beat anyway: one timer wait to just
+        // before it instead of a poll every millisecond (what changes meanwhile is in the next frame).
+        if (active && opt.evenPacing && opt.preciseWait && opt.waitAhead && lastChangeUs && now - lastChangeUs < 2 * period && nextDue - now > 1500)
+            cap.waitUs(nextDue - now - 1000);
         if (!active) {
             Sleep(50);  // no viewer: no capture at all
         } else if (!cap.poll(int(std::clamp<int64_t>((nextDue - now + 999) / 1000, 0, 100)), changed)) {
@@ -3301,8 +3483,11 @@ void Host::Impl::captureLoop() {
         // (skipStatic) except a refresh every staticRefreshMs; without
         // skipStatic every slot is encoded.
         bool encodeNow = false;
+        // 0.8.3.6: after a still picture (nothing sent for 2 slots) a change goes out at once and the beat
+        // restarts there; while it moves, frames leave on the beat (evenPacing; see Options).
+        const bool still = now - lastEncode > 2 * period;
         if (active) {
-            if (changed && now >= nextDue - period / 4) encodeNow = true;
+            if (changed && (opt.evenPacing ? (now >= nextDue || still) : now >= nextDue - period / 4)) encodeNow = true;
             else if (now >= nextDue && (!opt.skipStatic || now - lastEncode >= refresh || tailLeft > 0)) encodeNow = true;
             else if (now >= nextDue && !changed) {
                 ++skippedStatic;
@@ -3315,8 +3500,17 @@ void Host::Impl::captureLoop() {
             // a change is followed by tailFrames repeats on the next slots.
             if (changed || now - lastEncode >= refresh) tailLeft = opt.tailFrames;
             else if (tailLeft > 0) --tailLeft;
-            nextDue += period;
+            if (!still) lateMs.add((now - nextDue) / 1000.0);
+            if (opt.evenPacing && still) nextDue = now + period;  // a new beat from this frame
+            else nextDue += period;
             if (nextDue < now - period) nextDue = now + period / 2;  // resync after a stall
+            if (lastFrameUs && !still) {  // spacing while it moves: within 20 % of the beat?
+                const int64_t gap = now - lastFrameUs;
+                ++paceN;
+                if (gap < period * 8 / 10) ++paceEarly;
+                else if (gap > period * 12 / 10) ++paceLate;
+            }
+            lastFrameUs = now;
             lastEncode = now;
             const int64_t captureUs = now;
             const bool stamp = stampOn;
@@ -3334,6 +3528,7 @@ void Host::Impl::captureLoop() {
                 if (enc.gpuInput()) {
                     renderMs.add((t1 - captureUs) / 1000.0);
                     enc.encodeTexture(cap.texture(slot), captureUs, [&cap, slot] { cap.release(slot); });
+                    submitMs.add((nowUs() - t1) / 1000.0);
                 } else {
                     const bool ok = cap.readback(slot, nv12);
                     cap.release(slot);
@@ -3366,7 +3561,11 @@ void Host::Impl::captureLoop() {
                        {"dropped", enc.dropped()}, {"maxKB", mx / 1024.0},     {"viewOnly", vo(s)},
                        {"audio", audio.running()}, {"monitor", int(curMonitor)}, {"quality", int(curQuality)},
                        {"fpsNow", tierFps},        {"paused", bool(s->paused)}, {"idleMinutes", opt.idleMinutes},
-                       {"aOn", bool(s->wantAudio)}, {"aPeak", audio.recentPeak()}, {"aDev", audio.currentDevice()}};
+                       {"aOn", bool(s->wantAudio)}, {"aPeak", audio.recentPeak()}, {"aDev", audio.currentDevice()},
+                       // 0.8.3.6: the frame rate asked / allowed (the monitor's refresh rate caps it), the
+                       // bitrate this stream is planned for, 解析度跟手機一樣, the level's size cut
+                       {"fpsWant", int(curFpsWant)}, {"fpsCap", int(curFpsCap)}, {"hz", int(curHz)},
+                       {"kbpsBase", int(curKbps)}, {"fit", bool(curFit)}, {"levelCut", bool(curLevelCut)}};
 
                 sendDc(s, j);
             }
@@ -3398,7 +3597,18 @@ void Host::Impl::captureLoop() {
                         }() +
                         (poolFull || winQDrops
                              ? " | pool full " + std::to_string(poolFull) + ", queue drops " + std::to_string(winQDrops)
-                             : std::string());
+                             : std::string()) +
+                        (paceN ? " | pace " + std::to_string(paceEarly) + " early / " + std::to_string(paceLate) + " late of " +
+                                     std::to_string(paceN) + " (cap " + std::to_string(int(curFpsCap)) + " fps, monitor " +
+                                     std::to_string(int(curHz)) + " Hz)"
+                               : std::string()) +
+                        [&] {
+                            const auto lt = lateMs.take(), sb = submitMs.take();
+                            char b[128];
+                            snprintf(b, sizeof(b), " | beat late avg %.2f p95 %.2f max %.1f ms, submit avg %.2f p95 %.2f ms", lt.avg, lt.p95, lt.max,
+                                     sb.avg, sb.p95);
+                            return lt.n ? std::string(b) : std::string();
+                        }();
                     logf("stats: %dx%d %.1f fps sent, %.0f kbps, max frame %.1f KB, %lld IDR | capture->encoded avg %.1f p95 "
                          "%.1f ms | capture->sent avg %.1f p95 %.1f ms | render %.2f ms | encode %.1f ms | CPU %.2f%% "
                          "of machine (%.1f%% of one core) | GPU %s | %s, %s%s",
@@ -3418,6 +3628,7 @@ void Host::Impl::captureLoop() {
                 winFrames = winBytes = winMaxAu = winIdrs = winQDrops = 0;
                 winC2s.clear(), winC2e.clear(), winEnc.clear(), winRender.clear();
                 skippedStatic = poolFull = 0;
+                paceN = paceEarly = paceLate = 0;
             }
         }
     }

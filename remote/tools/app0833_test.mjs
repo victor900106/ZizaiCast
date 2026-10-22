@@ -16,6 +16,7 @@
 //           unknown account get the same answer; the right password of a deleted account says so
 //   tunnel  the temporary address: a phone remembered on this PC is still asked, without 記住
 import {spawn, execFileSync} from 'node:child_process';
+import {headlessShell} from './quiet_browser.mjs';  // rel-0836: chrome-headless-shell (no window, no Alt+Tab entry), not Edge / Chrome --headless=new
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -94,7 +95,7 @@ async function instance(tag, {seed = '', env = {}}, steps) {
   fs.writeFileSync(path.join(dataDir, 'settings.ini'),
     `[settings]\nlanguage=zh-TW\nremote_port=${port}\ntutorial_shown=1\ntray_hint_shown=1\nclose_hint_shown=1\ntoolbar_hint_shown=1\nwhats_new_seen=0.8.3\nidle_tab=remote\n${seed}`);
   if (env.__devices) { fs.writeFileSync(path.join(dataDir, 'remote_devices.txt'), env.__devices); delete env.__devices; }
-  const fullEnv = {...process.env, TEMP: tmpDir, TMP: tmpDir, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'app0833', PM_REMOTE_DRYRUN: '1', PM_REMOTE_NOTS: '1',
+  const fullEnv = {...process.env, TEMP: tmpDir, TMP: tmpDir, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'app0833', PM_REMOTE_DRYRUN: '1', PM_REMOTE_SYNTHAUDIO: 'quiet', PM_REMOTE_NOTS: '1',
     PM_REMOTE_LOOPBACK: '1', PM_REMOTE_TESTCLIP: '1', ...env};
   for (const k of Object.keys(fullEnv)) if (fullEnv[k] === null) delete fullEnv[k];
   const app = spawn(exe, ['--dev', '--test-offscreen', '--test-no-network'], {stdio: 'ignore', env: fullEnv, windowsHide: true});
@@ -125,8 +126,8 @@ async function instance(tag, {seed = '', env = {}}, steps) {
 // Headless Chrome (own profile, CDP on 127.0.0.1), the phone page on 127.0.0.2 only.
 async function browser() {
   const port = 9300 + Math.floor(Math.random() * 400);
-  const proc = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--mute-audio',
-    `--user-data-dir=${tmpDir}/_chrome`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', 'about:blank'], {stdio: 'ignore'});
+  const proc = spawn(headlessShell(), ['--mute-audio', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
+    `--user-data-dir=${tmpDir}/_chrome`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', 'about:blank'], {stdio: 'ignore', windowsHide: true});
   let tabs;
   for (let i = 0; i < 60; i++) { try { tabs = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); if (tabs.length) break; } catch {} await sleep(250); }
   const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl);
@@ -271,7 +272,7 @@ if (only.includes('tunnel')) {
       check('tunnel: the 通行碼 is accepted', r2.status === 200 && /"ok":true/.test(r2.body), r2.body.slice(0, 80));
       const r3 = await req('POST', base + 'session', JSON.stringify({device, q: 0, m: 0}), {'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari/604.1'});
       check('tunnel: a phone remembered on this PC still waits for 允許 (202 pending)', r3.status === 202 && /"pending":true/.test(r3.body), `${r3.status} ${r3.body.slice(0, 80)}`);
-      const ask = await waitLog(/asks to connect \(asked every time: no 記住\)/, 5000);
+      const ask = await waitLog(/asks to connect( \(連線時要不要允許: ask\))? \((asked every time: )?no 記住\)/, 5000);  // rel-0836: 0.8.3.6 names the policy
       check('tunnel: the PC asks, with no 記住這支手機', !!ask);
       dev(960, 0, 1200);
       const f = path.join(tmpDir, 'pmshots', 'remote_ask.png');

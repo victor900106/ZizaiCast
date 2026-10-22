@@ -298,7 +298,7 @@
 <ol class="steps">
   <li>PC: <span class="ui">Remote control</span> tab → <span class="ui">At home (same Wi-Fi)</span> card → <span class="ui">Show QR code</span> (this turns the switch on if needed).</li>
   <li>With the phone on the <strong>same Wi-Fi</strong>, scan the QR code with the camera and tap the address.</li>
-  <li>The PC asks “A phone wants to control this PC”: if it’s your phone, click <span class="ui">Allow</span>. Tick <span class="ui">Remember this phone, don't ask again</span> so you won’t be asked again.</li>
+  <li>The PC asks “A phone wants to control this PC”: if it’s your phone, click <span class="ui">Allow</span>. Tick <span class="ui">Remember this device, don't ask again</span> so you won’t be asked again.</li>
   <li>On the phone, tap <span class="ui">Tap for sound</span>, or the speaker labelled <span class="ui">Sound on</span> at the bottom right, to hear the PC (iPhone requires that tap).</li>
 </ol>
 {{img:remote-lan|After “Show QR code” (a made-up address)|420}}
@@ -345,7 +345,7 @@
   <li>In the <span class="ui">Allow remote control</span> block at the top of the <span class="ui">Remote control</span> tab, click <span class="ui">Set a password (fixed address + temporary accounts)</span>; type it twice, at least 8 characters (longer is better, not used anywhere else). Click <span class="ui">Save and turn on</span>.</li>
   <li><strong>The first time, wait a minute or two</strong>: the block says “Preparing the address, about 1–2 minutes” while Tailscale gets the HTTPS certificate; until then the phone can’t open the page. Zizai Cast checks it by itself and says “The fixed address is on” only when it works.</li>
   <li>The block becomes <span class="ui">This PC’s address (works from anywhere)</span> with <code>https://your-pc-name.….ts.net:8443/</code> in big type and a QR code. Scan it with the phone, or click <span class="ui">Copy address</span> and send it to yourself.</li>
-  <li>Open the address on the phone: there is only a <strong>password</strong> field; enter yours. After one sign-in the phone won’t ask again for 30 days. <a href="#remote-pwa">Add it to the home screen</a> to open it with one tap.</li>
+  <li>Open the address on the phone: there is only a <strong>password</strong> field; enter yours. After one sign-in the phone won’t ask again for 30 days. <a href="#remote-pwa">Add it to the home screen</a> to open it with one tap. On the sign-in page 投投 and three pink friends watch you: they look away while you type the password, look sad and shake their heads at a wrong one and smile when you’re in (with Reduce motion on in the system they only change faces).</li>
   <li>To be reachable as soon as the PC starts: <span class="ui">More settings</span> → tick <span class="ui">Turn the fixed address on when the PC starts</span>.</li>
 </ol>
 {{img:remote-preparing|The first time: “Preparing the address, about 1–2 minutes” (no QR code yet)|420}}
@@ -374,7 +374,7 @@
 </ul>
 
 <h3 id="remote-friend">Situation 3: lend it to a friend</h3>
-<p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>the first time your friend connects after signing in, someone at the PC clicks “Allow”</strong> (it can’t be remembered). After that, the same phone with the same account (or the same temporary address) is not asked again when it changes the quality, switches screens, reconnects after a drop or reloads the page; after <span class="ui">Deny</span>, <span class="ui">End</span>, or once the account expires or is deleted, Allow is needed again.</p>
+<p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>the first time your friend connects after signing in, someone at the PC clicks “Allow”</strong> (by default it can’t be remembered; for a friend you lend to often, see <a href="#remote-approve">Ask before someone connects</a>). After that, the same phone with the same account (or the same temporary address) is not asked again when it changes the quality, switches screens, reconnects after a drop or reloads the page; after <span class="ui">Deny</span>, <span class="ui">End</span>, or once the account expires or is deleted, Allow is needed again.</p>
 <h4 id="remote-guest">Way A: a temporary account (recommended; the fixed address must be on)</h4>
 <ol class="steps">
   <li>PC: the <span class="ui">This PC’s address (works from anywhere)</span> block at the top of the <span class="ui">Remote control</span> tab → <span class="ui">Add a temporary account</span>.</li>
@@ -414,6 +414,7 @@
 {{img:phone-bar|Bottom right of the phone page: Sound on, Zoom, Files, Keyboard, Stats, Settings (a made-up desktop)|300}}
 <p>In Trackpad mode a big arrow (pink ring) shows where the PC pointer is, and a tap clicks there; if you keep tapping far from the arrow, the page offers to switch to Direct. Pinch to zoom the picture; a three-finger tap opens or closes the keyboard. The keyboard panel has Ctrl, Alt, Win, arrows, copy, paste and the clipboard.</p>
 {{img:phone-mode|The first connection: the page says Direct mode is on and offers Trackpad in one tap (a made-up desktop)|260}}
+<p>Three rows in the phone page’s <span class="ui">Settings</span> are about the picture: <span class="ui">Picture</span> (Smooth / Standard / Sharp), <span class="ui">Frame rate</span> (30 / 60 / 120, 60 by default; if the PC’s screen runs at 60 Hz it sends at most 60 and the row says so) and <span class="ui">Match the phone’s resolution</span> (the PC sizes the picture to this phone’s screen: smoother, less data; on by default on phones and tablets, off in a computer’s browser). They all change inside the same connection: no black flash, no Allow again.</p>
 
 <h3 id="remote-pc">From another computer’s browser</h3>
 <p>Open the same address in a browser on another computer (Chrome, Edge …) and use its mouse and keyboard: left, right and middle buttons, back / forward buttons, the wheel and dragging all go through, and a click lands where you point. You type with that computer’s own input method (Chinese, Japanese, Korean too); shortcuts (Ctrl+C, Ctrl+V, F5 …) go to the remote PC, not to the browser.</p>
@@ -429,6 +430,22 @@
   <li>Ctrl+Alt+Del doesn’t go through: it is Windows’ secure key and no program can send it. For Task Manager use <span class="ui">Task Manager</span> on the bar.</li>
   <li><span class="ui">Files</span> on the bar is grey: hover over it to see why (View only, or a temporary account without files).</li>
 </ul></div>
+
+<h3 id="remote-approve">Ask before someone connects</h3>
+<p>PC: the <span class="ui">Remote control</span> tab → <span class="ui">More settings</span> → <span class="ui">Ask before someone connects</span>. Your account (fixed address + your password), guest accounts and the temporary address each get one choice:</p>
+<div class="tbl"><table>
+  <tr><th>Choice</th><th>When someone connects from outside</th></tr>
+  <tr><td>Ask every time</td><td>Every new sign-in needs <span class="ui">Allow</span> on the PC (the default for guest accounts and the temporary address)</td></tr>
+  <tr><td>Remember this device</td><td>The Allow dialog gets a “Remember” box; once ticked, the same device comes straight in next time</td></tr>
+  <tr><td>Password only</td><td>The right password lets it straight in, no Allow (for the temporary address: “Passcode only”)</td></tr>
+</table></div>
+<ul>
+  <li>Memories are kept per place (home, the fixed address, each guest account, the temporary address) and never shared between them.</li>
+  <li><span class="ui">Deny</span> or <span class="ui">End</span>, a guest account deleted or expired, a guest password reset or a new main password forget the matching devices; a device that was ended always needs Allow once more.</li>
+  <li><span class="ui">More settings</span> → <span class="ui">Remembered phones</span>: remove them one by one or forget them all; each row says where it was remembered.</li>
+  <li>Home (the same Wi-Fi) and Tailscale stay as they were: Allow every time (you can tick Remember).</li>
+  <li>Every entry in the <span class="ui">Connection log</span> says how the device got in, for example “Ask every time · you clicked Allow” or “Password only · right password, no Allow needed”.</li>
+</ul>
 
 <h3 id="remote-safety">Safety</h3>
 <ul>
@@ -465,7 +482,7 @@
   <li>Turn up the phone’s own volume too, and switch off the iPhone’s silent switch.</li>
   <li>PC: <span class="ui">Remote control</span> tab → <span class="ui">More settings</span> → <span class="ui">Sound</span>: <span class="ui">Send the PC's sound to the phone</span> must be ticked. To keep the PC quiet, tick <span class="ui">Mute the PC while the phone plays sound</span> there, or turn on <span class="ui">Mute the PC’s speakers</span> in the phone page’s <span class="ui">Settings</span> (the same setting, kept on the PC; temporary accounts and “View only” can’t change it).</li>
 </ol>
-{{img:phone-settings|Phone page settings: Control (with what it means), Phone volume (100% by default; above 100% is loudness boost, up to 400%), Mute the PC’s speakers|300}}
+{{img:phone-settings|Phone page settings: Phone volume (100% by default; above 100% is loudness boost, up to 400%), Mute the PC’s speakers, Picture, Frame rate, Match the phone’s resolution (on by default on a phone)|300}}
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>“The PC isn’t playing any sound right now”: the PC really is silent.</li>
   <li>Windows is muted on the PC: unmute it; to keep the PC quiet use “Mute the PC while the phone plays sound” (“Mute the PC’s speakers” on the phone page).</li>
@@ -496,6 +513,7 @@
   <li>Use 5 GHz Wi-Fi on both, close to the router; a cable for the PC helps.</li>
   <li>Right-click menu → Settings → <span class="ui">Picture quality</span> → <span class="ui">Standard (smoothest)</span>.</li>
   <li>Pause big downloads.</li>
+  <li>Remote control stutters: the phone page’s <span class="ui">Settings</span> → <span class="ui">Picture</span> → <span class="ui">Smooth</span>, turn on <span class="ui">Match the phone’s resolution</span>, <span class="ui">Frame rate</span> 60.</li>
 </ul></div></details>
 <details id="faq-blur"><summary>The picture is blurry</summary><div><ul>
   <li>Right-click menu → Settings → Picture quality → High or Highest; if they are grey, install “HEVC Video Extensions” from the Microsoft Store.</li>

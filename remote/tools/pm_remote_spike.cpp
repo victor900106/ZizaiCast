@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -70,6 +71,8 @@ void usage() {
         "  --view-only        picture only, input dropped\n"
         "  --idle-minutes N   end the session after N minutes without a touch (default 30, 0 = never)\n"
         "  --fixed-fps        always the full frame rate (no lower rate when the phone is not touched)\n"
+        "  --no-even-pacing   frames up to a quarter slot early when the screen changed (0.8.3.5; A / B)\n"
+        "  --sleep-wait       Sleep(1) between capture polls instead of the high-resolution timer (0.8.3.5; A / B)\n"
         "  --idle-after S --idle-fps N   phone idle after S seconds (default 60) -> N fps (default 15)\n"
         "  --no-keep-awake    let the PC sleep while connected\n"
         "  --test-clipboard T use an in-memory clipboard holding T (the PC clipboard is never touched)\n"
@@ -86,6 +89,10 @@ void usage() {
         "                     LIFE once | <seconds>; RIGHTS control | view, + files (e.g. control+files)\n"
         "  --guest-drop NAME:S  tests: that account is deleted S seconds after its session is connected\n"
         "  --fixed-approval   ... and new phones still need 允許\n"
+        "  --policy-fixed P   0.8.3.6 連線時要不要允許 for the 主帳號 on the fixed link: ask | remember | password\n"
+        "  --policy-guest P   ... for 臨時帳號 (default ask)\n"
+        "  --policy-temp P    ... for the temporary address (default ask)\n"
+        "  --approve-remember 允許 with 記住 ticked (the spike keeps that list in memory, per scope)\n"
         "  --funnel N         ... published with Tailscale Funnel on port N (never 443), turned off at the end\n"
         "  --fixed-tunnel     ... published with a cloudflared quick tunnel instead\n"
         "  --cloudflared EXE  cloudflared.exe to use (default: next to this exe, else an installed one)\n"
@@ -100,7 +107,7 @@ void usage() {
         "  --stdin-quit       quit when stdin is closed (test drivers)\n"
         "optimisation switches (defaults are the optimised settings):\n"
         "  --cpu-path --no-skip-static --static-refresh MS --vbv-frames N --inline-send\n"
-        "  --tail-frames N --rc cbr|vbr (default vbr) --rtp-payload N --scene desktop|static|motion\n",
+        "  --tail-frames N --rc cbr|vbr (default vbr) --rtp-payload N --scene desktop|static|motion|synth\n",
         stderr);
 }
 
@@ -299,6 +306,7 @@ int wmain(int argc, wchar_t** argv) {
     double duration = 0, kickAfter = 0;
     int approveAfterMs = 1500;
     bool denyFirst = false, testWindow = false, tone = false;
+    bool approveRemember = false;  // 0.8.3.6
     std::vector<Tone> tones;
     bool tunnel = false;
     std::string fixedPw;
@@ -361,6 +369,9 @@ int wmain(int argc, wchar_t** argv) {
         }
         else if (a == L"--help-file") o.helpFile = next();
         else if (a == L"--fixed-fps") o.adaptiveFps = false;
+        else if (a == L"--no-even-pacing") o.evenPacing = false;  // 0.8.3.6 A / B: frames up to a quarter slot early (0.8.3.5)
+        else if (a == L"--wait-ahead") o.waitAhead = true;  // 0.8.3.6 A / B: one wait to just before the beat (off by default)
+        else if (a == L"--sleep-wait") o.preciseWait = false;  // 0.8.3.6 A / B: Sleep(1) between polls (0.8.3.5)
         else if (a == L"--idle-after") o.idleAfterSec = _wtof(next());
         else if (a == L"--idle-fps") o.idleFps = _wtoi(next());
         else if (a == L"--no-keep-awake") o.keepAwake = false;
@@ -413,6 +424,15 @@ int wmain(int argc, wchar_t** argv) {
             guestDrop = spec.substr(0, c), guestDropSec = atoi(spec.substr(c + 1).c_str());
         }
         else if (a == L"--fixed-approval") o.fixedNeedApproval = true;
+        else if (a == L"--policy-fixed" || a == L"--policy-guest" || a == L"--policy-temp") {  // 0.8.3.6
+            const std::wstring which = a;
+            const std::wstring v = next();
+            pm::remote::ApprovalPolicy pol{};
+            std::string narrow;
+            for (wchar_t c : v) narrow += static_cast<char>(c);
+            if (!pm::remote::parsePolicy(narrow, pol)) return usage(), 2;
+            (which == L"--policy-fixed" ? o.policies.fixed : which == L"--policy-guest" ? o.policies.guest : o.policies.temp) = pol;
+        } else if (a == L"--approve-remember") approveRemember = true;
         else if (a == L"--funnel") funnelPort = _wtoi(next());
         else if (a == L"--fixed-tunnel") fixedTunnel = true;
         else if (a == L"--tunnel-no-cc") o.tunnelCongestion = false;
@@ -502,20 +522,36 @@ int wmain(int argc, wchar_t** argv) {
     pm::remote::Host host;
     std::atomic<int> requests{0};
     std::atomic<ULONGLONG> activeAt{0};
+    // 0.8.3.6: the 記住 list (device + scope), in memory: --approve-remember adds to it; 拒絕 / 中斷 drop the device.
+    static std::mutex remMu;
+    static std::set<std::string> remList;
+    o.remembered = [](const std::string& device, const std::string& scope) {
+        std::lock_guard<std::mutex> lk(remMu);
+        const bool on = remList.count(device + "\t" + scope) > 0;
+        slog("remembered? device %s scope %s -> %s", device.substr(0, 8).c_str(), scope.rfind("guest:", 0) == 0 ? "guest" : scope.c_str(), on ? "yes" : "no");
+        return on;
+    };
     o.onRequest = [&](const pm::remote::Peer& p) {
         const int n = ++requests;
         const bool allow = !(denyFirst && n == 1);
         slog("approval: request #%d from %s (%s%s, device %s) -> will %s in %d ms", n, p.label.c_str(), p.ip.c_str(),
              p.tailscale ? ", Tailscale" : "", p.device.substr(0, 8).c_str(), allow ? "ALLOW" : "DENY", approveAfterMs);
-        std::thread([&host, id = p.session, allow, approveAfterMs] {
+        const std::string key = p.device + "\t" + pm::remote::approvalScope(p.fixed, p.tunnel, p.guestId);
+        std::thread([&host, id = p.session, allow, approveAfterMs, key, rem = approveRemember && allow] {
             Sleep(DWORD(std::max(0, approveAfterMs)));
-            host.approve(id, allow, false);
+            {
+                std::lock_guard<std::mutex> lk(remMu);
+                if (rem) remList.insert(key);
+                if (!allow)
+                    for (auto it = remList.begin(); it != remList.end();) it = it->rfind(key.substr(0, key.find('\t') + 1), 0) == 0 ? remList.erase(it) : std::next(it);
+            }
+            host.approve(id, allow, rem);
         }).detach();
     };
     o.onActive = [&](const pm::remote::Peer& p) {
         activeAt = GetTickCount64();
-        slog("event: ACTIVE %s (%s) session %s%s%s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str(), p.guest.empty() ? "" : " guest ",
-             p.guest.c_str());
+        slog("event: ACTIVE %s (%s) session %s%s%s policy %s admit %s", p.label.c_str(), p.ip.c_str(), p.session.substr(0, 6).c_str(),
+             p.guest.empty() ? "" : " guest ", p.guest.c_str(), p.policy.c_str(), p.admit.c_str());
         if (!guestDrop.empty() && p.guest == guestDrop) {  // tests: the account is deleted while its phone is connected
             std::thread([&host, &guests, name = guestDrop, sec = guestDropSec] {
                 Sleep(DWORD(std::max(0, sec) * 1000));

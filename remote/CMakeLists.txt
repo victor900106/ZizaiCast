@@ -86,7 +86,7 @@ endif()
 # 0.8.3.5: 允許 once per 臨時帳號 / temporary-address login, not per connection (approval_memory.h): a model of
 # the host's gate + checks that host.cpp / index.html do it that way. No network, no UI.
 add_executable(pm_approval_test tools/approval_test.cpp src/approval_memory.h)
-target_include_directories(pm_approval_test PRIVATE src)
+target_include_directories(pm_approval_test PRIVATE src include)  # 0.8.3.6: pm/remote.h (ApprovalPolicy)
 target_compile_definitions(pm_approval_test PRIVATE PM_REMOTE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 if(MSVC)
   target_compile_options(pm_approval_test PRIVATE /W4 /utf-8)

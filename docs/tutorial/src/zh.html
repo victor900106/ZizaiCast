@@ -298,7 +298,7 @@
 <ol class="steps">
   <li>電腦：<span class="ui">遠端控制</span>分頁 →<span class="ui">在家（同一個 Wi-Fi）</span>卡片按<span class="ui">顯示 QR 碼</span>（開關沒開會自動打開）。</li>
   <li>手機連<strong>同一個 Wi-Fi</strong>，用相機掃 QR 碼，點跳出的網址。</li>
-  <li>電腦跳出「有手機想要操控這台電腦」：是你自己的手機就按<span class="ui">允許</span>。勾<span class="ui">記住這支手機，下次不用再問</span>，以後不用再按。</li>
+  <li>電腦跳出「有手機想要操控這台電腦」：是你自己的手機就按<span class="ui">允許</span>。勾<span class="ui">記住這台裝置，下次不用再問</span>，以後不用再按。</li>
   <li>手機上點<span class="ui">點一下開聲音</span>，或右下角寫著<span class="ui">開聲音</span>的喇叭，就聽得到電腦的聲音（iPhone 一定要點一下）。</li>
 </ol>
 {{img:remote-lan|按「顯示 QR 碼」後（示範用的假網址）|420}}
@@ -345,7 +345,7 @@
   <li><span class="ui">遠端控制</span>分頁最上面的<span class="ui">允許遠端控制</span>區塊按<span class="ui">設定密碼（取得固定網址和臨時帳號）</span>，輸入兩次，至少 8 個字（越長越好，別的地方沒用過的）。按<span class="ui">儲存並開啟</span>。</li>
   <li><strong>第一次要等一兩分鐘</strong>：區塊寫「正在準備網址，約 1–2 分鐘」，Tailscale 正在申請 HTTPS 憑證，這段時間手機打不開。自在投影會自己測試，通了才顯示「固定網址已開啟」。</li>
   <li>區塊變成<span class="ui">本機網址（在外面也能連）</span>，出現大字的 <code>https://你的電腦名稱.….ts.net:8443/</code> 和 QR 碼。用手機掃，或按<span class="ui">複製網址</span>傳給自己。</li>
-  <li>手機打開網址，只有一個<strong>密碼</strong>欄：輸入你設的密碼。登入一次，這支手機 30 天內不用再輸入。把網頁<a href="#remote-pwa">加入主畫面</a>，以後點圖示就能連。</li>
+  <li>手機打開網址，只有一個<strong>密碼</strong>欄：輸入你設的密碼。登入一次，這支手機 30 天內不用再輸入。把網頁<a href="#remote-pwa">加入主畫面</a>，以後點圖示就能連。登入頁上的投投和三個粉紅小夥伴會看著你：打密碼時把眼睛別開，密碼錯了會難過搖頭，登入成功會笑（系統打開「減少動態效果」時只換表情）。</li>
   <li>想讓電腦開機後就能從外面連：<span class="ui">進階設定</span> → 勾<span class="ui">開機自動開啟固定網址</span>。</li>
 </ol>
 {{img:remote-preparing|第一次開：「正在準備網址，約 1–2 分鐘」（還沒有 QR 碼）|420}}
@@ -374,7 +374,7 @@
 </ul>
 
 <h3 id="remote-friend">情境三：借給朋友用</h3>
-<p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>朋友登入後第一次連進來，要有人在電腦前按「允許」</strong>（不能「記住」）。允許過以後，同一支手機用同一個帳號（或同一個臨時網址）換畫質、切換螢幕、斷線重連、重新整理頁面都不會再問；按過<span class="ui">拒絕</span>、<span class="ui">中斷</span>，或帳號到期、刪除，下次就要再按。</p>
+<p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>朋友登入後第一次連進來，要有人在電腦前按「允許」</strong>（預設不能「記住」；常借的朋友想不用每次按，見<a href="#remote-approve">連線時要不要允許</a>）。允許過以後，同一支手機用同一個帳號（或同一個臨時網址）換畫質、切換螢幕、斷線重連、重新整理頁面都不會再問；按過<span class="ui">拒絕</span>、<span class="ui">中斷</span>，或帳號到期、刪除，下次就要再按。</p>
 <h4 id="remote-guest">方法 A：臨時帳號（建議，要先開好固定網址）</h4>
 <ol class="steps">
   <li>電腦：<span class="ui">遠端控制</span>分頁最上面的<span class="ui">本機網址（在外面也能連）</span>區塊 → <span class="ui">新增臨時帳號</span>。</li>
@@ -414,6 +414,7 @@
 {{img:phone-bar|手機頁右下角：開聲音、放大、檔案、鍵盤、統計、設定（示範用的假桌面）|300}}
 <p>觸控板模式時，電腦的游標位置會畫一個大箭頭（粉紅圈），點一下就點在箭頭那裡；如果你一直點離箭頭很遠的地方，手機頁會問你要不要改用直接點。兩指捏合放大畫面；三指點一下開關鍵盤。鍵盤面板有 Ctrl、Alt、Win、方向鍵、複製、貼上和剪貼簿。</p>
 {{img:phone-mode|第一次連上：說明現在是「直接點」模式，可以一鍵改用觸控板（示範用的假桌面）|260}}
+<p>手機頁<span class="ui">設定</span>裡和畫面有關的三列：<span class="ui">畫質</span>（流暢／標準／清晰）、<span class="ui">每秒畫面</span>（30／60／120，預設 60；電腦螢幕只有 60 Hz 時最多 60，設定列會直接寫出來）、<span class="ui">解析度跟手機一樣</span>（電腦把畫面縮成這支手機螢幕的大小，比較順、比較省流量；手機和平板預設打開，電腦的瀏覽器預設關閉）。這些都在同一條連線裡切換，畫面不會黑一下，也不用再按允許。</p>
 
 <h3 id="remote-pc">從另一台電腦的瀏覽器操作</h3>
 <p>在另一台電腦的瀏覽器（Chrome、Edge 等）打開同樣的網址，就能用那台電腦的滑鼠和鍵盤操作：左鍵、右鍵、中鍵、上一頁／下一頁鍵、滾輪、拖曳都會送過去，點哪裡就是哪裡；打字用你那台電腦的輸入法（注音、倉頡、日文、韓文都可以），快速鍵（Ctrl+C、Ctrl+V、F5……）會送到遠端電腦，不會被瀏覽器拿走。</p>
@@ -429,6 +430,22 @@
   <li>Ctrl+Alt+Del 送不出去：這是 Windows 的安全鍵，任何程式都送不出去；要開工作管理員按工具列的<span class="ui">工作管理員</span>。</li>
   <li>工具列的<span class="ui">檔案</span>是灰的：滑鼠停在上面會說原因（僅觀看，或臨時帳號沒開傳檔）。</li>
 </ul></div>
+
+<h3 id="remote-approve">連線時要不要允許</h3>
+<p>電腦：<span class="ui">遠端控制</span>分頁 → <span class="ui">進階設定</span> → <span class="ui">連線時要不要允許</span>。主帳號（固定網址＋你的密碼）、臨時帳號、臨時網址可以各自選：</p>
+<div class="tbl"><table>
+  <tr><th>選項</th><th>從外面連進來時</th></tr>
+  <tr><td>每次問</td><td>每次新登入都要在電腦按<span class="ui">允許</span>（臨時帳號、臨時網址的預設）</td></tr>
+  <tr><td>記住這台裝置</td><td>允許視窗多一個「記住」勾選框；勾了以後，同一台裝置下次直接連進來</td></tr>
+  <tr><td>只用密碼</td><td>密碼對就直接連，不用按允許（臨時網址那列是「只用通行碼」）</td></tr>
+</table></div>
+<ul>
+  <li>記住的記錄分成在家、固定網址、每一個臨時帳號、臨時網址，彼此不通用。</li>
+  <li>按<span class="ui">拒絕</span>或<span class="ui">中斷</span>、臨時帳號被刪除或到期、重設臨時帳號密碼、改主密碼，都會自動忘記相關的裝置；被中斷過的裝置一定要再按一次允許。</li>
+  <li><span class="ui">進階設定</span> → <span class="ui">已記住的手機</span>：可以一個一個移除，或全部忘記；每一列會寫是在哪裡記住的。</li>
+  <li>在家（同一個 Wi-Fi）和 Tailscale 不受影響：一律要按允許（可以勾記住）。</li>
+  <li><span class="ui">連線紀錄</span>每一筆會寫是怎麼連進來的，例如「每次問 · 你按了允許」「只用密碼 · 密碼對，不用允許」。</li>
+</ul>
 
 <h3 id="remote-safety">安全須知</h3>
 <ul>
@@ -465,7 +482,7 @@
   <li>手機本身的音量鍵也要調大，iPhone 側邊的靜音開關要關掉。</li>
   <li>電腦：<span class="ui">遠端控制</span>分頁 → <span class="ui">進階設定</span> → <span class="ui">聲音</span>裡的<span class="ui">電腦聲音傳到手機</span>要勾著。不想讓電腦也出聲，勾同一處的<span class="ui">手機播聲音時電腦靜音</span>，或在手機頁<span class="ui">設定</span>打開<span class="ui">電腦喇叭靜音</span>（同一個設定，電腦會記住；臨時帳號和「僅觀看」不能改）。</li>
 </ol>
-{{img:phone-settings|手機頁的設定：操作方式（下面有說明）、手機音量（預設 100%，超過 100% 是響度加強，最高 400%）、電腦喇叭靜音|300}}
+{{img:phone-settings|手機頁的設定：手機音量（預設 100%，超過 100% 是響度加強，最高 400%）、電腦喇叭靜音、畫質、每秒畫面、解析度跟手機一樣（手機預設打開）|300}}
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>頁面寫「電腦目前沒有在播放聲音」：電腦真的沒在放聲音。</li>
   <li>電腦按了 Windows 靜音：取消 Windows 靜音；想讓電腦安靜用「手機播聲音時電腦靜音」（手機頁的「電腦喇叭靜音」）。</li>
@@ -496,6 +513,7 @@
   <li>手機和電腦都連 5 GHz Wi-Fi、靠近分享器，電腦可以用網路線。</li>
   <li>右鍵選單 → 設定 → <span class="ui">畫面清晰度</span>改成<span class="ui">標準（順暢）</span>。</li>
   <li>關掉正在大量下載的程式。</li>
+  <li>遠端控制卡：手機頁<span class="ui">設定</span> → <span class="ui">畫質</span>選<span class="ui">流暢</span>，打開<span class="ui">解析度跟手機一樣</span>，<span class="ui">每秒畫面</span>用 60。</li>
 </ul></div></details>
 <details id="faq-blur"><summary>畫面糊糊的</summary><div><ul>
   <li>右鍵選單 → 設定 → 畫面清晰度改成「高」或「最高」；灰色不能選時，到 Microsoft Store 安裝「HEVC 影片延伸模組」。</li>

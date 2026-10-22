@@ -47,6 +47,9 @@ struct Quality {
 };
 Quality qualityPreset(int level);
 constexpr int kQualityLevels = 3;
+// 0.8.3.6: the phone page picks the frame rate (30 / 60 / 120, default 60) besides the preset; it is
+// capped at the monitor's refresh rate. The preset's fps is the default.
+constexpr int kDefaultFps = 60, kMaxFps = 120;
 
 // A Tailscale address of this PC (100.64.0.0/10 on an up adapter), "" if none.
 std::string tailscaleIp();
@@ -62,6 +65,36 @@ struct AudioDevice {
 };
 std::vector<AudioDevice> playbackDevices();
 
+// 0.8.3.6 授權策略 (連線時要不要允許): chosen on the PC for each way in from outside. LAN / Tailscale
+// stay as they were (允許, with 記住這支手機).
+enum class ApprovalPolicy : int {
+    Ask = 0,           // 每次問: 允許 on the PC; the same phone with the same login goes back in while this run lasts
+                       // (切換畫質 / 切換螢幕 / reconnects: 0.8.3.5, in memory only)
+    Remember = 1,      // 記住這台裝置: as Ask, and 允許 can tick 記住: that phone goes straight in next time (the PC's list)
+    PasswordOnly = 2,  // 只用密碼: the right password (the temporary address: its link + 通行碼) is enough, no 允許
+};
+struct ApprovalPolicies {
+    ApprovalPolicy fixed = ApprovalPolicy::PasswordOnly;  // 主帳號 on the fixed address (as before 0.8.3.6)
+    ApprovalPolicy guest = ApprovalPolicy::Ask;           // 臨時帳號 (safe default)
+    ApprovalPolicy temp = ApprovalPolicy::Ask;            // 臨時網址 (safe default)
+};
+inline const char* policyName(ApprovalPolicy p) {
+    return p == ApprovalPolicy::Remember ? "remember" : p == ApprovalPolicy::PasswordOnly ? "password" : "ask";
+}
+inline bool parsePolicy(const std::string& s, ApprovalPolicy& out) {
+    if (s == "ask") return out = ApprovalPolicy::Ask, true;
+    if (s == "remember") return out = ApprovalPolicy::Remember, true;
+    if (s == "password") return out = ApprovalPolicy::PasswordOnly, true;
+    return false;
+}
+// Which list entries of 記住 count for a session: "lan" (LAN / Tailscale link), "fixed" (主帳號 on the
+// fixed address), "guest:<account id>" (that 臨時帳號 only), "temp" (the temporary address).
+inline std::string approvalScope(bool fixed, bool tunnel, const std::string& guestId) {
+    if (!guestId.empty()) return "guest:" + guestId;
+    if (fixed) return "fixed";
+    return tunnel ? "temp" : "lan";
+}
+
 struct Peer {
     std::string session;  // id (approve() / kick())
     std::string device;   // the page's own random id (kept in the phone browser)
@@ -72,6 +105,11 @@ struct Peer {
     bool fixed = false;      // came in over the fixed link with the password (常駐外網, 0.8.2)
     std::string guest;       // 0.8.3.2: came in with this 臨時帳號 (its name; "" = not a guest)
     std::string guestId;     // ... and its id (GuestAccount::id)
+    // 0.8.3.6 (onActive): the policy of its way in ("ask" / "remember" / "password"; "lan" = LAN / Tailscale)
+    // and what let it in: "allowed" / "allowed-remember" (允許 on the PC, 記住 ticked), "same-login" (allowed
+    // before with this login, this run), "this-run" (this phone allowed before, this run), "remembered" (on
+    // the 記住 list), "password" (只用密碼), "open" (no 允許 needed at all: tests / the spike).
+    std::string policy, admit;
 };
 
 // 0.8.3.2 臨時帳號 (guest accounts) on the fixed link: POST /login {"user", "password"}.
@@ -221,11 +259,23 @@ struct Options {
     bool skipStatic = true;
     int staticRefreshMs = 1000;
     int tailFrames = 3;
+    // 0.8.3.6: frames leave on an even beat (one every 1/fps), not up to a quarter slot early when the
+    // screen changed: the phone shows them on its own 60 Hz beat, and uneven ones land two in one refresh
+    // (one never shown: 60 sent, ~46 shown measured). A change after a still picture still goes at once.
+    bool evenPacing = true;
+    // 0.8.3.6: the capture's 1 ms waits on a high-resolution timer. Windows 11 ignores timeBeginPeriod(1)
+    // in a process with no visible window, so Sleep(1) took up to 15.6 ms (frames late by ~8 ms on
+    // average, measured). false = Sleep(1) as before (A / B).
+    bool preciseWait = true;
+    // 0.8.3.6 experiment, OFF: while it moves, one wait to just before the beat instead of 1 ms polls. Saves ~3 % of
+    // one core on the primary screen, but on a screen of the other GPU (iGPU-driven, duplicated cross-adapter)
+    // 66-81 % of the frames then left off the beat (measured). Kept for A / B (spike --wait-ahead).
+    bool waitAhead = false;
     bool vbr = true;         // peak-constrained VBR: a still screen costs almost nothing
     int vbvFrames = 2;
     bool inlineSend = false;
     int rtpPayload = 1200;   // RTP payload bytes per packet (Tailscale sessions: at most 1100, MTU 1280)
-    std::string scene = "desktop";  // desktop | static | motion (test scenes)
+    std::string scene = "desktop";  // desktop | static | motion | synth (test scenes; synth = a made-up desktop, 0.8.3.6)
     bool testClipboard = false;  // tests: an in-memory clipboard instead of the PC's real one
     std::string testClipboardText;
     std::wstring snapDir;    // where POST /<token>/snap PNGs go (empty = disabled)
@@ -239,7 +289,10 @@ struct Options {
     std::wstring helpFile;
 
     std::function<void(const std::string&)> log;
-    std::function<bool(const std::string& device)> remembered;  // allowed without asking
+    // 0.8.3.6: is this device on the PC's 記住 list for this scope (approvalScope())? Asked only where the
+    // policy lets the list count (LAN / Tailscale always; the others with ApprovalPolicy::Remember).
+    std::function<bool(const std::string& device, const std::string& scope)> remembered;
+    ApprovalPolicies policies;  // 0.8.3.6 (setApprovalPolicies() later)
     std::function<void(const Peer&)> onRequest;   // ask the user, then approve()
     std::function<void(const Peer&)> onActive;    // allowed: streaming / controlling from now
     std::function<void(const Peer&, const std::string& why)> onEnded;  // pending or active session gone
@@ -266,7 +319,7 @@ struct Options {
     // 127.0.0.2:<port>), logins with the owner's password.
     std::string fixedPasswordHash;  // hashPassword(); empty = no logins
     std::string fixedSecret;        // signs the login tokens (30 days); a new one ends every login
-    bool fixedNeedApproval = false; // 外面的新手機也要電腦按允許
+    bool fixedNeedApproval = false; // 外面的新手機也要電腦按允許 (0.8.3.6: = policies.fixed Remember when that is PasswordOnly)
     std::function<void(const std::string& ip, bool ok, int fails, bool locked)> onLogin;
     // 0.8.3.2 臨時帳號 (see GuestAccount): the list at start (setGuests() later), and each
     // guest login try (the name as typed, cut to 40 characters; never the password).
@@ -353,6 +406,8 @@ public:
     void setFixed(bool on);
     bool fixedOn() const;
     void setFixedOptions(const std::string& passwordHash, const std::string& secret, bool needApproval);
+    // 0.8.3.6 連線時要不要允許: from the next session on (a connected one stays).
+    void setApprovalPolicies(const ApprovalPolicies& p);
     // 0.8.3.2 臨時帳號: replaces the list. An account no longer in it (deleted, expired and
     // pruned) loses its logins at once, and its session (connected or waiting for 允許) ends.
     void setGuests(std::vector<GuestAccount> guests);

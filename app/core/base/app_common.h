@@ -291,6 +291,10 @@ enum Command : UINT {
     CmdRemoteGuestDelLast = CmdRemoteGuestDel0 + 9,
     CmdRemoteGuestReset0 = 460,  // 重設密碼 (row i)
     CmdRemoteGuestResetLast = CmdRemoteGuestReset0 + 9,
+    // 0.8.3.6 連線時要不要允許 ▸ 470 + way * 3 + policy: way 0 主帳號（固定網址）, 1 臨時帳號, 2 臨時網址;
+    // policy 0 每次問, 1 記住這台裝置, 2 只用密碼 (Settings::remotePolicyFixed / Guest / Temp)
+    CmdRemotePolicy0 = 470,
+    CmdRemotePolicyLast = CmdRemotePolicy0 + 8,
 };
 enum IdleOptionId : int { OptAutostart = 1, OptPin = 2, OptRemoteAudio = 3, OptRemoteMutePc = 4 };
 constexpr UINT_PTR kOrientationTimer = 1;

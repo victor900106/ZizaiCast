@@ -48,7 +48,13 @@ struct Settings {
     bool remotePersistent = false;
     std::string remotePwHash;          // "pbkdf2-sha256$<iterations>$<salt>$<key>"
     std::string remoteFixedSecret;     // signs the phones' 30-day logins (a new password = a new one)
-    bool remoteFixedNeedApproval = false;  // 外面的新手機也要電腦按允許
+    bool remoteFixedNeedApproval = false;  // 外面的新手機也要電腦按允許 (0.8.3.6: kept = remotePolicyFixed != 2, for older versions)
+    // 0.8.3.6 連線時要不要允許 (pm::remote::ApprovalPolicy: 0 每次問, 1 記住這台裝置, 2 只用密碼) for the 主帳號 on the
+    // fixed address, 臨時帳號, 臨時網址. Safe defaults: 臨時帳號 / 臨時網址 每次問; the 主帳號 as before (只用密碼, or
+    // 記住這台裝置 when 外面的新手機也要電腦按允許 was on).
+    int remotePolicyFixed = 2;
+    int remotePolicyGuest = 0;
+    int remotePolicyTemp = 0;
     // 0.8.3: logins ended by 中斷 ("<token id>:<expiry>,..."; the password is needed again) and
     // 遠端斷線後自動鎖定電腦 (from outside: the fixed link / 免安裝外網; on the LAN / Tailscale)
     std::string remoteRevoked;
@@ -100,6 +106,8 @@ struct Settings {
 
     // Manifest URL in effect: settings.ini update_url, else the build's default.
     std::string effectiveUpdateUrl() const { return updateUrlSet ? updateUrl : std::string(PM_UPDATE_URL_STR); }
+
+    static const char* policyKey(int p) { return p == 1 ? "remember" : p == 2 ? "password" : "ask"; }  // 0.8.3.6
 
     static Settings load(const fs::path& file) {
         Settings s;
@@ -173,6 +181,17 @@ struct Settings {
             s.remotePwHash = it->second;
         if (auto it = kv.find("remote_fixed_secret"); it != kv.end() && it->second.size() == 64) s.remoteFixedSecret = it->second;
         s.remoteFixedNeedApproval = flag("remote_fixed_approval", false);
+        {  // 0.8.3.6: ask | remember | password; a file from before has none (the 主帳號 follows remote_fixed_approval)
+            auto policy = [&](const char* key, int def) {
+                const auto it = kv.find(key);
+                if (it == kv.end()) return def;
+                return it->second == "ask" ? 0 : it->second == "remember" ? 1 : it->second == "password" ? 2 : def;
+            };
+            s.remotePolicyFixed = policy("remote_policy_fixed", s.remoteFixedNeedApproval ? 1 : 2);
+            s.remotePolicyGuest = policy("remote_policy_guest", 0);
+            s.remotePolicyTemp = policy("remote_policy_temp", 0);
+            s.remoteFixedNeedApproval = s.remotePolicyFixed != 2;
+        }
         if (auto it = kv.find("remote_revoked"); it != kv.end() && it->second.size() < 8192) s.remoteRevoked = it->second;
         s.remoteLockOutside = flag("remote_lock_outside", false);  // 0.8.3.2: default off
         s.remoteLockLan = flag("remote_lock_lan", false);
@@ -293,7 +312,13 @@ struct Settings {
             << "remote_persistent=" << (remotePersistent ? 1 : 0) << "\n"
             << (remotePwHash.empty() ? std::string() : "remote_pw_hash=" + remotePwHash + "\n")
             << (remoteFixedSecret.empty() ? std::string() : "remote_fixed_secret=" + remoteFixedSecret + "\n")
-            << "remote_fixed_approval=" << (remoteFixedNeedApproval ? 1 : 0) << "\n"
+            << "remote_fixed_approval=" << (remotePolicyFixed != 2 ? 1 : 0) << "\n"
+            << "; 0.8.3.6 when someone connects from outside: ask (every time) | remember (Allow can tick Remember) |\n"
+            << ";   password (the right password / link + passcode is enough): your account on the fixed address, guest\n"
+            << ";   accounts, the temporary address (LAN / Tailscale always ask, with Remember)\n"
+            << "remote_policy_fixed=" << policyKey(remotePolicyFixed) << "\n"
+            << "remote_policy_guest=" << policyKey(remotePolicyGuest) << "\n"
+            << "remote_policy_temp=" << policyKey(remotePolicyTemp) << "\n"
             << "; 0.8.3: fixed-link logins ended by 中斷 (token id:expiry, no secrets); lock the PC when a remote session ends:\n"
             << ";   from outside (fixed link / no-app link) and on the LAN / Tailscale (1/0)\n"
             << (remoteRevoked.empty() ? std::string() : "remote_revoked=" + remoteRevoked + "\n")

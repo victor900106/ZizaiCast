@@ -167,7 +167,8 @@ async function browser({width = 412, height = 860, dpr = 2} = {}) {
     eval: async expr => { const r = await send('Runtime.evaluate', {expression: expr, awaitPromise: true, returnByValue: true}); return r.result && r.result.result && r.result.result.value; },
     shot: async out => { const r = await send('Page.captureScreenshot', {format: 'png'}); fs.writeFileSync(out, Buffer.from(r.result.data, 'base64')); },
     close: async () => {
-      try { await send('Browser.close'); } catch {}
+      // rel-0836: Browser.close may never be answered (the socket closes first): never wait for it
+      try { await Promise.race([send('Browser.close'), sleep(1500)]); } catch {}
       await sleep(500);
       try { execFileSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], {stdio: 'ignore'}); } catch {}
       const w = await watch.stop();

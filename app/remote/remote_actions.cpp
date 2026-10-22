@@ -5,6 +5,7 @@
 // menu, settings.ini and the remembered phones (remote_devices.txt).
 #include "remote/remote.h"
 #include "remote/lock_policy.h"
+#include "remote/remembered_devices.h"  // 0.8.3.6 記住這台裝置
 
 #include <bcrypt.h>
 
@@ -13,6 +14,7 @@
 #include <fstream>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <thread>
 
 #include "connect/connect.h"
@@ -42,6 +44,7 @@ struct RemoteMsg {
     int fails = 0;        // RemFixedLogin: wrong passwords in a row
     bool locked = false;  // ... and now locked for 15 minutes
     std::string guest, guestId;  // 0.8.3.2: came in with this 臨時帳號
+    std::string policy, admit;   // 0.8.3.6: pm::remote::Peer::policy / admit (連線紀錄)
 };
 constexpr int kFixedPort = 8443;  // Tailscale Funnel port of the fixed link (443 is never touched)
 
@@ -55,11 +58,13 @@ struct RemoteState {
     bool on = false;
     unsigned gen = 0;
     std::string askSession, askLabel;  // the session the 允許 / 拒絕 dialog is about, its phone
+    std::string askDevice;             // 0.8.3.6: ... its device id (中斷 while it is open forgets it)
     bool active = false;        // a phone is connected (banner shown)
     std::string activeSession, activeLabel, activeIp;
     bool hotkey = false;
     std::mutex dmu;               // remembered phones (read on the server's threads)
-    std::set<std::string> devices;
+    RememberedDevices devices;    // 0.8.3.6: remote_devices.txt (device id, label, date, scope)
+    bool devicesLoaded = false;
 #ifdef PM_APP_REMOTE
     std::vector<pm::remote::AudioDevice> audioDevs;  // 聲音來源 ▸ rows, as last shown
     pm::remote::QuickTunnel tunnel;                  // 免安裝外網 (cloudflared, 0.8.1)
@@ -101,68 +106,95 @@ RemoteState& R() {
 
 fs::path devicesFile() { return g.settingsFile.parent_path() / L"remote_devices.txt"; }
 
-// remote_devices.txt: one remembered phone per line, "<device id>\t<label>\t<date>".
+// remote_devices.txt (0.8.3.6: RememberedDevices, "<device id>\t<label>\t<date>\t<scope>"; no IP address).
+// Read once at start, written whole after each change (the server's threads only read the copy in memory).
 void loadDevices() {
+    std::ifstream in(devicesFile(), std::ios::binary);
+    std::stringstream ss;
+    ss << in.rdbuf();
     std::lock_guard<std::mutex> lk(R().dmu);
-    R().devices.clear();
-    std::ifstream in(devicesFile());
-    for (std::string line; std::getline(in, line);) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        const std::string id = line.substr(0, line.find('\t'));
-        if (id.size() >= 8 && id.size() <= 64) R().devices.insert(id);
-    }
+    R().devices.parse(ss.str());
+    R().devicesLoaded = true;
 }
-
-void rememberDevice(const std::string& id, const std::string& label) {
+void ensureDevices() {  // the menu's list before remote control was ever turned on
+    bool loaded = false;
     {
         std::lock_guard<std::mutex> lk(R().dmu);
-        if (!R().devices.insert(id).second) return;
+        loaded = R().devicesLoaded;
     }
+    if (!loaded) loadDevices();
+}
+void saveDevicesLocked() {  // R().dmu held
+    std::error_code ec;
+    if (R().devices.size() == 0) {
+        fs::remove(devicesFile(), ec);
+        return;
+    }
+    const fs::path tmp = devicesFile().wstring() + L".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        out << R().devices.serialize();
+    }
+    fs::rename(tmp, devicesFile(), ec);
+}
+
+void rememberDevice(const std::string& id, const std::string& label, const std::string& scope) {
     SYSTEMTIME st;
     GetLocalTime(&st);
     char date[32];
     snprintf(date, sizeof(date), "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
-    std::ofstream out(devicesFile(), std::ios::app);
-    out << id << '\t' << label << '\t' << date << '\n';
-    g.log->write("info", "remote: remembered " + label + " (" + id.substr(0, 8) + "...)");
+    ensureDevices();
+    {
+        std::lock_guard<std::mutex> lk(R().dmu);
+        if (!R().devices.add(id, label, date, scope)) return;
+        saveDevicesLocked();
+    }
+    g.log->write("info", "remote: remembered " + label + " (" + id.substr(0, 8) + "..., " + (scope.rfind("guest:", 0) == 0 ? "臨時帳號" : scope) + ")");
 }
 
-struct Remembered {
-    std::string id, label, date;
-};
-std::vector<Remembered> rememberedList() {
-    std::vector<Remembered> v;
-    std::ifstream in(devicesFile());
-    for (std::string line; std::getline(in, line);) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        Remembered r;
-        const size_t a = line.find('\t'), b = a == std::string::npos ? a : line.find('\t', a + 1);
-        r.id = line.substr(0, a);
-        if (a != std::string::npos) r.label = line.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1);
-        if (b != std::string::npos) r.date = line.substr(b + 1);
-        if (r.id.size() >= 8 && r.id.size() <= 64) v.push_back(std::move(r));
+// 0.8.3.6: 拒絕 / 中斷 on the PC: that device is no longer remembered anywhere.
+void forgetDeviceAll(const std::string& id, const char* why) {
+    ensureDevices();
+    size_t n = 0;
+    {
+        std::lock_guard<std::mutex> lk(R().dmu);
+        n = R().devices.forgetDevice(id);
+        if (n) saveDevicesLocked();
     }
-    return v;
+    if (n) g.log->write("info", "remote: " + std::string(why) + ": " + id.substr(0, 8) + "... no longer remembered (" + std::to_string(n) + " entries)");
+}
+// 0.8.3.6: the 主帳號 password changed ("fixed"), a 臨時帳號 deleted / 重設密碼 ("guest:<id>").
+void forgetScope(const std::string& scope, const char* why) {
+    ensureDevices();
+    size_t n = 0;
+    {
+        std::lock_guard<std::mutex> lk(R().dmu);
+        n = R().devices.forgetScope(scope);
+        if (n) saveDevicesLocked();
+    }
+    if (n) g.log->write("info", "remote: " + std::string(why) + ": " + std::to_string(n) + " remembered devices forgotten");
+}
+
+std::vector<RememberedPhone> rememberedList() {
+    ensureDevices();
+    std::lock_guard<std::mutex> lk(R().dmu);
+    return R().devices.list();
 }
 
 void forgetDevice(size_t i) {
-    std::vector<Remembered> v = rememberedList();
-    if (i >= v.size()) return;
-    const Remembered gone = v[i];
-    v.erase(v.begin() + static_cast<std::ptrdiff_t>(i));
-    {
-        std::ofstream out(devicesFile(), std::ios::trunc);
-        for (const auto& r : v) out << r.id << '\t' << r.label << '\t' << r.date << '\n';
-    }
+    RememberedPhone gone;
+    ensureDevices();
     {
         std::lock_guard<std::mutex> lk(R().dmu);
-        R().devices.erase(gone.id);
+        if (!R().devices.removeAt(i, &gone)) return;
+        saveDevicesLocked();
     }
     g.log->write("info", "remote: forgot " + gone.label + " (" + gone.id.substr(0, 8) + "...)");
     g.window->showToast(pm::i18n::fmt(S::RemoteForgotOne, {toWide(gone.label)}), 3000);
 }
 
 size_t rememberedCount() {
+    ensureDevices();
     std::lock_guard<std::mutex> lk(R().dmu);
     return R().devices.size();
 }
@@ -180,6 +212,24 @@ std::string randomToken() {
 }
 
 std::wstring w(const std::string& s) { return toWide(s); }
+
+// ---- 0.8.3.6 連線時要不要允許 (per way in from outside; settings.ini remote_policy_fixed / _guest / _temp) ----
+// way 0 主帳號 on the fixed address, 1 臨時帳號, 2 臨時網址; policy 0 每次問, 1 記住這台裝置, 2 只用密碼.
+int& policySetting(int way) { return way == 1 ? g.settings.remotePolicyGuest : way == 2 ? g.settings.remotePolicyTemp : g.settings.remotePolicyFixed; }
+// The way in of a request / session: -1 LAN / Tailscale (no policy: 允許, with 記住), else 0..2.
+int wayOf(bool fixed, bool tunnel, const std::string& guestId) { return !guestId.empty() ? 1 : fixed ? 0 : tunnel ? 2 : -1; }
+// pm::remote::approvalScope (the 記住 list's scope of that way in)
+std::string scopeOf(bool fixed, bool tunnel, const std::string& guestId) {
+    return !guestId.empty() ? "guest:" + guestId : fixed ? std::string("fixed") : tunnel ? std::string("temp") : std::string("lan");
+}
+#ifdef PM_APP_REMOTE
+pm::remote::ApprovalPolicies approvalPolicies() {
+    auto p = [](int v) { return static_cast<pm::remote::ApprovalPolicy>(std::clamp(v, 0, 2)); };
+    pm::remote::ApprovalPolicies a;
+    a.fixed = p(g.settings.remotePolicyFixed), a.guest = p(g.settings.remotePolicyGuest), a.temp = p(g.settings.remotePolicyTemp);
+    return a;
+}
+#endif
 
 // ---- 0.8.3 連線紀錄: %LOCALAPPDATA%\PhoneMirror\remote_connections.log, one line per event
 // "<local time>\t<source>\t<masked address>\t<device>\t<result>"; never a password or a token.
@@ -205,7 +255,9 @@ const char* srcOfIp(const std::string& ip) {
     }
     return "out";
 }
-void connLog(const char* src, const std::string& ip, const std::string& label, const char* result) {
+// 0.8.3.6: how = "<policy>:<what let it in>" (Peer::policy / admit, e.g. "ask:allowed", "password:password"), a 6th
+// column ("" for rows that were not let in, and in files from before).
+void connLog(const char* src, const std::string& ip, const std::string& label, const char* result, const std::string& how = "") {
     std::error_code ec;
     if (fs::file_size(connLogFile(), ec) > 64 * 1024 && !ec) {
         fs::remove(connLogOld(), ec);
@@ -219,11 +271,29 @@ void connLog(const char* src, const std::string& ip, const std::string& label, c
     for (char& c : l)
         if (c == '\t' || c == '\n' || c == '\r') c = ' ';
     std::ofstream out(connLogFile(), std::ios::app | std::ios::binary);
-    out << when << '\t' << src << '\t' << maskIp(ip) << '\t' << l << '\t' << result << '\n';
+    std::string h = how.substr(0, 40);
+    for (char& c : h)
+        if (c == '\t' || c == '\n' || c == '\r') c = ' ';
+    out << when << '\t' << src << '\t' << maskIp(ip) << '\t' << l << '\t' << result << (h.empty() ? "" : "\t" + h) << '\n';
 }
 struct ConnRow {
-    std::string when, src, ip, label, result;
+    std::string when, src, ip, label, result, how;
 };
+// 0.8.3.6 連線紀錄: which policy let it in, in words ("每次問 · 你按了允許", "只用密碼 · 密碼對，不用允許").
+std::wstring connHowText(const std::string& how, const std::string& src) {
+    const size_t c = how.find(':');
+    if (c == std::string::npos) return {};
+    const std::string pol = how.substr(0, c), adm = how.substr(c + 1);
+    const S a = adm == "allowed" ? S::RemoteLogHowAllowed0836 : adm == "allowed-remember" ? S::RemoteLogHowAllowedRemember0836
+              : adm == "same-login" ? S::RemoteLogHowSameLogin0836 : adm == "this-run" ? S::RemoteLogHowThisRun0836
+              : adm == "remembered" ? S::RemoteLogHowRemembered0836 : S::RemoteLogHowPassword0836;
+    if (adm != "allowed" && adm != "allowed-remember" && adm != "same-login" && adm != "this-run" && adm != "remembered" && adm != "password") return {};
+    std::wstring what = tr(a);
+    if (adm == "password" && src == "tunnel") what = tr(S::RemoteLogHowPasscode0836);
+    if (pol == "lan" || pol.empty()) return what;
+    const S p = pol == "remember" ? S::RemotePolicyRememberShort0836 : pol == "password" ? S::RemotePolicyPasswordShort0836 : S::RemotePolicyAskShort0836;
+    return std::wstring(tr(p)) + L" · " + what;
+}
 std::vector<ConnRow> connLogRows(size_t max) {
     std::vector<ConnRow> v;
     for (const fs::path& p : {connLogOld(), connLogFile()}) {
@@ -231,9 +301,9 @@ std::vector<ConnRow> connLogRows(size_t max) {
         for (std::string line; std::getline(in, line);) {
             if (!line.empty() && line.back() == '\r') line.pop_back();
             ConnRow r;
-            std::string* f[5] = {&r.when, &r.src, &r.ip, &r.label, &r.result};
+            std::string* f[6] = {&r.when, &r.src, &r.ip, &r.label, &r.result, &r.how};
             size_t a = 0;
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 6; ++i) {
                 const size_t b = line.find('\t', a);
                 *f[i] = line.substr(a, b == std::string::npos ? std::string::npos : b - a);
                 if (b == std::string::npos) break;
@@ -256,9 +326,11 @@ std::wstring connLogText() {
         return tr(s == "ok" ? S::RemoteLogOk : s == "wrong-password" ? S::RemoteLogWrongPw : s == "blocked" ? S::RemoteLogBlocked : S::RemoteLogDenied);
     };
     std::wstring out;
-    for (const ConnRow& r : rows)
+    for (const ConnRow& r : rows) {
+        const std::wstring how = r.result == "ok" ? connHowText(r.how, r.src) : std::wstring();  // 0.8.3.6
         out += toWide(r.when) + L"  " + src(r.src) + L"  " + toWide(r.ip) + L"  " + (r.label.empty() ? std::wstring(L"-") : toWide(r.label)) + L"  " +
-               res(r.result) + L"\n";
+               res(r.result) + (how.empty() ? std::wstring() : L" · " + how) + L"\n";
+    }
     return out;
 }
 
@@ -371,6 +443,17 @@ void saveGuests() {
     std::error_code ec;
     if (guestRows().empty()) fs::remove(tmp, ec), fs::remove(p, ec);
     else fs::rename(tmp, p, ec);
+    // 0.8.3.6: an account that is gone (deleted, expired, used up) takes its 記住 entries with it.
+    std::set<std::string> ids;
+    for (const GuestRow& r : guestRows()) ids.insert(r.id);
+    size_t n = 0;
+    ensureDevices();
+    {
+        std::lock_guard<std::mutex> lk(R().dmu);
+        n = R().devices.keepGuests(ids);
+        if (n) saveDevicesLocked();
+    }
+    if (n) g.log->write("info", "remote: 臨時帳號 gone: " + std::to_string(n) + " remembered devices of it forgotten");
 }
 
 #ifdef PM_APP_REMOTE
@@ -574,6 +657,7 @@ void resetGuest(size_t i) {
     saveGuests();
     syncGuests();
     g.log->write("info", "remote: 臨時帳號 " + v[i].name + ": a new password (only its hash is kept)");
+    forgetScope("guest:" + v[i].id, "臨時帳號 重設密碼");  // 0.8.3.6: its remembered devices ask again
     pm::ui::RemoteGuestPanel::Result res{toWide(guestUrl(R().fixUrl, v[i].name)), toWide(v[i].name), toWide(pw), guestSummary(v[i]), true};
     std::fill(pw.begin(), pw.end(), '\0');
     R().guestPanel.showResult(g.hwnd, res, guestCallbacks());
@@ -677,6 +761,7 @@ bool startHost() {
     o.fixedPasswordHash = g.settings.remotePwHash;
     o.fixedSecret = g.settings.remoteFixedSecret;
     o.fixedNeedApproval = g.settings.remoteFixedNeedApproval;
+    o.policies = approvalPolicies();  // 0.8.3.6 連線時要不要允許
     pruneGuests();
     o.guests = hostGuests();  // 0.8.3.2 臨時帳號 (hashes only)
     for (size_t a = 0; a < g.settings.remoteRevoked.size();) {  // 0.8.3: logins ended by 中斷 stay ended
@@ -692,6 +777,7 @@ bool startHost() {
     auto post = [h, gen](RemoteEvent ev, const pm::remote::Peer& p, const std::string& why) {
         auto* m = new RemoteMsg{gen, p.session, p.device, p.ip, p.label, why, p.tailscale, p.tunnel, p.fixed};
         m->guest = p.guest, m->guestId = p.guestId;
+        m->policy = p.policy, m->admit = p.admit;  // 0.8.3.6
         if (!PostMessageW(h, WM_PM_REMOTE, ev, reinterpret_cast<LPARAM>(m))) delete m;
     };
     o.log = [log](const std::string& line) {
@@ -699,9 +785,9 @@ bool startHost() {
         while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
         log->write("remote", l);
     };
-    o.remembered = [](const std::string& device) {
+    o.remembered = [](const std::string& device, const std::string& scope) {  // 0.8.3.6: per way in (scope)
         std::lock_guard<std::mutex> lk(R().dmu);
-        return R().devices.count(device) > 0;
+        return R().devices.has(device, scope);
     };
     o.onRequest = [post](const pm::remote::Peer& p) { post(RemRequest, p, ""); };
     o.onActive = [post](const pm::remote::Peer& p) { post(RemActive, p, ""); };
@@ -1047,6 +1133,7 @@ void openPasswordPanel(bool enableAfter) {
         const ULONGLONG t0 = GetTickCount64();
         g.settings.remotePwHash = pm::remote::hashPassword(pw);
         g.settings.remoteFixedSecret = pm::remote::randomHex(32);  // a new password ends every login
+        forgetScope("fixed", "主帳號 password changed");  // 0.8.3.6: devices remembered on the fixed address ask again
         g.log->write("info", "remote: 常駐外網 password set (PBKDF2-SHA256, " + std::to_string(GetTickCount64() - t0) + " ms; only the hash is kept)");
         if (R().on) R().host.setFixedOptions(g.settings.remotePwHash, g.settings.remoteFixedSecret, g.settings.remoteFixedNeedApproval);
 #endif
@@ -1185,7 +1272,12 @@ void endActive(const std::string& why) {
 
 void kick() {
 #ifdef PM_APP_REMOTE
-    if (R().active || R().ask.isOpen()) R().host.kick("ended on the PC (中斷 / Ctrl+D)");
+    if (R().active || R().ask.isOpen()) {
+        std::string device = R().host.peer().device;  // the connected phone, or the one asking
+        if (device.empty() && R().ask.isOpen()) device = R().askDevice;
+        R().host.kick("ended on the PC (中斷 / Ctrl+D)");
+        if (!device.empty()) forgetDeviceAll(device, "中斷 on the PC");  // 0.8.3.6: no longer remembered
+    }
 #endif
 }
 
@@ -1485,10 +1577,16 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         if (!IsWindowVisible(g.hwnd) && !g.testOffscreen) trayBalloon(tr(S::RemotePanelTitle), pm::i18n::fmt(S::RemoteUploadedToast, {w(m->why)}));
         break;
     case RemRequest: {
+        // 0.8.3.6: the way in's policy; 記住 is offered where the list counts (LAN / Tailscale, or 記住這台裝置)
+        const int way = wayOf(m->fixed, m->tunnel, m->guestId);
+        const bool offerRemember = way < 0 || policySetting(way) == 1;
+        const std::string scope = scopeOf(m->fixed, m->tunnel, m->guestId);
         g.log->write("info", "remote: " + m->label + " from " + m->ip + (m->fixed ? " (常駐外網)" : m->tunnel ? " (免安裝外網)" : m->tailscale ? " (Tailscale)" : "") + " asks to connect" +
-                                 (!m->guestId.empty() || (m->tunnel && !m->fixed) ? " (asked every time: no 記住)" : ""));
+                                 (way >= 0 ? std::string(" (連線時要不要允許: ") + Settings::policyKey(policySetting(way)) + ")" : std::string()) +
+                                 (offerRemember ? "" : " (no 記住)"));
         r.askSession = m->session;
         r.askLabel = m->label;
+        r.askDevice = m->device;
         pm::ui::AskPanel::Info q;
         q.glyph = kIcoRemote;
         q.title = tr(S::RemoteAskTitle);
@@ -1505,20 +1603,21 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         q.primary = tr(S::RemoteAllow);
         q.secondary = tr(S::RemoteDeny);
         q.secondaryChoice = 2;
-        // 0.8.3.3: a 臨時帳號 and the temporary address are asked every time: no 記住這支手機
-        const bool guestAsk = !m->guestId.empty() || (m->tunnel && !m->fixed);
-        if (!guestAsk) q.check = tr(S::RemoteRemember);
+        // 0.8.3.3: a 臨時帳號 and the temporary address had no 記住這支手機; 0.8.3.6: they have it with 記住這台裝置
+        // (that account only / the temporary address only).
+        if (offerRemember) q.check = tr(way == 1 ? S::RemoteRememberGuest0836 : way == 2 ? S::RemoteRememberTemp0836 : S::RemoteRemember);
         q.checked = false;
         const std::string session = m->session, device = m->device, label = m->label;
-        q.done = [session, device, label, guestAsk](int choice) {
+        q.done = [session, device, label, offerRemember, scope](int choice) {
             RemoteState& rs = R();
             if (rs.askSession == session) rs.askSession.clear();
-            const bool allow = choice == 1, remember = allow && !guestAsk && rs.ask.checked();
+            const bool allow = choice == 1, remember = allow && offerRemember && rs.ask.checked();
             g.log->write("info", "remote: " + label + (allow ? " ALLOWED" : " denied") + (remember ? " (remembered)" : ""));
 #ifdef PM_APP_REMOTE
             rs.host.approve(session, allow, remember);
 #endif
-            if (remember) rememberDevice(device, label);
+            if (remember) rememberDevice(device, label, scope);
+            if (choice == 2) forgetDeviceAll(device, "拒絕 on the PC");  // 0.8.3.6: no longer remembered anywhere
             setPanelStatus();
         };
         // Never activated: whatever is typed right now keeps going where it went
@@ -1534,7 +1633,7 @@ void onRemoteEvent(WPARAM kind, LPARAM lp) {
         break;
     }
     case RemActive:
-        connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, guestLabel(*m), "ok");
+        connLog(m->fixed ? "fixed" : m->tunnel ? "tunnel" : m->tailscale ? "ts" : "lan", m->ip, guestLabel(*m), "ok", m->policy + ":" + m->admit);
         r.activeGuestId = m->guestId;
         if (!m->guestId.empty()) {  // 0.8.3.2: 最後使用
             for (GuestRow& gr : guestRows())
@@ -1609,6 +1708,44 @@ bool onRemoteHotkey(WPARAM id) {
 }
 
 std::vector<MenuItem> remoteAdvancedItems();
+
+// 0.8.3.6 連線時要不要允許 ▸ one way in's policy (from the next connection on; a connected phone stays).
+const S kPolicyWay[3] = {S::RemotePolicyWayFixed0836, S::RemotePolicyWayGuest0836, S::RemotePolicyWayTemp0836};
+S policyLabel(int way, int p) {
+    return p == 0 ? S::RemotePolicyAsk0836 : p == 1 ? S::RemotePolicyRemember0836 : way == 2 ? S::RemotePolicyPasscode0836 : S::RemotePolicyPassword0836;
+}
+void setPolicy(int way, int p) {
+    if (way < 0 || way > 2 || p < 0 || p > 2 || policySetting(way) == p) return;
+    policySetting(way) = p;
+    g.settings.remoteFixedNeedApproval = g.settings.remotePolicyFixed != 2;  // (kept for older versions)
+    saveSettings();
+#ifdef PM_APP_REMOTE
+    if (R().on) {
+        R().host.setApprovalPolicies(approvalPolicies());
+        R().host.setFixedOptions(g.settings.remotePwHash, g.settings.remoteFixedSecret, g.settings.remoteFixedNeedApproval);
+    }
+#endif
+    static const char* kWay[3] = {"主帳號 (fixed address)", "臨時帳號", "臨時網址"};
+    g.log->write("info", std::string("remote: 連線時要不要允許: ") + kWay[way] + " -> " + Settings::policyKey(p));
+    g.window->showToast(pm::i18n::fmt(S::RemotePolicyToast0836, {tr(kPolicyWay[way]), tr(policyLabel(way, p))}), 3000);
+}
+MenuItem policyMenu() {
+    std::vector<MenuItem> v;
+    v.push_back(MenuItem::caption(tr(S::RemotePolicyHint0836)));
+    for (int way = 0; way < 3; ++way) {
+        v.push_back(MenuItem::separator());
+        v.push_back(MenuItem::caption(tr(kPolicyWay[way])));
+        for (int p = 0; p < 3; ++p) {
+            MenuItem m = MenuItem::command(CmdRemotePolicy0 + static_cast<UINT>(way * 3 + p), tr(policyLabel(way, p)));
+            m.radio = true;
+            m.checked = policySetting(way) == p;
+            v.push_back(std::move(m));
+        }
+    }
+    v.push_back(MenuItem::separator());
+    v.push_back(MenuItem::caption(tr(S::RemotePolicyLanNote0836)));
+    return valueSubmenu(tr(S::MenuRemotePolicy0836), kIcoShow, std::move(v), std::wstring());
+}
 void runMenu(const std::vector<MenuItem>& items, POINT pt, bool keyboard, bool tray);  // core/app/commands.cpp
 
 // 手機播聲音時電腦靜音 (remote_mute_pc), from the PC's menu or (0.8.3.4) the phone's 電腦喇叭靜音 switch: kept in
@@ -1722,6 +1859,7 @@ void remoteCommand(UINT cmd) {
         {
             std::lock_guard<std::mutex> lk(R().dmu);
             R().devices.clear();
+            R().devicesLoaded = true;
         }
         std::error_code ec;
         fs::remove(devicesFile(), ec);
@@ -1809,12 +1947,8 @@ void remoteCommand(UINT cmd) {
     }
     case CmdRemoteTsHelp: openTutorial(L"remote-tailscale"); break;
     case CmdRemotePassword: openPasswordPanel(false); break;
-    case CmdRemoteFixedApproval:
-        g.settings.remoteFixedNeedApproval = !g.settings.remoteFixedNeedApproval;
-        saveSettings();
-#ifdef PM_APP_REMOTE
-        if (R().on) R().host.setFixedOptions(g.settings.remotePwHash, g.settings.remoteFixedSecret, g.settings.remoteFixedNeedApproval);
-#endif
+    case CmdRemoteFixedApproval:  // 0.8.3.6: no menu row any more (連線時要不要允許 ▸); --dev scripts: 記住這台裝置 <-> 只用密碼
+        setPolicy(0, g.settings.remotePolicyFixed == 2 ? 1 : 2);
         g.log->write("info", std::string("remote: 外面的新手機也要電腦按允許 ") + (g.settings.remoteFixedNeedApproval ? "on" : "off"));
         break;
     case CmdRemoteTunnel:
@@ -1830,6 +1964,7 @@ void remoteCommand(UINT cmd) {
     default:
         if (cmd >= CmdRemoteGuestDel0 && cmd <= CmdRemoteGuestDelLast) deleteGuest(cmd - CmdRemoteGuestDel0);
         if (cmd >= CmdRemoteGuestReset0 && cmd <= CmdRemoteGuestResetLast) resetGuest(cmd - CmdRemoteGuestReset0);
+        if (cmd >= CmdRemotePolicy0 && cmd <= CmdRemotePolicyLast) setPolicy(static_cast<int>(cmd - CmdRemotePolicy0) / 3, static_cast<int>(cmd - CmdRemotePolicy0) % 3);
 #ifdef PM_APP_REMOTE
         if (cmd >= CmdRemoteForgetDev0 && cmd <= CmdRemoteForgetDevLast) {
             forgetDevice(cmd - CmdRemoteForgetDev0);
@@ -1870,9 +2005,8 @@ MenuItem remoteItem() {
     {
         MenuItem pwItem = MenuItem::command(CmdRemotePassword, tr(S::MenuRemotePassword), kIcoSettings);
         sub.push_back(std::move(pwItem));
-        MenuItem ap = checkItem(CmdRemoteFixedApproval, tr(S::MenuRemoteFixedApproval), kIcoShow, g.settings.remoteFixedNeedApproval);
-        ap.enabled = !g.settings.remotePwHash.empty();
-        sub.push_back(std::move(ap));
+        // 0.8.3.6: 外面的新手機也要電腦按允許 ✓ -> 連線時要不要允許 ▸ (主帳號 / 臨時帳號 / 臨時網址: 每次問 / 記住 / 只用密碼)
+        sub.push_back(policyMenu());
     }
     sub.push_back(MenuItem::separator());
     sub.push_back(checkItem(CmdRemoteViewOnly, tr(S::MenuRemoteViewOnly), kIcoShow, g.settings.remoteViewOnly));
@@ -1964,7 +2098,7 @@ std::vector<MenuItem> remoteAdvancedItems() {
             for (auto& d : m.sub) sound.push_back(d);
             continue;
         }
-        const bool keep = m.id == CmdRemoteViewOnly || m.id == CmdRemoteFixedApproval || m.id == CmdRemoteTunnel ||
+        const bool keep = m.id == CmdRemoteViewOnly || m.id == CmdRemoteTunnel ||
                           m.id == CmdRemotePassword || m.id == CmdRemotePersistent || (m.kind == MenuItem::Kind::Submenu);
         if (m.id == CmdRemotePersistent && !g.settings.remotePwHash.empty())  // 0.8.3.4 (design B): off the page, here
             v.push_back(checkItem(CmdRemoteFixedToggle, tr(S::MenuRemoteFixedOn), kIcoRemote, r.fixState == 1 || r.fixState == 2));
@@ -1973,9 +2107,20 @@ std::vector<MenuItem> remoteAdvancedItems() {
     v.insert(v.begin() + static_cast<std::ptrdiff_t>(std::min(at, v.size())),
              valueSubmenu(tr(S::MenuRemoteSound), kIcoCast, std::move(sound),
                           g.settings.remoteAudio ? std::wstring(tr(S::RemoteOnShort)) : std::wstring()));
-    // 已記住的手機 ▸ each phone (click = forget it), 全部忘記
+    // 已記住的手機 ▸ each phone (click = forget it; 0.8.3.6: where it was remembered), 全部忘記
     std::vector<MenuItem> phones;
-    const std::vector<Remembered> list = rememberedList();
+    const std::vector<RememberedPhone> list = rememberedList();
+    auto where = [](const RememberedPhone& p) -> std::wstring {
+        if (p.scope == "fixed") return tr(S::RemoteScopeFixed0836);
+        if (p.scope == "temp") return tr(S::RemoteScopeTemp0836);
+        if (p.scope.rfind("guest:", 0) == 0) {
+            std::wstring name = L"?";
+            for (const GuestRow& gr : guestRows())
+                if ("guest:" + gr.id == p.scope) name = w(gr.name);
+            return pm::i18n::fmt(S::RemoteScopeGuest0836, {name});
+        }
+        return tr(S::RemoteScopeLan0836);
+    };
     if (list.empty()) {
         MenuItem none = MenuItem::command(0, tr(S::RemoteRememberedNone));
         none.enabled = false;
@@ -1983,8 +2128,9 @@ std::vector<MenuItem> remoteAdvancedItems() {
     } else {
         phones.push_back(MenuItem::caption(tr(S::RemoteForgetOneHint)));
         for (size_t i = 0; i < list.size() && i < 16; ++i)
-            phones.push_back(MenuItem::command(CmdRemoteForgetDev0 + static_cast<UINT>(i), w(list[i].label.empty() ? list[i].id.substr(0, 8) : list[i].label),
-                                               kIcoDelete, w(list[i].date)));
+            phones.push_back(MenuItem::command(CmdRemoteForgetDev0 + static_cast<UINT>(i),
+                                               w(list[i].label.empty() ? list[i].id.substr(0, 8) : list[i].label), kIcoDelete,
+                                               where(list[i]) + L"　" + w(list[i].date)));
         phones.push_back(MenuItem::separator());
         phones.push_back(MenuItem::command(CmdRemoteForget, tr(S::MenuRemoteForget), kIcoDelete));
     }
@@ -2397,6 +2543,34 @@ void remoteDevFixed(int how) {
             if (m.kind == MenuItem::Kind::Submenu && m.text == tr(S::MenuRemoteSound))
                 snd = pm::ui::renderMenuPng(m.sub, (d / L"remote_advanced_sound.png").wstring());
         g.log->write("info", std::string("dev remote advanced sound shot: ") + (snd ? "ok" : "-"));
+        // 0.8.3.6: 連線時要不要允許 ▸ and 已記住的手機 ▸ as remote_advanced_policy.png / remote_advanced_phones.png
+        bool pol = false, ph = false;
+        for (const auto& m : remoteAdvancedItems()) {
+            if (m.kind != MenuItem::Kind::Submenu) continue;
+            if (m.text == tr(S::MenuRemotePolicy0836)) pol = pm::ui::renderMenuPng(m.sub, (d / L"remote_advanced_policy.png").wstring());
+            if (m.text == tr(S::MenuRemoteRemembered)) ph = pm::ui::renderMenuPng(m.sub, (d / L"remote_advanced_phones.png").wstring());
+        }
+        g.log->write("info", std::string("dev remote advanced policy shot: ") + (pol ? "ok" : "-") + ", phones " + (ph ? "ok" : "-"));
+        return;
+    } else if (how >= 11 && how <= 16) {
+        // 0.8.3.6 screenshots / tests: the 允許 dialog for a made-up phone (no session behind it: the host ignores the
+        // answer; the app's side runs: 記住 writes the list, 拒絕 clears it): 11 / 14 a 臨時帳號 (the first account),
+        // 12 / 15 the temporary address, 13 / 16 the 主帳號 on the fixed address, each with its policy now.
+        // 11..13: drawn as remote_ask.png and closed; 14..16: left open (answered with DevCommand 961).
+        if (!r.on) return;
+        const int kind = how > 13 ? how - 3 : how;
+        auto* m = new RemoteMsg{r.gen, "demo-session-0836", "demo0836device0000", "203.0.113.24", "iPhone · Safari", ""};
+        m->fixed = kind != 12, m->tunnel = kind == 12;
+        if (kind == 11) m->guest = "guest-4821", m->guestId = guestRows().empty() ? "demo0836" : guestRows().front().id;
+        if (kind == 11 && !guestRows().empty()) m->guest = guestRows().front().name;
+        onRemoteEvent(RemRequest, reinterpret_cast<LPARAM>(m));
+        if (how > 13) return;
+        const fs::path d = fs::temp_directory_path() / L"pmshots";
+        std::error_code ec;
+        fs::create_directories(d, ec);
+        const bool ok = r.ask.isOpen() && r.ask.renderPng((d / L"remote_ask.png").wstring());
+        g.log->write("info", std::string("dev remote demo ask shot: ") + (ok ? "ok" : "-"));
+        if (r.ask.isOpen()) r.ask.close(0);
         return;
     } else if (how == 9) {
         r.news.close(1);
