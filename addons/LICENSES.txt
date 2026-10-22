@@ -47,3 +47,16 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---------------------------------------------------------------- cloudflared
+cloudflared-2026.7.2-windows-amd64.exe  (54,159,760 bytes)
+  SHA-256 cdb5d4432f6ae1595654a692a51308b69d2bf7af961f5578d9391837cf072df9
+cloudflared-2026.7.2-LICENSE.txt  (11,357 bytes)
+  SHA-256 58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd
+
+Used since 0.8.4 for the temporary address; the app downloads it the first
+time it is needed (from this mirror first, then from the original GitHub
+release), checking the SHA-256 above.  The official, unmodified Windows
+amd64 build of cloudflared 2026.7.2 by Cloudflare, Inc.; Apache License 2.0
+(full text in cloudflared-2026.7.2-LICENSE.txt).
+Source: https://github.com/cloudflare/cloudflared/tree/2026.7.2
