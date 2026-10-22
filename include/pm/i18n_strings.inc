@@ -1195,3 +1195,9 @@ PM_STR(RemoteTempReadyBody, L"把網址和通行碼給對方（只能用一次�
 PM_STR(RemoteTempAddrLabel, L"臨時網址（只能用一次）", L"Temporary address (one use only)")
 PM_STR(MenuRemoteFixedOn, L"固定網址（在外面也能連）", L"Fixed address (works from anywhere)")
 // ---- end 0.8.3.4 panel ----
+
+// ---- 0.8.3.5 files ----
+// 新增臨時帳號: 「可以傳檔」 is its own tick box under 權限 (not the same as 僅觀看); it is greyed in 僅觀看
+PM_STR(RemoteGuestFilesCan0835, L"可以傳檔（手機和電腦互傳）", L"Can transfer files (phone and PC, both ways)")
+PM_STR(RemoteGuestFilesViewOff0835, L"僅觀看時不能傳檔", L"No file transfer in View only")
+// ---- end 0.8.3.5 files ----

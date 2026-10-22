@@ -31,9 +31,11 @@
 #include <filesystem>
 #include <cwctype>
 
+#include "approval_memory.h"
 #include "audio.h"
 #include "capture.h"
 #include "encoder.h"
+#include "file_perm.h"
 #include "http_server.h"
 #include "input.h"
 #include "pm/share_server.h"  // pm::share::lanInterfaces (same LAN choice as 傳到手機)
@@ -453,6 +455,7 @@ struct Session {
     bool audioBeforePause = false;
     std::atomic<bool> clipWatch{false};  // the page's clipboard panel is open: push PC clipboard changes
     std::atomic<int64_t> moveSeq{0};     // last applied "move" (the page's cursor prediction)
+    std::atomic<bool> localCursor{false};  // 0.8.3.5: a PC browser draws the pointer itself (left out of the picture)
     std::shared_ptr<rtc::PeerConnection> pc;
     std::shared_ptr<rtc::Track> video, audio;
     std::shared_ptr<rtc::DataChannel> dc;
@@ -485,6 +488,12 @@ struct Host::Impl {
     uint32_t lanAddr = 0, lanMask = 0;
     HttpServer http;
     std::unique_ptr<InputInjector> input;
+    // 0.8.3.5 (e): input timing. lat = the page's event -> injected (messages with "ts", the page's
+    // measure mode), inj = inside the injector; counts per message type; logged every 5 s.
+    Samples inLat, inLatPress, inInj;  // inLat: moves / wheel, inLatPress: buttons / keys
+    std::mutex inMu;
+    std::map<std::string, int> inCount;
+    int64_t inSinceUs = 0;
     std::atomic<bool> running{false}, viewOnly{false}, stampOn{false};
 
     std::mutex smu;  // session / pending / device sets
@@ -493,6 +502,7 @@ struct Host::Impl {
     std::shared_ptr<Session> pending;  // waiting for 允許 / 拒絕
     std::set<std::string> allowedDevices;  // allowed while this host runs
     std::set<std::string> kickedDevices;   // kicked: ask again even if remembered
+    ApprovalMemory okLogins;               // 0.8.3.5: 允許 given to a 臨時帳號 login / a temporary-address path (approval_memory.h)
     std::deque<std::pair<std::string, int64_t>> denied;  // device, when (no new dialog for 20 s)
     // Wrong-link lockout (F5): per address, failures in the last 10 min.
     std::mutex bmu;
@@ -571,6 +581,8 @@ struct Host::Impl {
     bool buildPeerConnection(const std::shared_ptr<Session>& s, std::string& sdp);
     void onDcMessage(const std::shared_ptr<Session>& s, const std::string& m);
     void onDcMessageImpl(const std::shared_ptr<Session>& s, const std::string& m);
+    void noteInput(const std::string& t, const json& j, int64_t t0);  // 0.8.3.5 (e)
+    void logInputTiming(int64_t now);
     void closeSession(const std::shared_ptr<Session>& s, const std::string& why, bool fromCallback = false);
     void endPending(const std::string& why);
     void notifyEnded(const std::shared_ptr<Session>& s, const std::string& why);
@@ -661,14 +673,18 @@ struct Host::Impl {
     void unlockRequest(const std::shared_ptr<Session>& s, const std::string& pw);
     std::atomic<bool> lockOutside{false}, lockLan{false};  // 0.8.3: the app locks the PC when a session ends (the page says so)
     // 僅觀看 for this session (0.8.3.2: a 僅觀看 guest always, whatever the PC's switch says)
-    bool vo(const std::shared_ptr<Session>& s) const { return (viewOnly && !(s && s->unlocked)) || (s && s->guestViewOnly); }
+    bool vo(const std::shared_ptr<Session>& s) const { return sessionViewOnly(viewOnly, s && s->unlocked, s && s->guestViewOnly); }
+    // 0.8.3.5 files: may this session send / receive files? (file_perm.h holds the table)
+    FilesDeny filesDenyOf(const std::shared_ptr<Session>& s) const {
+        return filesDeny(viewOnly, s && s->unlocked, s && s->guest(), s && s->guestViewOnly, s && s->guestFiles);
+    }
     // 0.8.3.4: may this session change 電腦喇叭靜音 (手機播聲音時電腦靜音, a setting kept on the PC)? Not in
     // 僅觀看 (the PC's switch), and never a 臨時帳號 (僅觀看 or 可操作: it is the owner's setting).
     bool mutePcOk(const std::shared_ptr<Session>& s) const { return s && !vo(s) && !s->guest(); }
     static const char* mutePcWhy(const std::shared_ptr<Session>& s) { return s && s->guest() ? "guest" : "viewOnly"; }
     // every {"t":"mode"} carries who may change it now (僅觀看 can be switched on the PC mid-session)
     json modeMsg(const std::shared_ptr<Session>& s) const {
-        return json{{"t", "mode"}, {"viewOnly", vo(s)}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};
+        return json{{"t", "mode"}, {"viewOnly", vo(s)}, {"filesWhy", filesWhy(filesDenyOf(s))}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};
     }
     void applyMutePc(bool on);  // Host::setMutePc (and the phone's switch without onMutePcRequest)
     std::mutex offerMu;  // 0.8.3: one session set-up at a time (two at once left an orphan that could still control)
@@ -827,6 +843,7 @@ bool Host::start(const Options& o) {
     {
         std::lock_guard<std::mutex> lk(d.smu);
         d.allowedDevices.clear(), d.kickedDevices.clear(), d.denied.clear();
+        d.okLogins.clear();
         d.session.reset(), d.pending.reset();
     }
     // LAN interface: same choice as 傳到手機 (real LAN adapters first), never
@@ -877,10 +894,32 @@ bool Host::start(const Options& o) {
             logf("host: no Tailscale address on this PC (only the LAN address is served)");
         }
     }
-    d.input = std::make_unique<InputInjector>(o.inject);
+    d.input = std::make_unique<InputInjector>(o.inject, o.injectStub);
     d.input->guard = o.injectGuard;
     d.input->moveGuard = o.injectMoveGuard;
-    logf("host: input %s%s", o.inject ? "INJECTION ON (SendInput moves the real mouse/keyboard)" : "dry-run (events are only logged)",
+    // 0.8.3.5: a click / key Windows will drop (UIPI: an administrator window; the secure desktop) -> the phone says so
+    d.input->onBlocked = [&d](const std::string& why, const std::string& exe) {
+        if (auto s = d.current()) d.sendDc(s, json{{"t", "blocked"}, {"why", why}, {"app", exe}});
+    };
+    if (o.injectStub && o.testClipboard) {  // tests: Ctrl+C "copies" in a program of the PC
+        d.input->onStubCopy = [&d] {
+            std::lock_guard<std::mutex> lk(d.fcmu);
+            static int n = 0;
+            d.fakeClip = "copied on the PC " + std::to_string(++n), ++d.fakeSeq;
+            logf("input stub: Ctrl+C -> the test clipboard now \"%s\"", d.fakeClip.c_str());
+        };
+    }
+    if (o.injectStub) {  // tests: never the owner's real windows
+        const std::string elevated = o.injectStubElevated;
+        d.input->targetProbe = [elevated](bool, POINT) {
+            InputInjector::Target t;
+            if (!elevated.empty()) t.pid = 4242, t.exe = elevated, t.higher = true;
+            return t;
+        };
+    }
+    logf("host: input %s%s", o.injectStub ? "input stub (tests: the injection path runs, SendInput only logged)"
+                             : o.inject   ? "INJECTION ON (SendInput moves the real mouse/keyboard)"
+                                          : "dry-run (events are only logged)",
          o.injectGuard ? ", test guard: only into the test window" : "");
     if (FAILED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) return logf("host: MFStartup failed"), false;
     d.mfStarted = true;
@@ -950,6 +989,10 @@ void Host::stop() {
         d.closeSession(s, "host stopping");
     }
     d.endPending("host stopping");
+    {
+        std::lock_guard<std::mutex> lk(d.smu);
+        d.okLogins.clear();  // 0.8.3.5: remote control off: every 允許 of a login is gone
+    }
     d.http.stop();
     if (d.warmThread.joinable()) d.warmThread.join();
     if (d.unlockThread.joinable()) d.unlockThread.join();
@@ -997,12 +1040,16 @@ void Host::approve(const std::string& session, bool allow, bool remember) {
         s = d.pending;
         if (allow) {
             s->state = Session::State::Allowed;
-            if (!s->guest()) d.allowedDevices.insert(s->device);  // 0.8.3.2: a guest asks every time
+            if (!s->guest()) d.allowedDevices.insert(s->device);  // 0.8.3.2: a guest is never "allowed" by its device alone
+            // 0.8.3.5: ... but this login of it is (and the temporary address's path): its next sessions
+            // (切換畫質 / 切換螢幕 / reconnects) go straight in while the login is valid.
+            if (s->guest() || (s->viaTunnel && !s->viaFixed)) d.okLogins.remember(s->device, ApprovalMemory::loginOf(s->guestId, s->cred), s->guestId);
             d.kickedDevices.erase(s->device);
         } else {
             s->state = Session::State::Denied;
             d.pending.reset();
             d.denied.emplace_back(s->device, nowUs());
+            d.okLogins.forgetDevice(s->device);  // 0.8.3.5: 拒絕: asked again next time
         }
     }
     logf("host: %s %s (%s)%s%s%s", allow ? "ALLOWED" : "DENIED", s->label.c_str(), s->peer.c_str(),
@@ -1018,6 +1065,7 @@ void Host::kick(const std::string& why) {
             std::lock_guard<std::mutex> lk(d.smu);
             d.allowedDevices.erase(s->device);
             d.kickedDevices.insert(s->device);  // the next connection asks again
+            d.okLogins.forgetDevice(s->device);  // 0.8.3.5: also with the same 臨時帳號 / temporary-address login
         }
         // 0.8.3: the fixed link's login goes too. The device id is the page's own (a new
         // one is just a new random string), so 0.8.2's "kicked device" alone let the same
@@ -1288,13 +1336,24 @@ HttpServer::Response Host::Impl::sessionRequest(const HttpServer::Request& r, co
         // 0.8.3.3: so does the temporary address (cloudflared, 臨時網址): it is for lending the PC to
         // someone, and someone at the PC answers every time (no remembered phone goes straight in).
         const bool viaTempLink = r.tunnel && !viaFixedReq;
-        const bool ok = !s->guest() && (!opt.requireApproval || (!viaTempLink && (allowedDevices.count(device) ||
-                                        (!kicked && opt.remembered && opt.remembered(device)))) || passwordIn);
+        // 0.8.3.5: ... the first time. The same phone with the same login (the guest login token /
+        // the temporary address's own path; a 臨時帳號: the account, ApprovalMemory::loginOf), allowed before while it is valid (a guest login that
+        // expired, was used up or deleted is refused above: guestFor), goes straight back in: the page
+        // opens a new session for every 切換畫質 / 切換螢幕 / automatic quality step / reconnect / reload.
+        AskFacts f;
+        f.guest = s->guest(), f.viaTempLink = viaTempLink, f.passwordIn = passwordIn, f.requireApproval = opt.requireApproval;
+        f.allowedDevice = allowedDevices.count(device) > 0, f.kicked = kicked;
+        f.remembered = !kicked && !f.allowedDevice && opt.remembered && opt.remembered(device);
+        f.loginAllowed = okLogins.allows(device, ApprovalMemory::loginOf(s->guestId, cred));
+        const bool ok = letInWithoutAsking(f);
+        if (ok && (f.guest || viaTempLink) && f.loginAllowed)
+            logf("host: %s from %s: the same %s as before, allowed on the PC already -> no 允許 again", s->label.c_str(), r.peer.c_str(),
+                 f.guest ? "臨時帳號 login" : "temporary-address link");
         if (passwordIn && !allowedDevices.count(device))
             logf("host: %s from %s came in with the password (fixed link): no 允許 needed", s->label.c_str(), r.peer.c_str());
         if (ok) {
             s->state = Session::State::Allowed;
-            allowedDevices.insert(device);
+            if (!s->guest()) allowedDevices.insert(device);  // 0.8.3.5: a guest's device is never "allowed" by itself
         } else {
             if (pending && pending->device == device && pending->state == Session::State::Pending) {
                 // Same phone asking again (page reloaded): keep the open dialog.
@@ -1341,6 +1400,9 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
             std::lock_guard<std::mutex> lk(smu);
             old->endWhy = "replaced by a new session";
         }
+        // 0.8.3.5: the same 臨時帳號 login replacing its own session (切換畫質 / 切換螢幕 / a reconnect while
+        // the old one is still up) goes on: a 用一次 account is not spent by it.
+        if (old->guest() && old->guestId == s->guestId && old->device == s->device) old->guestDone = true;
         sendDc(old, json{{"t", "bye"}, {"why", "replaced"}});
         closeSession(old, "replaced by a new session");
     }
@@ -1357,7 +1419,7 @@ HttpServer::Response Host::Impl::offerFor(const std::shared_ptr<Session>& s) {
            {"audio", opt.audio},    {"inject", opt.inject},  {"unlockable", s->viaFixed && !s->guest()},
            {"lockAfter", s->viaTunnel ? bool(lockOutside) : bool(lockLan)},
            {"upload", !opt.uploadDir.empty() && s->filesOk()}, {"uploadMax", opt.uploadMaxBytes},
-           {"guest", s->guestName}, {"files", s->filesOk()},
+           {"guest", s->guestName}, {"files", s->filesOk()}, {"filesWhy", filesWhy(filesDenyOf(s))},
            {"mutePc", opt.mutePc}, {"mutePcOk", mutePcOk(s)}, {"mutePcWhy", mutePcWhy(s)}};  // 0.8.3.4: the phone's 電腦喇叭靜音 switch
     return {200, "application/json", j.dump()};
 }
@@ -1906,6 +1968,10 @@ void Host::Impl::guestSessionEnded(const std::shared_ptr<Session>& s) {
             for (auto it = guestTokens.begin(); it != guestTokens.end();) it = it->second == s->guestId ? guestTokens.erase(it) : std::next(it);
         }
     }
+    if (once) {
+        std::lock_guard<std::mutex> lk(smu);
+        okLogins.forgetGuest(s->guestId);  // 0.8.3.5
+    }
     logf("host: 臨時帳號 %s: its session ended%s", s->guestName.c_str(), once ? " -> spent (用一次): its login no longer works" : "");
 }
 
@@ -2207,9 +2273,9 @@ void Host::Impl::dropUploads(const std::string& sid, const char* why, int64_t ol
 
 // The files copied in Explorer -> the phone: names, sizes and a one-time key each (10 minutes).
 void Host::Impl::filesList(const std::shared_ptr<Session>& s) {
-    if (vo(s) || !s->filesOk()) {
-        logf("files: list for %s refused (%s)", s->peer.c_str(), vo(s) ? "僅觀看" : "臨時帳號 without 傳檔");
-        sendDc(s, json{{"t", "files-denied"}});
+    if (const FilesDeny why = filesDenyOf(s); why != FilesDeny::None) {
+        logf("files: list for %s refused (%s)", s->peer.c_str(), why == FilesDeny::ViewOnly ? "僅觀看" : "臨時帳號 without 傳檔");
+        sendDc(s, json{{"t", "files-denied"}, {"why", filesWhy(why)}});
         return;
     }
     const std::vector<std::wstring> paths = opt.testClipboard ? opt.testClipboardFiles : clipboardFiles();
@@ -2417,6 +2483,10 @@ void Host::setTunnel(bool on) {
             d.newOtkLocked(nowUs());
         }
     }
+    {
+        std::lock_guard<std::mutex> lk(d.smu);
+        d.okLogins.forgetTempLinks();  // 0.8.3.5: its paths are gone (on: new ones; off: none)
+    }
     logf("tunnel: %s", on ? "routes on: a new 通行碼 and one-time link" : "routes off: every tunnel link is invalid now");
     if (!on)
         if (auto s = d.current(); s && s->viaTunnel && !s->viaFixed) {
@@ -2433,6 +2503,10 @@ void Host::setFixed(bool on) {
     Impl& d = *d_;
     d.fixedOn = on;
     logf("fixed: routes %s on 127.0.0.2:%u", on ? "on" : "off", unsigned(d.http.port()));
+    if (!on) {
+        std::lock_guard<std::mutex> lk(d.smu);
+        d.okLogins.keepGuests({});  // 0.8.3.5: the fixed address closed on the PC: every 臨時帳號 asks again
+    }
     if (!on)
         if (auto s = d.current(); s && s->viaFixed) {
             {
@@ -2472,6 +2546,10 @@ void Host::setGuests(std::vector<GuestAccount> list) {
                            d.goneGuests.end());
         if (d.goneGuests.size() > 50) d.goneGuests.erase(d.goneGuests.begin(), d.goneGuests.end() - 50);
         d.guests = std::move(list);
+    }
+    {
+        std::lock_guard<std::mutex> lk(d.smu);
+        d.okLogins.keepGuests(keep);  // 0.8.3.5: expired / used / deleted accounts: asked again (they cannot log in anyway)
     }
     logf("host: 臨時帳號: %zu account(s)%s", keep.size(), dropped ? (", " + std::to_string(dropped) + " login(s) of removed accounts ended").c_str() : "");
     // An account that is gone: its session ends at once (connected: bye; waiting for 允許: denied).
@@ -2564,6 +2642,69 @@ void Host::setAudioSource(const std::string& source) {
     d_->opt.audioSource = source;
     if (d_->audio.running()) d_->audio.setSource(source);
     logf("host: sound source set to %s", source.empty() ? "automatic" : source == "default" ? "the Windows default" : source.c_str());
+}
+
+// 0.8.3.5: the PC pointer's shape as a word (the PC browser shows the same CSS cursor; a program's own
+// cursor = "custom", shown as the arrow).
+static const char* cursorKind(HCURSOR h) {
+    static const struct {
+        LPCWSTR id;
+        const char* kind;
+    } ids[] = {{IDC_ARROW, "arrow"},   {IDC_IBEAM, "ibeam"},   {IDC_WAIT, "wait"},       {IDC_CROSS, "cross"},       {IDC_UPARROW, "uparrow"},
+               {IDC_SIZENWSE, "nwse"}, {IDC_SIZENESW, "nesw"}, {IDC_SIZEWE, "we"},       {IDC_SIZENS, "ns"},         {IDC_SIZEALL, "all"},
+               {IDC_NO, "no"},         {IDC_HAND, "hand"},     {IDC_APPSTARTING, "busy"}, {IDC_HELP, "help"}};
+    static HCURSOR loaded[sizeof(ids) / sizeof(ids[0])] = {};
+    static bool once = [] {
+        for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i) loaded[i] = LoadCursorW(nullptr, ids[i].id);
+        return true;
+    }();
+    (void)once;
+    if (!h) return "none";
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i)
+        if (loaded[i] == h) return ids[i].kind;
+    return "custom";
+}
+
+// 0.8.3.5 (e): how long a click / key / move took from the page's event to SendInput (stub in tests).
+static double epochMsPrecise() {
+    FILETIME ft;
+    GetSystemTimePreciseAsFileTime(&ft);
+    const uint64_t t = (uint64_t(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;  // 100 ns since 1601
+    return double(t - 116444736000000000ULL) / 10000.0;
+}
+void Host::Impl::noteInput(const std::string& t, const json& j, int64_t t0) {
+    const int64_t t1 = nowUs();
+    std::lock_guard<std::mutex> lk(inMu);
+    ++inCount[t];
+    inInj.add((t1 - t0) / 1.0);  // microseconds
+    if (j.contains("ts") && j["ts"].is_number()) {
+        const double lat = epochMsPrecise() - j["ts"].get<double>();
+        const bool cont = t == "abs" || t == "rel" || t == "move" || t == "wheel";
+        if (lat > -50 && lat < 60000) (cont ? inLat : inLatPress).add(lat);
+    }
+}
+void Host::Impl::logInputTiming(int64_t now) {
+    std::lock_guard<std::mutex> lk(inMu);
+    if (!inSinceUs) inSinceUs = now;
+    if (now - inSinceUs < 5000000) return;
+    const double secs = (now - inSinceUs) / 1e6;
+    inSinceUs = now;
+    if (inCount.empty()) return;
+    std::string types;
+    int total = 0;
+    for (const auto& [k, n] : inCount) {
+        char b[48];
+        std::snprintf(b, sizeof b, "%s%s %.1f/s", types.empty() ? "" : ", ", k.c_str(), n / secs);
+        types += b, total += n;
+    }
+    inCount.clear();
+    const Samples::Summary inj = inInj.take(), lat = inLat.take(), lp = inLatPress.take();
+    if (lat.n || lp.n)
+        logf("input timing (%.0f s): %d messages (%s); event -> injected: moves p50 %.1f / p95 %.1f / max %.1f ms (n %d), "
+             "buttons / keys p50 %.1f / p95 %.1f / max %.1f ms (n %d); injector p50 %.0f / p95 %.0f us",
+             secs, total, types.c_str(), lat.p50, lat.p95, lat.max, lat.n, lp.p50, lp.p95, lp.max, lp.n, inj.p50, inj.p95);
+    else
+        logf("input timing (%.0f s): %d messages (%s); injector p50 %.0f / p95 %.0f us", secs, total, types.c_str(), inj.p50, inj.p95);
 }
 
 // ---- DataChannel ------------------------------------------------------------
@@ -2673,6 +2814,14 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         sendDc(s, json{{"t", "mutepc"}, {"ok", true}, {"on", on}});
         return;
     }
+    if (t == "cursor") {  // 0.8.3.5: the PC browser shows the pointer itself (mouse, not in 遊戲模式)
+        const bool local = j.value("local", false);
+        if (local != s->localCursor) {
+            s->localCursor = local;
+            logf("page %s: pointer %s", s->peer.c_str(), local ? "drawn by the PC browser (left out of the picture: no lag, no double pointer)" : "back in the picture");
+        }
+        return;
+    }
     if (t == "stamp") {
         stampOn = j.value("on", false);
         return;
@@ -2747,10 +2896,14 @@ void Host::Impl::onDcMessageImpl(const std::shared_ptr<Session>& s, const std::s
         if (j.contains("keys") && j["keys"].is_array())
             for (const auto& k : j["keys"])
                 if (k.is_string() && keys.size() < 6) keys.push_back(k.get<std::string>());
+        const int64_t inT0 = nowUs();
         if (!input->combo(keys)) logf("input: ignored combo %s", m.substr(0, 120).c_str());
+        noteInput(t, j, inT0);
         return;
     }
+    const int64_t inT0 = nowUs();
     if (!input->handle(t, dx, dy, b, text)) logf("input: ignored message %s", m.substr(0, 120).c_str());
+    noteInput(t, j, inT0);
     if (t == "move" && j.contains("n") && j["n"].is_number_integer()) s->moveSeq = j["n"].get<int64_t>();
 }
 
@@ -2919,7 +3072,8 @@ void Host::Impl::housekeeping(int64_t now) {
         if (idleAudio) stopAudioNow("sound off on the phone for 15 s");
     }
     auto s = current();
-    if (input) input->flushLog(false);
+    if (input) input->flushLog(false), input->tick();
+    logInputTiming(now);
     // 0.8.3: a page that went away without a word (tab closed, phone off the network): its
     // pings (every 0.5 s) stop. 0.8.2 kept such a session "connected" until ICE gave up or
     // the next phone replaced it (measured: still current 8+ s after the tab was closed),
@@ -3106,10 +3260,16 @@ void Host::Impl::captureLoop() {
             logf("host: %s", awake ? "keeping the PC awake (no sleep, screen stays on) while the phone is connected"
                                    : "PC may sleep again");
         }
+        cap.setHideCursor(s && s->localCursor && !s->closed);  // 0.8.3.5
         // Where the PC pointer is (O7): the page draws its prediction from it.
         if (active && (s->dcOpen || s->link.load()) && now - lastCurUs >= 16000) {
             CURSORINFO ci{sizeof(ci)};
-            if (GetCursorInfo(&ci)) {
+            const bool gotCursor = GetCursorInfo(&ci) != FALSE;
+            if (input && input->stubbed()) {  // 0.8.3.5 tests: the stub's pointer, never this PC's real one
+                ci.ptScreenPos = input->stubCursor();
+                ci.flags = CURSOR_SHOWING;
+            }
+            if (gotCursor || (input && input->stubbed())) {
                 const RECT rc = cap.desktopRect();
                 const bool vis = (ci.flags & CURSOR_SHOWING) != 0;
                 const int64_t seq = s->moveSeq;
@@ -3120,7 +3280,8 @@ void Host::Impl::captureLoop() {
                                    {"x", (ci.ptScreenPos.x - rc.left) / w},
                                    {"y", (ci.ptScreenPos.y - rc.top) / h},
                                    {"v", vis},
-                                   {"n", seq}});
+                                   {"n", seq},
+                                   {"k", input && input->stubbed() ? "arrow" : cursorKind(ci.hCursor)}});
                 }
             }
         }

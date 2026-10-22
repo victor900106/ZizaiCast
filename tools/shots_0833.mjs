@@ -103,7 +103,8 @@ async function run(lang, tag, {seed = '', env = {}, args = [], steps}) {
     `toolbar_hint_shown=1\nright_click_hint_shown=1\nwhats_new_seen=0.8.3\nmiracast=0\nandroid_auto=0\n${seed}`);
   const fullEnv = {...process.env, TEMP: tmpDir, TMP: tmpDir, PM_VIDEO_OFFSCREEN: '1', PM_DEV_INSTANCE: 'shots0833', PM_REMOTE_DRYRUN: '1',
     PM_REMOTE_TESTCLIP: '1', PM_REMOTE_NOTS: '1', PM_REMOTE_LOOPBACK: '1', PM_SHARE_BIND: '127.0.0.1', PM_REMOTE_FUNNELFAKE: FUNNEL,
-    PM_REMOTE_SHOWLAN: LAN, PM_REMOTE_TUNNELFAKE: TUNNEL, PM_TEST_GUEST_OUT: path.join(tmpDir, 'copy.txt'), ...env};
+    PM_REMOTE_SHOWLAN: LAN, PM_REMOTE_TUNNELFAKE: TUNNEL, PM_TEST_GUEST_OUT: path.join(tmpDir, 'copy.txt'),
+    PM_TEST_GUEST_PW: 'ABC123', ...env};  // rel-0835: the made-up 臨時帳號 password in the pictures (「ABC 123」), --dev only
   for (const k of Object.keys(fullEnv)) if (fullEnv[k] === null) delete fullEnv[k];
   const app = spawn(exe, ['--dev', '--test-offscreen', '--test-no-network', '--demo-branding', ...args], {stdio: 'ignore', env: fullEnv, windowsHide: true});
   const kill = () => { try { execFileSync('taskkill', ['/PID', String(app.pid), '/T', '/F'], {stdio: 'ignore'}); } catch {} };
@@ -186,7 +187,7 @@ for (const lang of langs) {
     dev(C.TabRemote, 0, 1500); await win('1-remote-allow');
     dev(963, 8, 900); grab('2-advanced');
     dev(C.GuestNew, 0, 1000); dev(982, 96, 900); grab('3-guest-form');
-    dev(981, 2 | 16, 1200); dev(982, 96, 900); grab('4-guest-made');
+    dev(981, 2 | 8 | 16, 1200); dev(982, 96, 900); grab('4-guest-made');  // rel-0835: 可以傳檔 ticked, the 0.8.3.5 default
     dev(984, 0, 600);
     dev(C.GuestNew, 0, 1000); dev(981, 0 | 4 | 8 | 16, 1200); dev(984, 0, 900);
     await sleep(1200); await win('5-remote-guests');

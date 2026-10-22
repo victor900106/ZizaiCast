@@ -116,10 +116,22 @@ public:
     static FunnelStatus status(int port = 8443);
     // tailscale funnel --bg --https=<port> <target>; url = https://<name>:<port>/
     static bool start(int port, const std::string& target, std::string& url, std::string& err);
-    static bool stop(int port, std::string& err);  // tailscale funnel --https=<port> off
+    // tailscale funnel --https=<port> off -- 0.8.3.5: ONLY while <port> still proxies to ownTarget (what
+    // this app set up, e.g. "http://127.0.0.2:8091"), checked right before the command. Anything else
+    // there (another program, or nothing) is left alone: returns true (nothing of ours is left) with
+    // *notOurs = true. An empty ownTarget never removes anything.
+    static bool stop(int port, const std::string& ownTarget, std::string& err, bool* notOurs = nullptr);
     // 0.8.2.1: does something answer at the Funnel's target ("http://127.0.0.2:<port>")?
     // Then another running 自在投影 serves it, and it is not stale.
     static bool targetAnswers(const std::string& target);
+    // 0.8.3.5 (moved here from the app, to be tested): a fixed link left behind by this app (a crash,
+    // or turned off while the app was gone): <port> -> http://127.0.0.2:<n> with nothing answering at
+    // that origin is removed (stop() with that exact target). Never anything else: another program's
+    // target, or ours while something answers there (another running 自在投影 serves it).
+    // Returns "" (nothing there / not ours), "in-use: <target>", "removed: <target>", "not-removed: <target>: <err>".
+    static std::string removeStale(int port);
+    // 0.8.3.5: a stub runner or a fake CLI is set (tests): only then may a --dev instance run CLI jobs.
+    static bool testCliSet();
 
     // 0.8.3.1: right after Windows starts, tailscaled is up before it is Running (BackendState
     // NoState / Starting, or the CLI cannot reach it yet): that is "wait", not "failed".
@@ -152,6 +164,19 @@ public:
     static bool probeTls(const std::string& url, std::string& detail, bool insecureLocalTest = false, int timeoutMs = 5000);
 };
 
+// 0.8.3.5: every tailscale CLI job of the app (fixed link on / off, the stale check at start), one at a
+// time on one worker thread and in the order they were posted. 0.8.3.4 ran each on a thread of its own
+// behind a std::mutex, which gives no order: turning remote control off and on again within half a
+// second let the "off" (Funnel :8443 removed) run after the new "on" had set it up (owner log
+// 2026-10-21 21:37:24-25). A job that is no longer wanted when its turn comes checks that itself
+// (the app's generation counter): the last state asked for is what is left.
+class FunnelJobs {
+public:
+    static void post(std::function<void()> job);
+    static int pending();               // posted and not finished (running included)
+    static bool waitIdle(int timeoutMs);  // tests / quit: true when nothing is left
+};
+
 struct Options {
     std::string bindIp;      // LAN IPv4 to bind; empty = the first real LAN interface
     bool tailscale = true;   // also listen on the Tailscale address (if any)
@@ -167,6 +192,11 @@ struct Options {
     double idrSeconds = 10.0;  // of encoded frames; a lost frame is repaired at once (PLI -> IDR)
     std::string encoder = "auto";  // auto | hw | sw
     bool inject = false;     // false = dry-run (input only logged)
+    // 0.8.3.5 tests: the whole injection path runs, SendInput is a stub that only logs (never a
+    // real mouse / key). Wins over inject.
+    bool injectStub = false;
+    // With injectStub: every window "runs as administrator" as this program (tests of the UIPI notice).
+    std::string injectStubElevated;
     bool viewOnly = false;   // picture only, no input
     bool keepAwake = true;   // no sleep / display off while a phone is connected (SetThreadExecutionState)
     double idleMinutes = 30; // end the session after this long without a touch on the phone (0 = never)

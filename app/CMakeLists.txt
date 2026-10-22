@@ -1,7 +1,7 @@
 # 自在投影 app shell: wires pm_core (AirPlay), pm_miracast (Android 投放) and
 # pm_android (Android wireless debugging) to pm_video and pm_audio, plus tray
 # icon, settings, screenshots, recording and the pairing panel. See docs/app.md.
-set(PM_APP_VERSION 0.8.3.4)
+set(PM_APP_VERSION 0.8.3.5)
 # Test builds only: -DPM_APP_VERSION_OVERRIDE=x.y.z (a fake newer app for the
 # 本機更新 / 自動更新 end-to-end tests). Leave empty for real builds.
 set(PM_APP_VERSION_OVERRIDE "" CACHE STRING "Test only: build the app as this version")
@@ -225,6 +225,12 @@ target_link_libraries(pm_volume_test PRIVATE pm_media_api)
 add_executable(pm_update_test tools/pm_update_test.cpp update/updater.cpp update/updater.h)
 target_link_libraries(pm_update_test PRIVATE winhttp bcrypt version wintrust)
 target_compile_definitions(pm_update_test PRIVATE UNICODE _UNICODE)
+
+# pm_lock_default_test (0.8.3.5): 遠端斷線後自動鎖定電腦 off by default (settings.ini new / old / saved),
+# no session end locks the PC with it off (lock_policy.h), LockWorkStation only in lockAfterSession.
+add_executable(pm_lock_default_test tools/pm_lock_default_test.cpp core/base/settings.h remote/lock_policy.h)
+target_link_libraries(pm_lock_default_test PRIVATE pm_app_config)
+target_compile_options(pm_lock_default_test PRIVATE /utf-8)
 
 # pm_panel_anim_test: the panels' open / close fades, hover / press and the
 # QR reveal (ui_anim.h), off the desktop; frame PNGs + PASS / FAIL.

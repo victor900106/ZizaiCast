@@ -9,10 +9,14 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
+#include <deque>
 #include <functional>
 #include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "pm/remote.h"
@@ -404,10 +408,18 @@ bool TailscaleFunnel::startPatiently(int port, const std::string& target, std::s
     }
 }
 
-bool TailscaleFunnel::stop(int port, std::string& err) {
+bool TailscaleFunnel::stop(int port, const std::string& ownTarget, std::string& err, bool* notOurs) {
+    if (notOurs) *notOurs = false;
     const FunnelStatus before = status(port);
     if (!before.running) return err = before.error, false;
     if (!before.hasPort) return true;
+    // 0.8.3.5: only what this app set up is removed (checked now, right before the command, not what
+    // was there when the app last looked).
+    if (ownTarget.empty() || before.target != ownTarget) {
+        if (notOurs) *notOurs = true;
+        logf("funnel: port %d serves %s, not ours (%s): left alone", port, before.target.c_str(), ownTarget.empty() ? "-" : ownTarget.c_str());
+        return true;
+    }
     std::string out;
     DWORD code = 0;
     const std::wstring cmd = L"\"" + findCli() + L"\" funnel --https=" + std::to_wstring(port) + L" off";
@@ -420,6 +432,79 @@ bool TailscaleFunnel::stop(int port, std::string& err) {
     if (after.port443 != before.port443) logf("funnel: WARNING port 443 changed while turning %d off!", port);
     logf("funnel: port %d off%s (port 443 %s)", port, after.hasPort ? " FAILED (still there)" : "", after.port443 == before.port443 ? "unchanged" : "CHANGED");
     return !after.hasPort;
+}
+
+std::string TailscaleFunnel::removeStale(int port) {
+    const FunnelStatus st = status(port);
+    if (!st.hasPort || st.target.rfind("http://127.0.0.2:", 0) != 0) return {};
+    if (targetAnswers(st.target)) return "in-use: " + st.target;
+    std::string err;
+    bool notOurs = false;
+    const bool off = stop(port, st.target, err, &notOurs);  // the exact target seen: checked again inside
+    if (notOurs) return {};
+    return (off ? "removed: " : "not-removed: ") + st.target + (off ? std::string() : ": " + err);
+}
+
+bool TailscaleFunnel::testCliSet() { return static_cast<bool>(testRunner()) || !cliForTest().empty(); }
+
+// ---- FunnelJobs (0.8.3.5) ----
+
+namespace {
+struct JobQueue {
+    std::mutex mu;
+    std::condition_variable idle;
+    std::deque<std::function<void()>> q;
+    bool worker = false;
+    int pending = 0;
+};
+JobQueue& jq() {
+    static JobQueue* j = new JobQueue;  // never destroyed: a detached worker may still be finishing at exit
+    return *j;
+}
+}  // namespace
+
+void FunnelJobs::post(std::function<void()> job) {
+    JobQueue& j = jq();
+    std::lock_guard<std::mutex> lk(j.mu);
+    j.q.push_back(std::move(job));
+    ++j.pending;
+    if (j.worker) return;  // the running worker takes it after the ones before it
+    j.worker = true;
+    std::thread([] {
+        JobQueue& w = jq();
+        for (;;) {
+            std::function<void()> f;
+            {
+                std::lock_guard<std::mutex> lk(w.mu);
+                if (w.q.empty()) {
+                    w.worker = false;
+                    w.idle.notify_all();
+                    return;
+                }
+                f = std::move(w.q.front());
+                w.q.pop_front();
+            }
+            try {
+                f();
+            } catch (...) {
+                logf("funnel: a CLI job ended with an exception");
+            }
+            std::lock_guard<std::mutex> lk(w.mu);
+            --w.pending;
+        }
+    }).detach();
+}
+
+int FunnelJobs::pending() {
+    JobQueue& j = jq();
+    std::lock_guard<std::mutex> lk(j.mu);
+    return j.pending;
+}
+
+bool FunnelJobs::waitIdle(int timeoutMs) {
+    JobQueue& j = jq();
+    std::unique_lock<std::mutex> lk(j.mu);
+    return j.idle.wait_for(lk, std::chrono::milliseconds(timeoutMs), [&] { return j.pending == 0 && !j.worker; });
 }
 
 }  // namespace pm::remote

@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include "pm/i18n.h"
+#include "guest_rights.h"
 #include "popup_menu.h"
 #include "ui_anim.h"
 
@@ -218,6 +219,7 @@ bool RemoteGuestPanel::open(HWND owner, const std::wstring& suggestedName, Callb
     req_ = Request{};
     req_.name = suggestedName;
     req_.life = 2;  // 24 小時
+    filesPref_ = kGuestFilesDefault, req_.files = guestFilesEffective(req_.viewOnly, filesPref_);  // 0.8.3.5
     result_ = false;
     if (!create(owner, std::move(cb))) return false;
     SetWindowTextW(edit_, suggestedName.c_str());
@@ -315,6 +317,7 @@ void RemoteGuestPanel::submit() {
     wchar_t buf[kMaxName + 2] = {};
     GetWindowTextW(edit_, buf, kMaxName + 1);
     req_.name = buf;
+    req_.files = guestFilesEffective(req_.viewOnly, req_.files);  // 僅觀看 never carries 傳檔
     std::wstring err;
     Result res;
     if (!cb_.onCreate || !cb_.onCreate(req_, res, err)) {
@@ -334,7 +337,8 @@ void RemoteGuestPanel::submit() {
 void RemoteGuestPanel::testSet(const std::wstring& name, int life, bool viewOnly, bool files, bool doCreate) {
     if (!hwnd_ || result_) return;
     if (!name.empty()) SetWindowTextW(edit_, name.c_str());
-    req_.life = std::clamp(life, 0, 3), req_.viewOnly = viewOnly, req_.files = files;
+    req_.life = std::clamp(life, 0, 3), req_.viewOnly = viewOnly, filesPref_ = files;
+    req_.files = guestFilesEffective(viewOnly, filesPref_);
     InvalidateRect(hwnd_, nullptr, FALSE);
     if (doCreate) submit();
 }
@@ -380,8 +384,14 @@ void RemoteGuestPanel::click(Hit h) {
     case HitLife2:
     case HitLife3: req_.life = h - HitLife0, InvalidateRect(hwnd_, nullptr, FALSE); break;
     case HitRight0:
-    case HitRight1: req_.viewOnly = h == HitRight1, InvalidateRect(hwnd_, nullptr, FALSE); break;
-    case HitFiles: req_.files = !req_.files, InvalidateRect(hwnd_, nullptr, FALSE); break;
+    case HitRight1:
+        req_.viewOnly = h == HitRight1, req_.files = guestFilesEffective(req_.viewOnly, filesPref_);  // 0.8.3.5
+        InvalidateRect(hwnd_, nullptr, FALSE);
+        break;
+    case HitFiles:
+        if (req_.viewOnly) break;  // 僅觀看: no files (the row says so)
+        filesPref_ = !filesPref_, req_.files = filesPref_, InvalidateRect(hwnd_, nullptr, FALSE);
+        break;
     default: break;
     }
 }
@@ -488,9 +498,14 @@ void RemoteGuestPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, bool
         text(tr(S::RemoteGuestRights), f.label.Get(), rc(kPad, kRightLblY, kW - 2 * kPad, 22), t.fg);
         chip(HitRight0, rc(kPad, kRightY, cw2, kChipH), tr(S::RemoteGuestControl), !req_.viewOnly);
         chip(HitRight1, rc(kPad + cw2 + 8, kRightY, cw2, kChipH), tr(S::RemoteGuestView), req_.viewOnly);
-        {  // 允許傳檔: a check box row
+        {  // 可以傳檔: a check box row right under 權限 (its own switch, not part of 僅觀看; greyed in 僅觀看)
             const D2D1_RECT_F r = rc(kPad, kFilesY, kW - 2 * kPad, kFilesH);
-            if (const float k = hl(HitFiles); k > 0.003f) fill(r, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.12f * k}, 8);
+            const bool off = req_.viewOnly;
+            const float k = off ? 0.0f : hl(HitFiles);
+            fill(r, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, off ? 0.03f : 0.05f}, 8);
+            if (k > 0.003f) fill(r, D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.12f * k}, 8);
+            stroke(rc(r.left + 0.5f, r.top + 0.5f, r.right - r.left - 1, r.bottom - r.top - 1),
+                   req_.files ? D2D1_COLOR_F{t.accent.r, t.accent.g, t.accent.b, 0.7f} : D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, off ? 0.1f : 0.2f}, 8);
             const D2D1_RECT_F box = rc(kPad + 8, kFilesY + (kFilesH - 18) / 2, 18, 18);
             if (req_.files) {
                 fill(box, t.accent, 4);
@@ -498,9 +513,10 @@ void RemoteGuestPanel::draw(ID2D1RenderTarget* rt, ID2D1SolidColorBrush* b, bool
                 rt->DrawLine({box.left + 4, box.top + 9.5f}, {box.left + 7.5f, box.top + 13}, b, 2);
                 rt->DrawLine({box.left + 7.5f, box.top + 13}, {box.left + 14, box.top + 5}, b, 2);
             } else {
-                stroke(box, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, 0.55f}, 4, 1.4f);
+                stroke(box, D2D1_COLOR_F{t.fg.r, t.fg.g, t.fg.b, off ? 0.25f : 0.55f}, 4, 1.4f);
             }
-            text(tr(S::RemoteGuestFiles), f.body.Get(), rc(kPad + 36, kFilesY + 7, kW - 2 * kPad - 44, 22), t.fg);
+            text(tr(off ? S::RemoteGuestFilesViewOff0835 : S::RemoteGuestFilesCan0835), f.body.Get(),
+                 rc(kPad + 36, kFilesY + 7, kW - 2 * kPad - 44, 22), off ? t.dim : t.fg);
         }
     } else {
         text(tr(S::RemoteGuestUrl), f.label.Get(), rc(kPad, kUrlLblY, kW - 2 * kPad, 22), t.dim);

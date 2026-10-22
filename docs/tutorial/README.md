@@ -32,7 +32,7 @@ Anchors (all four guides have exactly the same ids; the ones the app or the phon
 * `#remote`*, `#remote-open`, `#remote-home`, `#remote-outside` (fixed address), `#remote-tailscale`*
   (Tailscale from zero), `#remote-funnel` (allow Funnel + HTTPS with `tailscale funnel --bg --https=8443 http://127.0.0.2:8091`),
   `#remote-pwa`, `#remote-friend` with `#remote-guest` (臨時帳號: the address carries the account) and `#remote-nolink`
-  (temporary address), `#remote-gestures`, `#remote-safety`, `#remote-limits`
+  (temporary address), `#remote-gestures`, `#remote-pc` (another computer's browser, 0.8.3.5), `#remote-safety`, `#remote-limits`
 * `#sound` with `#remote-audio`
 * `#faq`, `#faq-notfound`, `#faq-audio`, `#faq-lag`, `#faq-blur`, `#faq-takeover`, `#faq-fw`, `#faq-vpn`,
   `#faq-miracast`*, `#faq-adb`, `#faq-disconnect`, `#faq-translate`, `#remote-trouble`*, `#faq-funnel`,
@@ -94,3 +94,14 @@ right), `node tools/shots_0833.mjs <自在投影.exe> <repo>/_shots after --only
 chrome-headless-shell), `node remote/tools/phone_shots_0834.mjs <dir>` (the settings sheet with 電腦喇叭靜音 /
 響度加強, copied to `_shots/after/<lang>_P2-settings-0834.png`), then `prep.py`, `prep_0833.py` and
 `prep_0834.py zh-TW en ja ko` in that order (prep_0834: the 0.8.3.4 remote page starts right under the tabs).
+
+## 0.8.3.5
+
+Retaken for 0.8.3.5 (rel-0835), same made-up data: `node tools/shots_0833.mjs <自在投影.exe> <repo>/_shots after --only AP`
+(guest panels with 可以傳檔 ticked, the 臨時帳號 password the made-up `ABC123` from `PM_TEST_GUEST_PW` (--dev only;
+0.8.3.4's picture showed a generated one), the phone bar with six buttons), and for the new part `#remote-pc`
+`node remote/tools/pcmouse0835_test.mjs <pm_remote_spike.exe> <out> --only shots --shots <dir> --lang N` (N = 0-3;
+chrome-headless-shell, spike `--inject-stub`, a made-up desktop) with its `S1_pc_browser_<lang>.png` /
+`S2_phone_first_<lang>.png` copied to `_shots/after/<lang>_S1-pc-bar.png` / `<lang>_S2-phone-mode.png`; then
+`prep_0834.py` and `prep_0835.py zh-TW en ja ko` (pc-bar, phone-mode) and `build.mjs`. check_guides: 54 ids, no broken
+links, no placeholders, 27 pictures per guide.

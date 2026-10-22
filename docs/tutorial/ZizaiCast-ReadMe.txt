@@ -116,9 +116,11 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
        iPhone: Safari "Share" -> "Add to Home Screen"; Android: Chrome "⋮" -> "Add to Home screen".
     5 wrong passwords in a row lock sign-in for 15 minutes. With HTTPS on, the PC's name appears in public certificate logs: rename it first if it is your real name.
   Away (Tailscale on the phone too): same account on both, scan the QR code on the "Away: Tailscale" card; no password, no Funnel.
-  Lend it to a friend (both ways alike: every time your friend connects, someone at the PC clicks "Allow"; it can't be remembered):
+  Lend it to a friend (both ways alike: the first time your friend connects after signing in, someone at the PC clicks "Allow"; it can't
+  be remembered. Then the same phone with the same account or address is not asked again for a quality / screen switch, a reconnect
+  or a reload; after "Deny", "End", or once the account expires or is deleted, it is asked again):
     - Temporary account (recommended; the fixed address must be on): "Allow remote control" -> "Add a temporary account", pick
-      "Valid for" (One use / 1 hour / 24 hours / 7 days), "Allowed to" (Control / View only) and "Allow file transfer" if wanted -> "Create"
+      "Valid for" (One use / 1 hour / 24 hours / 7 days), "Allowed to" (Control / View only); "Can transfer files" is ticked already (untick it if not wanted) -> "Create"
       -> "Copy all" and paste it to your friend. The address carries the account: your friend only types the password.
       The password is shown only once ("Reset password" makes a new one). It is deleted when it expires or is used up.
     - Temporary address: without a fixed address "Create a temporary address"; with one, "More settings" -> "Temporary address (no app
@@ -128,7 +130,13 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
   Control on the phone (Settings -> Control):
     - Direct (default): your finger clicks where it touches; hold half a second = right click; hold and move = drag.
     - Trackpad: slide to move the pointer, tap = left click, two-finger tap = right click, two fingers = scroll.
-    Pinch = zoom, three-finger tap = keyboard.
+    Pinch = zoom, three-finger tap = keyboard. In Trackpad mode a big arrow (pink ring) shows where the PC pointer is.
+    The bottom-right buttons: Sound on, Zoom, Files (grey when files are off: a tap says why), Keyboard, Stats, Settings.
+
+  From another computer's browser (same address): every mouse button, the wheel and dragging work, a click lands where you point;
+    you type with that computer's input method, shortcuts go to the remote PC. Mouse to the top = the bar: Full screen (hold Esc to
+    leave), Actual size, the screens, Game mode (Esc or Ctrl+Alt+Shift+Q leaves), Alt+Tab, Win, Ctrl+Alt+Del, Ctrl+W, Task Manager,
+    Clipboard (Ctrl+V pastes this computer's text there), sound, Files, Stats, Settings.
 
   Sound:
     - The phone page starts silent: tap "Tap for sound", or the speaker labelled "Sound on" at the bottom right.
@@ -142,7 +150,7 @@ The main window has two big tabs: "Phone mirroring" (sections 1-5 and 7) and "Re
     - You can turn on "New phones from outside also need Allow on the PC" for one more lock (don't, when you are away from the PC).
     - End it at any time: "End" on the bar or Ctrl+D; "View only" is available too. A phone idle for 30 minutes is disconnected.
   Limits:
-    - Windows running as administrator (e.g. Task Manager), UAC prompts and the lock screen (incl. Ctrl+Alt+Del) can't be operated from the phone.
+    - Windows running as administrator (e.g. Task Manager), UAC prompts and the lock screen (incl. Ctrl+Alt+Del) can't be operated from the phone (the phone page says so when you click one).
     - The PC must be on and signed in.
     - The fixed address needs Tailscale running on the PC.
   Troubleshooting:

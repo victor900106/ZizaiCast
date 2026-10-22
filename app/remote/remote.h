@@ -60,7 +60,8 @@ void remoteDevLog(int how);       // --dev DevCommand 965 (0.8.3): 1 = the 連�
 // the suggested one); 982 its PNG (lp = DPI, 0 = the window's) as guest_panel[_<dpi>].png; 983 複製全部 (with
 // PM_TEST_GUEST_OUT: into that file, never the real clipboard); 984 close it; 985 the main window as if moved to
 // a monitor at DPI lp & 0xFFFF with its client lp >> 16 px high (0: the same DIPs; WM_DPICHANGED);
-// 986 the accounts into the log (names, kinds; never a password).
+// 986 the accounts into the log (names, kinds; never a password). rel-0835: with PM_TEST_GUEST_PW (--dev only)
+// a new account gets that made-up password (6 letters / digits, e.g. ABC123) for the screenshots.
 void remoteDevGuest(int which, LPARAM lp);
 // --dev DevCommand 988 (0.8.3.4): as if a phone's 電腦喇叭靜音 switch arrived (lp 1 on, 0 off), through the same
 // message the host's onMutePcRequest posts (who may: tested against the host in remote/tools/mutepc_test.mjs).

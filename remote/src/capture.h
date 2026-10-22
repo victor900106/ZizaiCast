@@ -76,6 +76,9 @@ public:
     std::string adapterName() const { return adapter_; }
     int busySlots() const;
     bool stampOnGpu() const { return stampGpu_; }  // false: caller draws the stamp after readback
+    // 0.8.3.5: a PC browser draws the pointer itself (no lag, no double pointer): leave it out of
+    // the picture while set. Any thread.
+    void setHideCursor(bool hide) { hideCursor_ = hide; }
 
 private:
     bool createDuplication();
@@ -118,6 +121,8 @@ private:
     int ptrW_ = 0, ptrH_ = 0, ptrHotX_ = 0, ptrHotY_ = 0;
     int ptrX_ = 0, ptrY_ = 0;
     bool ptrVisible_ = false;
+    std::atomic<bool> hideCursor_{false};
+    bool hideApplied_ = false;  // capture thread
     std::vector<uint8_t> shapeBuf_;
 
     LUID luid_{};

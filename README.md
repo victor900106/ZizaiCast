@@ -9,7 +9,7 @@
 **把手機畫面投到 Windows 電腦；也能反過來，用手機遠端控制電腦。**<br>
 iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要手機瀏覽器。免費、開源、沒有廣告、不用帳號。
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3.4-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3.4" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/%E5%85%8D%E8%B2%BB%E4%B8%8B%E8%BC%89-Windows%20%E5%AE%89%E8%A3%9D%E7%A8%8B%E5%BC%8F%20v0.8.3.5-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="免費下載 Windows 安裝程式 v0.8.3.5" height="40"></a>
 
 <a href="#mirror"><img src="https://img.shields.io/badge/%E6%89%8B%E6%A9%9F%E6%8A%95%E5%BD%B1-%E6%89%8B%E6%A9%9F%20%E2%86%92%20%E9%9B%BB%E8%85%A6-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="手機投影：手機 → 電腦" height="36"></a>&nbsp;<a href="#remote"><img src="https://img.shields.io/badge/%E9%81%A0%E7%AB%AF%E6%8E%A7%E5%88%B6-%E9%9B%BB%E8%85%A6%20%E2%86%90%20%E6%89%8B%E6%A9%9F-8FE3C4?style=for-the-badge&labelColor=2B2224" alt="遠端控制：電腦 ← 手機" height="36"></a>
 
@@ -90,13 +90,13 @@ iPhone 不用裝 App，Android 還能用滑鼠鍵盤操控；遠端控制只要�
 
 ## 新功能
 
-| v0.8.3.4 | |
+| v0.8.3.5 | |
 |---|---|
-| **手機音量** | 超過 100% 是「響度加強」：越往右越大聲，小聲的地方拉得更多，不會破音；手機頁新增「電腦喇叭靜音」。 |
-| **遠端控制頁** | 本機網址變成主區塊，一鍵「複製網址」；變更密碼、開機自動開啟和兩個聲音選項移到「進階設定」。 |
-| **投影畫面** | 工具列在滑鼠移到畫面上方時出現；截圖提示可按「查看」；畫筆模式有粉紅框；翻譯時右上角寫「翻譯中 · 畫面已暫停」。 |
-| **Android** | 手機重開機後找不到時，提醒重新開啟「無線偵錯」；配對等太久可以按「重新產生 QR」。 |
-| **小視窗分頁** | 遠端控制小視窗的分頁照常用順序：同一個 Wi-Fi、固定網址、Tailscale、臨時網址。 |
+| **從別台電腦操作** | 在另一台電腦的瀏覽器終於能正常點擊、打字（左右中鍵、滾輪、拖曳、輸入法），滑鼠移到最上方有工具列：全螢幕、切換螢幕、剪貼簿、遊戲模式。 |
+| **借給朋友** | 朋友登入後只要按一次「允許」，換畫質、切換螢幕、斷線重連都不會再問；臨時帳號預設可以傳檔。 |
+| **固定網址** | 很快地關掉又打開遠端控制，固定網址不會再消失；連點兩下開關只算一次。 |
+| **手機頁** | 觸控板模式畫出電腦游標的位置；新增「統計」按鈕；不能傳檔時「檔案」按鈕變灰並說明原因。 |
+| **系統管理員視窗** | 點到系統管理員權限的視窗時，手機頁會直接說明為什麼點不到、該怎麼做。 |
 
 完整更新內容見 [Releases](https://github.com/victor900106/ZizaiCast/releases)。
 

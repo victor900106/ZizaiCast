@@ -20,7 +20,7 @@ public:
     struct Request {
         std::wstring name;
         int life = 0;  // 0 用一次, 1 1 hour, 2 24 hours, 3 7 days
-        bool viewOnly = false, files = false;
+        bool viewOnly = false, files = true;  // 0.8.3.5: 可操作 = 可以傳檔 by default (guest_rights.h)
     };
     struct Result {
         std::wstring url, name, password, summary;  // summary: e.g. 「24 小時 · 可操作 · 不能傳檔」
@@ -68,6 +68,7 @@ private:
     UINT dpi_ = 96;
     bool result_ = false;  // the result page
     Request req_;
+    bool filesPref_ = true;  // 0.8.3.5: the 可以傳檔 box while 可操作 (kept across 僅觀看)
     Result res_;
     std::wstring status_;
     bool statusGood_ = false;

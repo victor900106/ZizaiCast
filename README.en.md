@@ -9,7 +9,7 @@
 **Put your phone on a Windows PC, or the other way round: control the PC from your phone.**<br>
 No app on the iPhone, mouse and keyboard control for Android; remote control needs only a phone browser. Free, open source, no ads, no account.
 
-<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.4-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.4" height="40"></a>
+<a href="https://victor900106.github.io/ZizaiCast/download/zizai-setup-latest.exe"><img src="https://img.shields.io/badge/Download-Windows%20installer%20v0.8.3.5-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Download the Windows installer v0.8.3.5" height="40"></a>
 
 <a href="#mirror"><img src="https://img.shields.io/badge/Phone%20mirroring-phone%20%E2%86%92%20PC-F2A3A6?style=for-the-badge&labelColor=2B2224" alt="Phone mirroring: phone to PC" height="36"></a>&nbsp;<a href="#remote"><img src="https://img.shields.io/badge/Remote%20control-PC%20%E2%86%90%20phone-8FE3C4?style=for-the-badge&labelColor=2B2224" alt="Remote control: PC from your phone" height="36"></a>
 
@@ -90,13 +90,13 @@ The other way round: a phone's browser (Safari on iPhone, Chrome on Android) sho
 
 ## What's new
 
-| v0.8.3.4 | |
+| v0.8.3.5 | |
 |---|---|
-| **Phone volume** | Above 100% is loudness boost: louder further right, quiet parts raised the most, no clipping; the phone page can mute the PC’s speakers. |
-| **Remote control page** | This PC’s address is the main block with one-click *Copy address*; password, start-up and the two sound options moved to *More settings*. |
-| **Mirroring window** | The toolbar appears when the mouse goes to the top; the screenshot message has *View*; pen mode has a pink frame; translating shows “Translating · picture paused” top right. |
-| **Android** | If a paired phone isn’t found after a restart, it tells you to turn Wireless debugging back on; a pairing that waits too long offers *New QR code*. |
-| **Small window tabs** | The remote-control small window’s tabs in order of use: Same Wi-Fi, Fixed address, Tailscale, Temporary. |
+| **From another computer** | Clicking and typing now work from another computer’s browser (every button, wheel, dragging, its input method); a bar at the top for full screen, screens, clipboard and game mode. |
+| **Lending to a friend** | One Allow after your friend signs in: switching quality or screens and reconnecting no longer ask again; temporary accounts can transfer files by default. |
+| **Fixed address** | Turning remote control off and quickly on again no longer loses the fixed address; a double click on the switch counts once. |
+| **Phone page** | Trackpad mode shows where the PC pointer is; a new Stats button; the Files button is greyed with the reason when files are off. |
+| **Administrator windows** | Clicking a window run as administrator now tells you why it can’t be reached and what to do. |
 
 Full change list on [Releases](https://github.com/victor900106/ZizaiCast/releases).
 

@@ -374,13 +374,13 @@
 </ul>
 
 <h3 id="remote-friend">상황 3: 친구에게 빌려주기</h3>
-<p class="goal"><b>하고 싶은 일</b>멀리 있는 친구가 잠시 내 PC를 보거나 조작하게 하고(문제를 도와 달라고), 끝나면 못 쓰게 합니다. 내 고정 주소 비밀번호는 남에게 알려 주지 마세요. 두 방법 모두 <strong>친구가 연결할 때마다 PC 앞에서 누군가 “허용”을 눌러야</strong> 합니다(기억할 수 없음).</p>
+<p class="goal"><b>하고 싶은 일</b>멀리 있는 친구가 잠시 내 PC를 보거나 조작하게 하고(문제를 도와 달라고), 끝나면 못 쓰게 합니다. 내 고정 주소 비밀번호는 남에게 알려 주지 마세요. 두 방법 모두 <strong>친구가 로그인한 뒤 처음 연결할 때 PC 앞에서 누군가 “허용”을 눌러야</strong> 합니다(기억할 수 없음). 한 번 허용하면 같은 휴대폰이 같은 계정(또는 같은 임시 주소)으로 화질 변경, 화면 전환, 끊긴 뒤 다시 연결, 페이지 새로 고침을 해도 다시 묻지 않습니다. <span class="ui">거부</span>나 연결 끊기를 한 뒤, 또는 계정이 만료되거나 삭제되면 다시 허용해야 합니다.</p>
 <h4 id="remote-guest">방법 A: 임시 계정(추천, 고정 주소를 먼저 켜 두기)</h4>
 <ol class="steps">
   <li>PC: <span class="ui">원격 제어</span> 탭 맨 위의 <span class="ui">이 PC의 주소(밖에서도 접속 가능)</span> 영역 → <span class="ui">임시 계정 추가</span>.</li>
-  <li><span class="ui">계정</span> 이름은 자동으로 들어가 있습니다(예: guest-4821, 바꿀 수 있음). <span class="ui">유효 기간</span>: 한 번만/1시간/24시간/7일, <span class="ui">권한</span>: 조작 가능/보기만, 파일을 주고받게 하려면 <span class="ui">파일 전송 허용(양방향)</span>. <span class="ui">만들기</span>를 누릅니다.</li>
+  <li><span class="ui">계정</span> 이름은 자동으로 들어가 있습니다(예: guest-4821, 바꿀 수 있음). <span class="ui">유효 기간</span>: 한 번만/1시간/24시간/7일, <span class="ui">권한</span>: 조작 가능/보기만, <span class="ui">파일 전송 가능(휴대폰과 PC 양방향)</span>은 처음부터 켜져 있습니다. 파일을 주고받게 하고 싶지 않으면 끄세요(<span class="ui">보기만</span>에서는 회색이 되며 파일 전송을 할 수 없습니다). <span class="ui">만들기</span>를 누릅니다.</li>
   <li><span class="ui">모두 복사</span>해서 친구에게 붙여 넣습니다. 주소에 계정이 들어 있습니다(<code>#u=guest-4821</code>). <strong>비밀번호는 지금만 표시</strong>됩니다(잊으면 <span class="ui">비밀번호 재설정</span>).</li>
-  <li>친구가 주소를 열면 계정은 이미 입력되어 있어 <strong>비밀번호만 넣으면</strong> 됩니다. PC에 “휴대폰이 이 PC를 조작하려고 합니다”가 나오면 친구가 맞는지 확인하고 <span class="ui">허용</span>.</li>
+  <li>친구가 주소를 열면 계정은 이미 입력되어 있어 <strong>비밀번호만 넣으면</strong> 됩니다. PC에 “휴대폰이 이 PC를 조작하려고 합니다”가 나오면 친구가 맞는지 확인하고 <span class="ui">허용</span>. 계정이 유효한 동안에는 같은 휴대폰이면 다시 묻지 않습니다.</li>
   <li>기간이 끝나거나 “한 번만”을 다 쓰면 자동으로 삭제됩니다. 아래 임시 계정 카드의 <span class="ui">삭제</span>로도 지울 수 있습니다(연결 중이면 바로 끊김). 최대 10개.</li>
 </ol>
 <div class="pair-img">
@@ -398,20 +398,37 @@
 <div class="ok"><b>성공하면 이렇게 보입니다</b>친구 휴대폰에 내 PC가 보이고 화면 위쪽에 “● 원격 제어 중”. 언제든 <span class="ui">끊기</span>나 <kbd>Ctrl</kbd><kbd>D</kbd>로 끝낼 수 있습니다.</div>
 <div class="ng"><b>안 될 때</b><ul>
   <li>친구에게 “이 주소는 더 이상 유효하지 않습니다”: 주소는 한 번, 10분만. 중지하고 새로 받으세요.</li>
-  <li>친구가 “PC에서 “허용”을 누르세요”에서 계속 기다림: 내가 PC에서 허용을 눌러야 합니다(임시 주소도 임시 계정도 매번).</li>
+  <li>친구가 “PC에서 “허용”을 누르세요”에서 계속 기다림: 내가 PC에서 허용을 눌러야 합니다(임시 주소도 임시 계정도 새로 로그인할 때마다 한 번).</li>
+  <li>친구의 <span class="ui">파일</span> 버튼이 회색: 누르면 이유가 나옵니다. 임시 계정을 <span class="ui">파일 전송 가능</span>을 끄고 만들었거나(켜고 다시 만드세요) <span class="ui">보기만</span> 상태입니다.</li>
   <li>“임시 주소에 아직 밖에서 연결할 수 없습니다”: 중지하고 새로 받으세요.</li>
 </ul></div>
 <div class="note warn"><span class="t">끝난 뒤에는</span>친구가 다 쓰면 <span class="ui">끊기</span>를 누르고 임시 주소를 중지하세요. 상대는 화면 전체를 볼 수 있으니 개인적인 창은 먼저 닫으세요. 보기만 하게 하려면 PC 화면 위쪽 막대에서 <span class="ui">보기 전용</span>을 켭니다.</div>
 
 <h3 id="remote-gestures">휴대폰에서 조작: 직접 터치와 트랙패드</h3>
-<p>휴대폰 페이지 오른쪽 아래에 아이콘 5개가 있고 아래에 글자가 나옵니다: <span class="ui">소리 켜기</span>(켜면 <span class="ui">소리</span>), <span class="ui">확대</span>, <span class="ui">파일</span>, <span class="ui">키보드</span>, <span class="ui">설정</span>. <span class="ui">설정</span> → <span class="ui">조작 방식</span>에서 고릅니다(아래 작은 설명이 차이입니다).</p>
+<p>휴대폰 페이지 오른쪽 아래에 아이콘 6개가 있고 아래에 글자가 나옵니다: <span class="ui">소리 켜기</span>(켜면 <span class="ui">소리</span>), <span class="ui">확대</span>, <span class="ui">파일</span>(파일 전송을 할 수 없으면 회색, 누르면 이유), <span class="ui">키보드</span>, <span class="ui">통계</span>(지연, 초당 프레임), <span class="ui">설정</span>. 처음 연결하면 지금 조작 방식을 알려 주는 카드가 나오고, 한 번에 바꿀 수 있습니다. <span class="ui">설정</span> → <span class="ui">조작 방식</span>에서 고릅니다(아래 작은 설명이 차이입니다).</p>
 <div class="tbl"><table>
   <tr><th>조작 방식</th><th>사용법</th><th>이런 분께</th></tr>
   <tr><td>직접 터치(기본)</td><td>손가락이 닿은 곳을 클릭. 0.5초 누르기 = 오른쪽 클릭, 누른 채 움직이기 = 드래그</td><td>큰 버튼, 메뉴, 처음 쓰는 분</td></tr>
   <tr><td>트랙패드</td><td>노트북 터치패드처럼 손가락을 밀어 포인터 이동. 탭 = 왼쪽 클릭, 두 손가락 탭 = 오른쪽 클릭, 두 손가락 밀기 = 스크롤</td><td>작은 것 누르기, 글자 선택</td></tr>
 </table></div>
-{{img:phone-bar|휴대폰 페이지 오른쪽 아래: 소리 켜기, 확대, 파일, 키보드, 설정(예시용 가짜 바탕 화면)|300}}
-<p>두 손가락으로 벌리면 확대, 세 손가락 탭으로 키보드 열기/닫기. 키보드 패널에는 Ctrl, Alt, Win, 방향키, 복사, 붙여넣기, 클립보드가 있습니다.</p>
+{{img:phone-bar|휴대폰 페이지 오른쪽 아래: 소리 켜기, 확대, 파일, 키보드, 통계, 설정(예시용 가짜 바탕 화면)|300}}
+<p>트랙패드에서는 PC 포인터 위치에 큰 화살표(분홍색 원)가 보이고, 탭하면 그곳을 클릭합니다. 화살표에서 먼 곳을 계속 누르면 직접 터치로 바꿀지 묻습니다. 두 손가락으로 벌리면 확대, 세 손가락 탭으로 키보드 열기/닫기. 키보드 패널에는 Ctrl, Alt, Win, 방향키, 복사, 붙여넣기, 클립보드가 있습니다.</p>
+{{img:phone-mode|처음 연결: 지금은 ‘직접 터치’ 모드라고 알려 주고, 한 번에 트랙패드로 바꿀 수 있음(예시용 가짜 바탕 화면)|260}}
+
+<h3 id="remote-pc">다른 컴퓨터의 브라우저에서 조작하기</h3>
+<p>다른 컴퓨터의 브라우저(Chrome, Edge 등)에서 같은 주소를 열면 그 컴퓨터의 마우스와 키보드로 조작할 수 있습니다. 왼쪽·오른쪽·가운데 버튼, 뒤로/앞으로 버튼, 휠, 드래그가 그대로 전달되고, 가리킨 곳을 클릭합니다. 글자는 그 컴퓨터의 입력기(한국어·중국어·일본어도)로 입력하며, 단축키(Ctrl+C, Ctrl+V, F5 등)는 브라우저가 아니라 원격 PC로 갑니다.</p>
+<ol class="steps">
+  <li>마우스를 화면 맨 위로 가져가면 바가 나옵니다: <span class="ui">전체 화면</span>, <span class="ui">원래 크기</span>/<span class="ui">창에 맞추기</span>, 화면마다 버튼(두 개 이상일 때), <span class="ui">게임 모드</span>, Alt+Tab, Win, Ctrl+Alt+Del, Ctrl+W, <span class="ui">작업 관리자</span>, <span class="ui">클립보드</span>, 소리, <span class="ui">파일</span>, <span class="ui">통계</span>, <span class="ui">설정</span>.</li>
+  <li><span class="ui">전체 화면</span>에서는 Alt+Tab, Win 같은 키도 원격 PC로 갑니다. Esc를 길게 누르면 전체 화면이 끝납니다. 브라우저가 이런 키를 페이지에 넘기지 않으면 어떤 키가 가지 않는지 알려 주는 카드가 나옵니다. 바의 버튼을 쓰거나 <span class="ui">다시 시도</span>를 누르세요.</li>
+  <li>이 컴퓨터에서 Ctrl+V를 누르면 이 컴퓨터 클립보드의 글자가 원격 PC에 붙여 넣어집니다. 원격 PC에서 복사한 글자는 이 컴퓨터 클립보드로 옵니다.</li>
+  <li>게임이나 3D 프로그램에는 <span class="ui">게임 모드</span>: 마우스가 화면 안에 고정됩니다. Esc 또는 Ctrl+Alt+Shift+Q로 나가기, Ctrl+Alt+Shift+M 다음 화면, Ctrl+Alt+Shift+S 통계 켜기/끄기(이 세 가지는 원격 PC로 보내지 않음).</li>
+</ol>
+{{img:pc-bar|다른 컴퓨터의 브라우저: 맨 위에 나오는 바(예시용 가짜 바탕 화면)|640}}
+<div class="ng"><b>안 될 때</b><ul>
+  <li>클릭해도 반응이 없고 “이 창은 관리자 권한으로 실행 중”이라고 나옴: 그 프로그램이 관리자 권한으로 실행되어 원격으로 클릭할 수 없습니다. 일반 권한으로 다시 열거나 Zizai Cast를 관리자 권한으로 실행하세요.</li>
+  <li>Ctrl+Alt+Del이 가지 않음: Windows 보안 키라서 어떤 프로그램도 보낼 수 없습니다. 작업 관리자는 바의 <span class="ui">작업 관리자</span>로.</li>
+  <li>바의 <span class="ui">파일</span>이 회색: 마우스를 올리면 이유가 나옵니다(보기만, 또는 파일 전송이 없는 임시 계정).</li>
+</ul></div>
 
 <h3 id="remote-safety">안전 수칙</h3>
 <ul>
@@ -423,7 +440,7 @@
 </ul>
 <h3 id="remote-limits">할 수 없는 것</h3>
 <ul>
-  <li>관리자 권한으로 실행한 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다(Windows 제한).</li>
+  <li>관리자 권한으로 실행한 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다(Windows 제한). 그런 창을 클릭하면 휴대폰 페이지가 이유를 알려 줍니다.</li>
   <li>꺼져 있거나 절전 중이거나 로그인 화면에 있는 PC에는 연결할 수 없습니다. 한 번에 휴대폰 한 대만.</li>
 </ul>
 </section>

@@ -78,6 +78,7 @@ body.sheet-open #silent{display:none!important}
 #fileS .fl a.used{opacity:.45;pointer-events:none}
 #fileS progress{width:64px;height:6px}
 #upIn{display:none}
+.ib.off{opacity:.4;border-style:dashed}  /* 0.8.3.5 files: this page may not send files (looks off; a tap says why) */
 /* "sound on" call to action, shown until used */
 #cta{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sb));z-index:4;display:none;align-items:center;gap:8px;
   padding:10px 18px;border-radius:24px;border:0;background:var(--ac);color:#2a1a1c;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -85,6 +86,64 @@ body.sheet-open #silent{display:none!important}
 /* toast */
 #toast{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;top:calc(40px + var(--st));z-index:5;max-width:min(92vw,460px);padding:10px 14px;border-radius:12px;
   background:var(--bg);font-size:14px;display:none;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#toast.warn{border:1px solid var(--ac);font-size:15px}
+/* 0.8.3.5: the PC browser's bar (a mouse is used): top middle, out of the way until the mouse comes up */
+#pcbar{position:absolute;left:50%;top:0;transform:translate(-50%,-100%);z-index:6;display:none;transition:transform .18s ease-out;padding-bottom:10px}
+body.pcui #pcbar{display:block}
+body.pcui #pcbar.show{transform:translate(-50%,0)}
+#pcbarIn{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:6px 8px;margin-top:6px;background:rgba(30,20,22,.92);border:1px solid rgba(245,167,167,.35);
+  border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.45);white-space:nowrap}
+#pcbarTab{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:56px;height:5px;border-radius:3px;background:var(--ac);opacity:.75}
+body.pcui #pcbar.show #pcbarTab{opacity:0}
+#pcbar .grp{display:flex;gap:4px;align-items:center}
+#pcbar .grp+.grp{border-left:1px solid rgba(255,255,255,.14);padding-left:6px;margin-left:2px}
+#pcbar button{border:1px solid transparent;background:none;color:var(--fg);border-radius:8px;padding:5px 9px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px}
+#pcbar button:hover{background:rgba(245,167,167,.16);border-color:rgba(245,167,167,.35)}
+#pcbar button.on{background:var(--ac);color:#2a1a1c;font-weight:600}
+#pcbar button.off{opacity:.45;border:1px dashed rgba(255,255,255,.35)}  /* rel-0835 files: the PC bar's 檔案 looks off like the phone's (hover / a click says why) */
+#pcbar button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#pcbar .pk{font:600 12px/1.2 ui-monospace,Consolas,monospace;border-color:rgba(255,255,255,.16)}
+body.pcui #pad{cursor:default}
+body.game #pcbar{display:none!important}
+/* (d) a PC's browser: everything is on the top bar; the phone's round buttons go */
+body.pcui #bar{display:none}
+#pbMons{display:flex;gap:2px}
+#pbMons button{font-variant-numeric:tabular-nums;padding:5px 8px}
+@media (max-width:1100px){#pcbar .pl{display:none}#pcbar button{padding:5px 7px}}
+@media (max-width:760px){#pgKeys .pk:nth-child(n+4){display:none}}
+/* rel-0835: the bar never wider than the window (en / ja labels and two or more screens were cut at both ends at
+   1280 px): fitPcbar() drops the labels (c1), then the rarer keys (c2), whatever the window width */
+#pcbar.c1 .pl{display:none}#pcbar.c1 button{padding:5px 7px}#pcbar.c2 #pgKeys .pk:nth-child(n+4){display:none}
+#pcbar.c3 #pbLockT{display:none}#pcbar.c3 button,#pcbar.c3 #pbMons button{padding:5px 5px}#pcbar.c3 .grp{gap:2px}#pcbar.c3 .grp+.grp{padding-left:4px;margin-left:0}#pcbar.c3 #pcbarIn{gap:3px;padding:5px 6px}
+#lockHint{position:absolute;left:50%;top:calc(10px + var(--st));transform:translateX(-50%);z-index:6;display:none;pointer-events:none;padding:4px 12px;border-radius:12px;
+  background:rgba(30,20,22,.8);border:1px solid rgba(245,167,167,.45);font-size:12px;color:var(--fg);white-space:nowrap;transition:all .25s}
+#lockHint.big{top:40%;padding:14px 22px;font-size:16px;border-radius:14px;background:rgba(30,20,22,.92);white-space:normal;max-width:min(90vw,460px);text-align:center}
+body.pcui #toast{top:calc(64px + var(--st))}
+/* 0.8.3.5 (b): where a PC keyboard's input method composes (Chinese / Japanese / Korean); invisible,
+   placed at the mouse so the candidate window shows there */
+#ime{position:absolute;left:0;top:0;width:2px;height:20px;opacity:0;border:0;padding:0;margin:0;resize:none;overflow:hidden;font-size:16px;z-index:1;
+  pointer-events:none;color:transparent;background:transparent;caret-color:transparent}
+/* 0.8.3.5 ②: the PC pointer in 觸控板 mode, big and high-contrast (the real one is ~3 px on a phone at 3440 wide) */
+#tcur{position:absolute;z-index:3;left:0;top:0;width:48px;height:48px;margin:-13px 0 0 -13px;pointer-events:none;display:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+#tcur svg{width:48px;height:48px;display:block}
+/* 0.8.3.5 ②: which mode the phone is in, said once (and again after taps far from the pointer) */
+#modeHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(96px + var(--sb));z-index:7;width:min(92vw,420px);background:var(--bg);
+  border:1px solid var(--ac);border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);display:none}
+#mhT{font-size:16px;font-weight:600;color:var(--ac);margin-bottom:6px}
+#mhS{font-size:14px;line-height:1.5;opacity:.9}
+#modeHint .btnrow{padding-top:10px}
+#modeHint .btn{background:var(--ac);color:#2a1a1c;border:0;font-weight:600}
+#modeHint .btn.alt{background:rgba(255,255,255,.08);color:var(--fg);border:1px solid rgba(255,255,255,.25)}
+body.sheet-open #modeHint,body.hint-open #cta{display:none!important}
+/* #8: a card for a PC's browser (the keyboard lock refused), under the bar */
+#pcCard{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + var(--st));z-index:7;width:min(92vw,460px);background:var(--bg);
+  border:1px solid var(--ac);border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);display:none}
+#pcT{font-size:16px;font-weight:600;color:var(--ac);margin-bottom:6px}
+#pcS{font-size:14px;line-height:1.5;opacity:.9}
+#pcCard .btnrow{padding-top:10px}
+#pcCard .btn{background:var(--ac);color:#2a1a1c;border:0;font-weight:600}
+#pcCard .btn.alt{background:rgba(255,255,255,.08);color:var(--fg);border:1px solid rgba(255,255,255,.25)}
+#bar{gap:10px}
 /* sheets (settings, help, keyboard) */
 .sheet{position:absolute;z-index:6;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,520px);max-height:calc(100% - 12px - var(--st));overflow:auto;
   background:var(--bg);border-radius:16px 16px 0 0;padding:14px 16px calc(14px + var(--sb));display:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;
@@ -163,6 +222,7 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
 <video id="v" playsinline muted autoplay disablepictureinpicture></video>
 <canvas id="scr"></canvas>
 <div id="pad"></div>
+<textarea id="ime" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="-1" aria-hidden="true"></textarea>
 <div id="hud"></div>
 <div id="badge"></div>
 <button id="cta"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span id="ctaT"></span></button>
@@ -171,12 +231,24 @@ textarea{width:100%;margin-top:6px;font:16px/1.4 inherit;font-family:inherit;col
   <button class="ib" id="bZoom"><svg viewBox="0 0 24 24"><g id="zIn"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></g><g id="zFit"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g></svg><span class="bl" id="lbZoom"></span></button>
   <button class="ib" id="bFile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3-3 3 3"/></svg><span class="bl" id="lbFile"></span></button>
   <button class="ib" id="bKb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span class="bl" id="lbKb"></span></button>
+  <button class="ib" id="bHud"><svg viewBox="0 0 24 24"><path d="M5 20V11M11 20V5M17 20v-7"/></svg><span class="bl" id="lbHud"></span></button>
   <button class="ib" id="bSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="bl" id="lbSet"></span></button>
 </div>
+<!-- 0.8.3.5: the bar for a PC's browser (mouse + keyboard), top middle, slides away -->
+<div id="pcbar"><div id="pcbarIn">
+  <span class="grp" id="pgView"><button id="pbFs"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="pl" id="pbFsT"></span></button><button id="pbZoom"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 10v4M11 10h2v4h-2M16 10v4"/></svg><span class="pl" id="pbZoomT"></span></button><span id="pbMons"></span></span>
+  <span class="grp" id="pgMode"><button id="pbLock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg><span id="pbLockT"></span></button></span>
+  <span class="grp" id="pgKeys"><button class="pk" data-c="Alt+Tab">Alt+Tab</button><button class="pk" data-c="Meta">Win</button><button class="pk" data-c="Control+Alt+Delete">Ctrl+Alt+Del</button><button class="pk" data-c="Control+W">Ctrl+W</button><button class="pk" data-c="Control+Shift+Escape" data-t="taskMgr"></button></span>
+  <span class="grp" id="pgMisc"><button id="pbClip"><svg viewBox="0 0 24 24"><rect x="7" y="4" width="10" height="4" rx="1"/><path d="M7 6H5v15h14V6h-2"/></svg><span class="pl" id="pbClipT"></span></button><button id="pbSnd"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path id="pbSndW" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="pbSndX" d="m16 9 6 6m0-6-6 6"/></svg><span class="pl" id="pbSndT"></span></button><button id="pbFile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3-3 3 3"/></svg><span class="pl" id="pbFileT"></span></button><button id="pbHud"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="pl" id="pbHudT"></span></button><button id="pbSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span class="pl" id="pbSetT"></span></button></span>
+</div><div id="pcbarTab"></div></div>
+<div id="lockHint"></div>
+<div id="pcCard"><div id="pcT"></div><div id="pcS"></div><div class="btnrow"><button class="btn alt" id="pcB1"></button><button class="btn" id="pcB2"></button></div></div>
 <div id="toast"></div>
 <div id="silent"></div>
 <div id="path"></div>
 <div id="cur"></div>
+<div id="tcur"><svg viewBox="-13 -13 48 48"><circle cx="0" cy="0" r="12" fill="rgba(245,167,167,.45)" stroke="#F5A7A7" stroke-width="1.5"/><path d="M0 0v24l6.5-6 4.5 10 4.6-2-4.5-9.9 8.9-.4z" fill="#fff" stroke="#1E1416" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="modeHint"><div id="mhT"></div><div id="mhS"></div><div class="btnrow"><button class="btn alt" id="mhSwitch"></button><button class="btn" id="mhOk"></button></div></div>
 
 <div class="sheet" id="set">
   <h3><span id="setT"></span><button id="setClose"></button></h3>
@@ -465,9 +537,76 @@ const T = {
   dlHint: ['在電腦的檔案總管選好檔案按 Ctrl+C，再按「重新整理」。每個下載連結只能用一次，10 分鐘內有效。', 'On the PC, select files in File Explorer and press Ctrl+C, then tap “Refresh”. Each download link works once, for 10 minutes.', 'パソコンのエクスプローラーでファイルを選んで Ctrl+C を押し、「更新」をタップ。各リンクは 1 回だけ、10 分間有効です。', 'PC의 파일 탐색기에서 파일을 선택해 Ctrl+C를 누른 뒤 “새로 고침”을 누르세요. 각 링크는 한 번, 10분 동안만 쓸 수 있습니다.'],
   dlRefresh: ['重新整理', 'Refresh', '更新', '새로 고침'],
   dlNone: ['電腦上沒有複製的檔案', 'No files are copied on the PC', 'パソコンでコピーされたファイルはありません', 'PC에서 복사한 파일이 없습니다'],
+  // ---- 0.8.3.5 files ----
+  filesNoGuest: ['這個臨時帳號建立時沒有開「可以傳檔」。請在電腦上重新建立臨時帳號，並勾選「可以傳檔」', 'This temporary account was made without “Can transfer files”. On the PC, make a new temporary account and tick it', 'この一時アカウントは「ファイル転送ができる」をオフにして作成されています。パソコンで一時アカウントを作り直し、オンにしてください', '이 임시 계정은 “파일 전송 가능”을 끄고 만들어졌습니다. PC에서 임시 계정을 다시 만들 때 켜 주세요'],
   filesDenied: ['「僅觀看」時不能傳檔案', 'Files are off in “View only”', '「表示のみ」の間はファイルを送受信できません', '“보기 전용”에서는 파일을 주고받을 수 없습니다'],
   lockNote: ['中斷後，電腦會自動鎖定（電腦設定：遠端斷線後自動鎖定電腦）', 'When you disconnect, the PC locks itself (PC setting: Lock the PC after remote control ends)', '切断すると、パソコンは自動でロックされます（パソコンの設定：リモート切断後に自動ロック）', '연결을 끊으면 PC가 자동으로 잠깁니다(PC 설정: 원격 연결이 끊기면 PC 잠그기)'],
   gNote: ['以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面無法從手機操作。', 'Windows running as administrator, UAC prompts and the lock screen can’t be controlled from the phone.', '管理者として実行中のウィンドウ、UAC の確認画面、ロック画面はスマホから操作できません。', '관리자 권한으로 실행 중인 창, UAC 확인 창, 잠금 화면은 휴대폰으로 조작할 수 없습니다.'],
+  // ---- 0.8.3.5 input ----
+  // ③ UIPI: the click / key went to a window Windows protects from us ({app} = this program's name, {0} = that program)
+  uipiAdmin: ['這個視窗是系統管理員權限，遠端點不到；請用一般權限開，或用系統管理員權限開{app}', 'This window runs as administrator, so remote clicks can’t reach it. Open it normally, or run {app} as administrator.', 'このウィンドウは管理者権限で動いているため、リモートから操作できません。通常の権限で開くか、{app}を管理者として実行してください。', '이 창은 관리자 권한으로 실행 중이라 원격으로 조작할 수 없습니다. 일반 권한으로 열거나 {app}을(를) 관리자 권한으로 실행하세요.'],
+  uipiApp: ['（{0}）', ' ({0})', '（{0}）', ' ({0})'],
+  // ② the phone's mode, said at the first connection (and after taps far from the pointer in 觸控板)
+  mhTrackT: ['目前是「觸控板」模式', 'You’re in Trackpad mode', '今は「トラックパッド」モードです', '지금은 ‘트랙패드’ 모드입니다'],
+  mhTrackS: ['手指滑動會移動電腦上的箭頭；點一下會點在箭頭的位置，不是手指的位置。想點哪裡就點哪裡，請改用「直接點」（之後也可以在 設定 ▸ 操作方式 切換）。',
+    'Sliding a finger moves the arrow on the PC; a tap clicks where the arrow is, not where your finger is. To click where you tap, switch to Direct (also in Settings ▸ Control).',
+    '指を滑らせるとパソコンの矢印が動き、タップは指の位置ではなく矢印の位置をクリックします。触れた場所をクリックしたいときは「直接タップ」に切り替えてください（設定 ▸ 操作方法 でも変えられます）。',
+    '손가락을 밀면 PC의 화살표가 움직이고, 탭하면 손가락 위치가 아니라 화살표 위치를 클릭합니다. 누른 곳을 클릭하려면 ‘직접 터치’로 바꾸세요(설정 ▸ 조작 방식에서도 바꿀 수 있습니다).'],
+  mhDirectT: ['目前是「直接點」模式', 'You’re in Direct mode', '今は「直接タップ」モードです', '지금은 ‘직접 터치’ 모드입니다'],
+  mhDirectS: ['手指點哪裡，電腦就點哪裡；按住半秒是右鍵，按住拖曳可以選取或搬移。喜歡筆電觸控板的操作方式，可以在 設定 ▸ 操作方式 改成「觸控板」。',
+    'The PC clicks where you tap; hold for half a second for a right click, touch and move to drag. Prefer a laptop-style trackpad? Switch in Settings ▸ Control.',
+    'タップした場所をパソコンがクリックします。半秒長押しで右クリック、触れたまま動かすとドラッグ。ノート PC のようなトラックパッド操作は 設定 ▸ 操作方法 で切り替えられます。',
+    '누른 곳을 PC가 클릭합니다. 0.5초 길게 누르면 오른쪽 클릭, 누른 채 움직이면 드래그입니다. 노트북 터치패드 방식은 설정 ▸ 조작 방식에서 바꿀 수 있습니다.'],
+  mhMissT: ['點擊會落在箭頭的位置', 'Taps click at the arrow', 'タップは矢印の位置をクリックします', '탭은 화살표 위치를 클릭합니다'],
+  mhMissS: ['觸控板模式下，點一下是點在電腦上箭頭（粉紅圈）的位置，不是手指點的地方。要改成手指點哪裡就點哪裡嗎？',
+    'In Trackpad mode a tap clicks where the arrow (pink ring) is on the PC, not where your finger touched. Click where you tap instead?',
+    'トラックパッドモードでは、タップは指の位置ではなく、パソコンの矢印（ピンクの円）の位置をクリックします。触れた場所をクリックするように変えますか？',
+    '트랙패드 모드에서는 탭하면 손가락 위치가 아니라 PC의 화살표(분홍색 원) 위치를 클릭합니다. 누른 곳을 클릭하도록 바꿀까요?'],
+  mhToDirect: ['改用直接點', 'Use Direct', '直接タップにする', '직접 터치로 바꾸기'],
+  mhToTrack: ['改用觸控板', 'Use Trackpad', 'トラックパッドにする', '트랙패드로 바꾸기'],
+  mhOk: ['知道了', 'Got it', 'OK', '알겠습니다'],
+  // (b) a PC's keyboard
+  // (c) 遊戲模式 (pointer lock)
+  gameMode: ['遊戲模式', 'Game mode', 'ゲームモード', '게임 모드'],
+  gameModeTip: ['滑鼠鎖在畫面裡、直接送移動量（遊戲、3D 用）；按 Esc 離開', 'Locks the mouse to the picture and sends raw motion (games, 3D); Esc leaves', 'マウスを画面内に固定し、移動量をそのまま送ります（ゲーム・3D 向け）。Esc で終了', '마우스를 화면 안에 고정하고 이동량을 그대로 보냅니다(게임·3D용). Esc로 나가기'],
+  gameHint: ['遊戲模式：滑鼠鎖在畫面裡，移動直接送給電腦。按 Esc 或 Ctrl+Alt+Shift+Q 離開', 'Game mode: the mouse is locked to the picture and moves the PC directly. Esc or Ctrl+Alt+Shift+Q leaves', 'ゲームモード：マウスは画面内に固定され、動きがそのままパソコンに送られます。Esc か Ctrl+Alt+Shift+Q で終了', '게임 모드: 마우스가 화면 안에 고정되어 움직임이 그대로 PC로 갑니다. Esc 또는 Ctrl+Alt+Shift+Q로 나갑니다'],
+  // #6 the page's own shortcuts (never sent to the PC), told the first time 遊戲模式 starts
+  gameKeys: ['遊戲模式快速鍵（不會送到電腦）：Ctrl+Alt+Shift+Q 放開滑鼠、Ctrl+Alt+Shift+M 換下一個螢幕、Ctrl+Alt+Shift+S 開關統計。',
+    'Game mode shortcuts (never sent to the PC): Ctrl+Alt+Shift+Q frees the mouse, Ctrl+Alt+Shift+M next screen, Ctrl+Alt+Shift+S stats on / off.',
+    'ゲームモードのショートカット（パソコンには送られません）：Ctrl+Alt+Shift+Q マウスを解放、Ctrl+Alt+Shift+M 次の画面、Ctrl+Alt+Shift+S 統計の表示切替。',
+    '게임 모드 단축키(PC로 보내지 않음): Ctrl+Alt+Shift+Q 마우스 해제, Ctrl+Alt+Shift+M 다음 화면, Ctrl+Alt+Shift+S 통계 켜기/끄기.'],
+  monNext: ['已切換到第 {0} 個螢幕', 'Now showing screen {0}', '画面 {0} に切り替えました', '화면 {0}(으)로 전환했습니다'],
+  monOnly: ['電腦只有一個螢幕', 'The PC has one screen', 'パソコンの画面は 1 つだけです', 'PC 화면이 하나뿐입니다'],
+  // #9 stats (HUD): a quick switch on both bars and Ctrl+Alt+Shift+S
+  hudBtn: ['統計', 'Stats', '統計', '통계'],
+  hudTip: ['連線統計（延遲、每秒畫面、頻寬）；快速鍵 Ctrl+Alt+Shift+S', 'Connection stats (latency, frames, bitrate); shortcut Ctrl+Alt+Shift+S', '接続の統計（遅延・フレーム・ビットレート）。ショートカット Ctrl+Alt+Shift+S', '연결 통계(지연, 프레임, 비트레이트). 단축키 Ctrl+Alt+Shift+S'],
+  // #8 the keyboard lock refused / missing: what does not get through, what to use instead
+  klNoT: ['這個瀏覽器不讓網頁接管系統按鍵', 'This browser keeps the system keys to itself', 'このブラウザーはシステムのキーをページに渡しません', '이 브라우저는 시스템 키를 페이지에 넘기지 않습니다'],
+  klNoS: ['Alt+Tab、Win、Ctrl+W、Ctrl+T、Ctrl+N 這些鍵會先被這台電腦或瀏覽器用掉，送不到遠端；請改用上方工具列的按鈕。按 Esc 會直接離開全螢幕。',
+    'Alt+Tab, Win, Ctrl+W, Ctrl+T and Ctrl+N are used by this computer or the browser first and do not reach the PC: use the buttons on the bar at the top. Esc leaves full screen at once.',
+    'Alt+Tab・Win・Ctrl+W・Ctrl+T・Ctrl+N はこのパソコンかブラウザーが先に使うため、リモートには届きません。上のバーのボタンを使ってください。Esc を押すとすぐ全画面が終わります。',
+    'Alt+Tab, Win, Ctrl+W, Ctrl+T, Ctrl+N은 이 컴퓨터나 브라우저가 먼저 써서 원격 PC로 가지 않습니다. 위쪽 바의 버튼을 쓰세요. Esc를 누르면 바로 전체 화면이 끝납니다.'],
+  klRetry: ['再試一次', 'Try again', 'もう一度', '다시 시도'],
+  klOk: ['知道了', 'Got it', 'OK', '알겠습니다'],
+  gameOff: ['已離開遊戲模式', 'Left game mode', 'ゲームモードを終了しました', '게임 모드를 나갔습니다'],
+  gameNo: ['這個瀏覽器不讓網頁鎖定滑鼠（遊戲模式用不了）', 'This browser does not let the page lock the mouse (no game mode)', 'このブラウザーではマウスを固定できません（ゲームモードは使えません）', '이 브라우저는 마우스 고정을 허용하지 않습니다(게임 모드 사용 불가)'],
+  // (d) the PC bar: full screen, size, screens, clipboard
+  pbFs: ['全螢幕', 'Full screen', '全画面', '전체 화면'],
+  pbFsOff: ['離開全螢幕', 'Exit full screen', '全画面を終了', '전체 화면 종료'],
+  fsLocked: ['全螢幕：長按 Esc 會離開全螢幕（短按 Esc 會送到電腦）。Alt+Tab、Win、Ctrl+W 這些鍵也會送到電腦', 'Full screen: hold Esc to leave full screen (a short Esc goes to the PC). Alt+Tab, Win and Ctrl+W go to the PC too', '全画面：Esc を長押しすると全画面が終わります（短く押すとパソコンへ）。Alt+Tab・Win・Ctrl+W もパソコンに送られます', '전체 화면: Esc를 길게 누르면 전체 화면이 끝납니다(짧게 누르면 PC로). Alt+Tab, Win, Ctrl+W도 PC로 갑니다'],
+  fsPlain: ['全螢幕：按 Esc 離開', 'Full screen: press Esc to leave', '全画面：Esc で終了', '전체 화면: Esc를 누르면 나갑니다'],
+  pbFit: ['適應視窗', 'Fit window', 'ウィンドウに合わせる', '창에 맞추기'],
+  pbOne: ['原尺寸', 'Actual size', '原寸', '원래 크기'],
+  pbMonTip: ['切換到第 {0} 個螢幕', 'Show screen {0}', '画面 {0} に切り替え', '화면 {0}(으)로 전환'],
+  pbClip: ['剪貼簿', 'Clipboard', 'クリップボード', '클립보드'],
+  clipToPc: ['已把這台電腦剪貼簿的文字貼到遠端', 'Pasted this computer’s clipboard text on the PC', 'このパソコンのクリップボードの文字をリモートに貼り付けました', '이 컴퓨터 클립보드의 글자를 원격 PC에 붙여 넣었습니다'],
+  clipFromPc: ['遠端複製的文字已放進這台電腦的剪貼簿', 'Text copied on the PC is now on this computer’s clipboard', 'リモートでコピーした文字をこのパソコンのクリップボードに入れました', '원격 PC에서 복사한 글자를 이 컴퓨터 클립보드에 넣었습니다'],
+  clipFromPcTap: ['遠端複製了文字：點這裡放進這台電腦的剪貼簿', 'Text was copied on the PC: click here to put it on this computer’s clipboard', 'リモートで文字がコピーされました：ここをクリックしてこのパソコンのクリップボードへ', '원격 PC에서 글자를 복사했습니다: 여기를 눌러 이 컴퓨터 클립보드에 넣기'],
+  sasNo: ['Ctrl+Alt+Del 是 Windows 的安全鍵，任何程式都送不出去。要開工作管理員請按「工作管理員」（Ctrl+Shift+Esc）；要鎖定電腦請在電腦前按 Win+L。',
+    'Ctrl+Alt+Del is Windows’ secure key: no program can send it. For Task Manager use “Task Manager” (Ctrl+Shift+Esc); to lock the PC press Win+L at the PC.',
+    'Ctrl+Alt+Del は Windows のセキュリティ キーで、どのプログラムからも送れません。タスク マネージャーは「タスク マネージャー」（Ctrl+Shift+Esc）を、ロックはパソコンの前で Win+L を押してください。',
+    'Ctrl+Alt+Del은 Windows 보안 키라서 어떤 프로그램도 보낼 수 없습니다. 작업 관리자는 ‘작업 관리자’(Ctrl+Shift+Esc)를, 잠금은 PC 앞에서 Win+L을 누르세요.'],
+  uipiSecure: ['電腦正在顯示「使用者帳戶控制」確認視窗或鎖定畫面，遠端點不到；請在電腦前處理', 'The PC shows a User Account Control prompt or the lock screen, which remote clicks can’t reach. Deal with it at the PC.', 'パソコンに「ユーザー アカウント制御」の確認画面かロック画面が出ていて、リモートからは操作できません。パソコンの前で操作してください。', 'PC에 사용자 계정 컨트롤 확인 창이나 잠금 화면이 떠 있어 원격으로 조작할 수 없습니다. PC 앞에서 처리하세요.'],
 };
 const t = k => (T[k] || [k])[LANG] || T[k][1];
 const tf = (k, a) => t(k).replace('{0}', a);
@@ -515,7 +654,16 @@ const S = {state: 'new', rtt: NaN, rttMin: Infinity, off: NaN, offRtt: Infinity,
            pair: '', dec: NaN, jb: NaN, kbps: 0, lost: 0, dropped: 0, w: 0, h: 0, stampOk: 0, stampBad: 0, sent: 0, lastBytes: 0, lastT: 0,
            playErr: '', viewOnly: false, monitors: [], bye: '', sound: false, aud: null, reconnects: 0};
 // The DataChannel when WebRTC is up, else the tunnel's WebSocket (外網連結).
-const send = o => { if (dc && dc.readyState === 'open') { dc.send(JSON.stringify(o)); S.sent++; } else wsSend(o); };
+// 0.8.3.5 (e): with S.measure (tests, ?measure) input messages carry the time of the event that made
+// them (epoch ms): the PC logs event -> injected (the page's batching included).
+const INPUT_T = new Set(['abs', 'rel', 'move', 'down', 'up', 'click', 'wheel', 'kd', 'ku', 'text', 'combo']);
+let evTs = 0;  // the oldest input event not sent yet (performance.now() time base)
+const send = o => {
+  if (S.measure && INPUT_T.has(o.t) && o.ts === undefined) o.ts = performance.timeOrigin + (evTs || performance.now());
+  if (INPUT_T.has(o.t)) { evTs = 0; S.inMsgs = (S.inMsgs || 0) + 1; }
+  if (dc && dc.readyState === 'open') { dc.send(JSON.stringify(o)); S.sent++; } else wsSend(o);
+};
+const markEv = e => { S.inEvents = (S.inEvents || 0) + 1; if (!evTs) evTs = e && e.timeStamp ? e.timeStamp : performance.now(); };
 const post = (p, body) => fetch(BASE + p, {method: 'POST', body, cache: 'no-store'});
 let device = store.get('device', '');
 if (!/^[A-Za-z0-9_-]{8,64}$/.test(device)) {
@@ -621,7 +769,7 @@ function openTunnel(my) {
   w.binaryType = 'arraybuffer';
   w.onopen = () => {
     if (tun.ws !== w) return;
-    tun.wsOpen = true; mark('ws');
+    tun.wsOpen = true; mark('ws'); cursorSent = null; S.pcClipWatch = false; setTimeout(syncCursorMode, 0);
     if (S.sound) wsSend({t: 'audio', on: true});
     if (prefs.hud) wsSend({t: 'stamp', on: true});
     if (tun.wantMedia) { tun.media = false; setTunnelMedia(true, 'tunnel reopened'); }
@@ -721,7 +869,7 @@ function drawFrame(frame) {
   if (!S.ttff) {
     S.ttff = performance.now(); mark('frame');
     if (!v.paused) setNeedTap(false); else refreshTap();  // 0.8.3.1: a refused video still takes the next tap (then direct)
-    window.__pmFirstFrame = S.ttff;
+    window.__pmFirstFrame = S.ttff; maybeModeHint();
     diag('first-frame', {ph: S.ph, via: 'tunnel', needTap});
   }
   if (S.state !== 'pending') hideMsg();
@@ -1017,8 +1165,8 @@ function showMsg(title, sub, buttons, opts) {
 }
 const hideMsg = () => { msg.classList.add('hide'); S.msgKind = ''; };
 let toastTimer = 0;
-function toast(text, ms) {
-  const el = $('toast'); el.textContent = text; el.style.display = 'block';
+function toast(text, ms, warn) {
+  const el = $('toast'); el.textContent = text; el.style.display = 'block'; el.classList.toggle('warn', !!warn);
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.style.display = 'none'; }, ms || 4000);
 }
 $('toast').onclick = () => { $('toast').style.display = 'none'; };
@@ -1145,6 +1293,7 @@ async function connect(reason) {
   S.monitors = o.monitors || [];
   S.viewOnly = !!o.viewOnly;
   S.unlockable = !!o.unlockable;  // 0.8.3: fixed link: 僅觀看 can be lifted with the password
+  S.filesWhy = typeof o.filesWhy === 'string' ? o.filesWhy : '';  // 0.8.3.5: why files are off for this login ('' = on)
   S.upload = o.upload !== false; S.uploadMax = o.uploadMax || 2147483648;  // 0.8.3 files
   $('lockNote').style.display = o.lockAfter ? '' : 'none';  // 0.8.3: the PC locks itself when this ends
   S.audioOffered = o.audio !== false;
@@ -1186,7 +1335,7 @@ async function connect(reason) {
   p.ondatachannel = e => {
     if (my !== gen) return;
     dc = e.channel; dc.onmessage = ev => { if (my === gen) onDc(ev); };
-    dc.onopen = () => { if (S.sound) send({t: 'audio', on: true}); if (prefs.hud) send({t: 'stamp', on: true}); };
+    dc.onopen = () => { cursorSent = null; S.pcClipWatch = false; syncCursorMode(); if (S.sound) send({t: 'audio', on: true}); if (prefs.hud) send({t: 'stamp', on: true}); };
   };
   p.onconnectionstatechange = () => {
     if (my !== gen) return;
@@ -1369,11 +1518,12 @@ function onDc(e) {
   } else if (m.t === 'clip') {
     $('clipOut').value = m.s || '';
     $('clipOut').placeholder = t('clipEmpty');
+    fromPcClipboard(m.s);  // 0.8.3.5 (d)
   } else if (m.t === 'files') {  // 0.8.3: the files copied on the PC, one-time links
     showFiles(m.list || []);
   } else if (m.t === 'files-denied') {
     if ($('fileS').style.display === 'block') closeSheets();
-    toast(t('filesDenied'), 3000);
+    toast(t(filesDenyKey(m.why === 'guest' ? 'guest' : filesWhyNow(S) || 'viewOnly')), 6000);
   } else if (m.t === 'clip-denied') {  // 0.8.3: no clipboard in 僅觀看
     if ($('clipS').style.display === 'block') closeSheets();
     toast(t('clipDenied'), 3000);
@@ -1387,6 +1537,11 @@ function onDc(e) {
     else $('unlErr').textContent = tf('unlockBusy', m.retryAfter || 1);
   } else if (m.t === 'clip-ok') {
     toast(m.ok ? t('clipSent') : 'clipboard: failed', 3000);
+  } else if (m.t === 'blocked') {  // 0.8.3.5 ③: Windows drops this click / key (UIPI, the secure desktop)
+    const app = typeof m.app === 'string' ? m.app.slice(0, 60) : '';
+    const text = m.why === 'sas' ? t('sasNo') : m.why === 'secure' ? t('uipiSecure') : t('uipiAdmin').split('{app}').join(PM.app || '') + (app ? tf('uipiApp', app) : '');
+    S.blocked = (S.blocked || 0) + 1;
+    toast(text, 7000, true);
   } else if (m.t === 'notice') {
     if (m.what === 'pc-only') toast(t('pcOnly'), 5000);
   } else if (m.t === 'mode') {
@@ -1398,6 +1553,7 @@ function onDc(e) {
     if (typeof m.mutePc === 'boolean') S.mutePc = m.mutePc;  // 0.8.3.4: changed on the PC (or by this phone)
     if (typeof m.mutePcOk === 'boolean') S.mutePcOk = m.mutePcOk;
     if (typeof m.mutePcWhy === 'string') S.mutePcWhy = m.mutePcWhy;
+    if (typeof m.filesWhy === 'string') { S.filesWhy = m.filesWhy; syncFilesBtn(); }
     if (m.viewOnly !== S.viewOnly) { S.viewOnly = m.viewOnly; applyViewOnly(true); }
     syncMutePc();
   } else if (m.t === 'mutepc') {  // 0.8.3.4: the PC's answer to 電腦喇叭靜音
@@ -1434,8 +1590,7 @@ function applyViewOnly(announce) {
   if (S.viewOnly && S.unlockable) { const x = document.createElement('b'); x.textContent = ' · ' + t('unlock'); b.appendChild(x); }
   b.style.display = S.viewOnly ? 'block' : 'none';
   if (!S.viewOnly && $('unl').style.display === 'block') closeSheets();
-  $('bFile').style.display = S.viewOnly ? 'none' : '';  // 0.8.3: no files in 僅觀看
-  if (S.viewOnly && $('fileS').style.display === 'block') closeSheets();
+  syncFilesBtn();  // 0.8.3.5: the 檔案 button stays, but looks off when files are not allowed
   $('bKb').style.display = S.viewOnly ? 'none' : '';
   if (S.viewOnly) showKb(false);
   if (announce && S.viewOnly) toast(t('viewOnlyToast'));
@@ -1468,7 +1623,7 @@ function onFrame(now, meta) {
   if (TUN && tun.media && !v.paused && v.videoWidth > 16) setTunnelMedia(false, 'direct is playing');
   if (!S.ttff && !v.paused && v.videoWidth > 16) {  // not the 16x16 autoplay probe
     S.ttff = now; mark('frame'); setNeedTap(false);
-    window.__pmFirstFrame = now;
+    window.__pmFirstFrame = now; maybeModeHint();
     diag('first-frame', {ph: S.ph, playErr: S.playErr});  // the phases, once per page, in the PC log
   }
   if (prefs.hud && frameNo % 3 === 0 && S.srv && S.srv.stamp && isFinite(S.off)) {
@@ -1586,11 +1741,11 @@ function toVideo(clientX, clientY) {
   if (x < 0 || x > 1 || y < 0 || y > 1) return null;
   return {x, y};
 }
-let mvx = 0, mvy = 0, whx = 0, why = 0, pendBtn = -1, absPt = null;
+let mvx = 0, mvy = 0, whx = 0, why = 0, pendBtn = -1, absPt = null, relX = 0, relY = 0, movedThisFrame = false;
 // Tap feedback (F8): a ring at the click. Trackpad mode: where the PC pointer
 // is (predicted, see the cursor overlay) if known, else under the finger.
 let lastTouch = null;
-pad.addEventListener('touchstart', e => { const t0 = e.touches[0]; if (t0) lastTouch = {x: t0.clientX, y: t0.clientY}; }, {passive: true});
+pad.addEventListener('touchstart', e => { const t0 = e.touches[0]; if (t0) lastTouch = {x: t0.clientX, y: t0.clientY}; if (S.mouseUsed) { S.mouseUsed = false; drawCursor(); syncCursorMode(); } }, {passive: true});
 function ripple(right) {
   const p = (trackpad.mode === 'trackpad' && typeof cursorClient === 'function' && cursorClient()) || lastTouch;
   if (!p) return;
@@ -1626,6 +1781,7 @@ const trackpad = new RemoteTrackpad(pad, view, {
     if (S.viewOnly) return;
     flush();
     if (down) ripple(b === 2);
+    if (down && b === 0) noteTrackpadTap();
     if (down) {
 
       pendBtn = b;
@@ -1650,14 +1806,245 @@ function flush() {
     mvx = mvy = 0; S.moveMsgs = (S.moveMsgs || 0) + 1;
     drawCursor();
   }
+  if (relX || relY) { send({t: 'rel', dx: relX, dy: relY}); relX = relY = 0; S.relMsgs = (S.relMsgs || 0) + 1; }
   if (whx || why) { send({t: 'wheel', dx: whx, dy: why}); whx = why = 0; }
 }
-(function loop() { flush(); requestAnimationFrame(loop); })();
-// Desktop browsers (mouse) for quick checks: same messages.
-let mdown = false;
-pad.addEventListener('mousedown', () => { mdown = true; });
-pad.addEventListener('mousemove', e => { if (mdown && !S.viewOnly) { mvx += e.movementX * gain(0.5); mvy += e.movementY * gain(0.5); } });
-window.addEventListener('mouseup', () => { mdown = false; });
+// 0.8.3.5 (e): pointer moves go out at most once per frame, the first one of a frame at once (no
+// wait for the frame: a gaming mouse's 1000+ events / s cost one message per frame and ~no delay);
+// what comes later in the frame goes with the next frame. Buttons / keys are never held back.
+(function loop() { const had = !!(absPt || relX || relY); flush(); movedThisFrame = had; requestAnimationFrame(loop); })();
+// ---- 0.8.3.5: a real mouse (another PC's browser) ----
+// 0.8.0-0.8.3.4 had only mousedown / mousemove / mouseup "for quick checks": the pointer moved
+// (relative, and only while a button was held) but no button message was ever sent, so a PC's
+// browser could move the pointer and never click. Now a mouse (or a pen) works like a mouse:
+// the PC pointer goes where the mouse is on the picture (absolute, 1:1), every button goes
+// down and up when it does (chords included: pointer events report a second button only as a
+// pointermove with new `buttons`), the pointer is captured while a button is held (a drag that
+// leaves the picture still ends), and the browser's own menu / middle-click scroll never show.
+// Touch keeps going to trackpad.js (touch events).
+// PointerEvent.buttons bit -> PC button (0 left, 1 middle, 2 right, 3 back, 4 forward)
+const MOUSE_BITS = [[1, 0], [2, 2], [4, 1], [8, 3], [16, 4]];
+let mouseHeld = 0;
+const isMouse = e => e.pointerType === 'mouse' || e.pointerType === 'pen';
+function mouseAbs(e) {  // pointer onto the picture (outside it: the nearest edge while a button is held)
+  if (document.pointerLockElement === pad) return true;  // 遊戲模式: relative motion only
+  const p = toVideo(e.clientX, e.clientY);
+  if (p) { absPt = p; if (S.noBatch || !movedThisFrame) { flushAbs(); movedThisFrame = !S.noBatch; } return true; }  // noBatch: the naive way, for (e)'s comparison
+  if (!mouseHeld) return false;
+  const b = videoBox(), z = trackpad.zoom;
+  const cxp = b.r.left + b.r.width / 2 + trackpad.panX, cyp = b.r.top + b.r.height / 2 + trackpad.panY;
+  absPt = {x: Math.min(1, Math.max(0, (e.clientX - (cxp - b.w * z / 2)) / (b.w * z))),
+           y: Math.min(1, Math.max(0, (e.clientY - (cyp - b.h * z / 2)) / (b.h * z)))};
+  return true;
+}
+function mouseButtons(e) {
+  const now = e.buttons | 0;
+  if (now === mouseHeld) return;
+  flush();  // the pointer is where the button goes down / up
+  for (const [bit, b] of MOUSE_BITS) {
+    const was = mouseHeld & bit, is = now & bit;
+    if (is && !was) send({t: 'down', b});
+    else if (was && !is) send({t: 'up', b});
+  }
+  mouseHeld = now;
+}
+pad.addEventListener('pointerdown', e => {
+  if (!isMouse(e)) return;
+  e.preventDefault();
+  act(); markEv(e);
+  if (S.viewOnly) return;
+  if (!toVideo(e.clientX, e.clientY) && !mouseHeld && document.pointerLockElement !== pad) return;  // on the black bars: nothing
+  try { if (document.pointerLockElement !== pad) pad.setPointerCapture(e.pointerId); } catch {}
+  mouseAbs(e);
+  mouseButtons(e);
+});
+pad.addEventListener('pointermove', e => {
+  if (!isMouse(e) || S.viewOnly) return;
+  if (!S.mouseUsed) { S.mouseUsed = true; drawCursor(); syncCursorMode(); }
+  act(); markEv(e);
+  mouseAbs(e);
+  if ((e.buttons | 0) !== mouseHeld) mouseButtons(e);
+});
+const mouseUp = e => {
+  if (!isMouse(e)) return;
+  e.preventDefault();
+  if (S.viewOnly) { mouseHeld = 0; return; }
+  mouseAbs(e);
+  mouseButtons(e);
+};
+pad.addEventListener('pointerup', mouseUp);
+pad.addEventListener('pointercancel', e => { if (isMouse(e)) mouseButtons({buttons: 0}); });
+pad.addEventListener('lostpointercapture', e => { if (isMouse(e) && mouseHeld && !(e.buttons | 0)) mouseButtons({buttons: 0}); });
+pad.addEventListener('contextmenu', e => e.preventDefault());
+pad.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });  // no autoscroll icon
+// The back / forward buttons are the PC's (the browser must not go back: that would leave the page).
+for (const ev of ['mouseup', 'auxclick']) window.addEventListener(ev, e => { if (e.button === 3 || e.button === 4) e.preventDefault(); }, true);
+let histGuard = false;
+function guardHistory() {  // once a mouse is used: a back gesture that still gets through stays on the page
+  if (histGuard) return;
+  histGuard = true;
+  try { history.pushState({pm: 1}, ''); } catch {}
+  window.addEventListener('popstate', () => { if (S.state !== 'ended') { try { history.pushState({pm: 1}, ''); } catch {} } });
+}
+pad.addEventListener('pointerdown', e => { if (isMouse(e)) guardHistory(); }, true);
+// Wheel / a laptop trackpad's two-finger scroll: the PC's wheel (120 = one notch; smooth pixel deltas
+// stay smooth: the PC gets the fractions as they come), both axes; never the browser's own scroll / zoom.
+pad.addEventListener('wheel', e => {
+  e.preventDefault();
+  act();
+  if (S.viewOnly) return;
+  if (!toVideo(e.clientX, e.clientY) && !mouseHeld) return;
+  mouseAbs(e);
+  const k = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 360 : 1.2;  // lines (3 per notch) / pages / pixels (100 per notch)
+  why += -e.deltaY * k;
+  whx += e.deltaX * k;
+}, {passive: false});
+window.addEventListener('blur', () => { if (mouseHeld) mouseButtons({buttons: 0}); });
+
+// ---- 0.8.3.5 (b): a PC's keyboard ----
+// Every key goes by its place (KeyboardEvent.code -> the PC's scan code): the PC's own layout and
+// input method make the character, shortcuts (Ctrl+C / V / Z, Alt+F4, F5 ...) reach the PC and not
+// this browser (preventDefault; Ctrl+W / Ctrl+T / Ctrl+N stay the browser's unless in full screen
+// with the keyboard lock: the bar's buttons send them). A key can be held; all are let go when this
+// window loses the focus, hides or closes (and by the PC when the 0.4 s heartbeat stops).
+// This PC's input method (Chinese / Japanese / Korean) composes in a hidden field at the mouse
+// (keyCode 229 / isComposing: left to it); the result goes out as text.
+const ime = $('ime');
+const keysDown = new Set();
+let lastComp = {data: '', at: 0};
+const ownField = el => !!el && el !== ime && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+const sheetOpen = () => document.body.classList.contains('sheet-open');
+const keysToPc = () => !S.viewOnly && (S.state === 'connected' || tun.media) && !sheetOpen() && !ownField(document.activeElement);
+function focusIme(e) {
+  if (touchFirst() && !S.mouseUsed) return;  // a phone: never its on-screen keyboard
+  if (e && e.clientX !== undefined) { ime.style.left = Math.round(e.clientX) + 'px'; ime.style.top = Math.round(e.clientY) + 'px'; }
+  if (document.activeElement !== ime && !ownField(document.activeElement)) { try { ime.focus({preventScroll: true}); } catch {} }
+}
+pad.addEventListener('pointerdown', e => { if (isMouse(e)) focusIme(e); });
+window.addEventListener('keydown', e => {
+  if (!keysToPc()) return;
+  if (e.isComposing || e.keyCode === 229) { focusIme(); return; }  // this PC's input method is composing
+  if (!e.code || e.code === 'Unidentified') return;
+  if (pageHotkey(e)) return;  // #6 Ctrl+Alt+Shift+Q / M / S: the page's own, never sent
+  if (pasteKey(e)) return;  // (d) Ctrl+V / Shift+Insert: this PC's clipboard first
+  e.preventDefault();
+  e.stopPropagation();
+  if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
+  focusIme();
+  keysDown.add(e.code);
+  flush();  // the pointer is where it should be before the key (Shift+click, drag + Ctrl)
+  markEv(e);
+  send({t: 'kd', k: e.code});
+  S.keyMsgs = (S.keyMsgs || 0) + 1;
+  act();
+}, true);
+window.addEventListener('keyup', e => {
+  if (!keysDown.has(e.code)) return;
+  e.preventDefault();
+  keysDown.delete(e.code);
+  send({t: 'ku', k: e.code});
+}, true);
+function releaseKeys() { for (const c of keysDown) send({t: 'ku', k: c}); keysDown.clear(); }
+window.addEventListener('blur', releaseKeys);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseKeys(); });
+window.addEventListener('pagehide', releaseKeys);
+setInterval(() => { if (keysDown.size) send({t: 'kh'}); }, 400);
+ime.addEventListener('compositionend', e => {
+  if (e.data && !S.viewOnly) { send({t: 'text', s: e.data}); lastComp = {data: e.data, at: performance.now()}; }
+  setTimeout(() => { ime.value = ''; }, 0);
+});
+ime.addEventListener('input', e => {
+  if (e.isComposing) return;
+  const d = e.data || '';
+  // committed without a composition (some input methods: full-width punctuation)
+  if (d && e.inputType === 'insertText' && !(d === lastComp.data && performance.now() - lastComp.at < 80) && !S.viewOnly) send({t: 'text', s: d});
+  setTimeout(() => { ime.value = ''; }, 0);
+});
+// Keys a browser never lets a page have (Alt+Tab, Win, Ctrl+Alt+Del, Ctrl+W ...): buttons on the PC bar.
+function pasteKey(e) { return false; }  // (d)
+function pageHotkey(e) { return false; }  // #6
+function sendCombo(c) {
+  if (S.viewOnly) return;
+  flush();
+  send({t: 'combo', keys: c.split('+')});
+  act();
+}
+// ---- 0.8.3.5 (c): the pointer of a PC's browser; 遊戲模式 (pointer lock) ----
+// A mouse works on the picture absolutely (直接點, the default for a PC's browser: the PC pointer goes
+// where this one is). This browser's own pointer is the one you see: no lag, and the PC leaves its
+// pointer out of the picture ({"t":"cursor","local":true}: no double pointer); its shape follows the
+// PC's (text, hand, resize ...; "k" in the PC's "cur").
+// 遊戲模式 (games, 3D): the mouse is locked to the picture and sends raw relative motion ("rel"),
+// the PC draws its pointer again; Esc (the browser's) leaves it.
+let cursorSent = null;
+const locked = () => document.pointerLockElement === pad;
+function syncCursorMode() {
+  const local = !!S.mouseUsed && !locked();
+  if (local === cursorSent) return;
+  cursorSent = local;
+  send({t: 'cursor', local});
+}
+const CSS_CURSOR = {arrow: 'default', ibeam: 'text', wait: 'wait', cross: 'crosshair', uparrow: 'default', nwse: 'nwse-resize', nesw: 'nesw-resize',
+  we: 'ew-resize', ns: 'ns-resize', all: 'move', no: 'not-allowed', hand: 'pointer', busy: 'progress', help: 'help', custom: 'default'};
+function pcCursorShape(m) {
+  if (!S.mouseUsed) return;
+  pad.style.cursor = m.v === false || m.k === 'none' ? 'none' : CSS_CURSOR[m.k] || 'default';
+}
+function setGameMode(on) {
+  if (on && !locked()) {
+    if (S.viewOnly) return;
+    try {
+      const p = pad.requestPointerLock({unadjustedMovement: true});  // raw motion where the browser can
+      if (p && p.catch) p.catch(() => { try { pad.requestPointerLock(); } catch {} });
+    } catch { try { pad.requestPointerLock(); } catch {} }
+  } else if (!on && locked()) document.exitPointerLock();
+}
+document.addEventListener('pointerlockchange', () => {
+  const on = locked();
+  S.gameMode = on;
+  document.body.classList.toggle('game', on);
+  $('pbLock').classList.toggle('on', on);
+  $('lockHint').style.display = on ? 'block' : 'none';
+  if (on) { $('lockHint').classList.add('big'); setTimeout(() => $('lockHint').classList.remove('big'), 4000); pcbar.classList.remove('show'); }
+  else { if (mouseHeld) mouseButtons({buttons: 0}); toast(t('gameOff'), 2500); }
+  syncCursorMode();
+});
+// (a refused raw-motion request is retried plainly: only say so if neither worked)
+document.addEventListener('pointerlockerror', () => setTimeout(() => { if (!locked()) toast(t('gameNo'), 4000); }, 400));
+pad.addEventListener('pointermove', e => {
+  if (!locked() || !isMouse(e) || S.viewOnly) return;
+  markEv(e);
+  relX += e.movementX || 0; relY += e.movementY || 0;  // sent once per frame (flush; the event's movement = its coalesced events' sum)
+  if (S.noBatch || !movedThisFrame) { flush(); movedThisFrame = !S.noBatch; }
+});
+
+// The PC bar: for a browser with a mouse (pointer: fine at load, or the first mouse move).
+const pcbar = $('pcbar');
+let pcbarTimer = 0;
+function pcUi() {
+  if (document.body.classList.contains('pcui')) return;
+  document.body.classList.add('pcui');
+  showPcbar(4000);
+}
+function showPcbar(ms) {
+  pcbar.classList.add('show');
+  clearTimeout(pcbarTimer);
+  if (ms) pcbarTimer = setTimeout(() => { if (!pcbar.matches(':hover')) pcbar.classList.remove('show'); }, ms);
+}
+pcbar.addEventListener('mouseenter', () => showPcbar(0));
+pcbar.addEventListener('mouseleave', () => showPcbar(1200));
+pcbar.addEventListener('pointerdown', e => e.stopPropagation());
+pad.addEventListener('pointermove', e => { if (!isMouse(e)) return; pcUi(); if (e.clientY < 40 && !mouseHeld) showPcbar(1500); });
+if (matchMedia('(pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches) pcUi();
+for (const b of pcbar.querySelectorAll('button[data-c]')) {
+  if (b.dataset.t) b.textContent = t(b.dataset.t);
+  b.title = b.dataset.c.replace('Control', 'Ctrl').replace('Meta', 'Win').replace('Escape', 'Esc').replace('Delete', 'Del');
+  b.onclick = e => { e.stopPropagation(); sendCombo(b.dataset.c); b.blur(); };
+}
+$('pbLockT').textContent = t('gameMode');
+$('pbLock').title = t('gameModeTip');
+$('pbLock').onclick = e => { e.stopPropagation(); $('pbLock').blur(); setGameMode(!locked()); };
+$('lockHint').textContent = t('gameHint');
 // ---- O7: predicted PC pointer. The PC reports where its pointer is and the
 // last move it applied (n); the page adds the moves it sent since then and
 // draws a small ring there while the PC has not caught up (high RTT).
@@ -1678,13 +2065,14 @@ function normToClient(c) {
 function cursorClient() { const c = cursorNorm(); return c ? normToClient(c) : null; }
 function onCursor(m) {
   srvCur = {x: m.x, y: m.y, n: m.n, v: m.v};
+  pcCursorShape(m);
   while (pendingMoves.length && pendingMoves[0].n <= m.n) pendingMoves.shift();
   drawCursor();
 }
 function drawCursor() {
   const el = $('cur');
-  const c = trackpad.mode === 'trackpad' && srvCur && srvCur.v !== false ? cursorClient() : null;
-  if (!c) { el.style.display = 'none'; return; }
+  const c = trackpad.mode === 'trackpad' && !S.mouseUsed && srvCur && srvCur.v !== false ? cursorClient() : null;
+  if (!c) { el.style.display = 'none'; $('tcur').style.display = 'none'; return; }
   // Zoomed in: keep the pointer on screen (the picture follows it).
   if (trackpad.zoom > 1.01 && !prefs.lock && performance.now() - lastLocalMove < 300) {
     const r = pad.getBoundingClientRect(), m = 40;
@@ -1694,11 +2082,54 @@ function drawCursor() {
     if (dx || dy) { trackpad.panX += dx; trackpad.panY += dy; trackpad._applyZoom(); }
   }
   const p = cursorClient();
-  // Only while there are moves the PC has not applied yet: at low latency the
-  // ring never shows (the real pointer in the picture is already there).
-  const lagging = pendingMoves.length > 0 && performance.now() - pendingMoves[0].at > 30;
-  el.style.display = lagging ? 'block' : 'none';
-  el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+  // 0.8.3.5 ②: 觸控板 = a big arrow with a pink ring, always, where the PC pointer is (with the moves
+  // the PC has not applied yet: it never lags behind the finger). The picture's own pointer is a few
+  // pixels on a phone (3440 px wide on 390): the owner clicked dozens of times at it without seeing it.
+  // The small 0.8.0 ring is not needed any more.
+  el.style.display = 'none';
+  const tcur = $('tcur'); tcur.style.display = 'block';
+  tcur.style.transform = `translate(${p.x}px, ${p.y}px)`;
+}
+
+
+
+// ---- 0.8.3.5 ②: which mode the phone is in, said at the first connection ----
+// Default for a phone: 直接點 (0.8.3; kept): on a touch screen people tap the thing they want, and
+// 觸控板 needs knowing that the tap lands at the arrow, not under the finger (exactly what went wrong
+// in the owner's log: dozens of "left click at 1744,804"). A saved choice is kept; the card says
+// which mode it is and switches in one tap.
+const touchFirst = () => matchMedia('(pointer: coarse)').matches;
+let hintWhy = '', missTaps = [];
+function showModeHint(why) {
+  hintWhy = why;
+  const tp = prefs.mode === 'trackpad';
+  $('mhT').textContent = t(why === 'miss' ? 'mhMissT' : tp ? 'mhTrackT' : 'mhDirectT');
+  $('mhS').textContent = t(why === 'miss' ? 'mhMissS' : tp ? 'mhTrackS' : 'mhDirectS');
+  $('mhSwitch').textContent = t(tp ? 'mhToDirect' : 'mhToTrack');
+  $('mhOk').textContent = t('mhOk');
+  $('mhSwitch').className = why === 'miss' ? 'btn' : 'btn alt'; $('mhOk').className = why === 'miss' ? 'btn alt' : 'btn';
+  $('modeHint').style.display = 'block'; document.body.classList.add('hint-open');
+  S.modeHint = why;
+}
+function hideModeHint() { $('modeHint').style.display = 'none'; document.body.classList.remove('hint-open'); store.set('modeHint0835', 1); }
+$('mhOk').onclick = e => { e.stopPropagation(); hideModeHint(); };
+$('mhSwitch').onclick = e => { e.stopPropagation(); setMode(prefs.mode === 'trackpad' ? 'direct' : 'trackpad'); hideModeHint(); toast(t(prefs.mode === 'trackpad' ? 'mhTrackT' : 'mhDirectT'), 2500); };
+for (const ev of ['touchstart', 'touchend', 'pointerdown']) $('modeHint').addEventListener(ev, e => e.stopPropagation(), {passive: true});
+function maybeModeHint() {  // the first picture of this phone
+  if (store.get('modeHint0835', 0) || !touchFirst() || S.viewOnly) return;
+  setTimeout(() => { if ($('modeHint').style.display !== 'block') showModeHint('first'); }, 700);
+}
+// 觸控板: three taps within 12 s, each far (> 90 CSS px) from the arrow = clicking where the finger is,
+// expecting 直接點: say where the click goes (once per page).
+function noteTrackpadTap() {
+  if (prefs.mode !== 'trackpad' || S.missHinted || !lastTouch) return;
+  const c = cursorClient();
+  if (!c) return;
+  const now = performance.now();
+  if (Math.hypot(c.x - lastTouch.x, c.y - lastTouch.y) < 90) { missTaps = []; return; }
+  missTaps = missTaps.filter(x => now - x < 12000);
+  missTaps.push(now);
+  if (missTaps.length >= 3) { S.missHinted = true; missTaps = []; showModeHint('miss'); }
 }
 setInterval(() => { if (pendingMoves.length && performance.now() - pendingMoves[0].at > 1500) pendingMoves = []; drawCursor(); }, 100);
 
@@ -1750,10 +2181,29 @@ function closeSheets() {
   for (const id of ['set', 'help', 'unl', 'fileS']) $(id).style.display = 'none';
   $('bFile').classList.remove('on');
   $('unlIn').value = '';
-  if ($('clipS').style.display === 'block') { $('clipS').style.display = 'none'; send({t: 'clip-stop'}); }
+  if ($('clipS').style.display === 'block') { $('clipS').style.display = 'none'; send(S.pcClipWatch ? {t: 'clip-get', watch: true} : {t: 'clip-stop'}); }
   $('bSet').classList.remove('on'); syncSheetFlag();
 }
 function syncSheetFlag() { document.body.classList.toggle('sheet-open', ['set', 'help', 'kb', 'clipS', 'unl', 'fileS'].some(id => $(id).style.display === 'block')); }
+// ---- 0.8.3.5 files perm ----
+// May this page send / receive files? '' = yes; 'viewOnly' = 僅觀看 (wins); 'guest' = a 臨時帳號 made without 可以傳檔.
+// (The PC enforces the same table in remote/src/file_perm.h; this only decides how the button looks and what a tap says.)
+function filesWhyNow(st) { return st.viewOnly ? 'viewOnly' : st.filesWhy === 'guest' ? 'guest' : ''; }
+function filesDenyKey(why) { return why === 'guest' ? 'filesNoGuest' : 'filesDenied'; }
+// ---- end 0.8.3.5 files perm ----
+function syncFilesBtn() {
+  const why = filesWhyNow(S), b = $('bFile');
+  b.classList.toggle('off', !!why);
+  b.setAttribute('aria-disabled', why ? 'true' : 'false');
+  // rel-0835: the PC bar's 檔案 (a browser with a mouse) follows the same table: greyed, its tooltip says why
+  const pb = $('pbFile');
+  if (pb) {
+    pb.classList.toggle('off', !!why);
+    pb.setAttribute('aria-disabled', why ? 'true' : 'false');
+    pb.title = why ? t(filesDenyKey(why)) : t('lbFile');
+  }
+  if (why && $('fileS').style.display === 'block') closeSheets();
+}
 // ---- 0.8.3: files both ways (never in 僅觀看) ----
 const mb = n => n >= 1073741824 ? (n / 1073741824).toFixed(n >= 10737418240 ? 0 : 1) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 $('bFile').setAttribute('aria-label', t('files'));
@@ -1766,7 +2216,8 @@ $('dlT').textContent = t('dlT');
 $('dlHint').textContent = t('dlHint');
 $('dlRefresh').textContent = t('dlRefresh');
 $('bFile').onclick = () => {
-  if (S.viewOnly) { toast(t('filesDenied'), 3000); return; }
+  const why = filesWhyNow(S);
+  if (why) { toast(t(filesDenyKey(why)), 6000); return; }  // 0.8.3.5: say why, in plain words
   const open = $('fileS').style.display === 'block';
   showKb(false); closeSheets();
   if (open) return;
@@ -1812,7 +2263,7 @@ async function uploadFile(f) {
     }
     if (r.status === 409 && j && typeof j.got === 'number' && !j.noSession) { off = j.got; continue; }
     if (!r.ok || !j || !j.ok) {
-      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && (j.viewOnly || j.noFiles) ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
+      st.textContent = j && j.tooBig ? tf('upTooBig', mb(S.uploadMax)) : j && j.diskFull ? t('upDisk') : j && j.noFiles ? t('filesNoGuest') : j && j.viewOnly ? t('filesDenied') : j && j.off ? t('upOff') : t('upFail');
       pr.remove(); upStat.errors++; return;
     }
     fails = 0; off = j.got; done = !!j.done;
@@ -2027,7 +2478,7 @@ const adapt = {
 };
 setInterval(() => adapt.tick(), 2000);
 
-for (const b of segMode.children) b.onclick = () => setMode(b.dataset.v);
+for (const b of segMode.children) b.onclick = () => { const was = prefs.mode; setMode(b.dataset.v); if (was !== prefs.mode && touchFirst()) toast(t(prefs.mode === 'trackpad' ? 'mhTrackS' : 'mhDirectS'), 6000); };
 for (const b of segQ.children) b.onclick = () => setQuality(+b.dataset.v);
 $('sens').oninput = () => { prefs.sens = +$('sens').value; store.set('sens', prefs.sens); };
 $('swHud').onchange = () => { prefs.hud = $('swHud').checked; store.set('hud', prefs.hud); send({t: 'stamp', on: prefs.hud}); syncSettings(); };
@@ -2141,6 +2592,181 @@ if (AUTO) setTimeout(async function snap() {
 
 // 0.8.3: the tab / the app is closing: tell the PC (else it waits 15 s for the pings to stop).
 addEventListener('pagehide', e => { if (!e.persisted && sessId && !S.bye) { try { send({t: 'leave'}); } catch {} } });
+// ---- 0.8.3.5 (d): the PC bar: full screen, fit / actual size, screens, clipboard, sound, files, settings ----
+$('pbFsT').textContent = t('pbFs');
+$('pbClipT').textContent = t('pbClip'); $('pbClip').title = t('pbClip');
+$('pbFileT').textContent = t('lbFile'); $('pbFile').title = t('lbFile'); syncFilesBtn();  // rel-0835: greyed + why, like the phone's
+$('pbSetT').textContent = t('lbSet'); $('pbSet').title = t('lbSet');
+const pcBtn = (id, fn) => { $(id).onclick = e => { e.stopPropagation(); $(id).blur(); fn(); }; };
+pcBtn('pbFs', async () => {
+  try {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    await document.documentElement.requestFullscreen({navigationUI: 'hide'});
+    // the keyboard lock (Chromium): Alt+Tab, Win, Ctrl+W, Esc reach the page (hold Esc to leave)
+    // #8: refused / not there -> what does not get through, the bar's buttons instead, and 再試一次
+    if ((await keyboardLock()) === 'ok') toast(t('fsLocked'), 5000);
+    else showKlCard();
+  } catch { toast(t('fsPlain'), 2000); }
+});
+document.addEventListener('fullscreenchange', () => {
+  const on = !!document.fullscreenElement;
+  if (!on && navigator.keyboard && navigator.keyboard.unlock) try { navigator.keyboard.unlock(); } catch {}
+  $('pbFs').classList.toggle('on', on);
+  $('pbFsT').textContent = t(on ? 'pbFsOff' : 'pbFs');
+  $('pbFs').title = $('pbFsT').textContent;
+});
+pcBtn('pbZoom', () => $('bZoom').onclick());
+async function keyboardLock() {
+  if (!(navigator.keyboard && navigator.keyboard.lock)) { S.kl = 'missing'; return S.kl; }
+  try { await navigator.keyboard.lock(); S.kl = 'ok'; } catch { S.kl = 'refused'; }
+  return S.kl;
+}
+function hideKlCard() { $('pcCard').style.display = 'none'; }
+function showKlCard() {
+  $('pcT').textContent = t('klNoT'); $('pcS').textContent = t('klNoS');
+  $('pcB1').textContent = t('klRetry'); $('pcB2').textContent = t('klOk');
+  $('pcCard').style.display = 'block';
+}
+$('pcB2').onclick = e => { e.stopPropagation(); hideKlCard(); };
+$('pcB1').onclick = async e => {
+  e.stopPropagation();
+  try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({navigationUI: 'hide'}); } catch {}
+  if ((await keyboardLock()) === 'ok') { hideKlCard(); toast(t('fsLocked'), 5000); }
+  else { $('pcCard').animate && $('pcCard').animate([{transform: 'translateX(-50%)'}, {transform: 'translateX(-47%)'}, {transform: 'translateX(-53%)'}, {transform: 'translateX(-50%)'}], 300); }
+};
+for (const ev of ['pointerdown', 'touchstart']) $('pcCard').addEventListener(ev, e => e.stopPropagation(), {passive: true});
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) hideKlCard(); });
+// #9 stats: Ctrl+Alt+Shift+S, the bars' 統計 buttons, 設定's switch: one setting
+function toggleHud() { $('swHud').checked = !prefs.hud; $('swHud').onchange(); syncHudBtns(); toast(t('hudBtn') + (prefs.hud ? ' ✓' : ' ✕'), 1200); }
+function syncHudBtns() { $('bHud').classList.toggle('on', !!prefs.hud); $('pbHud').classList.toggle('on', !!prefs.hud); }
+$('lbHud').textContent = t('hudBtn'); $('bHud').title = t('hudTip'); $('bHud').setAttribute('aria-label', t('hudTip'));
+$('pbHudT').textContent = t('hudBtn'); $('pbHud').title = t('hudTip');
+$('bHud').onclick = e => { e.stopPropagation(); toggleHud(); };
+pcBtn('pbHud', toggleHud);
+syncHudBtns();
+// #6 the page's own shortcuts (Moonlight's Ctrl+Alt+Shift family): never sent to the PC; the
+// Ctrl / Alt / Shift already sent are let go there first.
+function nextMonitor() {
+  if (S.monitors.length < 2) { toast(t('monOnly'), 2000); return; }
+  prefs.mon = (prefs.mon + 1) % S.monitors.length; store.set('mon', prefs.mon); syncSettings();
+  toast(tf('monNext', prefs.mon + 1), 2000);
+  connect('switch');
+}
+pageHotkey = function (e) {
+  if (!(e.ctrlKey && e.altKey && e.shiftKey) || !['KeyQ', 'KeyM', 'KeyS'].includes(e.code)) return false;
+  e.preventDefault(); e.stopPropagation();
+  for (const c of [...keysDown]) if (/^(Control|Alt|Shift)(Left|Right)$/.test(c)) { send({t: 'ku', k: c}); keysDown.delete(c); }
+  if (e.repeat) return true;
+  S.hotkeys = (S.hotkeys || 0) + 1;
+  if (e.code === 'KeyQ') { if (locked()) document.exitPointerLock(); }
+  else if (e.code === 'KeyM') nextMonitor();
+  else toggleHud();
+  return true;
+};
+document.addEventListener('pointerlockchange', () => { if (locked() && !store.get('gameKeys0835', false)) { store.set('gameKeys0835', true); toast(t('gameKeys'), 9000); } });
+pcBtn('pbClip', () => openClip());
+pcBtn('pbSnd', () => soundTap());
+pcBtn('pbFile', () => $('bFile').onclick());
+pcBtn('pbSet', () => $('bSet').onclick());
+function syncPcbar() {
+  const z = trackpad.zoom > 1.01;
+  $('pbZoomT').textContent = t(z ? 'pbFit' : 'pbOne');
+  $('pbZoom').title = t(z ? 'zoomFit' : 'zoom11');
+  const snd = S.sound;
+  $('pbSnd').classList.toggle('on', snd);
+  $('pbSndW').style.display = snd ? '' : 'none'; $('pbSndX').style.display = snd ? 'none' : '';
+  $('pbSndT').textContent = t(snd ? 'lbSnd' : 'lbSndOff'); $('pbSnd').title = $('pbSndT').textContent;
+  $('pbFile').style.display = $('bFile').style.display;
+  syncFilesBtn();  // rel-0835: 僅觀看 / a 臨時帳號 without 傳檔 -> greyed, the tooltip and a click say why
+  $('pbClip').style.display = S.viewOnly ? 'none' : '';
+  $('pgKeys').style.display = $('pgMode').style.display = S.viewOnly ? 'none' : '';
+  for (const b of $('pbMons').children) b.classList.toggle('on', +b.dataset.v === prefs.mon);
+  fitPcbar();
+}
+// rel-0835: labels only while the whole bar fits in the window, then the rarer keys go (see #pcbar.c1 / .c2)
+function fitPcbar() {
+  if (!document.body.classList.contains('pcui')) return;
+  const inner = $('pcbarIn'), room = innerWidth - 16, wide = () => Math.max(inner.offsetWidth, inner.scrollWidth) > room;
+  pcbar.classList.remove('c1', 'c2', 'c3');
+  if (wide()) pcbar.classList.add('c1');
+  if (wide()) pcbar.classList.add('c2');
+  if (wide()) pcbar.classList.add('c3');  // narrow window: icons only (the tooltips keep the words)
+}
+addEventListener('resize', fitPcbar);
+setInterval(() => { if (document.body.classList.contains('pcui')) syncPcbar(); }, 300);
+// the screens of the PC, one button each (2 or more)
+const buildMonitorSeg0835 = buildMonitorSeg;
+buildMonitorSeg = function () {
+  buildMonitorSeg0835();
+  const box = $('pbMons'); box.textContent = '';
+  if (S.monitors.length > 1) S.monitors.forEach((m, i) => {
+    const b = document.createElement('button'); b.dataset.v = i;
+    b.innerHTML = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/></svg>';
+    b.appendChild(document.createTextNode(String(i + 1) + (m.primary ? ' ' : '')));
+    if (m.primary) { const p = document.createElement('span'); p.className = 'pl'; p.textContent = t('primary'); b.appendChild(p); }  // rel-0835: 主 goes with the labels
+    b.title = tf('pbMonTip', i + 1) + (m.w ? ` (${m.w}x${m.h})` : '');
+    b.onclick = e => { e.stopPropagation(); b.blur(); if (i !== prefs.mon) { prefs.mon = i; store.set('mon', i); syncSettings(); connect('switch'); } };
+    box.appendChild(b);
+  });
+  syncPcbar();
+};
+// zoomed in (actual size) with a mouse: the picture follows the mouse near an edge
+pad.addEventListener('pointermove', e => {
+  if (!isMouse(e) || trackpad.zoom <= 1.01 || locked() || prefs.lock) return;
+  const r = pad.getBoundingClientRect(), m = 48;
+  const dx = e.clientX < r.left + m ? 14 : e.clientX > r.right - m ? -14 : 0;
+  const dy = e.clientY < r.top + m && !pcbar.classList.contains('show') ? 14 : e.clientY > r.bottom - m ? -14 : 0;
+  if (dx || dy) { trackpad.panX += dx; trackpad.panY += dy; trackpad._applyZoom(); }
+});
+// Clipboard both ways (text), the way a PC does it: Ctrl+V here pastes this computer's clipboard on
+// the PC (the paste event's text goes first: clip-set, then the V); what is copied on the PC comes
+// to this computer's clipboard (watched while a mouse is used; writeText where the browser allows,
+// else a click on the notice copies it).
+let pastePending = null, remoteClip = null;
+pasteKey = function (e) {
+  const isPaste = ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyV') || (e.shiftKey && e.code === 'Insert');
+  if (!isPaste || S.viewOnly || e.repeat) return false;
+  focusIme();
+  pastePending = {code: e.code};
+  keysDown.add(e.code);
+  setTimeout(() => { if (pastePending && pastePending.code === e.code) { pastePending = null; send({t: 'kd', k: e.code}); } }, 80);  // no paste event: the PC's own clipboard
+  return true;  // the browser's paste runs (it fires "paste" with this computer's clipboard)
+};
+document.addEventListener('paste', e => {
+  if (!pastePending) return;
+  e.preventDefault();
+  const code = pastePending.code;
+  pastePending = null;
+  const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+  if (text && text.length <= 64 * 1024) { send({t: 'clip-set', s: text}); remoteClip = text; S.clipToPc = (S.clipToPc || 0) + 1; }
+  send({t: 'kd', k: code});
+}, true);
+function watchPcClipboard() {
+  if (S.pcClipWatch || S.viewOnly || !S.mouseUsed) return;
+  S.pcClipWatch = true;
+  send({t: 'clip-get', watch: true});
+}
+function fromPcClipboard(s) {
+  if (!S.pcClipWatch || typeof s !== 'string') return;
+  if (remoteClip === null) { remoteClip = s; return; }  // what was there at the start: left alone
+  if (s === remoteClip || !s) return;
+  remoteClip = s;
+  const put = () => {
+    const ta = document.createElement('textarea'); ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    ta.remove(); focusIme();
+    if (ok) { S.clipFromPc = (S.clipFromPc || 0) + 1; toast(t('clipFromPc'), 2000); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext)
+    navigator.clipboard.writeText(s).then(() => { S.clipFromPc = (S.clipFromPc || 0) + 1; toast(t('clipFromPc'), 2000); }).catch(() => offerCopy(put));
+  else offerCopy(put);
+}
+function offerCopy(put) {
+  toast(t('clipFromPcTap'), 8000);
+  $('toast').onclick = () => { $('toast').style.display = 'none'; $('toast').onclick = () => { $('toast').style.display = 'none'; }; put(); };
+}
+setInterval(() => { if (S.mouseUsed && (S.state === 'connected' || tun.media)) watchPcClipboard(); }, 1000);
+
 if (FIXED) startFixed(); else if (TUN && !PM.verified) askPass(); else connect();
 </script>
 </body>

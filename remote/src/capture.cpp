@@ -353,6 +353,7 @@ void DesktopCapture::updatePointerShape(const DXGI_OUTDUPL_FRAME_INFO& fi) {
 
 bool DesktopCapture::poll(int timeoutMs, bool& changed) {
     changed = false;
+    if (hideCursor_ != hideApplied_) hideApplied_ = hideCursor_, needCompose_ = changed_ = true;  // 0.8.3.5
     if (lost_ || !dupl_) {
         // Secure desktop (UAC), lock screen, mode change: retry quietly.
         if (!createDuplication()) {
@@ -412,7 +413,7 @@ bool DesktopCapture::poll(int timeoutMs, bool& changed) {
 
 void DesktopCapture::compose() {
     ctx_->CopyResource(comp_.Get(), desk_.Get());
-    if (!opt_.drawCursor || !ptrVisible_ || !ptrColor_ || opt_.scene != Scene::Desktop) return;
+    if (!opt_.drawCursor || hideApplied_ || !ptrVisible_ || !ptrColor_ || opt_.scene != Scene::Desktop) return;
     const float l = float(ptrX_) / deskW_ * 2 - 1, t = 1 - float(ptrY_) / deskH_ * 2;
     const float r = float(ptrX_ + ptrW_) / deskW_ * 2 - 1, bt = 1 - float(ptrY_ + ptrH_) / deskH_ * 2;
     const float rect[4] = {l, t, r, bt};

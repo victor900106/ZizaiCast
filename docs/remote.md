@@ -58,7 +58,7 @@ guide in the UI language), `POST session` (`{device,q,m}` -> 200 offer / 202 pen
 WebRTC: server offer, non-trickle, host candidates on the address the page came in on;
 RTP payload 1200 (1100 over Tailscale, MTU 1280).
 DataChannel (JSON): input `move{dx,dy,n} abs{x,y} down/up/click{b} wheel text key combo
-release`, page state `act ping report pause{on} audio{on} stamp{on} bitrate{kbps} idr
+release` (0.8.3.5: `kd/ku{k} kh rel{dx,dy} cursor{local}`), page state `act ping report pause{on} audio{on} stamp{on} bitrate{kbps} idr
 clip-get clip-set{s,type} clip-stop`; from the PC `pong stats cur{x,y,v,n} mode{viewOnly}
 clip bye{why}`.
 
@@ -460,3 +460,97 @@ Tailscale on the Tailscale card (opens tailscale.com/download/windows; logged on
   (a phone remembered on this PC still waits for 允許 through the temporary address, no 記住; denied).
 - `node tools/shots_0833.mjs <app> <out> before|after`: every changed screen in four languages (off-screen,
   made-up addresses; the phone page in headless Chrome).
+
+## 0.8.3.5 (固定網址 quick off / on, 允許 once per login, 傳檔 for 臨時帳號; rel-0835 = fix-0835-funnel + fix-0835-files + fix-0835-input)
+
+### 固定網址 survives a quick off -> on (fix-0835-funnel)
+
+Owner log 2026-10-21 21:37:24.314 off, 24.805 on, 25.080 "funnel: port 8443 off": the off's removal ran after the
+new on (0.8.3.4 ran each tailscale CLI job on a thread of its own behind one mutex: no order). Now
+`pm::remote::FunnelJobs` runs every CLI job (start, off, the stale check at start) in order on one worker; a start
+no longer wanted does nothing; `stop()` removes 8443 only while it still serves our own origin (another program's
+8443 is left alone); remote control turned on with 開機自動開啟固定網址 set brings the fixed address back; on / off
+commands within max(600 ms, double-click time + 200 ms) of the last change are dropped and logged (the start's own
+on is not debounced against). 遠端斷線後自動鎖定電腦 stays off by default: `app/remote/lock_policy.h`,
+`pm_lock_default_test`.
+
+### 允許 once per 臨時帳號 / temporary-address login (fix-0835-funnel)
+
+The page opens a new session for every 切換畫質, 切換螢幕, automatic quality step, 臨時降畫質, reconnect, reload;
+0.8.3.4 asked 允許 for each one from a 臨時帳號 or the temporary address. `remote/src/approval_memory.h` (memory
+only, never the 30-day 記住 list): after 允許 the same device with the same login goes straight back in while that
+login is valid. Forgotten at 拒絕, 中斷, the account expired / used up / deleted, 臨時網址 off, 關閉固定網址, remote
+control off. A 用一次 account is no longer spent when its own login replaces its session. rel-0835: the PC
+browser's screen switch (the bar's screen buttons, Ctrl+Alt+Shift+M) is the same `connect('switch')`, covered by
+`reapprove_test.mjs`.
+
+### 傳檔 for 臨時帳號 (fix-0835-files)
+
+| account | 僅觀看 | 可操作 + 傳檔 | 可操作, no 傳檔 |
+|---|---|---|---|
+| 主帳號 | files off | files ok | (always ok) |
+| 臨時帳號 | files off | files ok | files off (`guest`) |
+
+One table for the host, `remote/src/file_perm.h` (`filesDeny`, `filesWhy`); offer and `mode` carry `filesWhy`
+(`""` / `viewOnly` / `guest`); `files-denied` carries `why`. The 新增臨時帳號 panel ticks 可以傳檔 by default for
+可操作 (`app/guest_rights.h`; greyed and cleared in 僅觀看). The phone page keeps the 檔案 button, greys it when
+files are off and a tap says why. rel-0835: the PC bar's 檔案 (fix-0835-input) follows the same table: greyed,
+its tooltip and a click say why (`syncFilesBtn`).
+
+### Tests (rel-0835, all re-run after the merge)
+
+`pm_funnel_test`, `node remote/tools/app0835_funnel_test.mjs <app> <pm_fake_tailscale.exe> <out>` (fake CLI only),
+`node tools/cmd_ids_check.mjs`, `pm_lock_default_test`, `pm_approval_test`, `node remote/tools/reapprove_test.mjs
+<spike> <out>` (+ the PC bar's screen switch and 檔案), `mutepc_test.mjs`, `pm_fileperm_test`,
+`node remote/tools/fileperm_web_test.mjs` (+ the PC bar), `pm_input_test`, `pcmouse0835_test.mjs` (below).
+Tutorial pictures: `PM_TEST_GUEST_PW` (--dev only) gives the 臨時帳號 in the pictures the made-up password ABC123.
+
+## 0.8.3.5 (input: a PC's browser, the phone's modes, administrator windows)
+
+### ① A PC's browser could move the pointer but never click
+
+`remote/web/index.html` had only `mousedown / mousemove / mouseup` "for quick checks": a relative move
+while a button was held, and no button message at all (the phone's clicks come from `trackpad.js`, which
+listens to touch events only). Now pointer events for `pointerType` mouse / pen.
+
+### What a PC's browser does now
+
+| | |
+|---|---|
+| mouse | absolute (the PC pointer goes where this one is, whatever the phone's 觸控板 / 直接點), left / right / middle / back / forward (XBUTTON1 / 2), chords, double click, drag with pointer capture (released at the picture's edge), no browser menu / middle-click autoscroll / back navigation |
+| wheel | 100 px = 120, horizontal = HWHEEL, a laptop trackpad's small deltas as small steps (smooth) |
+| pixels | `remote/src/coords.h`: picture point -> pixel = floor(x * w); pixel -> SendInput 0..65535 = the middle of the pixel over the virtual desktop (exact on every pixel of every layout; `pm_input_test`) |
+| keyboard | `kd / ku {k: KeyboardEvent.code}` -> scan codes (the PC's layout / IME makes the character); shortcuts go to the PC (preventDefault); this computer's IME composes in a hidden field, the result goes as `text`; all keys let go on blur / hide / close and by the PC when the 0.4 s `kh` heartbeat stops for 1.5 s; Ctrl+Alt+Del refused with the reason |
+| pointer | this browser's own (no lag); the PC leaves its pointer out of the picture (`cursor{local}`), the shape follows the PC (`cur.k`) |
+| 遊戲模式 | pointer lock, raw relative `rel{dx,dy}` (MOUSEEVENTF_MOVE), the PC draws its pointer; Esc or Ctrl+Alt+Shift+Q leaves; Ctrl+Alt+Shift+M next screen, +S stats (never sent) |
+| bar | top middle: 全螢幕 (keyboard lock; refused / missing -> a card with what does not get through and 再試一次) / 原尺寸 / screens / 遊戲模式 / Alt+Tab Win Ctrl+Alt+Del Ctrl+W 工作管理員 / 剪貼簿 聲音 檔案 統計 設定 |
+| clipboard | Ctrl+V here = this computer's text to the PC first; copied on the PC = this computer's clipboard |
+| rate | moves at most once per frame (the first of a frame at once); buttons / keys never held back; `?measure`: the PC logs "input timing" every 5 s |
+
+### ② The phone
+
+觸控板: a big pointer (24 px arrow, pink ring) where the PC pointer is; the first connection says the mode
+(with the switch); three taps far from the pointer in 12 s -> 「點擊會落在箭頭的位置」 + 改用直接點. Default for a
+phone stays 直接點. A 統計 button on the phone bar.
+
+### ③ Administrator windows (UIPI) and the secure desktop
+
+Before a click / key the PC checks the target (window under the pointer / foreground window) integrity level
+against its own, and the input desktop; the page says 「這個視窗是系統管理員權限，遠端點不到；請用一般權限開，或用
+系統管理員權限開自在投影」 (`blocked{why: admin|secure|sas, app}`, once per 3 s per program).
+
+### Protocol added
+
+Page: `kd{k} ku{k} kh rel{dx,dy} cursor{local}`, `down/up{b: 0-4}`, optional `ts` (measure). PC: `cur.k`,
+`blocked{why,app}`. Options: `injectStub`, `injectStubElevated`; spike `--inject-stub`,
+`--inject-stub-elevated <exe>`; app `--dev` `PM_REMOTE_INPUTSTUB=1`.
+
+### Tests (no sound, no real input, no window: chrome-headless-shell, spike `--loopback --inject-stub`)
+
+- `pm_input_test.exe`: coordinates on 5 layouts, the injector end to end, buttons, UIPI (probe stubbed).
+- `node remote/tools/pcmouse0835_test.mjs <spike> <out> [--only 1,a,uipi,touch,b,c,d,e,x,shots] [--before]
+  [--shots <dir>] [--lang N] [--inject-stub-elevated regedit.exe]`. This PC's clipboard is never touched (the
+  spike's test clipboard; the page's writes caught), the picture in shots is a made-up desktop.
+
+Not verified: a real elevated window (UAC), a real browser on another PC / a real phone, Safari / Firefox
+(keyboard lock absent: simulated), IMEs other than the CDP composition (注音 / Japanese simulated).

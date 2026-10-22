@@ -374,13 +374,13 @@
 </ul>
 
 <h3 id="remote-friend">情境三：借給朋友用</h3>
-<p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>每次朋友連進來，都要有人在電腦前按「允許」</strong>（不能「記住」）。</p>
+<p class="goal"><b>你要做什麼</b>朋友不在你家，想讓他暫時看或操作你的電腦（例如幫你看問題），用完就失效。不要把你自己的固定網址密碼給別人。兩種方法都一樣：<strong>朋友登入後第一次連進來，要有人在電腦前按「允許」</strong>（不能「記住」）。允許過以後，同一支手機用同一個帳號（或同一個臨時網址）換畫質、切換螢幕、斷線重連、重新整理頁面都不會再問；按過<span class="ui">拒絕</span>、<span class="ui">中斷</span>，或帳號到期、刪除，下次就要再按。</p>
 <h4 id="remote-guest">方法 A：臨時帳號（建議，要先開好固定網址）</h4>
 <ol class="steps">
   <li>電腦：<span class="ui">遠端控制</span>分頁最上面的<span class="ui">本機網址（在外面也能連）</span>區塊 → <span class="ui">新增臨時帳號</span>。</li>
-  <li><span class="ui">帳號</span>已經幫你取好（例如 guest-4821，可以改）。選<span class="ui">有效時間</span>：用一次、1 小時、24 小時或 7 天；<span class="ui">權限</span>：可操作或僅觀看；要讓朋友傳檔案就勾<span class="ui">允許傳檔（手機和電腦互傳）</span>。按<span class="ui">建立</span>。</li>
+  <li><span class="ui">帳號</span>已經幫你取好（例如 guest-4821，可以改）。選<span class="ui">有效時間</span>：用一次、1 小時、24 小時或 7 天；<span class="ui">權限</span>：可操作或僅觀看；<span class="ui">可以傳檔（手機和電腦互傳）</span>預設已勾選，不想讓朋友傳檔案就取消勾選（選<span class="ui">僅觀看</span>時這格會變灰，僅觀看不能傳檔）。按<span class="ui">建立</span>。</li>
   <li>按<span class="ui">複製全部</span>，貼給朋友。網址後面已經帶上帳號（<code>#u=guest-4821</code>）；<strong>密碼只顯示這一次</strong>，忘了就按<span class="ui">重設密碼</span>。</li>
-  <li>朋友打開網址，帳號已經填好，<strong>只要輸入密碼</strong>。你的電腦跳出「有手機想要操控這台電腦」，確認是朋友才按<span class="ui">允許</span>。</li>
+  <li>朋友打開網址，帳號已經填好，<strong>只要輸入密碼</strong>。你的電腦跳出「有手機想要操控這台電腦」，確認是朋友才按<span class="ui">允許</span>。這個帳號有效期間，朋友同一支手機再連進來不用再按。</li>
   <li>到期或「用一次」用完，帳號會自動刪除；也可以在下面的臨時帳號卡片按<span class="ui">刪除</span>，正在連的會立刻中斷。最多 10 個。</li>
 </ol>
 <div class="pair-img">
@@ -398,20 +398,37 @@
 <div class="ok"><b>看到這個就成功</b>朋友的手機出現你的電腦畫面，你的電腦上方有「● 正在被遠端控制」，你隨時可以按<span class="ui">中斷</span>或 <kbd>Ctrl</kbd><kbd>D</kbd>。</div>
 <div class="ng"><b>不成功怎麼辦</b><ul>
   <li>朋友說「這個網址已失效」：網址只能用一次、10 分鐘有效，停止後再取得一次新的。</li>
-  <li>朋友一直等「請在電腦上按『允許』」：你要在電腦前按允許（臨時網址和臨時帳號都一樣，每次都要按）。</li>
+  <li>朋友一直等「請在電腦上按『允許』」：你要在電腦前按允許（臨時網址和臨時帳號都一樣，每次新登入都要按一次）。</li>
+  <li>朋友的<span class="ui">檔案</span>按鈕是灰的：點一下會說原因。這個臨時帳號建立時沒勾<span class="ui">可以傳檔</span>，就在電腦上重新建立一個並勾選；或是正在<span class="ui">僅觀看</span>。</li>
   <li>「臨時網址目前從外面連不到」：按<span class="ui">停止臨時網址</span>再取得一次。</li>
 </ul></div>
 <div class="note warn"><span class="t">借完記得</span>朋友用完後，按<span class="ui">中斷</span>並停止臨時網址。對方看得到你的整個螢幕：先把私人的視窗關掉。想讓他只能看，電腦上方提示列打開<span class="ui">僅觀看</span>。</div>
 
 <h3 id="remote-gestures">手機上怎麼操作：直接點和觸控板</h3>
-<p>手機頁右下角有五個圖示，下面都有字：<span class="ui">開聲音</span>（開了以後是<span class="ui">聲音</span>）、<span class="ui">放大</span>、<span class="ui">檔案</span>、<span class="ui">鍵盤</span>、<span class="ui">設定</span>。在<span class="ui">設定</span> → <span class="ui">操作方式</span>選（下面那行小字就是兩者的差別）：</p>
+<p>手機頁右下角有六個圖示，下面都有字：<span class="ui">開聲音</span>（開了以後是<span class="ui">聲音</span>）、<span class="ui">放大</span>、<span class="ui">檔案</span>（不能傳檔時是灰的，點一下說原因）、<span class="ui">鍵盤</span>、<span class="ui">統計</span>（連線延遲、每秒畫面）、<span class="ui">設定</span>。第一次連上時會有一張卡片說明現在是哪種操作方式，可以一鍵切換。在<span class="ui">設定</span> → <span class="ui">操作方式</span>選（下面那行小字就是兩者的差別）：</p>
 <div class="tbl"><table>
   <tr><th>操作方式</th><th>怎麼用</th><th>適合</th></tr>
   <tr><td>直接點（預設）</td><td>手指點哪裡就按哪裡；按住半秒＝右鍵；按住拖＝拖曳</td><td>大按鈕、點選單、長輩</td></tr>
   <tr><td>觸控板</td><td>像筆電的觸控板：手指滑動移動游標，點一下＝左鍵，兩指點＝右鍵，兩指滑＝捲動</td><td>要點很小的東西、選文字</td></tr>
 </table></div>
-{{img:phone-bar|手機頁右下角：開聲音、放大、檔案、鍵盤、設定（示範用的假桌面）|300}}
-<p>兩指捏合放大畫面；三指點一下開關鍵盤。鍵盤面板有 Ctrl、Alt、Win、方向鍵、複製、貼上和剪貼簿。</p>
+{{img:phone-bar|手機頁右下角：開聲音、放大、檔案、鍵盤、統計、設定（示範用的假桌面）|300}}
+<p>觸控板模式時，電腦的游標位置會畫一個大箭頭（粉紅圈），點一下就點在箭頭那裡；如果你一直點離箭頭很遠的地方，手機頁會問你要不要改用直接點。兩指捏合放大畫面；三指點一下開關鍵盤。鍵盤面板有 Ctrl、Alt、Win、方向鍵、複製、貼上和剪貼簿。</p>
+{{img:phone-mode|第一次連上：說明現在是「直接點」模式，可以一鍵改用觸控板（示範用的假桌面）|260}}
+
+<h3 id="remote-pc">從另一台電腦的瀏覽器操作</h3>
+<p>在另一台電腦的瀏覽器（Chrome、Edge 等）打開同樣的網址，就能用那台電腦的滑鼠和鍵盤操作：左鍵、右鍵、中鍵、上一頁／下一頁鍵、滾輪、拖曳都會送過去，點哪裡就是哪裡；打字用你那台電腦的輸入法（注音、倉頡、日文、韓文都可以），快速鍵（Ctrl+C、Ctrl+V、F5……）會送到遠端電腦，不會被瀏覽器拿走。</p>
+<ol class="steps">
+  <li>滑鼠移到畫面最上方，工具列就會出現：<span class="ui">全螢幕</span>、<span class="ui">原尺寸</span>／<span class="ui">適應視窗</span>、每個螢幕一顆按鈕（有兩個以上螢幕時）、<span class="ui">遊戲模式</span>、Alt+Tab、Win、Ctrl+Alt+Del、Ctrl+W、<span class="ui">工作管理員</span>、<span class="ui">剪貼簿</span>、聲音、<span class="ui">檔案</span>、<span class="ui">統計</span>、<span class="ui">設定</span>。</li>
+  <li>按<span class="ui">全螢幕</span>以後，Alt+Tab、Win 這些鍵也會送到遠端；長按 Esc 離開全螢幕。瀏覽器不讓網頁接管這些鍵時，會跳出說明哪些鍵送不到，改用工具列的按鈕，或按<span class="ui">再試一次</span>。</li>
+  <li>在這台電腦按 Ctrl+V，會把這台電腦剪貼簿的文字貼到遠端；在遠端複製的文字，會放進這台電腦的剪貼簿。</li>
+  <li>玩遊戲或 3D 軟體按<span class="ui">遊戲模式</span>：滑鼠鎖在畫面裡。按 Esc 或 Ctrl+Alt+Shift+Q 離開；Ctrl+Alt+Shift+M 換下一個螢幕，Ctrl+Alt+Shift+S 開關統計（這三組鍵不會送到遠端）。</li>
+</ol>
+{{img:pc-bar|另一台電腦的瀏覽器：滑鼠移到最上方出現的工具列（示範用的假桌面）|640}}
+<div class="ng"><b>不成功怎麼辦</b><ul>
+  <li>點了沒反應，手機頁說「這個視窗是系統管理員權限」：那個程式是用系統管理員身分開的，遠端點不到；請用一般權限開它，或用系統管理員身分開自在投影。</li>
+  <li>Ctrl+Alt+Del 送不出去：這是 Windows 的安全鍵，任何程式都送不出去；要開工作管理員按工具列的<span class="ui">工作管理員</span>。</li>
+  <li>工具列的<span class="ui">檔案</span>是灰的：滑鼠停在上面會說原因（僅觀看，或臨時帳號沒開傳檔）。</li>
+</ul></div>
 
 <h3 id="remote-safety">安全須知</h3>
 <ul>
@@ -423,7 +440,7 @@
 </ul>
 <h3 id="remote-limits">做不到的事</h3>
 <ul>
-  <li>以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面，手機都不能操作（Windows 的限制）。</li>
+  <li>以系統管理員身分執行的視窗、UAC 確認視窗、鎖定畫面，手機都不能操作（Windows 的限制）；點到這種視窗時，手機頁會直接告訴你原因。</li>
   <li>電腦關機、睡眠或停在登入畫面時連不上。一次只能一支手機。</li>
 </ul>
 </section>

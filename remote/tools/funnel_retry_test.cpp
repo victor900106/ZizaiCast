@@ -22,6 +22,8 @@
 #include <atomic>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
+#include <random>
 #include <thread>
 #include <string>
 #include <vector>
@@ -52,6 +54,10 @@ struct FakeTailscale {
     std::string other8443;            // 0.8.3.2: 8443 already serves this (another program)
     std::vector<std::string> commands;
     std::vector<std::string> bad;     // commands the app must never run
+    // 0.8.3.5: the off / on race (calls from the job worker and the test's threads at once)
+    bool allowOff = false;            // "funnel --https=8443 off" is allowed (else a failure, as before)
+    int offDelayMs = 0, bgDelayMs = 0, statusDelayMs = 0;  // a slow CLI (real sleeping)
+    std::recursive_mutex mu;
 
     std::string funnelJson() const {
         std::string web = "\"" + kName + ":443\":" + (changed443 ? std::string(R"({"Handlers":{"/":{"Proxy":"http://127.0.0.1:1"}}})") : k443Web);
@@ -66,10 +72,20 @@ struct FakeTailscale {
     bool run(const std::wstring& wcmd, std::string& out, unsigned long& code) {
         std::string cmd;  // (ASCII command lines)
         for (wchar_t ch : wcmd) cmd += ch < 128 ? char(ch) : '?';
-        commands.push_back(cmd);
         const std::string exe = "\"tailscale-test-stub.exe\" ";
-        if (cmd.rfind(exe, 0) != 0) bad.push_back("not the stub: " + cmd);
         const std::string args = cmd.substr(std::min(cmd.size(), exe.size()));
+        // A slow CLI: the delay before the change is made (another job may run meanwhile only if the
+        // app does not keep them in order).
+        const int delay = args == "funnel --https=8443 off" ? offDelayMs : args.rfind("funnel --bg", 0) == 0 ? bgDelayMs : statusDelayMs;
+        if (delay > 0) Sleep(DWORD(delay));
+        std::lock_guard<std::recursive_mutex> lk(mu);
+        commands.push_back(cmd);
+        if (cmd.rfind(exe, 0) != 0) bad.push_back("not the stub: " + cmd);
+        if (args == "funnel --https=8443 off" && allowOff) {
+            has8443 = false, other8443.clear();
+            out.clear(), code = 0;
+            return true;
+        }
         if (args == "status --json") {
             if (daemonDown && daemonDownCalls-- > 0) {
                 out = "failed to connect to local Tailscale daemon for /localapi/v0/status; not running? Is Tailscale running?";
@@ -303,7 +319,7 @@ int main() {
         s = startWith(L"ok", url, err);
         check("real CLI, ok: up", s < 5 && url == "https://example-pc.example.ts.net:8443/", url + " " + err);
         std::string e2;
-        check("real CLI, ok: off again", TailscaleFunnel::stop(8443, e2), e2);
+        check("real CLI, ok: off again", TailscaleFunnel::stop(8443, kOrigin, e2), e2);
         {  // quit while a CLI hangs: cancelAll() ends it at once
             SetEnvironmentVariableW(L"PM_FAKE_TS_MODE", L"silent-hang");
             std::string u3, e3;
@@ -371,6 +387,186 @@ int main() {
         stop = true;
         t1.join(), t2.join();
         WSACleanup();
+    }
+    // ---- 0.8.3.5: off -> on in quick succession (owner log 2026-10-21 21:37:24.314 off, 24.805 on,
+    // 25.080 "funnel: port 8443 off": the off's removal finished after the new on) ----
+    {
+        // What the app does per toggle: a generation counter (stopFixed / startFixed bump it); an "on"
+        // job that is no longer wanted when it runs does nothing; an "off" removes only our target.
+        struct App {
+            FakeTailscale& f;
+            std::atomic<unsigned> gen{0};
+            std::atomic<bool> want{false};
+            std::mutex oldMu;  // 0.8.3.4: one std::mutex, a thread per job (no order)
+            explicit App(FakeTailscale& fk) : f(fk) {}
+            std::function<void()> onJob(unsigned g) {
+                return [this, g] {
+                    if (gen != g) return;
+                    std::string url, err;
+                    TailscaleFunnel::start(8443, kOrigin, url, err);
+                };
+            }
+            std::function<void()> offJob() {
+                return [] {
+                    std::string err;
+                    TailscaleFunnel::stop(8443, kOrigin, err);
+                };
+            }
+            void toggleNew(bool on) {  // 0.8.3.5: FunnelJobs (in order)
+                const unsigned g = ++gen;
+                want = on;
+                pm::remote::FunnelJobs::post(on ? onJob(g) : offJob());
+            }
+            std::thread toggleOld(bool on, int startLatencyMs) {  // 0.8.3.4: its own thread + std::mutex
+                const unsigned g = ++gen;
+                want = on;
+                auto job = on ? onJob(g) : offJob();
+                return std::thread([this, job, startLatencyMs] {
+                    if (startLatencyMs) Sleep(DWORD(startLatencyMs));
+                    std::lock_guard<std::mutex> lk(oldMu);
+                    job();
+                });
+            }
+        };
+        // Never back to real processes here (a job still queued would run tailscale): a stub that refuses all.
+        auto refuseAll = [] { TailscaleFunnel::setRunnerForTest([](const std::wstring&, std::string& o, unsigned long& c) { o = "refused", c = 1; return true; }); };
+        auto install = [](FakeTailscale& f) {
+            TailscaleFunnel::setRunnerForTest([&f](const std::wstring& c, std::string& o, unsigned long& code) { return f.run(c, o, code); });
+        };
+        {  // the 0.8.3.4 way: the off thread is a moment late to the mutex (thread start-up), the on wins it
+            FakeTailscale f;
+            f.has8443 = true, f.allowOff = true;
+            install(f);
+            App a(f);
+            std::thread off = a.toggleOld(false, 30);
+            std::thread on = a.toggleOld(true, 0);
+            off.join(), on.join();
+            refuseAll();
+            printf("INFO 0.8.3.4 off->on (a thread each, one std::mutex): 8443 %s at the end\n", f.has8443 ? "there" : "GONE");
+            check("0.8.3.4 race reproduced: the late off removed the new on's 8443", !f.has8443);
+        }
+        {  // 0.8.3.5: the same timing through FunnelJobs: off first, then on
+            FakeTailscale f;
+            f.has8443 = true, f.allowOff = true, f.offDelayMs = 300;  // a slow "off" (the CLI takes a while)
+            install(f);
+            App a(f);
+            const ULONGLONG t0 = GetTickCount64();
+            a.toggleNew(false);
+            a.toggleNew(true);  // 0.49 s in the log; here at once (worse)
+            const bool idle = pm::remote::FunnelJobs::waitIdle(10000);
+            refuseAll();
+            int offAt = -1, bgAt = -1;
+            for (size_t i = 0; i < f.commands.size(); ++i) {
+                if (f.commands[i].find("funnel --https=8443 off") != std::string::npos) offAt = int(i);
+                if (f.commands[i].find("funnel --bg --https=8443") != std::string::npos) bgAt = int(i);
+            }
+            check("off->on (FunnelJobs): 8443 there at the end", idle && f.has8443, std::to_string(GetTickCount64() - t0) + " ms");
+            check("off->on (FunnelJobs): the off ran first, then the on set it up again", offAt >= 0 && bgAt > offAt,
+                  "off #" + std::to_string(offAt) + ", --bg #" + std::to_string(bgAt));
+            common("off->on", f);
+        }
+        {  // on -> off at once: the on is no longer wanted when its turn comes; 8443 gone at the end
+            FakeTailscale f;
+            f.allowOff = true, f.statusDelayMs = 20;
+            install(f);
+            App a(f);
+            a.toggleNew(true);
+            a.toggleNew(false);
+            pm::remote::FunnelJobs::waitIdle(10000);
+            refuseAll();
+            check("on->off (FunnelJobs): 8443 not there at the end", !f.has8443);
+        }
+        {  // many quick toggles with a slow CLI: the last one asked for is what is left
+            std::mt19937 rnd(835);
+            int bad = 0;
+            std::string seen;
+            for (int round = 0; round < 12; ++round) {
+                FakeTailscale f;
+                f.has8443 = round % 2 == 0, f.allowOff = true;
+                f.offDelayMs = int(rnd() % 60), f.bgDelayMs = int(rnd() % 60), f.statusDelayMs = int(rnd() % 10);
+                install(f);
+                App a(f);
+                const int n = 3 + int(rnd() % 6);
+                bool last = false;
+                for (int k = 0; k < n; ++k) {
+                    last = rnd() % 2 == 0;
+                    a.toggleNew(last);
+                    Sleep(DWORD(rnd() % 40));
+                }
+                pm::remote::FunnelJobs::waitIdle(20000);
+                refuseAll();
+                if (f.has8443 != last) ++bad;
+                seen += last == f.has8443 ? "." : "X";
+            }
+            check("quick toggles x12 (slow CLI): 8443 always as the last toggle asked", bad == 0, seen);
+        }
+        // ---- removing only what is ours ----
+        {
+            FakeTailscale f;
+            f.other8443 = "http://127.0.0.1:9000", f.allowOff = true;  // another program's Funnel on 8443
+            install(f);
+            std::string err;
+            bool notOurs = false;
+            const bool ok = TailscaleFunnel::stop(8443, kOrigin, err, &notOurs);
+            refuseAll();
+            int offs = 0;
+            for (const auto& c : f.commands) offs += c.find(" off") != std::string::npos;
+            check("stop: 8443 of another program is left alone (no off command)", ok && notOurs && offs == 0 && f.other8443 == "http://127.0.0.1:9000");
+        }
+        {
+            FakeTailscale f;
+            f.other8443 = "http://127.0.0.2:8092", f.allowOff = true;  // ours from another port / another instance: not this one
+            install(f);
+            std::string err;
+            bool notOurs = false;
+            TailscaleFunnel::stop(8443, kOrigin, err, &notOurs);
+            refuseAll();
+            check("stop: 8443 -> another 127.0.0.2 port is not this instance's: left alone", notOurs && !f.other8443.empty());
+        }
+        {
+            FakeTailscale f;
+            f.has8443 = true, f.allowOff = true;
+            install(f);
+            std::string err;
+            bool notOurs = true;
+            const bool ok = TailscaleFunnel::stop(8443, "", err, &notOurs);
+            refuseAll();
+            check("stop: no target of our own given = nothing removed", ok && notOurs && f.has8443);
+        }
+        // ---- the stale check at start (an instance without 常駐外網): the 0.8.2.1 bug must not come back ----
+        {
+            WSADATA wd;
+            WSAStartup(MAKEWORD(2, 2), &wd);
+            SOCKET ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            sockaddr_in a{};
+            a.sin_family = AF_INET;
+            inet_pton(AF_INET, "127.0.0.2", &a.sin_addr);
+            bind(ls, reinterpret_cast<sockaddr*>(&a), sizeof(a));
+            int al = sizeof(a);
+            getsockname(ls, reinterpret_cast<sockaddr*>(&a), &al);
+            listen(ls, 4);
+            const std::string live = "http://127.0.0.2:" + std::to_string(ntohs(a.sin_port));  // another running 自在投影 serves it
+            FakeTailscale f;
+            f.other8443 = live, f.allowOff = true;
+            install(f);
+            const std::string r1 = TailscaleFunnel::removeStale(8443);
+            check("stale check: 8443 -> 127.0.0.2 that answers (another running app) is left alone", r1 == "in-use: " + live && f.other8443 == live, r1);
+            closesocket(ls);
+            Sleep(50);
+            // Nothing answers now. Windows retries a refused SYN for longer than targetAnswers() waits (1 s),
+            // and "no answer within 1 s" counts as in use (never removed when unsure): either is right here;
+            // a wrong removal is not.
+            const ULONGLONG ts = GetTickCount64();
+            const std::string r2 = TailscaleFunnel::removeStale(8443);
+            printf("INFO stale check, nothing answering: %s (%llu ms)\n", r2.c_str(), GetTickCount64() - ts);
+            check("stale check: nothing answering = removed, or left alone when unsure",
+                  (r2 == "removed: " + live && f.other8443.empty()) || (r2 == "in-use: " + live && f.other8443 == live), r2);
+            f.other8443 = "http://127.0.0.1:9000";
+            const std::string r3 = TailscaleFunnel::removeStale(8443);
+            check("stale check: another program's 8443 is never touched", r3.empty() && f.other8443 == "http://127.0.0.1:9000", r3);
+            refuseAll();
+            WSACleanup();
+        }
     }
     check("backendStarting: NoState / Starting yes, Stopped / NeedsLogin no",
           TailscaleFunnel::backendStarting("not-running: NoState") && TailscaleFunnel::backendStarting("not-running: Starting") &&

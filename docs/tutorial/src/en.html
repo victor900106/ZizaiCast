@@ -374,13 +374,13 @@
 </ul>
 
 <h3 id="remote-friend">Situation 3: lend it to a friend</h3>
-<p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>every time your friend connects, someone at the PC clicks “Allow”</strong> (it can’t be remembered).</p>
+<p class="goal"><b>What you want to do</b>A friend somewhere else should see or use your PC for a while (to help you with something), and lose access afterwards. Don’t give anyone your own fixed address password. Both ways work alike: <strong>the first time your friend connects after signing in, someone at the PC clicks “Allow”</strong> (it can’t be remembered). After that, the same phone with the same account (or the same temporary address) is not asked again when it changes the quality, switches screens, reconnects after a drop or reloads the page; after <span class="ui">Deny</span>, <span class="ui">End</span>, or once the account expires or is deleted, Allow is needed again.</p>
 <h4 id="remote-guest">Way A: a temporary account (recommended; the fixed address must be on)</h4>
 <ol class="steps">
   <li>PC: the <span class="ui">This PC’s address (works from anywhere)</span> block at the top of the <span class="ui">Remote control</span> tab → <span class="ui">Add a temporary account</span>.</li>
-  <li>The <span class="ui">Account</span> name is filled in for you (for example guest-4821; you can change it). Pick <span class="ui">Valid for</span>: One use, 1 hour, 24 hours or 7 days; <span class="ui">Allowed to</span>: Control or View only; tick <span class="ui">Allow file transfer (both ways)</span> if they should send files. Click <span class="ui">Create</span>.</li>
+  <li>The <span class="ui">Account</span> name is filled in for you (for example guest-4821; you can change it). Pick <span class="ui">Valid for</span>: One use, 1 hour, 24 hours or 7 days; <span class="ui">Allowed to</span>: Control or View only; <span class="ui">Can transfer files (phone and PC, both ways)</span> is ticked already; untick it if they shouldn’t send files (with <span class="ui">View only</span> the box is greyed: no files in View only). Click <span class="ui">Create</span>.</li>
   <li>Click <span class="ui">Copy all</span> and paste it to your friend. The address already carries the account (<code>#u=guest-4821</code>); <strong>the password is shown only now</strong> (lost it? <span class="ui">Reset password</span>).</li>
-  <li>Your friend opens the address: the account is filled in, <strong>they only type the password</strong>. Your PC asks “A phone wants to control this PC”; click <span class="ui">Allow</span> once you’re sure it’s your friend.</li>
+  <li>Your friend opens the address: the account is filled in, <strong>they only type the password</strong>. Your PC asks “A phone wants to control this PC”; click <span class="ui">Allow</span> once you’re sure it’s your friend. While the account is valid, the same phone gets back in without asking again.</li>
   <li>When it expires or its one use is over, the account is deleted by itself; or click <span class="ui">Delete</span> in the temporary accounts card below (a connected phone is cut off at once). At most 10.</li>
 </ol>
 <div class="pair-img">
@@ -398,20 +398,37 @@
 <div class="ok"><b>Success looks like this</b>Your friend’s phone shows your PC, “● Remote control in progress” is at the top of your screen, and you can click <span class="ui">End</span> or press <kbd>Ctrl</kbd><kbd>D</kbd> any time.</div>
 <div class="ng"><b>If it doesn’t work</b><ul>
   <li>Your friend sees “This address is no longer valid”: an address works once, for 10 minutes; stop it and get a new one.</li>
-  <li>Your friend keeps waiting on “Click ‘Allow’ on the PC”: you must click Allow at the PC (temporary addresses and temporary accounts alike, every time).</li>
+  <li>Your friend keeps waiting on “Click ‘Allow’ on the PC”: you must click Allow at the PC (temporary addresses and temporary accounts alike, once for every new sign-in).</li>
+  <li>Your friend’s <span class="ui">Files</span> button is grey: a tap says why. The temporary account was made without <span class="ui">Can transfer files</span> (make a new one with it ticked), or the session is in <span class="ui">View only</span>.</li>
   <li>“The temporary address can't be reached from outside yet”: stop it and get a new one.</li>
 </ul></div>
 <div class="note warn"><span class="t">Afterwards</span>When your friend is done, click <span class="ui">End</span> and stop the temporary address. They can see your whole screen: close private windows first. To let them only watch, turn on <span class="ui">View only</span> in the bar at the top of the PC’s screen.</div>
 
 <h3 id="remote-gestures">Using the phone: Direct or Trackpad</h3>
-<p>The phone page has five icons at the bottom right, each with a word under it: <span class="ui">Sound on</span> (then <span class="ui">Sound</span>), <span class="ui">Zoom</span>, <span class="ui">Files</span>, <span class="ui">Keyboard</span>, <span class="ui">Settings</span>. In <span class="ui">Settings</span> → <span class="ui">Control</span> pick (the small line under it says what each does):</p>
+<p>The phone page has six icons at the bottom right, each with a word under it: <span class="ui">Sound on</span> (then <span class="ui">Sound</span>), <span class="ui">Zoom</span>, <span class="ui">Files</span> (grey when files are off; a tap says why), <span class="ui">Keyboard</span>, <span class="ui">Stats</span> (latency, frames per second), <span class="ui">Settings</span>. The first time, a card says which mode is on, with a one-tap switch. In <span class="ui">Settings</span> → <span class="ui">Control</span> pick (the small line under it says what each does):</p>
 <div class="tbl"><table>
   <tr><th>Control</th><th>How it works</th><th>Good for</th></tr>
   <tr><td>Direct (default)</td><td>Your finger clicks where it touches; hold half a second = right-click; hold and drag = drag</td><td>Big buttons, menus, beginners</td></tr>
   <tr><td>Trackpad</td><td>Like a laptop trackpad: slide to move the pointer, tap = left click, two-finger tap = right-click, two-finger slide = scroll</td><td>Small targets, selecting text</td></tr>
 </table></div>
-{{img:phone-bar|Bottom right of the phone page: Sound on, Zoom, Files, Keyboard, Settings (a made-up desktop)|300}}
-<p>Pinch to zoom the picture; a three-finger tap opens or closes the keyboard. The keyboard panel has Ctrl, Alt, Win, arrows, copy, paste and the clipboard.</p>
+{{img:phone-bar|Bottom right of the phone page: Sound on, Zoom, Files, Keyboard, Stats, Settings (a made-up desktop)|300}}
+<p>In Trackpad mode a big arrow (pink ring) shows where the PC pointer is, and a tap clicks there; if you keep tapping far from the arrow, the page offers to switch to Direct. Pinch to zoom the picture; a three-finger tap opens or closes the keyboard. The keyboard panel has Ctrl, Alt, Win, arrows, copy, paste and the clipboard.</p>
+{{img:phone-mode|The first connection: the page says Direct mode is on and offers Trackpad in one tap (a made-up desktop)|260}}
+
+<h3 id="remote-pc">From another computer’s browser</h3>
+<p>Open the same address in a browser on another computer (Chrome, Edge …) and use its mouse and keyboard: left, right and middle buttons, back / forward buttons, the wheel and dragging all go through, and a click lands where you point. You type with that computer’s own input method (Chinese, Japanese, Korean too); shortcuts (Ctrl+C, Ctrl+V, F5 …) go to the remote PC, not to the browser.</p>
+<ol class="steps">
+  <li>Move the mouse to the very top and the bar appears: <span class="ui">Full screen</span>, <span class="ui">Actual size</span> / <span class="ui">Fit window</span>, a button per screen (with two or more), <span class="ui">Game mode</span>, Alt+Tab, Win, Ctrl+Alt+Del, Ctrl+W, <span class="ui">Task Manager</span>, <span class="ui">Clipboard</span>, sound, <span class="ui">Files</span>, <span class="ui">Stats</span>, <span class="ui">Settings</span>.</li>
+  <li>In <span class="ui">Full screen</span>, Alt+Tab, Win and the like go to the remote PC as well; hold Esc to leave full screen. If the browser won’t let the page take those keys, a card says which keys don’t get through: use the bar’s buttons, or <span class="ui">Try again</span>.</li>
+  <li>Ctrl+V on this computer pastes its clipboard text on the remote PC; text copied on the remote PC comes to this computer’s clipboard.</li>
+  <li>For games or 3D programs, click <span class="ui">Game mode</span>: the mouse is locked to the picture. Esc or Ctrl+Alt+Shift+Q leaves; Ctrl+Alt+Shift+M next screen, Ctrl+Alt+Shift+S stats on / off (these three never reach the remote PC).</li>
+</ol>
+{{img:pc-bar|Another computer’s browser: the bar that appears at the top (a made-up desktop)|640}}
+<div class="ng"><b>If it doesn’t work</b><ul>
+  <li>A click does nothing and the page says “This window runs as administrator”: that program was started as administrator, so remote clicks can’t reach it. Open it normally, or run Zizai Cast as administrator.</li>
+  <li>Ctrl+Alt+Del doesn’t go through: it is Windows’ secure key and no program can send it. For Task Manager use <span class="ui">Task Manager</span> on the bar.</li>
+  <li><span class="ui">Files</span> on the bar is grey: hover over it to see why (View only, or a temporary account without files).</li>
+</ul></div>
 
 <h3 id="remote-safety">Safety</h3>
 <ul>
@@ -423,7 +440,7 @@
 </ul>
 <h3 id="remote-limits">What it can’t do</h3>
 <ul>
-  <li>Windows run as administrator, UAC prompts and the lock screen can’t be used from the phone (a Windows rule).</li>
+  <li>Windows run as administrator, UAC prompts and the lock screen can’t be used from the phone (a Windows rule); when you click one, the phone page tells you why.</li>
   <li>A PC that is off, asleep or at the sign-in screen can’t be reached. One phone at a time.</li>
 </ul>
 </section>

@@ -83,6 +83,15 @@ if(MSVC)
   target_compile_definitions(pm_funnel_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
 
+# 0.8.3.5: 允許 once per 臨時帳號 / temporary-address login, not per connection (approval_memory.h): a model of
+# the host's gate + checks that host.cpp / index.html do it that way. No network, no UI.
+add_executable(pm_approval_test tools/approval_test.cpp src/approval_memory.h)
+target_include_directories(pm_approval_test PRIVATE src)
+target_compile_definitions(pm_approval_test PRIVATE PM_REMOTE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+  target_compile_options(pm_approval_test PRIVATE /W4 /utf-8)
+endif()
+
 # 0.8.3.2: the phone's sound level (AGC / noise gate / limiter) on synthetic PCM, offline:
 # before (0.8.3.1) / after, through Opus and back. No audio device is opened.
 add_executable(pm_level_test tools/level_test.cpp src/level.h src/synth_audio.h)
@@ -93,6 +102,16 @@ if(MSVC)
   target_compile_definitions(pm_level_test PRIVATE NOMINMAX)
 endif()
 
+# 0.8.3.5: where a point of the picture lands (coords.h on single / multi-monitor layouts, the
+# injector with its SendInput stub). No window, never a real mouse / key.
+add_executable(pm_input_test tools/input_test.cpp src/coords.h)
+target_link_libraries(pm_input_test PRIVATE pm_remote)
+target_include_directories(pm_input_test PRIVATE src)
+if(MSVC)
+  target_compile_options(pm_input_test PRIVATE /W4 /utf-8)
+  target_compile_definitions(pm_input_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+endif()
+
 # 0.8.3.2: a FAKE tailscale CLI for the tests (an enable page and never exiting, silence, ...).
 # Only ever started by pm_funnel_test / --dev runs that point TailscaleFunnel at it; it is not tailscale.
 add_executable(pm_fake_tailscale tools/fake_tailscale.cpp)
@@ -100,3 +119,10 @@ if(MSVC)
   target_compile_options(pm_fake_tailscale PRIVATE /W4 /utf-8)
 endif()
 add_dependencies(pm_funnel_test pm_fake_tailscale)
+
+# 0.8.3.5 files: the 傳檔 permission table (主帳號 / 臨時帳號 / 僅觀看) and the new-account defaults; pure logic.
+add_executable(pm_fileperm_test tools/fileperm_test.cpp src/file_perm.h ${CMAKE_SOURCE_DIR}/app/guest_rights.h)
+target_include_directories(pm_fileperm_test PRIVATE src ${CMAKE_SOURCE_DIR}/app)
+if(MSVC)
+  target_compile_options(pm_fileperm_test PRIVATE /W4 /utf-8)
+endif()

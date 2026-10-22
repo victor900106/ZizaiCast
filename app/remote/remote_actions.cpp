@@ -4,6 +4,7 @@
 // 中斷 and 僅觀看, Ctrl+D (a global hotkey while a phone is connected), the
 // menu, settings.ini and the remembered phones (remote_devices.txt).
 #include "remote/remote.h"
+#include "remote/lock_policy.h"
 
 #include <bcrypt.h>
 
@@ -75,12 +76,13 @@ struct RemoteState {
     std::string fixUrl;             // https://<pc>.<tailnet>.ts.net:8443/ (or a cloudflared fallback)
     std::wstring fixErr, fixInfo;   // failed: why; info: why the cloudflared fallback is used
     std::atomic<unsigned> fixGen{0};  // a stale Funnel answer is ignored (0.8.3.1: also read by the waiting thread)
-    std::thread fixThread;          // tailscale CLI calls (a few hundred ms) off the UI thread
     std::atomic<bool> fixFunnel{false};  // port 8443 is ours (turned off at stop / quit)
-    // 0.8.3.2: the tailscale CLI only ever runs on background threads (one at a time: cliMu), never
-    // waited for on the UI thread; fixMu makes "is it still wanted? then it is ours" one step.
-    std::mutex cliMu, fixMu;
-    std::atomic<int> cliRuns{0};
+    std::string fixOrigin;          // 0.8.3.5: what our 8443 proxies to (only that is ever removed)
+    // 0.8.3.2: the tailscale CLI only ever runs on background threads, never waited for on the UI
+    // thread; fixMu makes "is it still wanted? then it is ours" one step. 0.8.3.5: the jobs run one at
+    // a time IN ORDER (pm::remote::FunnelJobs; 0.8.3.4's std::mutex let an "off" run after the next "on").
+    std::mutex fixMu;
+    ULONGLONG lastFlipMs = 0;       // 0.8.3.5: when remote control / the fixed address was last turned on or off (防抖)
     std::string fixSetupUrl;        // 0.8.3.2: the page that turns Funnel / HTTPS on for this tailnet (開啟設定頁)
     // 0.8.3.3: the address is known but not usable yet (the HTTPS certificate is still being issued):
     // fixState stays 1 until a TLS check from this PC gets an answer; the page says 正在準備網址.
@@ -265,11 +267,10 @@ std::wstring connLogText() {
 // not when the person at the PC did (中斷 / 關閉 / turned a link off). --dev instances
 // never lock (a test must not lock the owner's PC): they log what they would do.
 void lockAfterSession(const RemoteMsg& m) {
-    const bool outside = m.fixed || m.tunnel;
-    if (!(outside ? g.settings.remoteLockOutside : g.settings.remoteLockLan)) return;
+    const bool outside = m.fixed || m.tunnel;  // 臨時帳號 logins come over the fixed address: outside
     const std::string& why = m.why;
-    for (const char* pcSide : {"kicked", "host stopping", "remote control turned off", "replaced", "常駐外網 turned off", "外網連結 turned off", "denied"})
-        if (why.rfind(pcSide, 0) == 0) return;
+    // 0.8.3.5: the rule in lock_policy.h (pm_lock_default_test); both switches default off.
+    if (!shouldLockAfterSession(outside, why, g.settings.remoteLockOutside, g.settings.remoteLockLan)) return;
     if (g.dev) {
         g.log->write("info", std::string("remote: TEST STUB: would lock the PC now (") + (outside ? "from outside" : "LAN / Tailscale") +
                                  " session ended: " + why + "); --dev never calls LockWorkStation");
@@ -508,6 +509,16 @@ pm::ui::RemoteGuestPanel::Callbacks guestCallbacks() {
         row.expires = row.created + (q.life == 1 ? 3600LL : q.life == 3 ? 7 * 86400LL : 86400LL);  // 用一次: within 24 hours
         row.viewOnly = q.viewOnly, row.files = q.files;
         std::string pw = pm::remote::makeGuestPassword();
+        // rel-0835: --dev only (tutorial screenshots): an obviously made-up password from PM_TEST_GUEST_PW
+        // (e.g. ABC123, shown as 「ABC 123」), never a real-looking random one in a picture. Not in a normal run.
+        if (g.dev) {
+            wchar_t tp[16] = {};
+            const DWORD n = GetEnvironmentVariableW(L"PM_TEST_GUEST_PW", tp, 16);
+            if (n > 0 && n < 16) {
+                const std::string demo = pm::remote::guestPasswordKey(toUtf8(tp));
+                if (demo.size() == 6) pw = demo;
+            }
+        }
         row.pwHash = pm::remote::hashPassword(pm::remote::guestPasswordKey(pw));
         guestRows().push_back(row);
         saveGuests();
@@ -623,6 +634,8 @@ bool startHost() {
     if (g.dev) {  // --dev test runs: PM_REMOTE_DRYRUN=1 = input only logged (a test never moves the real mouse)
         wchar_t v[8] = {};
         if (GetEnvironmentVariableW(L"PM_REMOTE_DRYRUN", v, 8) > 0 && v[0] == L'1') o.inject = false;
+        // 0.8.3.5: PM_REMOTE_INPUTSTUB=1 = the whole injection path with a logging stub for SendInput
+        if (GetEnvironmentVariableW(L"PM_REMOTE_INPUTSTUB", v, 8) > 0 && v[0] == L'1') o.injectStub = true;
         if (GetEnvironmentVariableW(L"PM_REMOTE_TESTCLIP", v, 8) > 0 && v[0] == L'1') o.testClipboard = true;
         if (GetEnvironmentVariableW(L"PM_REMOTE_NOTS", v, 8) > 0 && v[0] == L'1') o.tailscale = false;  // as if no Tailscale
         // 0.8.3.4: PM_REMOTE_SYNTHAUDIO=<music|quiet|...> = a silent synthetic sound source: no playback device
@@ -748,32 +761,30 @@ void updateFixedPanel() {
     r.panel.setFixed(r.fixState, r.fixUrl, qr, n, r.fixInfo, r.fixErr, !g.settings.remotePwHash.empty());
 }
 
-// 0.8.3.2: never waits (0.8.3.1 joined here on the UI thread: a CLI waiting for the person to enable
-// Funnel on a web page froze the app for 30-60 s). A thread still running sees fixGen change and
-// cleans up after itself; at quit stopRemote() waits a few seconds at most, then ends the CLI.
-void joinFixThread() {
-    if (R().fixThread.joinable()) R().fixThread.detach();
-}
-
-// tailscale funnel --https=8443 off, on a background thread.
-void funnelOffAsync(const std::string& why) {
+// 0.8.3.2: the UI thread never waits for the CLI (0.8.3.1 joined here: a CLI waiting for the person to
+// enable Funnel on a web page froze the app for 30-60 s). 0.8.3.5: the jobs run in order on
+// pm::remote::FunnelJobs' one worker; a job no longer wanted when its turn comes sees fixGen changed
+// and does nothing (or undoes itself); at quit stopRemote() waits a few seconds at most, then ends the CLI.
 #ifdef PM_APP_REMOTE
-    RemoteState& r = R();
-    ++r.cliRuns;
-    std::thread([why] {
-        RemoteState& rs = R();
+// A --dev instance never runs the tailscale CLI (a test could change the owner's real Funnel): only
+// the tests' stub / fake CLI (PM_REMOTE_FUNNELSTARTING / PM_REMOTE_FAKECLI) may be run there.
+bool cliAllowed() { return !g.dev || pm::remote::TailscaleFunnel::testCliSet(); }
+#endif
+
+// tailscale funnel --https=8443 off, after every CLI job asked for before it (0.8.3.5: in order, and
+// only while 8443 still proxies to origin: what this instance set up).
+void funnelOffAsync(const std::string& why, const std::string& origin) {
+#ifdef PM_APP_REMOTE
+    pm::remote::FunnelJobs::post([why, origin] {
         std::string err;
-        bool off = false;
-        {
-            std::lock_guard<std::mutex> lk(rs.cliMu);
-            off = pm::remote::TailscaleFunnel::stop(kFixedPort, err);
-        }
-        g.log->write(off ? "info" : "warn", "remote: 常駐外網: Funnel port 8443 " + std::string(off ? "removed" : "NOT removed: " + err) + " (" + why + ")");
-        if (!off) rs.fixFunnel = true;  // still ours: tried again at the next stop / quit
-        --rs.cliRuns;
-    }).detach();
+        bool notOurs = false;
+        const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, origin, err, &notOurs);
+        g.log->write(off ? "info" : "warn", "remote: 常駐外網: Funnel port 8443 " +
+                                                std::string(notOurs ? "not ours (or already gone): left alone" : off ? "removed" : "NOT removed: " + err) + " (" + why + ")");
+        if (!off) R().fixFunnel = true;  // still ours: tried again at the next stop / quit
+    });
 #else
-    (void)why;
+    (void)why, (void)origin;
 #endif
 }
 
@@ -808,12 +819,11 @@ void stopFixed(const char* why) {
         ++r.fixGen;
         ours = r.fixFunnel.exchange(false);
     }
-    joinFixThread();
     if (r.probeStop) *r.probeStop = true, r.probeStop.reset();  // 0.8.3.3: the TLS check ends too
     r.fixPreparing = false;
     const bool was = r.fixState != 0 || ours;
 #ifdef PM_APP_REMOTE
-    if (ours && !g.dev) funnelOffAsync(why);  // 0.8.3.2: in the background (a --dev instance never set it up: see startFixed)
+    if (ours && cliAllowed()) funnelOffAsync(why, r.fixOrigin);  // 0.8.3.2: in the background (0.8.3.5: after the jobs before it)
     r.fixTunnel.stop();
     if (r.on) r.host.setFixed(false);
 #endif
@@ -828,13 +838,13 @@ void startFixed() {
     RemoteState& r = R();
     if (!r.on || g.settings.remotePwHash.empty() || g.settings.remoteFixedSecret.empty()) return;
     if (r.fixState == 1 || r.fixState == 2) return;
-    joinFixThread();
     r.host.setFixedOptions(g.settings.remotePwHash, g.settings.remoteFixedSecret, g.settings.remoteFixedNeedApproval);
     r.host.setFixedViaCloudflared(false);  // 0.8.3: Tailscale Funnel: only its X-Forwarded-For entry is believed
     r.host.setFixed(true);
     r.fixState = 1, r.fixErr.clear(), r.fixInfo.clear(), r.fixUrl.clear();
     const unsigned gen = ++r.fixGen;
     const std::string origin = r.host.fixedOrigin();
+    r.fixOrigin = origin;
     const HWND h = g.hwnd;
     g.log->write("info", "remote: 常駐外網 starting: Tailscale Funnel :8443 -> " + origin);
     // --dev tests: PM_REMOTE_FUNNELFAIL=1 = as if this tailnet had no Funnel (nothing is run).
@@ -880,11 +890,8 @@ void startFixed() {
     r.fixSetupUrl.clear();
     r.fixFake = !fakeFail && !fakeUrl.empty();
     r.fixPreparing = false;
-    ++r.cliRuns;
-    r.fixThread = std::thread([h, gen, origin, fakeFail, fakeUrl, devNoCli] {
-        struct Done {
-            ~Done() { --R().cliRuns; }
-        } done;
+    // 0.8.3.5: after every CLI job asked for before it (an "off" of a moment ago runs first).
+    pm::remote::FunnelJobs::post([h, gen, origin, fakeFail, fakeUrl, devNoCli] {
         std::string url, err = devNoCli ? std::string("--dev: the tailscale CLI is not run (PM_REMOTE_FUNNELFAKE=<url> for a made-up address)")
                                         : std::string("Funnel not available; \"funnel\" node attribute not set (test)");
         const bool fake = !fakeFail && !fakeUrl.empty();
@@ -904,7 +911,6 @@ void startFixed() {
         };
         bool ok = fake;
         if (!fake && !fakeFail && !devNoCli) {
-            std::lock_guard<std::mutex> lk(R().cliMu);  // one CLI job at a time (an off from a moment ago runs first)
             ok = R().fixGen == gen && pm::remote::TailscaleFunnel::startPatiently(kFixedPort, origin, url, err, wait);
             if (!ok && R().fixGen != gen) err = "cancelled";
         }
@@ -913,9 +919,8 @@ void startFixed() {
             std::unique_lock<std::mutex> fl(R().fixMu);
             if (R().fixGen != gen) {  // 0.8.3.2: turned off while it was starting: undone here (stopFixed did not wait)
                 fl.unlock();
-                std::lock_guard<std::mutex> lk(R().cliMu);
                 std::string e2;
-                const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, e2);
+                const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, origin, e2);
                 g.log->write("info", std::string("remote: 常駐外網: started after it was turned off: port 8443 ") + (off ? "removed again" : "NOT removed: " + e2));
                 if (!off) R().fixFunnel = true;
                 return;
@@ -1223,6 +1228,11 @@ void setRemoteImpl(bool on, bool quiet) {
         }
 #endif
         r.on = true;
+        r.lastFlipMs = GetTickCount64();
+        // 0.8.3.5: 常駐外網 = the fixed address whenever remote control is on. 0.8.3.4 brought it back only
+        // at the next start: turned off and on again (owner log 2026-10-21 21:37:24) the fixed address
+        // stayed down. (At start / 常駐外網 turned on the caller's startFixed() then finds it starting.)
+        if (g.settings.remotePersistent && !g.settings.remotePwHash.empty() && !g.settings.remoteFixedSecret.empty()) startFixed();
         remoteChanged();
         if (quiet) return;  // 常駐外網 at start: no panel, no toast
         g.window->showToast(tr(S::RemoteOnToast), 3000);
@@ -1231,6 +1241,7 @@ void setRemoteImpl(bool on, bool quiet) {
         stopTunnel("remote control turned off");
         stopFixed("remote control turned off");
         r.on = false;
+        r.lastFlipMs = GetTickCount64();
         r.ask.close(0);
         endActive("remote control turned off");
 #ifdef PM_APP_REMOTE
@@ -1615,12 +1626,42 @@ void setMutePcFrom(bool on, const std::string& who) {
     refreshIdleOptions();
 }
 
+// 0.8.3.5 防抖: a command that would turn remote control (or the fixed address) on or off again within
+// this long of the last change is dropped. The page's switch takes the 2nd click of a double click as
+// a click (vw_wndproc WM_LBUTTONDBLCLK), and the page is laid out anew under the pointer after each
+// change (e.g. 在家 ▸ 顯示 QR 碼, which turns remote control on, where something else was): owner log
+// 2026-10-21 21:37:24.314 off, 24.805 on (0.49 s, inside the double-click time). --dev tests:
+// PM_REMOTE_DEBOUNCE_MS=<n> (0 = off).
+static ULONGLONG flipDebounceMs() {
+    if (g.dev) {
+        wchar_t v[12] = {};
+        if (GetEnvironmentVariableW(L"PM_REMOTE_DEBOUNCE_MS", v, 12) > 0) return static_cast<ULONGLONG>(std::clamp(_wtoi(v), 0, 5000));
+    }
+    return std::clamp<ULONGLONG>(GetDoubleClickTime() + 200, 600, 1500);
+}
+
+// Would cmd turn remote control or the fixed address on / off (now)?
+static bool flipsOnOff(UINT cmd) {
+    const RemoteState& r = R();
+    if (cmd == CmdRemoteToggle || cmd == CmdRemotePersistent || cmd == CmdRemoteFixedToggle) return true;
+    // These turn remote control on while it is off (and do their own thing while it is on).
+    return !r.on && (cmd == CmdRemoteLanQr || cmd == CmdRemoteTsQr || cmd == CmdRemoteTempShare || cmd == CmdRemoteTunnel);
+}
+
 void remoteCommand(UINT cmd) {
     struct After {  // 0.8.2: the 遠端控制 page and the title show every change
         ~After() {
             if (!g.quitting) remoteChanged();
         }
     } after;
+    if (flipsOnOff(cmd)) {
+        const ULONGLONG now = GetTickCount64(), since = now - R().lastFlipMs, wait = flipDebounceMs();
+        if (R().lastFlipMs && wait && since < wait) {
+            g.log->write("info", "remote: command " + std::to_string(cmd) + " ignored: " + std::to_string(since) + " ms after remote control / the fixed address was turned " +
+                                     (R().on ? "on" : "off") + " (防抖 " + std::to_string(wait) + " ms: a double click, or the page moved under the pointer)");
+            return;
+        }
+    }
     // Switches the phone must not reach through the PC's menus (it could end or lock itself out).
     if ((cmd == CmdRemoteToggle && R().on) || cmd == CmdRemoteKick || cmd == CmdRemoteViewOnly ||
         (cmd == CmdRemoteTunnel && R().tunState != 0) || cmd == CmdRemotePersistent || cmd == CmdRemotePassword ||
@@ -1704,18 +1745,25 @@ void remoteCommand(UINT cmd) {
     case CmdRemoteLog:
         MessageBoxW(g.hwnd, connLogText().c_str(), tr(S::RemoteLogTitle), MB_OK | MB_ICONINFORMATION);
         break;
-    case CmdRemotePersistent: setPersistent(!g.settings.remotePersistent); break;
+    case CmdRemotePersistent:
+        setPersistent(!g.settings.remotePersistent);
+        R().lastFlipMs = GetTickCount64();
+        break;
     case CmdRemoteFixedToggle:
         if (R().fixState == 1 || R().fixState == 2) {
             stopFixed("關閉固定網址 on the page");
             g.window->showToast(tr(S::RemoteFixedOffToast), 3000);
+            R().lastFlipMs = GetTickCount64();
         } else if (g.settings.remotePwHash.empty()) {
             openPasswordPanel(false);
         } else {
-            if (!R().on) setRemoteImpl(true, true);
-            stopFixed("retry");
-            startFixed();
+            if (!R().on) setRemoteImpl(true, true);  // 0.8.3.5: with 常駐外網 this starts the fixed address already
+            if (R().fixState != 1 && R().fixState != 2) {
+                stopFixed("retry");
+                startFixed();
+            }
         }
+        R().lastFlipMs = GetTickCount64();
         break;
     case CmdRemoteTsDownload:  // 0.8.3.3 下載 Tailscale (its own download page)
         if (g.dev || g.testOffscreen) g.log->write("info", "remote: dev: would open https://tailscale.com/download/windows (not opened)");
@@ -2183,6 +2231,7 @@ void remoteStartup(bool background) {
         g.log->write("info", "remote: 常駐外網 is on: remote control + the fixed link at start");
         setRemoteImpl(true, true);
         startFixed();
+        r.lastFlipMs = 0;  // 0.8.3.5: turned on by the start, not by a click: nothing to debounce against
         return;
     }
     // A fixed link left behind (a crash, or turned off while the app was gone): 8443
@@ -2192,22 +2241,14 @@ void remoteStartup(bool background) {
     // a --dev test once removed the installed app's live fixed link this way).
     if (g.dev) return;
     const HWND h = g.hwnd;
-    ++r.cliRuns;
-    r.fixThread = std::thread([h] {
-        struct Done {
-            ~Done() { --R().cliRuns; }
-        } done;
-        std::lock_guard<std::mutex> lk(R().cliMu);  // 0.8.3.2: one CLI job at a time
-        const pm::remote::FunnelStatus st = pm::remote::TailscaleFunnel::status(kFixedPort);
-        if (!st.hasPort || st.target.rfind("http://127.0.0.2:", 0) != 0) return;
-        if (pm::remote::TailscaleFunnel::targetAnswers(st.target)) {
-            auto* m = new RemoteMsg{0, "", "", "", "", std::string("常駐外網: Funnel :8443 -> ") + st.target + " is in use by another running app: left alone"};
-            if (!PostMessageW(h, WM_PM_REMOTE, RemFixedStale, reinterpret_cast<LPARAM>(m))) delete m;
-            return;
-        }
-        std::string err;
-        const bool off = pm::remote::TailscaleFunnel::stop(kFixedPort, err);
-        auto* m = new RemoteMsg{0, "", "", "", "", std::string("常駐外網: a stale Funnel :8443 -> ") + st.target + (off ? " removed" : " NOT removed: " + err)};
+    // 0.8.3.5: TailscaleFunnel::removeStale (pm_funnel_test): only 127.0.0.2 with nothing answering, and
+    // the off only while 8443 still proxies to exactly that; in order with the other CLI jobs.
+    pm::remote::FunnelJobs::post([h] {
+        const std::string what = pm::remote::TailscaleFunnel::removeStale(kFixedPort);
+        if (what.empty()) return;
+        const std::string line = what.rfind("in-use: ", 0) == 0 ? "常駐外網: Funnel :8443 -> " + what.substr(8) + " is in use by another running app: left alone"
+                                                              : "常駐外網: a stale Funnel :8443 -> " + what;
+        auto* m = new RemoteMsg{0, "", "", "", "", line};
         if (!PostMessageW(h, WM_PM_REMOTE, RemFixedStale, reinterpret_cast<LPARAM>(m))) delete m;
     });
 #else
@@ -2221,11 +2262,11 @@ void stopRemote() {
     stopFixed("quit");  // the Funnel port goes with the app (nothing would answer behind it)
 #ifdef PM_APP_REMOTE
     if (g.quitting) {  // 0.8.3.2: the window is gone: the port off (normally < 1 s), 4 s at most, then the CLI is ended
-        for (int i = 0; i < 40 && r.cliRuns > 0; ++i) Sleep(100);
-        if (r.cliRuns > 0) {
+        for (int i = 0; i < 40 && pm::remote::FunnelJobs::pending() > 0; ++i) Sleep(100);
+        if (pm::remote::FunnelJobs::pending() > 0) {
             g.log->write("warn", "remote: a tailscale CLI run still going at quit: ended");
             pm::remote::TailscaleFunnel::cancelAll();
-            for (int i = 0; i < 20 && r.cliRuns > 0; ++i) Sleep(100);
+            for (int i = 0; i < 20 && pm::remote::FunnelJobs::pending() > 0; ++i) Sleep(100);
         }
     }
 #endif

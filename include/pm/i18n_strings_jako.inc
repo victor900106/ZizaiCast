@@ -2146,3 +2146,10 @@ PM_JAKO(RemoteTempAddrLabel, L"一時アドレス（1 回だけ使えます）",
 PM_JAKO(MenuRemoteFixedOn, L"固定アドレス（外出先からも接続可）",
         L"고정 주소(밖에서도 접속 가능)")
 // ---- end 0.8.3.4 panel ----
+
+// ---- 0.8.3.5 files ----
+PM_JAKO(RemoteGuestFilesCan0835, L"ファイル転送ができる（スマホとパソコンの双方向）",
+        L"파일 전송 가능(휴대폰과 PC 양방향)")
+PM_JAKO(RemoteGuestFilesViewOff0835, L"「表示のみ」ではファイル転送できません",
+        L"“보기만”에서는 파일 전송을 할 수 없습니다")
+// ---- end 0.8.3.5 files ----

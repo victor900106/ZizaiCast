@@ -10,6 +10,7 @@
 //   old           funnel --bg: flag provided but not defined: -bg (exit 2)
 //   needs-login   status: BackendState NeedsLogin
 //   port-taken    funnel status: 8443 already serves http://127.0.0.1:9000 (another program)
+// PM_FAKE_TS_OFF_MS=<n> (0.8.3.5): "funnel --https=8443 off" takes n ms before it removes 8443.
 // Every run appends its PID to PM_FAKE_TS_PIDS (if set), so a test can check none is left running.
 // PM_FAKE_TS_MODEFILE: the scenario is read from that file's first line instead (switched by the test).
 #include <windows.h>
@@ -82,6 +83,9 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (args == "funnel --https=8443 off") {
+        // 0.8.3.5: PM_FAKE_TS_OFF_MS = a slow "off" (the off -> on race: the app's next "on" must wait for it)
+        const std::string offMs = env("PM_FAKE_TS_OFF_MS");
+        if (!offMs.empty()) Sleep(static_cast<DWORD>(std::atoi(offMs.c_str())));
         if (!state.empty()) std::ofstream(state, std::ios::trunc) << "";
         return 0;
     }

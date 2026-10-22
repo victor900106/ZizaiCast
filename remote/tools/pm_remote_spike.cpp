@@ -61,6 +61,7 @@ void usage() {
         "  --idr S            IDR interval seconds (default 5)\n"
         "  --encoder auto|hw|sw\n"
         "  --inject           REALLY move the mouse / type (SendInput). Default: dry-run, log only\n"
+        "  --inject-stub      tests: the whole injection path, SendInput replaced by a logging stub\n"
         "  --test-window      with --inject: open a test window and inject ONLY into it\n"
         "  --approval         new devices must be allowed (the spike answers, see --approve-after / --deny)\n"
         "  --approve-after MS allow a pending device after MS ms (default 1500)\n"
@@ -337,6 +338,8 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--idr") o.idrSeconds = std::max(0.2, _wtof(next()));
         else if (a == L"--encoder") o.encoder = u8(next());
         else if (a == L"--inject") o.inject = true;
+        else if (a == L"--inject-stub") o.injectStub = true;  // 0.8.3.5: SendInput replaced by a logging stub
+        else if (a == L"--inject-stub-elevated") o.injectStubElevated = u8(next());  // 0.8.3.5: ... and every window "elevated"
         else if (a == L"--test-window") testWindow = true;
         else if (a == L"--approval") o.requireApproval = true;
         else if (a == L"--approve-after") approveAfterMs = _wtoi(next());
@@ -627,7 +630,7 @@ int wmain(int argc, wchar_t** argv) {
     host.setTunnel(false);
     if (funnelOn) {
         std::string err;
-        const bool off = pm::remote::TailscaleFunnel::stop(funnelPort, err);
+        const bool off = pm::remote::TailscaleFunnel::stop(funnelPort, host.fixedOrigin(), err);  // 0.8.3.5: only ours
         slog("fixed: funnel %d %s %s", funnelPort, off ? "OFF" : "still on!", err.c_str());
     }
     fqt.stop();
